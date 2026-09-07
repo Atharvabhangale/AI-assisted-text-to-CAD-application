@@ -58,14 +58,45 @@ deliberate: because the operation takes corners rather than a centre and
 extents, the absolute placement is expressed directly and no centring
 convention has to be assumed anywhere in the translation.
 
+### Coordinate mapping
+
+Stated per component, this is the whole of the translation:
+
 ```
-corner1 = position
-corner2 = position + size
+corner1 = ( position.x,            position.y,            position.z           )
+corner2 = ( position.x + size.x,   position.y + size.y,   position.z + size.z  )
 ```
+
+So a 100 x 60 x 10 mm box at position (10, 20, 30) becomes
+`corner1 = (10, 20, 30)` and `corner2 = (110, 80, 40)`.
+
+Nothing is centred, offset, scaled or rotated on the way through. `fCuboid`
+places the prism between the two absolute corners it is given, so the generated
+geometry represents exactly the box the V1 specification defines — no implicit
+centring is relied on anywhere.
 
 Lengths are emitted with an explicit FeatureScript unit constant
 (`* millimeter`), so the unit system travels with the geometry rather than being
-implied.
+implied. The specification's `units` field is the source of that constant; V1
+declares `"mm"`.
+
+## Generated structure
+
+The output is one complete FeatureScript document, in this order:
+
+| Part | Content |
+|------|---------|
+| 1 | Version declaration — `FeatureScript 2960;` on line 1 |
+| 2 | Standard library import — `import(path : "onshape/std/geometry.fs", version : "2960.0");` on line 2, which is what reaches `fCuboid` |
+| 3 | A `//` comment header naming the specification, part, feature id and unit system, and stating that Onshape execution is not implemented |
+| 4 | `annotation { "Feature Type Name" : ... }` followed by `export const cadCoreBox = defineFeature(function(context is Context, id is Id, definition is map)` |
+| 5 | An empty `precondition` block — the feature takes no user-facing parameters, because the geometry is fully determined by the specification |
+| 6 | A body containing exactly one call: `fCuboid(context, id + "box", { "corner1" : ..., "corner2" : ... })` |
+| 7 | Close with `});` — the one-argument `defineFeature` form |
+
+To use it, a human pastes the document into an Onshape Feature Studio, commits
+it, and inserts the resulting custom feature in a Part Studio. `fCuboid` creates
+the solid body directly, so no further operation has to be added by hand.
 
 ## Input / output boundary
 
@@ -131,6 +162,11 @@ safety:
 - **No CAD kernel, no CadQuery, no OpenCascade, no STEP/IGES/STL export.**
 - **The generated source is never executed** by this project — it is only
   produced as text.
+- **Stage 3A generates source text only.** Producing that string is the entire
+  deliverable of this stage. Nothing downstream of the text exists yet.
+- **Live Onshape compilation and execution have NOT been verified by this
+  environment.** Onshape's endpoints are unreachable here, so the document has
+  never been compiled, inserted, or rebuilt by Onshape.
 
 The tests need no Onshape account, no network connection and no browser.
 
@@ -168,9 +204,28 @@ one that asserts every identifier in the generated code (comments excluded)
 belongs to the verified set, so no unverified construct can be introduced
 without a test failing.
 
-## Remaining uncertainty
+## Known limitations
 
-Two things remain genuinely unverified. Neither is a syntax guess:
+**Scope limits** (deliberate, enforced by `UnsupportedPartError`):
+
+1. **One box, nothing else.** A cylinder, through-hole, boolean subtraction,
+   fillet, chamfer, multi-feature history or empty history is rejected. The
+   Section D example plate in `docs/cad-specification.md` is a *valid* V1 part
+   but is rejected here, because it carries four through-holes; a test asserts
+   that, so no box-only source can be emitted for it.
+2. **Millimetres only.** Any other unit system is rejected rather than
+   converted.
+3. **No user-facing parameters.** The generated feature is a fixed part, not a
+   parametric Onshape feature. Changing a dimension means regenerating from the
+   specification.
+4. **Feature ids are not carried into identifiers.** The exported feature is
+   always `cadCoreBox` and the `fCuboid` id component always the literal
+   `"box"`; the specification's feature id appears only in the display name and
+   header comment. Every id component observed in the standard library source is
+   alphanumeric (`"cuboid1"`, `"sketch"`), and specification rule S8 permits
+   hyphens, so the valid character set is not established — hence the constant.
+
+**Verification limits** — neither is a syntax guess:
 
 1. **The output has never been run.** It has not been pasted into a Feature
    Studio, compiled, or rebuilt by Onshape. Every construct is verified against
