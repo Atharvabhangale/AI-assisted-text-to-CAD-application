@@ -125,43 +125,67 @@ safety:
 - **No MCP integration.** Not implemented in this stage.
 - **The generated source has not been verified against a live Onshape account.**
   It has not been pasted into a Feature Studio, compiled, or rebuilt by Onshape
-  by this project. Its correctness rests on the specification's box semantics
-  and on Onshape's published documentation for `fCuboid`, not on observed
-  behaviour. See "Known uncertainty" below.
+  by this project. Every construct it uses is verified against the Onshape
+  standard library source (see "Verified FeatureScript evidence" below), but
+  that is not the same claim as Onshape having accepted it.
 - **No CAD kernel, no CadQuery, no OpenCascade, no STEP/IGES/STL export.**
 - **The generated source is never executed** by this project — it is only
   produced as text.
 
 The tests need no Onshape account, no network connection and no browser.
 
-## Known uncertainty
+## Verified FeatureScript evidence
 
-Onshape's documentation domains were unreachable from the environment this stage
-was built in (blocked by network policy), so the FeatureScript details below
-rest on published documentation quoted through web search rather than on a page
-read directly, and none of it has been confirmed against a live Onshape session:
+Onshape's own documentation and forum domains are unreachable from the build
+environment (blocked by network policy, confirmed against the egress proxy), so
+none of this rests on those. Instead every construct emitted by the generator
+was read directly from the **Onshape FeatureScript standard library source** at
+version **2960** — MIT licensed, "Copyright (c) 2013-Present PTC Inc." — via the
+auto-updating mirror
+[`javawizard/onshape-std-library-mirror`](https://github.com/javawizard/onshape-std-library-mirror),
+which is reachable. The library source is the authoritative definition of the
+API it declares.
 
-1. **The pinned language version.** The generated source declares
-   `FeatureScript 1890;` with a matching `version : "1890.0"` import, chosen
-   because that version appears in Onshape's own documentation examples and
-   because pinning an older released version is the mechanism by which
-   FeatureScript keeps scripts stable across releases. If a different version is
-   wanted, `FEATURESCRIPT_VERSION` in
-   `packages/cad-core/src/cad_core/featurescript.py` is the single place to
-   change it — the declaration and the import are generated from that one
-   constant.
-2. **The empty `precondition` block.** The generated custom feature takes no
-   user-facing parameters, so its `precondition` block is empty. Onshape's
-   documentation describes the precondition as a predicate whose failing
-   statements abort the feature, which implies an empty one trivially passes,
-   and a parameterless custom feature is a common pattern — but no documentation
-   page was read that states outright that an empty block is valid. This is the
-   one syntax detail most likely to need adjustment when the output is first
-   pasted into Onshape.
-3. **Very large or very small magnitudes.** A length whose shortest
-   representation uses exponent notation (for example `1e-05`) would be emitted
-   in that form. Whether FeatureScript accepts exponent notation in a numeric
-   literal has not been verified. Ordinary millimetre dimensions are unaffected.
+| Item | Evidence | Source |
+|------|----------|--------|
+| Version declaration | `FeatureScript 2960;` on line 1 — the declaration takes the bare number | `geometry.fs:1` |
+| Standard library import | `export import(path : "onshape/std/common.fs", version : "2960.0");` — an import takes `"<number>.0"`. The module documents itself: "New Feature Studios begin with an import of this module" | `geometry.fs:17`, `geometry.fs:10-11` |
+| `fCuboid` reachable via `geometry.fs` | `geometry.fs` re-exports `common.fs`, which re-exports `primitives.fs`, where `fCuboid` is defined — so the single `geometry.fs` import suffices | `geometry.fs:17`, `common.fs:61` |
+| Box creation | "Create a simple rectangular prism between two specified corners", `@field corner1 {Vector}`, `@field corner2 {Vector}`, `@eg vector(0, 0, 0) * inch` | `primitives.fs:101-118` |
+| Placement is absolute, not centred | The body sketches the rectangle on `XY_PLANE` moved to `min(corner1[2], corner2[2])` and extrudes by `abs(corner2[2] - corner1[2])` — the solid spans exactly the two world-space corners | `primitives.fs:119-141` |
+| `defineFeature` structure | `export const fCuboid = defineFeature(function(context is Context, id is Id, definition is map) precondition { ... } { ... });` | `primitives.fs:111` |
+| Empty `precondition` is valid | `dummyFeature` is a real exported feature whose precondition block is empty; and a documented "minimal example following good practices" is written `precondition {}` with a body that calls `fCuboid` | `feature.fs` (`dummyFeature`), `context.fs` |
+| One-argument `defineFeature` | `export function defineFeature(feature is function) returns function` — the trailing defaults map is optional, so closing with `});` is correct | `feature.fs:120` |
+| `millimeter` unit constant | `export const millimeter = 0.001 * meter;` | `units.fs:157` |
 
-Verifying these against a real Feature Studio is the natural first step of
-whatever stage follows.
+`fCuboid`'s own precondition requires `corner1[dim] != corner2[dim]` on all three
+axes. Specification rule **S10** (every `size` component `> 0`) guarantees that
+for any valid part, so the generator does not need to check it — the two
+contracts line up.
+
+A test class pins the generated source to each of these constructs, including
+one that asserts every identifier in the generated code (comments excluded)
+belongs to the verified set, so no unverified construct can be introduced
+without a test failing.
+
+## Remaining uncertainty
+
+Two things remain genuinely unverified. Neither is a syntax guess:
+
+1. **The output has never been run.** It has not been pasted into a Feature
+   Studio, compiled, or rebuilt by Onshape. Every construct is verified against
+   the library source, but "reads correctly against the source" is not the same
+   claim as "Onshape accepted it". Pasting it into a real Feature Studio is the
+   one check this project cannot perform.
+2. **Exponent notation for extreme magnitudes.** A length whose shortest Python
+   representation uses an exponent (for example `1e-05`) would be emitted in
+   that form, and the library source gave no example of exponent notation in a
+   numeric literal, so it is unverified. Ordinary millimetre dimensions are
+   unaffected — a test asserts integral values are written plainly (`100`, not
+   `100.0`).
+
+The pinned version is `2960` because that is the version of the library source
+the evidence above was read from. It is a single constant,
+`FEATURESCRIPT_VERSION`, in
+`packages/cad-core/src/cad_core/featurescript.py`; the declaration and the
+import are both generated from it.

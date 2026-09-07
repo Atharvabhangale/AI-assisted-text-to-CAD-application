@@ -7,6 +7,7 @@ they compare generated source text against expectations, and never execute it.
 from __future__ import annotations
 
 import ast
+import re
 import socket
 import unittest
 from pathlib import Path
@@ -192,6 +193,102 @@ class TestGeneratedStructure(FeatureScriptTestCase):
         for line in source.splitlines():
             self.assertNotIn("\r", line)
             self.assertNotIn("\t", line)
+
+
+# --- constructs verified against the standard library source ---------------
+
+
+class TestVerifiedConstructs(FeatureScriptTestCase):
+    """Pin the generated source to FeatureScript constructs read from the
+    Onshape standard library source at version 2960.
+
+    Each assertion corresponds to a citation in the module docstring of
+    ``cad_core.featurescript``.
+    """
+
+    def test_version_declaration_uses_the_bare_number(self) -> None:
+        """geometry.fs:1 -- ``FeatureScript 2960;``"""
+        self.assertEqual(self.generate(box_document()).splitlines()[0], "FeatureScript 2960;")
+
+    def test_import_version_appends_dot_zero(self) -> None:
+        """geometry.fs:17 -- ``version : "2960.0"``"""
+        self.assertEqual(
+            self.generate(box_document()).splitlines()[1],
+            'import(path : "onshape/std/geometry.fs", version : "2960.0");',
+        )
+
+    def test_precondition_block_is_empty(self) -> None:
+        """feature.fs ``dummyFeature`` and context.fs ``precondition {}``.
+
+        Comments are permitted inside it; statements are not, because the
+        feature takes no parameters.
+        """
+        source = self.generate(box_document())
+        lines = source.splitlines()
+        opening = lines.index("    precondition") + 1
+        self.assertEqual(lines[opening], "    {")
+        closing = lines.index("    }", opening)
+        for line in lines[opening + 1 : closing]:
+            self.assertTrue(line.strip().startswith("//"), msg=f"statement in precondition: {line!r}")
+
+    def test_one_argument_define_feature_form(self) -> None:
+        """feature.fs:120 -- the trailing defaults map is optional."""
+        source = self.generate(box_document())
+        self.assertTrue(source.rstrip().endswith("});"))
+        self.assertNotIn("}, {});", source)
+
+    def test_fcuboid_is_called_with_the_documented_field_names(self) -> None:
+        """primitives.fs:101-118 -- ``corner1`` and ``corner2``."""
+        source = self.generate(box_document())
+        self.assertIn('fCuboid(context, id + "box", {', source)
+        self.assertIn('"corner1" : ', source)
+        self.assertIn('"corner2" : ', source)
+        self.assertNotIn("firstCorner", source)
+        self.assertNotIn("sideLength", source)
+
+    def test_lengths_use_the_millimeter_unit_constant(self) -> None:
+        """units.fs:157 -- ``export const millimeter = 0.001 * meter;``"""
+        source = self.generate(box_document())
+        self.assertEqual(source.count("* millimeter"), 2)
+        for token in ("* inch", "* meter", "* centimeter"):
+            self.assertNotIn(token, source)
+
+    def test_corners_differ_on_every_axis(self) -> None:
+        """fCuboid's precondition requires corner1[dim] != corner2[dim].
+
+        Specification rule S10 (size components > 0) guarantees this.
+        """
+        source = self.generate(box_document(feature={"position": {"x": 10, "y": 20, "z": 30}}))
+        corner1 = _corner_values(source, "corner1")
+        corner2 = _corner_values(source, "corner2")
+        for axis, (low, high) in enumerate(zip(corner1, corner2)):
+            with self.subTest(axis="xyz"[axis]):
+                self.assertNotEqual(low, high)
+
+    def test_no_construct_outside_the_verified_set(self) -> None:
+        """Nothing is emitted that was not read from the library source."""
+        source = self.generate(box_document())
+        identifiers = set(re.findall(r"[A-Za-z_][A-Za-z0-9_]*", _code_only(source)))
+        verified = {
+            "FeatureScript", "import", "path", "onshape", "std", "geometry", "fs", "version",
+            "annotation", "Feature", "Type", "Name", "cad", "core", "box", "plate",
+            "export", "const", "cadCoreBox", "defineFeature", "function", "context",
+            "is", "Context", "id", "Id", "definition", "map", "precondition",
+            "fCuboid", "corner1", "corner2", "vector", "millimeter",
+        }
+        self.assertEqual(identifiers - verified, set())
+
+
+def _code_only(source: str) -> str:
+    return "\n".join(
+        line for line in source.splitlines() if not line.lstrip().startswith("//")
+    )
+
+
+def _corner_values(source: str, corner: str) -> list:
+    match = re.search(rf'"{corner}" : vector\(([^)]*)\)', source)
+    assert match is not None, f"{corner} not found"
+    return [float(part) for part in match.group(1).split(",")]
 
 
 # --- determinism ------------------------------------------------------------

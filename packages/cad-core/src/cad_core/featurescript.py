@@ -24,6 +24,41 @@ Determinism
 The same :class:`~cad_core.model.Part` always produces byte-identical output.
 There are no timestamps, random or generated identifiers, hostnames or
 filesystem paths in the generated source.
+
+Evidence for the FeatureScript used here
+----------------------------------------
+Every construct emitted below was read from the Onshape FeatureScript standard
+library source at version ``2960`` (MIT, Copyright (c) 2013-Present PTC Inc.),
+via the auto-updating mirror ``github.com/javawizard/onshape-std-library-mirror``:
+
+* Version declaration and import -- ``geometry.fs:1`` is
+  ``FeatureScript 2960;`` and ``geometry.fs:17`` is
+  ``export import(path : "onshape/std/common.fs", version : "2960.0");``, so the
+  declaration takes the bare number and an import takes ``"<number>.0"``.
+  ``geometry.fs`` documents itself: "New Feature Studios begin with an import of
+  this module".
+* ``fCuboid`` reachability -- ``geometry.fs:17`` re-exports ``common.fs``, and
+  ``common.fs:61`` re-exports ``primitives.fs``, which defines ``fCuboid``.
+  Importing ``geometry.fs`` alone therefore suffices.
+* ``fCuboid`` signature and semantics -- ``primitives.fs:101-118``: "Create a
+  simple rectangular prism between two specified corners", with ``@field
+  corner1 {Vector}`` / ``@field corner2 {Vector}`` and ``@eg vector(0, 0, 0) *
+  inch``.  Its body sketches the rectangle on ``XY_PLANE`` moved to
+  ``min(corner1[2], corner2[2])`` and extrudes by
+  ``abs(corner2[2] - corner1[2])`` -- absolute world-space corners, no centring.
+* Empty ``precondition`` -- ``feature.fs`` defines ``dummyFeature`` as a real
+  exported feature whose precondition block is empty, and ``context.fs``
+  documents a "minimal example following good practices" written as
+  ``precondition {}`` whose body calls ``fCuboid``.
+* One-argument ``defineFeature`` -- ``feature.fs:120``
+  ``export function defineFeature(feature is function) returns function``, so
+  the trailing defaults map is optional.
+* ``millimeter`` -- ``units.fs:157`` ``export const millimeter = 0.001 * meter;``
+
+``fCuboid``'s own precondition requires ``corner1[dim] != corner2[dim]`` on all
+three axes.  Specification rule S10 (every ``size`` component ``> 0``)
+guarantees that for any valid part, which is why this generator does not need to
+check it.
 """
 
 from __future__ import annotations
@@ -35,14 +70,16 @@ from cad_core.model import ID_PATTERN, Box, Part
 
 #: FeatureScript language version pinned in the generated source.
 #:
-#: The version declaration and the ``import`` version must agree, and pinning an
-#: older released version is the mechanism by which FeatureScript keeps a script
-#: stable across Onshape releases.  Change these two constants together to move
-#: the generated source to a different version.
-FEATURESCRIPT_VERSION = "1890"
+#: Read from the standard library itself: ``geometry.fs:1`` declares
+#: ``FeatureScript 2960;`` and its imports use ``version : "2960.0"``.  The
+#: declaration and the import version must agree, and pinning a released version
+#: is the mechanism by which FeatureScript keeps a script stable across Onshape
+#: releases.  ``fCuboid`` is present in ``primitives.fs`` at this version.
+FEATURESCRIPT_VERSION = "2960"
 
-#: Standard library module imported by the generated source.  A new Feature
-#: Studio imports this module by default; ``fCuboid`` comes from it.
+#: Standard library module imported by the generated source.  ``geometry.fs``
+#: documents itself as the module new Feature Studios import, and it reaches
+#: ``fCuboid`` by re-exporting ``common.fs``, which re-exports ``primitives.fs``.
 STANDARD_LIBRARY_PATH = "onshape/std/geometry.fs"
 
 #: Name of the exported custom feature in the generated source.
