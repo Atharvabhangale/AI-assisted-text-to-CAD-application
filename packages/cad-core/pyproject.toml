@@ -7,8 +7,14 @@ name = "cad-core"
 version = "0.1.0"
 description = "Typed representation and static validator for the V1 CAD specification"
 requires-python = ">=3.9"
-# No runtime dependencies: the standard library only. No CAD kernel, no LLM SDK.
+# No required runtime dependencies: the standard library only. The
+# specification, the validator and the FeatureScript generator need nothing.
 dependencies = []
+
+[project.optional-dependencies]
+# The local CAD engine (cad_core.local_cad) drives CadQuery over OpenCascade.
+# It is optional so that importing cad_core stays dependency-free.
+local-cad = ["cadquery>=2.8"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

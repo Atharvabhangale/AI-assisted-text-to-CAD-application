@@ -23,11 +23,17 @@ document is authoritative and this package implements schema version `1.0.0`.
   delivered through, and `cad_core.onshape_fakes` for the implementations that
   exist today (a not-configured default and a deterministic recording double).
   **Neither contacts Onshape.** See `docs/onshape-mcp-boundary.md`.
+- `cad_core.local_cad` — `build_part(part) -> LocalCadResult`, the local
+  execution backend, which builds a real B-rep solid with CadQuery over
+  OpenCascade. Requires the optional `local-cad` extra and is **not** imported
+  by the package root. See `docs/local-cad-engine.md`.
 
 ## What this package does not do
 
-It builds no geometry. There is no CAD kernel, no exporter, and no LLM
-integration, and it has **no runtime dependencies** beyond the standard library.
+There is no exporter and no LLM integration. The specification, the validator
+and the FeatureScript generator have **no runtime dependencies** beyond the
+standard library; geometry building lives behind the optional `local-cad`
+extra, so importing `cad_core` never requires a CAD kernel.
 
 FeatureScript generation produces *source text only*: nothing connects to
 Onshape, and the generated source is never executed. It has not been verified
