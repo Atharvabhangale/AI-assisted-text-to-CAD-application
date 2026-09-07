@@ -50,5 +50,7 @@ documentation.
 
 ## Status
 
-Stage 0 — project skeleton. Each directory above is a placeholder and currently
-holds only a `.gitkeep` file so the empty directory is tracked by Git.
+`docs/` holds the CAD specification contract, and `packages/cad-core` holds its
+typed representation and static validator. The other directories above are
+still placeholders, each holding only a `.gitkeep` file so the empty directory
+is tracked by Git.

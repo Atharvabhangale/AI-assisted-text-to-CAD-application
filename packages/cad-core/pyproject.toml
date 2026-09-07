@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cad-core"
+version = "0.1.0"
+description = "Typed representation and static validator for the V1 CAD specification"
+requires-python = ">=3.9"
+# No runtime dependencies: the standard library only. No CAD kernel, no LLM SDK.
+dependencies = []
+
+[tool.setuptools.packages.find]
+where = ["src"]
