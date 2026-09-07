@@ -8,9 +8,12 @@ This package implements ``docs/cad-specification.md`` schema version 1.0.0:
 * :mod:`cad_core.rules` -- rule codes and their requirement text.
 * :mod:`cad_core.geometry` -- the boundary for the geometric rules E1-E5, which
   are **not implemented**: no geometry is produced anywhere in this package.
+* :mod:`cad_core.featurescript` -- generates Onshape FeatureScript source text
+  for the supported subset (a single box). It does not talk to Onshape.
 """
 
 from cad_core.errors import ValidationError, ValidationResult
+from cad_core.featurescript import UnsupportedPartError, generate_featurescript
 from cad_core.geometry import GEOMETRIC_RULES, check_geometric_rules
 from cad_core.model import (
     AXIS_VALUES,
@@ -66,8 +69,10 @@ __all__ = [
     "Size",
     "Subtract",
     "ThroughHole",
+    "UnsupportedPartError",
     "ValidationError",
     "ValidationResult",
     "check_geometric_rules",
+    "generate_featurescript",
     "validate",
 ]

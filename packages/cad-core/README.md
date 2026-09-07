@@ -16,11 +16,18 @@ document is authoritative and this package implements schema version `1.0.0`.
 - `cad_core.errors` — `ValidationError` and `ValidationResult` records.
 - `cad_core.rules` — rule codes and their requirement text.
 - `cad_core.geometry` — the boundary for the geometric rules **E1-E5**.
+- `cad_core.featurescript` — `generate_featurescript(part) -> str`, which
+  renders Onshape FeatureScript source text for the supported subset (a single
+  box). See `docs/featurescript-generation.md`.
 
 ## What this package does not do
 
 It builds no geometry. There is no CAD kernel, no exporter, and no LLM
 integration, and it has **no runtime dependencies** beyond the standard library.
+
+FeatureScript generation produces *source text only*: nothing connects to
+Onshape, and the generated source is never executed. It has not been verified
+against a live Onshape account.
 
 The geometric rules E1-E5 require an evaluated solid and are **not
 implemented**: `cad_core.geometry.check_geometric_rules` raises
