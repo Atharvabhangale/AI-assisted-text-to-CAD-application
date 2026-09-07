@@ -10,11 +10,27 @@ This package implements ``docs/cad-specification.md`` schema version 1.0.0:
   are **not implemented**: no geometry is produced anywhere in this package.
 * :mod:`cad_core.featurescript` -- generates Onshape FeatureScript source text
   for the supported subset (a single box). It does not talk to Onshape.
+* :mod:`cad_core.onshape_adapter` -- the boundary the application will
+  eventually deliver FeatureScript through, plus :mod:`cad_core.onshape_fakes`
+  for the implementations that exist today. **Neither contacts Onshape.**
 """
 
 from cad_core.errors import ValidationError, ValidationResult
 from cad_core.featurescript import UnsupportedPartError, generate_featurescript
 from cad_core.geometry import GEOMETRIC_RULES, check_geometric_rules
+from cad_core.onshape_adapter import (
+    HANDLE_KINDS,
+    OPERATIONS,
+    AdapterResult,
+    DeliveryReport,
+    GeneratedFeatureScript,
+    Handle,
+    OnshapeAdapter,
+    OperationStatus,
+    deliver_part,
+    featurescript_for,
+)
+from cad_core.onshape_fakes import RecordingOnshapeAdapter, UnconfiguredOnshapeAdapter
 from cad_core.model import (
     AXIS_VALUES,
     CONSTRUCTIVE_TYPES,
@@ -45,34 +61,46 @@ from cad_core.validator import validate
 
 __all__ = [
     "AXIS_VALUES",
+    "AdapterResult",
     "Box",
     "CONSTRUCTIVE_TYPES",
     "Chamfer",
     "Cylinder",
     "DEFAULT_AXIS",
+    "DeliveryReport",
     "EDGE_SELECT_VALUES",
     "EdgeSelector",
     "FEATURE_TYPES",
     "Feature",
     "Fillet",
     "GEOMETRIC_RULES",
+    "GeneratedFeatureScript",
+    "HANDLE_KINDS",
+    "Handle",
     "ID_PATTERN",
     "MODIFIER_TYPES",
+    "OPERATIONS",
     "ORIGIN",
+    "OnshapeAdapter",
+    "OperationStatus",
     "Part",
     "Position",
+    "RecordingOnshapeAdapter",
     "SCHEMA_VERSION",
     "SELECTOR_AXIS_VALUES",
+    "STATIC_RULES",
     "SUPPORTED_SCHEMA_MAJOR",
     "SUPPORTED_UNITS",
-    "STATIC_RULES",
     "Size",
     "Subtract",
     "ThroughHole",
+    "UnconfiguredOnshapeAdapter",
     "UnsupportedPartError",
     "ValidationError",
     "ValidationResult",
     "check_geometric_rules",
+    "deliver_part",
+    "featurescript_for",
     "generate_featurescript",
     "validate",
 ]

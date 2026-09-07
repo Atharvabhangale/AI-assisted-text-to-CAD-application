@@ -19,6 +19,10 @@ document is authoritative and this package implements schema version `1.0.0`.
 - `cad_core.featurescript` — `generate_featurescript(part) -> str`, which
   renders Onshape FeatureScript source text for the supported subset (a single
   box). See `docs/featurescript-generation.md`.
+- `cad_core.onshape_adapter` — the boundary FeatureScript will eventually be
+  delivered through, and `cad_core.onshape_fakes` for the implementations that
+  exist today (a not-configured default and a deterministic recording double).
+  **Neither contacts Onshape.** See `docs/onshape-mcp-boundary.md`.
 
 ## What this package does not do
 
