@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Text-to-CAD viewer</title>
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <main id="app">
+      <h1>CAD build viewer</h1>
+
+      <section class="panel" aria-labelledby="document-heading">
+        <h2 id="document-heading">CAD document</h2>
+        <label for="document-input">Canonical CAD document (JSON)</label>
+        <textarea
+          id="document-input"
+          rows="16"
+          spellcheck="false"
+          aria-describedby="document-help"
+        ></textarea>
+        <p id="document-help" class="help">
+          A canonical V1 CAD document. The backend validates it; this page does
+          not.
+        </p>
+        <div class="actions">
+          <button id="load-example" type="button">Load example</button>
+          <button id="validate-button" type="button">Validate</button>
+          <button id="build-button" type="button">Build</button>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="viewer-heading">
+        <h2 id="viewer-heading">Viewport</h2>
+        <div id="viewport" class="viewport">
+          <canvas id="viewer-canvas" aria-labelledby="geometry-summary"></canvas>
+        </div>
+        <div class="actions">
+          <button id="fit-button" type="button" disabled>Fit to model</button>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="status-heading">
+        <h2 id="status-heading">Status</h2>
+        <p id="status" role="status" aria-live="polite" data-state="idle">
+          Idle. Paste a CAD document and press Build.
+        </p>
+        <ul id="errors" class="errors" hidden></ul>
+      </section>
+
+      <section class="panel" aria-labelledby="result-heading">
+        <h2 id="result-heading">Result</h2>
+        <dl id="result" class="result" hidden></dl>
+        <p id="geometry-summary" class="summary"></p>
+        <h3>Export</h3>
+        <div class="actions" id="exports">
+          <button id="export-step" type="button" hidden>Export STEP</button>
+          <button id="export-iges" type="button" hidden>Export IGES</button>
+          <button id="export-stl" type="button" hidden>Export STL</button>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

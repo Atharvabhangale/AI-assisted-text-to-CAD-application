@@ -1,0 +1,24 @@
+{
+ "valid": false,
+ "document_hash": null,
+ "name": null,
+ "feature_count": null,
+ "document": null,
+ "error": {
+  "failure": "invalid_document",
+  "message": "the CAD document violates 1 V1 rule(s): S10",
+  "output": null,
+  "rule_codes": [
+   "S10"
+  ],
+  "validation_errors": [
+   {
+    "rule": "S10",
+    "message": "size component 'x' must be > 0, got 0.0",
+    "feature_id": "p",
+    "field_path": "features[0].size.x",
+    "feature_index": 0
+   }
+  ]
+ }
+}

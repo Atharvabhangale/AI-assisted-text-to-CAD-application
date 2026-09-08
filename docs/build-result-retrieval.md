@@ -191,12 +191,15 @@ cache root, and that a retrieval builds and writes nothing.
 | `POST /build` | performs a build and returns its key. The **only** source of build keys — nothing enumerates them |
 | `GET /builds/{build_key}` | returns that build's published result, read-only |
 | `GET /artifacts/{artifact_id}` | returns one artifact's bytes, using a `logical_id` from either of the above. **Unchanged by this stage** |
+| `GET /builds/{build_key}/render` | added in Stage 25: returns that build's render model as its existing canonical JSON, for a browser viewer to draw. Read-only, keyed on the same build key, and scoped to the render artifact alone — `docs/web-application.md` |
 
 The intended flow is tested end to end for the Section D plate: build,
 retrieve by key, then download all three file artifacts and check each
 against the checksum the retrieval reported. A retrieval's `geometry` and
 `render` ids are still refused by the artifact endpoint as not downloadable —
-also tested.
+also tested, and still true after Stage 25: the render model is reached
+through its own endpoint, not by making the artifact endpoint serve in-memory
+bytes.
 
 No URL is generated anywhere in `cad_core`: a client composes
 `/artifacts/{logical_id}` itself, and the contract still invents no URL.

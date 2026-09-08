@@ -82,6 +82,7 @@ DELIVERY_STATUS: Mapping[DeliveryReason, int] = {
 RETRIEVAL_STATUS: Mapping[RetrievalReason, int] = {
     RetrievalReason.BUILD_KEY_INVALID: BAD_REQUEST_STATUS,
     RetrievalReason.BUILD_NOT_FOUND: NOT_FOUND_STATUS,
+    RetrievalReason.RENDER_NOT_AVAILABLE: NOT_FOUND_STATUS,
     RetrievalReason.RETRIEVAL_FAILED: INTERNAL_STATUS,
 }
 

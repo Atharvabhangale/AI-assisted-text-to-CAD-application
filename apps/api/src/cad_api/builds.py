@@ -27,9 +27,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Mapping, Union
+from typing import Mapping, Optional, Union
 
 from cad_core.application_service import BuildOutcome, CadApplicationService
+from cad_core.artifact_registry import (
+    CHECKSUM_ALGORITHM,
+    ArtifactKind,
+    canonical_render_bytes,
+)
 from cad_core.build_job import BUILD_KEY_LENGTH, is_build_key
 
 #: How long a build key is, from the layer that defines it.
@@ -50,6 +55,11 @@ class RetrievalReason(Enum):
     #: distinguishing them would report on the cache's contents.
     BUILD_NOT_FOUND = "build_not_found"
 
+    #: The build exists but holds no render artifact, because the build did
+    #: not request one. Distinct from a missing build, and no new disclosure:
+    #: ``GET /builds/{key}`` already says which outputs a build produced.
+    RENDER_NOT_AVAILABLE = "render_not_available"
+
     #: The retrieval layer failed unexpectedly.
     RETRIEVAL_FAILED = "retrieval_failed"
 
@@ -63,6 +73,38 @@ class RetrievalProblem:
 
     def to_payload(self) -> Mapping[str, object]:
         return {"reason": self.reason.value, "message": self.message}
+
+
+@dataclass(frozen=True)
+class RenderPayload:
+    """A build's render model, as its existing canonical JSON bytes.
+
+    :attr:`content` is exactly
+    :func:`~cad_core.artifact_registry.canonical_render_bytes` of the render
+    model the build published -- the Stage 17 definition, which is the same
+    bytes the cache stores and the same bytes the render artifact's checksum
+    was taken from. **No second serialization exists**, and nothing here
+    re-encodes or reshapes the model.
+    """
+
+    build_key: str
+    content: bytes
+
+    #: The render artifact's own SHA-256, from the manifest. ``None`` only if
+    #: the manifest somehow carried none.
+    checksum: Optional[str] = None
+
+    #: The algorithm behind :attr:`checksum`.
+    checksum_algorithm: str = CHECKSUM_ALGORITHM
+
+    @property
+    def size_bytes(self) -> int:
+        return len(self.content)
+
+    @property
+    def etag(self) -> Optional[str]:
+        """The HTTP entity tag: the render artifact's checksum, quoted."""
+        return None if self.checksum is None else f'"{self.checksum}"'
 
 
 class BuildRetriever:
@@ -110,11 +152,45 @@ class BuildRetriever:
             )
         return outcome
 
+    def retrieve_render(
+        self, build_key: str
+    ) -> Union[RenderPayload, RetrievalProblem]:
+        """Retrieve a build's render model, as canonical JSON bytes.
+
+        The same read-only retrieval as :meth:`retrieve`, narrowed to one
+        thing: **a build key and its render artifact**. There is no way to ask
+        for any other file, any other artifact or any other JSON -- the key
+        selects a validated cache entry and the render model is the only thing
+        returned from it.
+
+        **Nothing is built and nothing is written.** The bytes are the render
+        model's existing canonical serialization; this method neither defines
+        nor derives a format.
+        """
+        outcome = self.retrieve(build_key)
+        if isinstance(outcome, RetrievalProblem):
+            return outcome
+        if outcome.render_model is None:
+            return RetrievalProblem(
+                reason=RetrievalReason.RENDER_NOT_AVAILABLE,
+                message=(
+                    "this build holds no render output; request the 'render' "
+                    "output to get one"
+                ),
+            )
+        artifact = outcome.artifact(ArtifactKind.RENDER)
+        return RenderPayload(
+            build_key=outcome.build_key or build_key,
+            content=canonical_render_bytes(outcome.render_model),
+            checksum=None if artifact is None else artifact.checksum,
+        )
+
 
 __all__ = [
     "BUILD_KEY_CHARACTERS",
     "NOT_FOUND_MESSAGE",
     "BuildRetriever",
+    "RenderPayload",
     "RetrievalProblem",
     "RetrievalReason",
 ]

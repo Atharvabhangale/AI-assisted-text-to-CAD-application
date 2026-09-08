@@ -1071,6 +1071,7 @@ class TestRetrievalBoundary(unittest.TestCase):
                 [
                     "/artifacts/{artifact_id}",
                     BUILD_LOOKUP_PATH,
+                    BUILD_LOOKUP_PATH + "/render",
                     BUILD_PATH,
                     HEALTH_PATH,
                     VALIDATE_PATH,

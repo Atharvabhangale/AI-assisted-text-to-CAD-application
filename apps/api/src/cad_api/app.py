@@ -1,11 +1,12 @@
-"""The ASGI application: three routes, and no CAD logic.
+"""The ASGI application: six routes, and no CAD logic.
 
 ```
-POST /validate              ->  ValidateBody  ->  CadApiContract.validate_document_payload
-POST /build                 ->  BuildBody     ->  CadApiContract.build_document_payload
-GET  /builds/{build_key}    ->  BuildRetriever.retrieve   ->  the published result
-GET  /artifacts/{id}        ->  ArtifactResolver.resolve  ->  verified bytes
-GET  /health                ->  {"status": "ok"}
+POST /validate                     ->  ValidateBody  ->  CadApiContract.validate_document_payload
+POST /build                        ->  BuildBody     ->  CadApiContract.build_document_payload
+GET  /builds/{build_key}           ->  BuildRetriever.retrieve         ->  the published result
+GET  /builds/{build_key}/render    ->  BuildRetriever.retrieve_render  ->  canonical render JSON
+GET  /artifacts/{id}               ->  ArtifactResolver.resolve        ->  verified bytes
+GET  /health                       ->  {"status": "ok"}
 ```
 
 The two JSON routes each do four things: let Pydantic check the envelope,
@@ -17,6 +18,14 @@ The build-retrieval route does three things: hand the key to
 ``reason``, and render the result with the **same** transport-contract mapping
 the build response uses. It is read-only: nothing is built, nothing is
 written.
+
+The render route does the same three things as the retrieval route, narrowed
+to one artifact: it hands the key to
+:meth:`~cad_api.builds.BuildRetriever.retrieve_render` and returns the bytes
+it was given as JSON, with the render artifact's own SHA-256 as the entity
+tag. It defines no format -- the bytes are the render model's existing
+canonical serialization -- and takes no parameter but the build key, so it is
+not a general JSON or file endpoint. Read-only too.
 
 The artifact route does four things: hand the id to
 :class:`~cad_api.artifacts.ArtifactResolver`, choose a status from the
@@ -32,8 +41,10 @@ those modules and calls none of their names.
 **Not exposed**, and not implemented: editing, deleting, versioning or
 comparing documents; document retrieval by hash (there is no document store);
 cache or entry browsing; manifest download; FeatureScript; filesystem
-browsing; arbitrary file download; B-rep or render bytes; job control;
-authentication; anything else.
+browsing; arbitrary file download; B-rep bytes in any form; the render model
+as a *download* (``/artifacts/{id}`` still refuses it -- the render route
+above returns it as JSON instead); job control; authentication; anything
+else.
 """
 
 from __future__ import annotations
@@ -104,6 +115,11 @@ ARTIFACTS_PREFIX = "/artifacts/"
 ARTIFACT_PATH = ARTIFACTS_PREFIX + "{artifact_id}"
 BUILDS_PREFIX = "/builds/"
 BUILD_LOOKUP_PATH = BUILDS_PREFIX + "{build_key}"
+BUILD_RENDER_PATH = BUILD_LOOKUP_PATH + "/render"
+
+#: The media type of the render model: it is JSON, and the bytes are the
+#: render model's own canonical serialization.
+RENDER_CONTENT_TYPE = "application/json"
 
 #: The error for a retrieval this layer did not expect.
 RETRIEVAL_FAILED = RetrievalProblem(
@@ -302,6 +318,40 @@ def create_app(
             )
         return JSONResponse(
             status_code=OK_STATUS, content=build_response(outcome).to_payload()
+        )
+
+    @app.get(BUILD_RENDER_PATH)
+    async def get_build_render(
+        build_key: str, retriever: BuildRetriever = Depends(_retriever)
+    ) -> Response:
+        """Deliver a build's render model, for a viewer to draw.
+
+        Narrowly scoped to **a build key and its render artifact**: there is
+        no way to ask for another artifact, another file or arbitrary JSON.
+        Read-only, like every other GET here -- nothing is built and nothing
+        is written.
+
+        The body is the render model's **existing canonical JSON** (Stage 17's
+        ``canonical_render_bytes``), so no second serialization exists. The
+        entity tag is the render artifact's own SHA-256.
+
+        **200** with the model, **400** for a key that is not a build key,
+        **404** for a build that is not available or that holds no render
+        output, **500** if retrieval failed.
+        """
+        outcome = retriever.retrieve_render(build_key)
+        if isinstance(outcome, RetrievalProblem):
+            return JSONResponse(
+                status_code=status_for_retrieval(outcome.reason),
+                content={"error": dict(outcome.to_payload())},
+            )
+        headers = {"content-length": str(outcome.size_bytes)}
+        if outcome.etag is not None:
+            headers["etag"] = outcome.etag
+        return Response(
+            content=outcome.content,
+            media_type=RENDER_CONTENT_TYPE,
+            headers=headers,
         )
 
     @app.get(ARTIFACT_PATH)

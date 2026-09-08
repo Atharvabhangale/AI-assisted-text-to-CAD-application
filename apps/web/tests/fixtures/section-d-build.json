@@ -1,0 +1,123 @@
+{
+ "status": "succeeded",
+ "succeeded": true,
+ "document_hash": "2fd162f9eec5fc68abf84533d09c66bf39c514760073bba1e714c05c37cd71bc",
+ "build_key": "a6cd6fa167f396db95f7bb618a98ef9867debaecc014846264b591ac30e2ca21",
+ "execution_id": "3148b119d97c439d8b50c8131a30c574",
+ "cache_hit": false,
+ "outputs": [
+  "geometry",
+  "step",
+  "iges",
+  "stl",
+  "render"
+ ],
+ "artifacts": [
+  {
+   "kind": "geometry",
+   "format": "brep-in-memory",
+   "logical_id": "a6cd6fa167f396db95f7bb618a98ef9867debaecc014846264b591ac30e2ca21:geometry",
+   "storage": "in_memory",
+   "size_bytes": null,
+   "checksum": null,
+   "checksum_algorithm": null,
+   "measurements": {
+    "bounding_box": {
+     "maximum": {
+      "x": 100.0,
+      "y": 60.0,
+      "z": 10.0
+     },
+     "minimum": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "size": {
+      "x": 100.0,
+      "y": 60.0,
+      "z": 10.0
+     }
+    },
+    "edge_count": 24,
+    "face_count": 10,
+    "feature_id": "plate",
+    "is_solid": true,
+    "part_name": "plate-100x60x10-4holes",
+    "solid_count": 1,
+    "vertex_count": 16,
+    "volume_mm3": 57989.38070170254
+   }
+  },
+  {
+   "kind": "step",
+   "format": "step",
+   "logical_id": "a6cd6fa167f396db95f7bb618a98ef9867debaecc014846264b591ac30e2ca21:step",
+   "storage": "file",
+   "size_bytes": 30084,
+   "checksum": "3878280067a9dbe0926f800dd66af41f46a0113af1e97d60e6d6ce5226c0de95",
+   "checksum_algorithm": "sha256",
+   "measurements": {}
+  },
+  {
+   "kind": "iges",
+   "format": "iges-brep",
+   "logical_id": "a6cd6fa167f396db95f7bb618a98ef9867debaecc014846264b591ac30e2ca21:iges",
+   "storage": "file",
+   "size_bytes": 30537,
+   "checksum": "02a4f8c2f7e7200b535f508d024bcce97e3b88e1c97fd9516fdeb03e28f12fc3",
+   "checksum_algorithm": "sha256",
+   "measurements": {}
+  },
+  {
+   "kind": "stl",
+   "format": "stl-binary",
+   "logical_id": "a6cd6fa167f396db95f7bb618a98ef9867debaecc014846264b591ac30e2ca21:stl",
+   "storage": "file",
+   "size_bytes": 102284,
+   "checksum": "4b4028b57a467c60d62d0244dbc659d5902e1dde49d1d461b1739b69624c1809",
+   "checksum_algorithm": "sha256",
+   "measurements": {
+    "is_structurally_consistent": true,
+    "triangle_count": 2044
+   }
+  },
+  {
+   "kind": "render",
+   "format": "render-model",
+   "logical_id": "a6cd6fa167f396db95f7bb618a98ef9867debaecc014846264b591ac30e2ca21:render",
+   "storage": "in_memory",
+   "size_bytes": 179000,
+   "checksum": "81a9b09120d0480013f34acf25951ac6334a6c66ed50dd94bd58e1c939f784f8",
+   "checksum_algorithm": "sha256",
+   "measurements": {
+    "format_version": "1.0.0",
+    "part_name": "plate-100x60x10-4holes",
+    "feature_id": "plate",
+    "units": "mm",
+    "coordinate_system": "right_handed_z_up",
+    "winding": "counter_clockwise_outward",
+    "normal_binding": "per_vertex",
+    "vertex_count": 2048,
+    "triangle_count": 2044,
+    "bounds": {
+     "minimum": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "maximum": [
+      100.0,
+      60.0,
+      10.0
+     ]
+    },
+    "tessellation": {
+     "linear_deflection_mm": 0.01,
+     "angular_deflection_rad": 0.1
+    }
+   }
+  }
+ ],
+ "error": null
+}

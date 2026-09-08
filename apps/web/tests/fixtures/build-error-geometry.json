@@ -1,0 +1,19 @@
+{
+ "status": "failed",
+ "succeeded": false,
+ "document_hash": "93395ef2f446a52d4d26ce7d6b664c05e9fadb9038c7f6d17c19414decc5c98d",
+ "build_key": "2c5703c398d741dfecbf4f3fd0af8bb873636377ac0fece4b5f97b0e0c2ed991",
+ "execution_id": "dd394bb715b64feb88de422aaf7e9567",
+ "cache_hit": false,
+ "outputs": [],
+ "artifacts": [],
+ "error": {
+  "failure": "geometry_failed",
+  "message": "through_hole 'b': its centreline does not intersect target 'p' (rule E1); a hole that misses the material is an error, not a no-op",
+  "output": "geometry",
+  "rule_codes": [
+   "E1"
+  ],
+  "validation_errors": []
+ }
+}

@@ -2,7 +2,8 @@
 
 Status: **Stage 22 — the first HTTP transport, as a thin adapter over the
 transport-neutral contract. Stage 23 added artifact delivery, Stage 24
-read-only build retrieval. Local development only.**
+read-only build retrieval, Stage 25 the render endpoint a browser viewer
+needs. Local development only.**
 
 > **HTTP API contains no CAD business logic.**
 
@@ -58,7 +59,7 @@ extra and imported by nothing.
 
 ## Endpoints
 
-Five, and only these five.
+Six, and only these six.
 
 ### `GET /health`
 
@@ -174,6 +175,48 @@ It is **not a cache browser**: there is no listing, no enumeration, no
 manifest download and no `GET /documents/{hash}` (there is no document store).
 The full contract, the corruption behaviour and the security limits are in
 `docs/build-result-retrieval.md`.
+
+### `GET /builds/{build_key}/render`
+
+Deliver a build's **render model**, for a viewer to draw. Added in Stage 25,
+because Stage 23's artifact endpoint intentionally serves file-backed
+artifacts only and the render model has no file. **Read-only**, like every
+other GET here.
+
+```
+GET /builds/a6cd6fa1…/render
+200  application/json
+     content-length: 179000
+     etag: "<the render artifact's SHA-256>"
+     {"format_version":"1.0.0","part_name":"…","units":"mm",
+      "coordinate_system":"right_handed_z_up",
+      "winding":"counter_clockwise_outward","normal_binding":"per_vertex",
+      "vertices":[…],"triangles":[…],"normals":[…],
+      "bounds":{…},"tessellation":{…}}
+```
+
+| | |
+|---|---|
+| **path parameters** | one, and it is the build key. A test reads the OpenAPI schema and asserts exactly that |
+| **query parameters** | none. `?format=`, `?kind=`, `?file=`, `?path=` and `?artifact=` are measured to change nothing |
+| **body** | exactly `cad_core.artifact_registry.canonical_render_bytes(model)` — Stage 17's definition, the same bytes the cache stores and the same bytes the render artifact's checksum was taken from. **No second render serialization exists**; a test asserts byte equality and a second round-trips the body through `render_model_from_canonical_bytes` |
+| **Content-Type** | `application/json` — it *is* JSON, and no custom type is invented |
+| **ETag** | the render artifact's own SHA-256, quoted. Not a second hash |
+| **200** | the render model |
+| **400** | `build_key_invalid` — the parameter is not a build key |
+| **404** | `build_not_found`, *or* `render_not_available` when the build published no render output |
+| **500** | `retrieval_failed` |
+
+`render_not_available` is distinct from `build_not_found` and discloses
+nothing new: `GET /builds/{build_key}` already lists the outputs a build
+produced. A key one character away from a real one returns a body identical to
+one nothing was ever built under.
+
+**This is not a generic JSON or file-serving endpoint.** There is no
+parameter that names a file, a directory, a format or another artifact kind,
+so it cannot be used to fetch anything but one build's render model. It is
+also not a cache browser: no listing, no enumeration and no manifest
+download. Details in `docs/web-application.md`.
 
 ### `GET /artifacts/{artifact_id}`
 
@@ -421,7 +464,14 @@ cache or a path.
 - filesystem browsing or arbitrary file download — `GET /artifacts/{id}` takes
   a logical id, never a path, and can reach nothing outside a validated cache
   entry;
-- `geometry` or `render` bytes, and any B-rep endpoint;
+- **B-rep bytes, in any form** — the `geometry` artifact has no serialization
+  here and no endpoint serves one;
+- `render` bytes as a *download* — `GET /artifacts/{id}` still refuses the
+  render artifact (`artifact_not_downloadable`), because that endpoint's
+  safety argument is about files it read and verified. Stage 25 added
+  `GET /builds/{build_key}/render` instead, which returns the render model's
+  existing canonical JSON and takes no parameter but the build key. **No
+  second render serialization was invented**;
 - an artifact listing endpoint: a build response and `GET /builds/{build_key}`
   are the only sources of ids;
 - document retrieval by hash, or any document store — the system holds derived
@@ -434,8 +484,10 @@ cache or a path.
   tests assert no `WebSocket`, `BackgroundTasks`, `add_task` or `create_task`
   appears in the code;
 - CORS and any other middleware — none is added, and a test asserts
-  `add_middleware` and `CORSMiddleware` appear nowhere. When a same-origin
-  development frontend needs it, it belongs in this application's
+  `add_middleware` and `CORSMiddleware` appear nowhere. Stage 25's browser
+  frontend did **not** change that: it reaches this API through the Vite dev
+  server's `/api` proxy, so the browser sees one origin and no CORS is
+  involved. If a deployment ever needs CORS it belongs in this application's
   configuration, never in domain code.
 
 ## OpenAPI
@@ -446,7 +498,7 @@ semantics** — the transport-neutral contract is. Consequently no
 `response_model` is declared: mirroring the response DTOs in Pydantic would
 create a second definition of the contract, so the generated schema describes
 the two request envelopes (`ValidateBody`, `BuildBody`) and leaves responses
-generic. A test asserts the schema lists exactly the five routes and defines
+generic. A test asserts the schema lists exactly the six routes and defines
 no response, artifact, error or CAD model.
 
 ## Logging
@@ -485,9 +537,11 @@ in the transport layer, where a request arrives from outside.
 
 ## Not added in this stage
 
-No Docker, no production CLI, no second ASGI server, no frontend, no LLM, no
-MCP, no database, no cloud storage, no rate limiting, no background workers,
-no WebSockets, no GraphQL and no authentication. Nothing in `cad_core`
+No Docker, no production CLI, no second ASGI server, no LLM, no MCP, no
+database, no cloud storage, no rate limiting, no background workers, no
+WebSockets, no GraphQL and no authentication. Stage 25 added a browser
+frontend in `apps/web` (`docs/web-application.md`) and, in this layer, one
+route: `GET /builds/{build_key}/render`. Nothing in `cad_core`
 changed: the geometry kernel, the exporters, the render model, the build
 layer, the cache, the isolation layer, the application service and the
 transport contract are all untouched, and `docs/cad-specification.md` remains

@@ -1422,7 +1422,7 @@ print("OK")
 class TestOpenApi(ApiTestCase):
     def test_the_generated_schema_lists_only_the_declared_routes(self) -> None:
         schema = self.client().get("/openapi.json").json()
-        from cad_api.app import BUILD_LOOKUP_PATH
+        from cad_api.app import BUILD_LOOKUP_PATH, BUILD_RENDER_PATH
 
         self.assertEqual(
             sorted(schema["paths"]),
@@ -1430,6 +1430,7 @@ class TestOpenApi(ApiTestCase):
                 [
                     ARTIFACT_PATH,
                     BUILD_LOOKUP_PATH,
+                    BUILD_RENDER_PATH,
                     BUILD_PATH,
                     HEALTH_PATH,
                     VALIDATE_PATH,
