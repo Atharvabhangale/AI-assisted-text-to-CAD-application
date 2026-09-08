@@ -38,6 +38,10 @@ document is authoritative and this package implements schema version `1.0.0`.
   `LocalCadResult` to a binary STL mesh (`.stl`), plus `read_stl` and
   `binary_stl_facts`. A mesh output path, not a CAD format; independent of the
   STEP and IGES exporters. See `docs/stl-export.md`.
+- `cad_core.render_model` — `build_render_model(result) -> RenderModel`, the
+  neutral visualization contract: indexed triangles, per-vertex normals and
+  bounds as plain Python data, serializable to JSON with no kernel types. For a
+  future browser viewer or API. See `docs/render-representation.md`.
 
 ## What this package does not do
 
