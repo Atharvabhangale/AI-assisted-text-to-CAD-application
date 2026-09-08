@@ -123,29 +123,56 @@ class LocalCadResult:
     shape: Any
 
     def is_solid(self) -> bool:
-        """True if the kernel reports a topologically valid solid.
-
-        Both checks come from OpenCascade: ``ShapeType`` is the shape's real
-        topological type, and ``isValid`` runs the kernel's own validity
-        analysis. Existence of an object is never taken as evidence.
-        """
-        return self.shape.ShapeType() == "Solid" and bool(self.shape.isValid())
+        """True if the kernel reports a topologically valid solid."""
+        return shape_is_solid(self.shape)
 
     def solid_count(self) -> int:
         """Number of solids in the result, as enumerated by the kernel."""
-        return len(self.shape.Solids())
+        return shape_solid_count(self.shape)
 
     def bounding_box(self) -> BoundingBox:
         """Kernel-measured bounding box of the result."""
-        box = self.shape.BoundingBox()
-        return BoundingBox(
-            minimum=Position(x=box.xmin, y=box.ymin, z=box.zmin),
-            maximum=Position(x=box.xmax, y=box.ymax, z=box.zmax),
-        )
+        return shape_bounding_box(self.shape)
 
     def volume(self) -> float:
         """Kernel-computed volume, in the cube of the part's declared unit."""
-        return float(self.shape.Volume())
+        return shape_volume(self.shape)
+
+
+# --- kernel measurements -----------------------------------------------------
+#
+# Module-level so that anything holding a kernel shape can measure it the same
+# way -- notably the STEP exporter, which measures a re-imported shape to verify
+# a round trip. All four ask OpenCascade; none infers anything from the shape
+# merely existing.
+
+
+def shape_is_solid(shape: Any) -> bool:
+    """True if the kernel reports a topologically valid solid.
+
+    Both checks come from OpenCascade: ``ShapeType`` is the shape's real
+    topological type, and ``isValid`` runs the kernel's own validity analysis.
+    """
+    return shape.ShapeType() == "Solid" and bool(shape.isValid())
+
+
+def shape_solid_count(shape: Any) -> int:
+    """Number of solids in a shape, as enumerated by the kernel."""
+    return len(shape.Solids())
+
+
+def shape_bounding_box(shape: Any) -> BoundingBox:
+    """Kernel-measured bounding box of a shape."""
+    box = shape.BoundingBox()
+    return BoundingBox(
+        minimum=Position(x=box.xmin, y=box.ymin, z=box.zmin),
+        maximum=Position(x=box.xmax, y=box.ymax, z=box.zmax),
+    )
+
+
+def shape_volume(shape: Any) -> float:
+    """Kernel-computed volume of a shape."""
+    return float(shape.Volume())
 
 
 def build_part(part: Part) -> LocalCadResult:

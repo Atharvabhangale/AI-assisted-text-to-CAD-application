@@ -27,6 +27,9 @@ document is authoritative and this package implements schema version `1.0.0`.
   execution backend, which builds a real B-rep solid with CadQuery over
   OpenCascade. Requires the optional `local-cad` extra and is **not** imported
   by the package root. See `docs/local-cad-engine.md`.
+- `cad_core.step_export` — `export_step(result, path) -> Path`, writing a
+  `LocalCadResult` to a STEP file (`.step` / `.stp`), plus `read_step` for
+  round-trip verification. See `docs/step-export.md`.
 
 ## What this package does not do
 
