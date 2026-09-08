@@ -692,6 +692,123 @@ def build_manifest(
     )
 
 
+# --- reading a manifest back ------------------------------------------------
+
+
+def artifact_from_dict(record: Mapping[str, Any]) -> Artifact:
+    """Rebuild an :class:`Artifact` from :meth:`Artifact.to_dict`.
+
+    The exact inverse, defined beside it so the two directions cannot drift.
+    Needed wherever a manifest crosses a boundary a Python object cannot --
+    :mod:`cad_core.isolated_execution` carries one between processes.
+
+    Strict, like :func:`cad_core.serialization.deserialize_part`: the record's
+    fields must be exactly the ones :meth:`Artifact.to_dict` writes, and the
+    identity, format, storage kind and checksum algorithm it claims must be
+    the ones this layer defines for that kind. **Nothing is repaired and
+    nothing is inferred** -- a record that disagrees with itself is an error.
+
+    This reader does not touch the filesystem: it does not check that a
+    file-backed artifact's path exists, and it recomputes no checksum. A
+    caller that received the record from somewhere it does not control should
+    verify the bytes itself.
+
+    Raises:
+        ArtifactError: if the record is not one this layer wrote.
+    """
+    if not isinstance(record, Mapping):
+        raise ArtifactError(
+            f"an artifact record must be a mapping; got {type(record).__name__}"
+        )
+    if set(record) != set(_ARTIFACT_RECORD_FIELDS):
+        missing = sorted(set(_ARTIFACT_RECORD_FIELDS) - set(record))
+        unknown = sorted(set(record) - set(_ARTIFACT_RECORD_FIELDS))
+        raise ArtifactError(
+            f"an artifact record's fields are not an Artifact's: missing "
+            f"{missing}, unknown {unknown}"
+        )
+    try:
+        kind = ArtifactKind(record["kind"])
+    except ValueError:
+        raise ArtifactError(f"unknown artifact kind {record['kind']!r}") from None
+    if record["output"] != record["kind"]:
+        raise ArtifactError(
+            "an artifact record's 'output' and 'kind' disagree"
+        )
+    if record["format"] != KIND_FORMATS[kind]:
+        raise ArtifactError(
+            f"a {kind.value} artifact's format is {KIND_FORMATS[kind]!r}; the "
+            f"record says {record['format']!r}"
+        )
+    if record["storage"] != KIND_STORAGE[kind].value:
+        raise ArtifactError(
+            f"a {kind.value} artifact is {KIND_STORAGE[kind].value}; the "
+            f"record says {record['storage']!r}"
+        )
+    document_hash = record["document_hash"]
+    build_key = record["build_key"]
+    if record["logical_id"] != artifact_logical_id(build_key, kind):
+        raise ArtifactError(
+            "an artifact record's logical id is not its own build's"
+        )
+    checksum = record["checksum"]
+    algorithm = record["checksum_algorithm"]
+    if checksum is None and algorithm is not None:
+        raise ArtifactError(
+            f"the {kind.value} record names a checksum algorithm but no checksum"
+        )
+    if checksum is not None and algorithm != CHECKSUM_ALGORITHM:
+        raise ArtifactError(
+            f"a checksum is {CHECKSUM_ALGORITHM}; the {kind.value} record "
+            f"says {algorithm!r}"
+        )
+    extension = record["file_extension"]
+    if extension is not None and extension not in KIND_EXTENSIONS.get(kind, ()):
+        raise ArtifactError(
+            f"a {kind.value} artifact is not written as {extension!r}"
+        )
+    details = record["details"]
+    if not isinstance(details, Mapping):
+        raise ArtifactError(f"the {kind.value} record's details are not a mapping")
+    return Artifact(
+        kind=kind,
+        format=record["format"],
+        document_hash=document_hash,
+        build_key=build_key,
+        storage=KIND_STORAGE[kind],
+        path=record["path"],
+        file_extension=extension,
+        size_bytes=record["size_bytes"],
+        checksum=checksum,
+        details=dict(details),
+    )
+
+
+def manifest_from_dict(payload: Mapping[str, Any]) -> ArtifactManifest:
+    """Rebuild an :class:`ArtifactManifest` from :meth:`ArtifactManifest.to_dict`.
+
+    Strict in the same way as :func:`artifact_from_dict`, and the manifest's
+    own consistency checks then apply: one artifact per kind, and every
+    artifact naming this manifest's build and document.
+    """
+    if not isinstance(payload, Mapping):
+        raise ArtifactError(
+            f"a manifest must be a mapping; got {type(payload).__name__}"
+        )
+    if set(payload) != {"document_hash", "build_key", "artifacts"}:
+        raise ArtifactError(
+            "a manifest's fields are document_hash, build_key, artifacts"
+        )
+    records = payload["artifacts"]
+    if not isinstance(records, (list, tuple)):
+        raise ArtifactError("a manifest's artifacts are a list")
+    return ArtifactManifest(
+        document_hash=payload["document_hash"],
+        build_key=payload["build_key"],
+        artifacts=tuple(artifact_from_dict(record) for record in records),
+    )
+
+
 # --- internals --------------------------------------------------------------
 
 
@@ -707,6 +824,25 @@ def _canonical_json(structure: Mapping[str, Any]) -> bytes:
 
 def _vector(value: Any) -> Dict[str, float]:
     return {"x": value.x, "y": value.y, "z": value.z}
+
+
+#: The keys :meth:`Artifact.to_dict` writes. Read back strictly, so a new
+#: field cannot be silently dropped by the reader.
+_ARTIFACT_RECORD_FIELDS: Tuple[str, ...] = (
+    "kind",
+    "output",
+    "format",
+    "storage",
+    "logical_id",
+    "document_hash",
+    "build_key",
+    "path",
+    "file_extension",
+    "size_bytes",
+    "checksum",
+    "checksum_algorithm",
+    "details",
+)
 
 
 #: The keys :meth:`RenderModel.to_dict` writes. Read back strictly, so a new
@@ -774,10 +910,12 @@ __all__ = [
     "ArtifactManifest",
     "ArtifactPublicationError",
     "ArtifactStorage",
+    "artifact_from_dict",
     "artifact_logical_id",
     "build_manifest",
     "canonical_render_bytes",
     "file_checksum",
+    "manifest_from_dict",
     "publish_file_artifact",
     "publish_geometry_artifact",
     "publish_render_artifact",
