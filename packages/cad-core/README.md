@@ -30,6 +30,10 @@ document is authoritative and this package implements schema version `1.0.0`.
 - `cad_core.step_export` — `export_step(result, path) -> Path`, writing a
   `LocalCadResult` to a STEP file (`.step` / `.stp`), plus `read_step` for
   round-trip verification. See `docs/step-export.md`.
+- `cad_core.iges_export` — `export_iges(result, path) -> Path`, writing a
+  `LocalCadResult` to an IGES file (`.igs` / `.iges`) via OpenCascade directly,
+  plus `read_iges`. Independent of the STEP exporter. See
+  `docs/iges-export.md`.
 
 ## What this package does not do
 
