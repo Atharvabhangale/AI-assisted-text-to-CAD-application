@@ -28,8 +28,9 @@ and inspect the resulting CAD model.
 
 ### apps/api
 
-Reserved for the backend API that will sit between the frontend and the CAD
-generation engine.
+A thin HTTP transport (FastAPI) over `cad-core`'s application service:
+`POST /validate`, `POST /build`, `GET /health`. It contains no CAD business
+logic — see `docs/http-api.md`.
 
 ### packages/cad-core
 
@@ -50,7 +51,10 @@ documentation.
 
 ## Status
 
-`docs/` holds the CAD specification contract, and `packages/cad-core` holds its
-typed representation and static validator. The other directories above are
-still placeholders, each holding only a `.gitkeep` file so the empty directory
-is tracked by Git.
+`docs/` holds the CAD specification contract and the architecture notes.
+`packages/cad-core` holds the typed representation, the static validator, the
+local CAD engine, the exporters, the build and cache layers, the isolated
+execution boundary, the application service and the transport-neutral API
+contract. `apps/api` holds a thin HTTP transport over that contract
+(`docs/http-api.md`). `apps/web` and `tests/` are still placeholders, each
+holding only a `.gitkeep` file so the empty directory is tracked by Git.

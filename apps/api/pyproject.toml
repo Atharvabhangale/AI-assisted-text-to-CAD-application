@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cad-api"
+version = "0.1.0"
+description = "Thin HTTP transport over the cad-core application service"
+requires-python = ">=3.9"
+# The minimum this transport needs, and nothing else. FastAPI brings Starlette
+# and Pydantic with it; no client, database, cache or auth library is used.
+dependencies = [
+    "cad-core",
+    "fastapi>=0.141",
+]
+
+[project.optional-dependencies]
+# Starlette's TestClient needs an HTTP client. This Starlette (1.6.0) asks for
+# httpx2 and deprecates httpx, measured from its own warning.
+test = ["httpx2>=2.12"]
+# Serving is not part of this stage; one ASGI server, declared and not used by
+# any import in this package.
+serve = ["uvicorn>=0.30"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
