@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "cad-api"
 version = "0.1.0"
-description = "Thin HTTP transport over the cad-core application service"
+description = "HTTP transport and AI interpretation layer over cad-core"
 requires-python = ">=3.9"
 # The minimum this transport needs, and nothing else. FastAPI brings Starlette
 # and Pydantic with it; no client, database, cache or auth library is used.
@@ -21,6 +21,12 @@ test = ["httpx2>=2.12"]
 # Serving is not part of this stage; one ASGI server, declared and not used by
 # any import in this package.
 serve = ["uvicorn>=0.30"]
+# The natural-language interpretation layer (cad_ai). One provider SDK, and
+# nothing else: no agent framework, no vector store, no orchestration library.
+# Optional so that the HTTP transport and cad-core install without it, and so
+# that importing cad_ai needs no SDK -- the import is lazy, inside
+# cad_ai.anthropic_provider.
+ai = ["anthropic>=1.4"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
