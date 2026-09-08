@@ -718,8 +718,10 @@ class TestBoundaries(ThroughHoleTestCase):
                 Fillet(
                     id="round",
                     target="plate",
+                    # X, not Z: a Z selection here also matches the cavity
+                    # seam, which the kernel will not blend (rule E5).
                     radius=2.0,
-                    edges=EdgeSelector(select="axis_parallel", axis="Z"),
+                    edges=EdgeSelector(select="axis_parallel", axis="X"),
                 ),
             ),
         )

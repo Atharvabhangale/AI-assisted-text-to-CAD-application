@@ -733,11 +733,15 @@ class TestCylinderSeam(FilletTestCase):
         self.assertEqual(edge_curve_type(selected[0]), "GeomAbs_Line")
 
     def test_filleting_the_seam_alone_is_refused(self) -> None:
-        """Measured outcome: the kernel raises, and it is reported as E5.
+        """Measured outcome: the kernel will not blend a seam, and E5 is
+        reported.
 
-        ``BRepFilletAPI_MakeFillet.Build()`` throws ``Standard_Failure`` for
-        this contour at every radius tried (0.5 and 2.0 mm). The engine does
-        not swallow it and does not return the unfilleted cylinder.
+        Two independent measurements say the same thing. The builder takes the
+        seam into **no contour** (Stage 14.1's coverage check catches this
+        first), and if it is asked to build anyway
+        ``BRepFilletAPI_MakeFillet.Build()`` throws ``Standard_Failure``. The
+        engine does not swallow either and does not return the unfilleted
+        cylinder.
         """
         for radius in (0.5, 2.0):
             with self.subTest(radius=radius):
@@ -753,7 +757,8 @@ class TestCylinderSeam(FilletTestCase):
                     )
                 message = str(caught.exception)
                 self.assertIn("E5", message)
-                self.assertIn("refused", message)
+                self.assertIn("did not accept", message)
+                self.assertIn("accepted 0 of the 1", message)
 
     def test_the_raise_is_a_kernel_measurement(self) -> None:
         from OCP.BRepFilletAPI import BRepFilletAPI_MakeFillet
@@ -766,34 +771,64 @@ class TestCylinderSeam(FilletTestCase):
             builder.Build()
         self.assertEqual(type(caught.exception).__name__, "Standard_Failure")
 
-    def test_select_all_on_a_cylinder_does_succeed(self) -> None:
-        """Measured, and initially surprising: the seam is in this selection.
+    def test_select_all_on_a_cylinder_is_refused(self) -> None:
+        """The seam is in that selection, and the kernel would ignore it.
 
-        With both circular rims included the blend resolves, giving a cylinder
-        with two rounded rims: 5 faces, one valid solid. Recorded as an
-        observation about the kernel, not a rule.
+        Stage 13 accepted this and reported success; Stage 14.1 refuses it,
+        because ignoring a matched edge is exactly what must not happen
+        silently. The cost is recorded in the next test rather than hidden.
         """
-        result = self.build_document(
-            document(
-                [
-                    cylinder_feature(),
-                    fillet_feature(radius=1.0, select="all", target="pin"),
-                ],
-                "rounded-pin",
+        with self.assertRaises(GeometryOperationError) as caught:
+            self.build_document(
+                document(
+                    [
+                        cylinder_feature(),
+                        fillet_feature(radius=1.0, select="all", target="pin"),
+                    ],
+                    "rounded-pin",
+                )
             )
-        )
-        self.assertTrue(result.is_solid())
-        self.assertEqual(result.solid_count(), 1)
-        self.assertEqual(len(result.shape.Faces()), 5)
-        self.assertLess(result.volume(), math.pi * 10.0**2 * 50.0)
-        self.assertEqual(result.feature_id, "pin")
+        message = str(caught.exception)
+        self.assertIn("E5", message)
+        self.assertIn("accepted 2 of the 3", message)
+
+    def test_the_kernel_would_have_succeeded_on_its_own(self) -> None:
+        """What the strict rule costs, measured so it is visible.
+
+        Left to itself the builder blends both circular rims and ignores the
+        seam, giving a valid solid with 5 faces. That is a perfectly good
+        shape -- it just is not the shape the selector asked for.
+        """
+        import cadquery as cq
+        from OCP.BRepFilletAPI import BRepFilletAPI_MakeFillet
+
+        shape = self.build_document(document([cylinder_feature()], "pin")).shape
+        edges = select_edges(shape, EdgeSelector(select="all"))
+        self.assertEqual(len(edges), 3)
+        builder = BRepFilletAPI_MakeFillet(shape.wrapped)
+        for edge in edges:
+            builder.Add(1.0, edge.wrapped)
+        self.assertEqual(builder.NbContours(), 2)  # the seam contributed none
+        builder.Build()
+        self.assertTrue(builder.IsDone())
+        result = cq.Shape.cast(builder.Shape())
+        self.assertEqual(len(result.Solids()), 1)
+        self.assertTrue(result.isValid())
+        self.assertEqual(len(result.Faces()), 5)
+        self.assertLess(result.Volume(), math.pi * 10.0**2 * 50.0)
 
 
 # --- the drilled plate -----------------------------------------------------
 
 
 class TestDrilledPlate(FilletTestCase):
-    """100x60x10 plate with one 20 mm through-hole, then filleted."""
+    """100x60x10 plate with one 20 mm through-hole, then filleted.
+
+    The cavity's parameterisation seam is matched by ``axis_parallel Z`` and by
+    ``all``, and the kernel will not blend it -- so since Stage 14.1 both of
+    those selections are refused with E5, while ``axis_parallel X`` and ``Y``
+    work. The selector output is never filtered by hand.
+    """
 
     def drilled(self) -> LocalCadResult:
         return self.build_document(
@@ -820,44 +855,110 @@ class TestDrilledPlate(FilletTestCase):
         )
         self.assertEqual(len(selected), 5)
 
-    def test_the_vertical_fillet_succeeds_with_the_seam_included(self) -> None:
-        """The seam is not excluded from the selector, and the blend works."""
-        result = self.filleted()
-        self.assertTrue(result.is_solid())
-        self.assertEqual(result.solid_count(), 1)
-        self.assertEqual(result.feature_id, "plate")
+    def test_the_seam_is_the_edge_the_kernel_will_not_blend(self) -> None:
+        """The measurement behind the rule, taken first-hand."""
+        from OCP.BRepFilletAPI import BRepFilletAPI_MakeFillet
 
-    def test_volume_shows_the_seam_blend_removed_nothing(self) -> None:
-        """Measured and then explained, not the other way round.
-
-        The result equals the drilled volume minus exactly the four corner
-        blends -- so blending the cavity seam changed no material. That is
-        consistent with the cylindrical face being smooth across its own
-        parameterisation seam.
-        """
-        result = self.filleted()
+        shape = self.drilled().shape
+        edges = select_edges(shape, EdgeSelector(select="axis_parallel", axis="Z"))
+        builder = BRepFilletAPI_MakeFillet(shape.wrapped)
+        for edge in edges:
+            builder.Add(FILLET_RADIUS, edge.wrapped)
+        taken = [
+            builder.Edge(contour, position)
+            for contour in range(1, builder.NbContours() + 1)
+            for position in range(1, builder.NbEdges(contour) + 1)
+        ]
+        self.assertEqual(len(taken), 4)
+        dropped = [
+            edge
+            for edge in edges
+            if not any(edge.wrapped.IsSame(other) for other in taken)
+        ]
+        self.assertEqual(len(dropped), 1)
+        # ... and it is the one on the hole wall.
         self.assertAlmostEqual(
-            result.volume(), DRILLED_VOLUME - CORNER_LOSS, delta=VOLUME_TOLERANCE_MM3
+            math.hypot(
+                dropped[0].startPoint().x - HOLE_CENTRE[0],
+                dropped[0].startPoint().y - HOLE_CENTRE[1],
+            ),
+            HOLE_DIAMETER / 2.0,
+            delta=TOLERANCE_MM,
         )
 
-    def test_topology_shows_the_seam_blend_added_no_face(self) -> None:
-        """7 faces + 4 corner blends = 11. The seam contributed none."""
-        drilled, filleted = self.drilled(), self.filleted()
-        self.assertEqual(len(drilled.shape.Faces()), 7)
-        self.assertEqual(len(filleted.shape.Faces()), 11)
-        self.assertEqual(len(filleted.shape.Edges()), 27)
-        self.assertEqual(len(filleted.shape.Vertices()), 18)
+    def test_the_vertical_selection_is_refused(self) -> None:
+        """Stage 13 accepted this and quietly ignored the seam."""
+        with self.assertRaises(GeometryOperationError) as caught:
+            self.filleted()
+        message = str(caught.exception)
+        self.assertIn("E5", message)
+        self.assertIn("accepted 4 of the 5", message)
+        self.assertIn("'round'", message)
+
+    def test_select_all_is_refused_for_the_same_reason(self) -> None:
+        with self.assertRaises(GeometryOperationError) as caught:
+            self.filleted(radius=1.0, select="all")
+        message = str(caught.exception)
+        self.assertIn("E5", message)
+        self.assertIn("accepted 14 of the 15", message)
+
+    def test_no_geometry_escapes_a_refused_selection(self) -> None:
+        for overrides in ({}, {"select": "all", "radius": 1.0}):
+            with self.subTest(overrides=overrides):
+                with self.assertRaises(GeometryOperationError):
+                    self.filleted(**overrides)
+
+    def test_the_horizontal_selections_succeed(self) -> None:
+        """No seam is parallel to X or Y, so coverage is complete.
+
+        Volume from geometry: the drilled volume minus four corner blends over
+        the full edge length.
+        """
+        for axis, length in (("X", PLATE_SIZE[0]), ("Y", PLATE_SIZE[1])):
+            with self.subTest(axis=axis):
+                result = self.filleted(radius=FILLET_RADIUS, axis=axis)
+                self.assertTrue(result.is_solid())
+                self.assertEqual(result.solid_count(), 1)
+                self.assertEqual(result.feature_id, "plate")
+                expected = DRILLED_VOLUME - 4.0 * (
+                    FILLET_RADIUS**2 - math.pi * FILLET_RADIUS**2 / 4.0
+                ) * length
+                self.assertAlmostEqual(
+                    result.volume(), expected, delta=VOLUME_TOLERANCE_MM3
+                )
+
+    def test_the_horizontal_blends_are_real_cylindrical_faces(self) -> None:
+        """Four blends of the requested radius, with axes along X."""
+        result = self.filleted(axis="X")
+        blends = [
+            surface
+            for surface in self.cylindrical_faces(result.shape)
+            if abs(surface.Cylinder().Radius() - FILLET_RADIUS) <= RADIUS_TOLERANCE_MM
+        ]
+        self.assertEqual(len(blends), 4)
+        seen = set()
+        for surface in blends:
+            direction = surface.Cylinder().Axis().Direction()
+            self.assertAlmostEqual(abs(direction.X()), 1.0, delta=RADIUS_TOLERANCE_MM)
+            location = surface.Cylinder().Axis().Location()
+            seen.add((round(location.Y(), 6), round(location.Z(), 6)))
+        self.assertEqual(seen, {(2.0, 2.0), (2.0, 8.0), (58.0, 2.0), (58.0, 8.0)})
+
+    def test_topology_of_a_horizontal_fillet(self) -> None:
+        result = self.filleted(axis="X")
+        self.assertEqual(len(result.shape.Faces()), 11)
+        self.assertEqual(len(result.shape.Edges()), 27)
+        self.assertEqual(len(result.shape.Vertices()), 18)
         self.assertEqual(
-            self.surface_census(filleted.shape),
+            self.surface_census(result.shape),
             {"GeomAbs_Plane": 6, "GeomAbs_Cylinder": 5},
         )
 
     def test_the_hole_survives_the_fillet(self) -> None:
         """The cavity is still there, still 20 mm, still through."""
-        import cadquery as cq
         from OCP.TopAbs import TopAbs_State
 
-        result = self.filleted()
+        result = self.filleted(axis="X")
         walls = [
             surface
             for surface in self.cylindrical_faces(result.shape)
@@ -871,50 +972,342 @@ class TestDrilledPlate(FilletTestCase):
                     TopAbs_State.TopAbs_OUT,
                 )
 
-    def test_the_corners_are_rounded_at_the_requested_radius(self) -> None:
-        result = self.filleted()
-        blends = [
-            surface
-            for surface in self.cylindrical_faces(result.shape)
-            if abs(surface.Cylinder().Radius() - FILLET_RADIUS) <= RADIUS_TOLERANCE_MM
-        ]
-        self.assertEqual(len(blends), 4)
-        seen = {
-            (
-                round(surface.Cylinder().Axis().Location().X(), 6),
-                round(surface.Cylinder().Axis().Location().Y(), 6),
-            )
-            for surface in blends
-        }
-        self.assertEqual(seen, set(EXPECTED_BLEND_AXES))
-
-    def test_select_all_with_a_small_radius_succeeds(self) -> None:
-        result = self.filleted(radius=1.0, select="all")
-        self.assertTrue(result.is_solid())
-        self.assertEqual(result.solid_count(), 1)
-        self.assertEqual(len(result.shape.Faces()), 29)
-        self.assertEqual(len(result.shape.Edges()), 55)
-        self.assertEqual(len(result.shape.Vertices()), 28)
-        self.assertLess(result.volume(), DRILLED_VOLUME)
-
-    def test_select_all_rounds_the_hole_rims_too(self) -> None:
-        """With ``all`` the rims *are* selected, and they are toroidal blends."""
-        result = self.filleted(radius=1.0, select="all")
-        census = self.surface_census(result.shape)
-        self.assertEqual(census.get("GeomAbs_Torus"), 2)
-        self.assertGreater(census.get("GeomAbs_Cylinder", 0), 0)
-
-    def test_the_horizontal_selectors_also_work(self) -> None:
-        for axis in ("X", "Y"):
-            with self.subTest(axis=axis):
-                result = self.filleted(radius=2.0, axis=axis)
-                self.assertTrue(result.is_solid())
-                self.assertEqual(result.solid_count(), 1)
-
     def test_bounding_box_extents_are_unchanged(self) -> None:
-        box = self.filleted().bounding_box()
+        box = self.filleted(axis="X").bounding_box()
         self.assertTripleAlmostEqual(box.minimum, EXPECTED_MINIMUM)
         self.assertTripleAlmostEqual(box.maximum, EXPECTED_MAXIMUM)
+
+    def test_the_selector_output_was_not_filtered(self) -> None:
+        """The engine passes exactly what the selector returned."""
+        shape = self.drilled().shape
+        for selector, expected in (
+            (EdgeSelector(select="axis_parallel", axis="Z"), 5),
+            (EdgeSelector(select="all"), 15),
+            (EdgeSelector(select="axis_parallel", axis="X"), 4),
+        ):
+            with self.subTest(selector=selector):
+                self.assertEqual(len(select_edges(shape, selector)), expected)
+
+
+# --- the coverage invariant (Stage 14.1) -----------------------------------
+
+
+class TestCoverageInvariant(FilletTestCase):
+    """Selected edge set must equal the kernel's accepted edge set.
+
+    The selector is literal about what a V1 selector names (Section C.7), and
+    the kernel is the authority on what it will blend. When those disagree the
+    whole fillet fails with E5 rather than quietly rounding the subset that
+    happens to work -- the same invariant ``chamfer`` has had since Stage 14.
+    """
+
+    def coverage(
+        self, shape: Any, selector: EdgeSelector, radius: float = FILLET_RADIUS
+    ):
+        """Return ``(selected, accepted)`` from the builder's own tables.
+
+        Uses ``NbContours`` / ``NbEdges`` / ``Edge`` and ``IsSame``, which is
+        exactly what the engine uses -- so a test failure here means the
+        engine's premise changed, not that the test drifted.
+        """
+        from OCP.BRepFilletAPI import BRepFilletAPI_MakeFillet
+
+        edges = select_edges(shape, selector)
+        builder = BRepFilletAPI_MakeFillet(shape.wrapped)
+        for edge in edges:
+            builder.Add(radius, edge.wrapped)
+        taken = [
+            builder.Edge(contour, position)
+            for contour in range(1, builder.NbContours() + 1)
+            for position in range(1, builder.NbEdges(contour) + 1)
+        ]
+        accepted = sum(
+            1 for edge in edges if any(edge.wrapped.IsSame(other) for other in taken)
+        )
+        return len(edges), accepted
+
+    def cylinder(self) -> LocalCadResult:
+        return self.build_document(document([cylinder_feature()], "pin"))
+
+    def drilled(self) -> LocalCadResult:
+        return self.build_document(
+            document([plate_feature(), hole_feature()], "drilled")
+        )
+
+    # --- cases where coverage is complete: these must still succeed --------
+
+    def test_box_vertical_edges_are_fully_accepted(self) -> None:
+        selected, accepted = self.coverage(
+            self.plain_plate().shape, EdgeSelector(select="axis_parallel", axis="Z")
+        )
+        self.assertEqual((selected, accepted), (4, 4))
+        result = self.build()
+        self.assertTrue(result.is_solid())
+        self.assertAlmostEqual(
+            result.volume(), EXPECTED_Z_VOLUME, delta=VOLUME_TOLERANCE_MM3
+        )
+
+    def test_box_all_edges_are_fully_accepted(self) -> None:
+        selected, accepted = self.coverage(
+            self.plain_plate().shape, EdgeSelector(select="all")
+        )
+        self.assertEqual((selected, accepted), (12, 12))
+        result = self.build_document(
+            document(
+                [plate_feature(), fillet_feature(select="all")], "rounded-box"
+            )
+        )
+        self.assertTrue(result.is_solid())
+        self.assertAlmostEqual(
+            result.volume(),
+            rounded_box_volume(PLATE_SIZE, FILLET_RADIUS),
+            delta=VOLUME_TOLERANCE_MM3,
+        )
+
+    def test_drilled_plate_horizontal_edges_are_fully_accepted(self) -> None:
+        """A seam elsewhere on the shape must not block an unrelated fillet."""
+        for axis in ("X", "Y"):
+            with self.subTest(axis=axis):
+                selected, accepted = self.coverage(
+                    self.drilled().shape,
+                    EdgeSelector(select="axis_parallel", axis=axis),
+                )
+                self.assertEqual((selected, accepted), (4, 4))
+
+    # --- cases where the kernel drops an edge: these must now fail E5 -----
+
+    def test_drilled_plate_vertical_selection_is_incomplete(self) -> None:
+        selected, accepted = self.coverage(
+            self.drilled().shape, EdgeSelector(select="axis_parallel", axis="Z")
+        )
+        self.assertEqual((selected, accepted), (5, 4))
+
+    def test_drilled_plate_all_selection_is_incomplete(self) -> None:
+        selected, accepted = self.coverage(
+            self.drilled().shape, EdgeSelector(select="all"), radius=1.0
+        )
+        self.assertEqual((selected, accepted), (15, 14))
+
+    def test_cylinder_vertical_selection_is_entirely_rejected(self) -> None:
+        selected, accepted = self.coverage(
+            self.cylinder().shape,
+            EdgeSelector(select="axis_parallel", axis="Z"),
+            radius=1.0,
+        )
+        self.assertEqual((selected, accepted), (1, 0))
+
+    def test_cylinder_all_selection_is_incomplete(self) -> None:
+        selected, accepted = self.coverage(
+            self.cylinder().shape, EdgeSelector(select="all"), radius=1.0
+        )
+        self.assertEqual((selected, accepted), (3, 2))
+
+    def test_every_incomplete_case_fails_e5(self) -> None:
+        cases = (
+            (
+                "drilled Z",
+                [plate_feature(), hole_feature(), fillet_feature()],
+                "4 of the 5",
+            ),
+            (
+                "drilled all",
+                [
+                    plate_feature(),
+                    hole_feature(),
+                    fillet_feature(radius=1.0, select="all"),
+                ],
+                "14 of the 15",
+            ),
+            (
+                "cylinder Z",
+                [
+                    cylinder_feature(),
+                    fillet_feature(radius=1.0, axis="Z", target="pin"),
+                ],
+                "0 of the 1",
+            ),
+            (
+                "cylinder all",
+                [
+                    cylinder_feature(),
+                    fillet_feature(radius=1.0, select="all", target="pin"),
+                ],
+                "2 of the 3",
+            ),
+        )
+        for name, features, fragment in cases:
+            with self.subTest(case=name):
+                with self.assertRaises(GeometryOperationError) as caught:
+                    self.build_document(document(features, name))
+                message = str(caught.exception)
+                self.assertIn("E5", message)
+                self.assertIn(f"accepted {fragment}", message)
+
+    # --- what the message says ---------------------------------------------
+
+    def test_the_message_names_the_feature_and_the_counts(self) -> None:
+        with self.assertRaises(GeometryOperationError) as caught:
+            self.build_document(
+                document([plate_feature(), hole_feature(), fillet_feature()], "drilled")
+            )
+        message = str(caught.exception)
+        self.assertIn("fillet 'round'", message)
+        self.assertIn("accepted 4 of the 5", message)
+        self.assertIn("did not accept 1", message)
+
+    def test_the_message_describes_the_dropped_edge_safely(self) -> None:
+        """Geometry, not identity: no address, no invented persistent id."""
+        with self.assertRaises(GeometryOperationError) as caught:
+            self.build_document(
+                document([plate_feature(), hole_feature(), fillet_feature()], "drilled")
+            )
+        message = str(caught.exception)
+        self.assertIn("selection[", message)
+        self.assertIn("length", message)
+        self.assertNotIn("0x", message)
+        for forbidden in ("object at", "TopoDS", "edge_id", "TShape"):
+            with self.subTest(forbidden=forbidden):
+                self.assertNotIn(forbidden, message)
+
+    # --- kernel-safety properties preserved --------------------------------
+
+    def test_the_coverage_check_runs_before_build(self) -> None:
+        """Established from behaviour: a hopeless selection never reaches Build.
+
+        Asked to blend a cylinder's seam alone, the builder's ``Build()``
+        raises ``Standard_Failure``. The engine's message is the coverage one,
+        not the raise one, which is only possible if coverage was checked
+        first.
+        """
+        with self.assertRaises(GeometryOperationError) as caught:
+            self.build_document(
+                document(
+                    [
+                        cylinder_feature(),
+                        fillet_feature(radius=1.0, axis="Z", target="pin"),
+                    ],
+                    "seam",
+                )
+            )
+        message = str(caught.exception)
+        self.assertIn("did not accept", message)
+        self.assertNotIn("Standard_Failure", message)
+
+    def test_the_contour_tables_are_the_same_before_and_after_build(self) -> None:
+        """Why checking coverage before Build loses nothing -- measured."""
+        from OCP.BRepFilletAPI import BRepFilletAPI_MakeFillet
+
+        def tables(builder):
+            return tuple(
+                builder.NbEdges(contour)
+                for contour in range(1, builder.NbContours() + 1)
+            )
+
+        for shape, selector in (
+            (self.plain_plate().shape, EdgeSelector(select="all")),
+            (self.drilled().shape, EdgeSelector(select="axis_parallel", axis="Z")),
+            (self.cylinder().shape, EdgeSelector(select="all")),
+        ):
+            edges = select_edges(shape, selector)
+            builder = BRepFilletAPI_MakeFillet(shape.wrapped)
+            for edge in edges:
+                builder.Add(1.0, edge.wrapped)
+            before = tables(builder)
+            try:
+                builder.Build()
+            except Exception:  # pragma: no cover - only the seam-only case
+                pass
+            with self.subTest(selector=selector):
+                self.assertEqual(before, tables(builder))
+
+
+class TestCoverageFailureAtomicity(FilletTestCase):
+    """A coverage refusal must leave nothing behind and break nothing."""
+
+    def drilled_shape(self) -> Any:
+        return self.build_document(
+            document([plate_feature(), hole_feature()], "drilled")
+        ).shape
+
+    def test_a_dropped_edge_leaves_the_source_untouched(self) -> None:
+        before = self.fingerprint(self.drilled_shape())
+
+        with self.assertRaises(GeometryOperationError):
+            self.build_document(
+                document([plate_feature(), hole_feature(), fillet_feature()], "drilled")
+            )
+
+        self.assertEqual(before, self.fingerprint(self.drilled_shape()))
+
+    def test_the_kernel_builder_itself_leaves_the_shape_untouched(self) -> None:
+        """Measured directly: Add on an unsuitable edge changes nothing."""
+        from OCP.BRepFilletAPI import BRepFilletAPI_MakeFillet
+
+        shape = self.drilled_shape()
+        before = self.fingerprint(shape)
+        edges = select_edges(shape, EdgeSelector(select="axis_parallel", axis="Z"))
+        builder = BRepFilletAPI_MakeFillet(shape.wrapped)
+        for edge in edges:
+            builder.Add(FILLET_RADIUS, edge.wrapped)
+        self.assertEqual(builder.NbContours(), 4)
+        # Build is deliberately never called, exactly as the engine does.
+        self.assertEqual(before, self.fingerprint(shape))
+
+    def test_a_known_good_fillet_still_works_afterwards(self) -> None:
+        """Interleaved refusals and successes, three times over.
+
+        Covers the Stage 13 crash hazard as well: the engine never asks a
+        not-done builder for its shape, and a coverage refusal never asks the
+        builder for anything at all.
+        """
+        for _ in range(3):
+            with self.assertRaises(GeometryOperationError):
+                self.build_document(
+                    document(
+                        [plate_feature(), hole_feature(), fillet_feature()], "drilled"
+                    )
+                )
+            result = self.build()
+            self.assertTrue(result.is_solid())
+            self.assertAlmostEqual(
+                result.volume(), EXPECTED_Z_VOLUME, delta=VOLUME_TOLERANCE_MM3
+            )
+            # ... and the drilled plate's own horizontal fillet still builds.
+            horizontal = self.build_document(
+                document(
+                    [plate_feature(), hole_feature(), fillet_feature(axis="X")],
+                    "drilled-x",
+                )
+            )
+            self.assertTrue(horizontal.is_solid())
+
+    def test_a_refusal_does_not_disturb_a_later_chamfer(self) -> None:
+        """Cross-modifier: the two builders share a kernel package."""
+        with self.assertRaises(GeometryOperationError):
+            self.build_document(
+                document([plate_feature(), hole_feature(), fillet_feature()], "drilled")
+            )
+        chamfered = self.build_document(
+            document(
+                [
+                    plate_feature(),
+                    {
+                        "id": "bevel",
+                        "type": "chamfer",
+                        "target": "plate",
+                        "distance": 2.0,
+                        "edges": {"select": "axis_parallel", "axis": "Z"},
+                    },
+                ],
+                "bevelled",
+            )
+        )
+        self.assertTrue(chamfered.is_solid())
+        self.assertAlmostEqual(
+            chamfered.volume(),
+            PLATE_VOLUME - 4.0 * (FILLET_RADIUS**2 / 2.0) * PLATE_SIZE[2],
+            delta=VOLUME_TOLERANCE_MM3,
+        )
 
 
 # --- feature history -------------------------------------------------------
@@ -927,19 +1320,31 @@ class TestFeatureHistory(FilletTestCase):
         self.assertEqual(result.solid_count(), 1)
 
     def test_box_then_through_hole_then_fillet(self) -> None:
+        """On ``axis_parallel X``, where selector coverage is complete.
+
+        ``axis_parallel Z`` on this body also matches the cavity seam, which
+        the kernel will not blend, so that selection is refused -- see
+        ``TestDrilledPlate``.
+        """
         result = self.build_document(
             document(
-                [plate_feature(), hole_feature(), fillet_feature()], "hole-then-round"
+                [plate_feature(), hole_feature(), fillet_feature(axis="X")],
+                "hole-then-round",
             )
         )
         self.assertEqual(result.feature_id, "plate")
         self.assertEqual(result.solid_count(), 1)
-        self.assertAlmostEqual(
-            result.volume(), DRILLED_VOLUME - CORNER_LOSS, delta=VOLUME_TOLERANCE_MM3
-        )
+        expected = DRILLED_VOLUME - 4.0 * (
+            FILLET_RADIUS**2 - math.pi * FILLET_RADIUS**2 / 4.0
+        ) * PLATE_SIZE[0]
+        self.assertAlmostEqual(result.volume(), expected, delta=VOLUME_TOLERANCE_MM3)
 
     def test_box_then_subtract_then_fillet(self) -> None:
-        """The fillet sees the final solid, whatever produced it."""
+        """The fillet sees the final solid, whatever produced it.
+
+        Again on ``axis_parallel X``: the subtract leaves the same cavity, and
+        therefore the same seam, as the through-hole.
+        """
         result = self.build_document(
             document(
                 [
@@ -953,16 +1358,17 @@ class TestFeatureHistory(FilletTestCase):
                         "target": "plate",
                         "tools": ["tool"],
                     },
-                    fillet_feature(),
+                    fillet_feature(axis="X"),
                 ],
                 "subtract-then-round",
             )
         )
         self.assertEqual(result.feature_id, "plate")
         self.assertEqual(result.solid_count(), 1)
-        self.assertAlmostEqual(
-            result.volume(), DRILLED_VOLUME - CORNER_LOSS, delta=VOLUME_TOLERANCE_MM3
-        )
+        expected = DRILLED_VOLUME - 4.0 * (
+            FILLET_RADIUS**2 - math.pi * FILLET_RADIUS**2 / 4.0
+        ) * PLATE_SIZE[0]
+        self.assertAlmostEqual(result.volume(), expected, delta=VOLUME_TOLERANCE_MM3)
 
     def test_two_fillets_in_sequence(self) -> None:
         """Each replaces the target in place, so the second sees the first."""

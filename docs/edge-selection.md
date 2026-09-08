@@ -1,8 +1,8 @@
 # Edge selection
 
 Status: **Stage 12 — deterministic edge selection. No geometry is modified.**
-Consumed since Stage 13 by `fillet` and since Stage 14 by `chamfer`
-(`docs/local-cad-engine.md`).
+Consumed by `fillet` and `chamfer` (`docs/local-cad-engine.md`), both of which
+require complete coverage of what this layer returns.
 
 ## What this layer is for
 
@@ -343,7 +343,7 @@ specification, so `docs/cad-specification.md` was not changed; if V1 ever wants
 seams excluded, that is a change to C.7 and a decision for the specification,
 not for this layer.
 
-### Stage 14 found the actual mechanism
+### The actual mechanism, and what the consumers do about it
 
 Chamfer's kernel-API verification exposed what was really happening in case 1.
 The fillet did **not** blend the seam to no effect: `BRepFilletAPI` accepts the
@@ -353,15 +353,27 @@ drilled plate's `axis_parallel Z` selection of 5 edges yields 4 taken and 1
 dropped, and the dropped one is the seam. A Z-filleted box's `all` selection
 drops 8 of 24.
 
-That has consequences for the consumers, not for this layer:
+**A selector may therefore match a kernel edge that a fillet or chamfer cannot
+actually accept.** That is not a defect in this layer: this layer's job is to
+report the edges the contract names, and V1's contract names every straight
+axis-parallel edge — a parameterisation seam included, because the kernel
+represents it as a genuine `GeomAbs_Line`.
 
-- `chamfer` (Stage 14) **refuses** any selection containing an edge the kernel
-  will not take, reporting E5 — so `axis_parallel Z` and `all` on a drilled
-  plate cannot be chamfered at all;
-- `fillet` (Stage 13) still proceeds, and therefore silently skips those
-  edges.
+Since Stage 14.1 **both** consumers require complete coverage: if any edge this
+layer returned is not taken into one of the kernel's contours, the whole
+modifier fails with rule E5, and no geometry is produced. Chamfer had that
+invariant from Stage 14; fillet had been proceeding, and therefore silently
+skipping those edges, until Stage 14.1. The point of the rule is that a matched
+edge is never quietly dropped: an operation that cannot do what the selector
+asked fails visibly instead of doing something else.
 
-The full measurement table and the open decision are in
-`docs/local-cad-engine.md`. The selector's own behaviour is unchanged by any of
-it: it reports the edges the contract names, and what a modifier can do with
-them is the modifier's problem.
+The practical consequence, which belongs here because it is about selectors:
+`axis_parallel Z` and `all` on a drilled plate, and any axis selector on a bare
+cylinder, cannot be filleted or chamfered — those selections include a seam.
+`axis_parallel X` and `Y` on the same drilled plate are fine. Whether V1 should
+gain a way to express "the corners, not the seam" is a Section C.7 question,
+not one for this layer; the full measurement table is in
+`docs/local-cad-engine.md`.
+
+**None of this changed the selector.** It returns exactly the edges it returned
+in Stage 12, in the same order, for every geometry tested.

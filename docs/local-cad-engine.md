@@ -1,8 +1,8 @@
 # Local CAD engine
 
-Status: **Stage 14 — the complete V1 feature set (`box`, `cylinder`,
-`through_hole`, `subtract`, `fillet`, `chamfer`), built as real B-rep
-solids.**
+Status: **Stage 14.1 — the complete V1 feature set (`box`, `cylinder`,
+`through_hole`, `subtract`, `fillet`, `chamfer`), built as real B-rep solids,
+with one edge-coverage rule shared by `fillet` and `chamfer`.**
 
 ## Why a local backend exists
 
@@ -556,54 +556,110 @@ Other measured cases:
 | box, `all`, r = 5 | `IsDone()` false → E5 |
 | box, `all`, r ≥ 5.01 | done but invalid → E5 |
 | 100 × 60 × 3 plate, `all`, r = 2 | E5 — a genuine mixed selection: `axis_parallel Z` alone succeeds at r = 2, `axis_parallel X` and `Y` alone each fail |
-| drilled plate, `axis_parallel Z`, r = 2 | succeeds with the cavity seam in the selection; volume is the drilled volume minus exactly the four corner blends, and faces go 7 → 11, so the seam contributed nothing. **Stage 14 found the mechanism: the kernel builds no contour for the seam and silently ignores it** — see the note below |
-| drilled plate, `all`, r = 1 | succeeds; 29 faces = 6 planes + 13 cylinders + 8 spheres + **2 tori** (the hole rims are blended too) |
-| cylinder, `axis_parallel Z`, r = 0.5 or 2 | **`Build()` raises `Standard_Failure`** → E5. The seam alone cannot be blended |
-| cylinder, `all`, r = 1 | succeeds — 5 faces (2 planes, 1 cylinder, 2 tori). With the rims in the selection the seam resolves, which is a kernel observation, not a rule |
+| drilled plate, `axis_parallel Z`, r = 2 | **refused since Stage 14.1** (E5): the selection includes the cavity seam, which the kernel accepts and then builds no contour for. Stage 13 accepted this and produced the drilled volume minus exactly the four corner blends, with faces going 7 → 11 — the seam had contributed nothing because it was ignored, not because it blended smoothly |
+| drilled plate, `all`, r = 1 | **refused since Stage 14.1** (E5, 14 of 15 accepted). Stage 13 produced 29 faces = 6 planes + 13 cylinders + 8 spheres + 2 tori, ignoring the seam |
+| cylinder, `axis_parallel Z`, r = 0.5 or 2 | E5 — 0 of 1 accepted. (If built anyway, `Build()` raises `Standard_Failure`; the coverage check reports it first, with counts) |
+| cylinder, `all`, r = 1 | **refused since Stage 14.1** (E5, 2 of 3 accepted). Left to itself the kernel blends both rims into tori and ignores the seam — a valid 5-face solid, just not the one the selector asked for; a test records that |
 
 ### Supported histories
 
 Tested and supported: `box → fillet`, `box → through_hole → fillet`,
-`box → cylinder → subtract → fillet`, `cylinder → fillet`, and two fillets in
-sequence (the second sees the first, because each replaces the target in
-place). These all fall out of the existing ordered evaluator — no second
+`box → cylinder → subtract → fillet` and two fillets in sequence (the second
+sees the first, because each replaces the target in place). The two
+cavity-bearing histories are tested on `axis_parallel X`, where coverage is
+complete; `axis_parallel Z` on those bodies is refused, per the coverage rule
+below. These all fall out of the existing ordered evaluator — no second
 mechanism was introduced — but only the combinations above are tested, and
 nothing broader is claimed.
 
-### Known defect found in Stage 14: fillet can silently drop a matched edge
+### Edge coverage: a selected edge is never silently skipped
 
-`BRepFilletAPI_MakeFillet.Add` accepts an edge the kernel considers unsuitable
-— a parameterisation seam, or a smooth tangent edge — and then builds **no
-contour** for it, reporting success for the rest. Measured coverage, comparing
-the selected edges against the builder's own contour tables by topological
-identity:
+A V1 edge selector is literal about which edges it names (Section C.7), and the
+kernel is the authority on which edges it will actually modify. Those two can
+disagree, and the disagreement is silent by default:
+`BRepFilletAPI_MakeFillet.Add` and `BRepFilletAPI_MakeChamfer.Add` both accept
+an edge the kernel considers unsuitable — a parameterisation seam, or a smooth
+tangent edge with no dihedral angle — build **no contour** for it, and then
+report success for the rest.
 
-| Shape / selector | selected | taken into a contour | dropped |
+**Both modifiers now require complete coverage**: the set of edges the selector
+returned must equal the set the builder took into a contour. If any selected
+edge was not accepted, the whole feature fails with **E5**, no geometry is
+produced and the target is not modified. Chamfer has had this invariant since
+Stage 14; Stage 14.1 gave it to fillet, so the two behave identically on
+identical input.
+
+Measured coverage, comparing the selected edges against the builder's own
+contour tables by topological identity. The numbers are the same for both
+builders:
+
+| Shape / selector | selected | accepted | outcome |
 |---|---|---|---|
-| box, `all` / `axis_parallel Z` | 12 / 4 | 12 / 4 | 0 |
-| drilled plate, `axis_parallel Z` | 5 | 4 | **1** (the cavity seam) |
-| drilled plate, `all` | 15 | 14 | **1** |
-| cylinder, `all` | 3 | 2 | **1** (the seam) |
-| cylinder, `axis_parallel Z` | 1 | 0 | **1** |
-| Z-filleted box, `all` | 24 | 16 | **8** (the tangency edges) |
+| box, `all` | 12 | 12 | builds |
+| box, `axis_parallel Z` | 4 | 4 | builds |
+| drilled plate, `axis_parallel X` / `Y` | 4 | 4 | builds |
+| drilled plate, `axis_parallel Z` | 5 | **4** | **E5** — the cavity seam |
+| drilled plate, `all` | 15 | **14** | **E5** |
+| cylinder, `all` | 3 | **2** | **E5** — the seam |
+| cylinder, `axis_parallel Z` | 1 | **0** | **E5** |
+| Z-filleted box, `all` | 24 | **16** | **E5** — the tangency edges |
 
-So the Stage 13 fillet **does** silently skip a matched edge in those cases.
-The geometric facts reported for Stage 13 are unchanged and correct — the
-volume and face counts really are the drilled volume minus four corner blends
-— but the explanation ("smooth across its own seam") was the wrong mechanism:
-the edge was ignored, not blended to no effect.
+Two things this deliberately does *not* do:
 
-Stage 14's `chamfer` **refuses** this case (see below), because "do not
-silently skip a selected edge" was an explicit requirement of that stage.
-`fillet` was left as delivered rather than changed outside its own stage, so
-the two modifiers currently differ on identical input: a drilled plate's
-`axis_parallel Z` fillet succeeds, and the same chamfer is refused with E5.
-That inconsistency is a **known defect awaiting a decision**, not a design:
-either fillet should adopt the coverage check (making drilled-plate corner
-filleting impossible with the V1 selectors), or chamfer should relax it, or
-Section C.7 should say what happens to a matched-but-unsuitable edge. It is a
-gap in the contract, not a contradiction, so `docs/cad-specification.md` was
-not changed.
+- **It does not reject an operation merely because the shape contains a seam.**
+  Only a selection that *includes* an unaccepted edge fails: a drilled plate's
+  `axis_parallel X` fillet builds normally, seam and all.
+- **It does not treat the reverse case as an error.** Contour propagation
+  follows tangency, so a contour may contain *more* edges than were selected,
+  and the kernel then modifies those neighbours too. Measured on a Z-filleted
+  box, an `axis_parallel X` selection of 4 edges produced 2 contours spanning
+  16 edges. That is recorded, not enforced.
+
+#### How coverage is inspected
+
+From the builder's own tables — `NbContours()`, `NbEdges(i)`, `Edge(i, j)` —
+with membership decided by `TopoDS_Shape.IsSame`, never by coordinates, since
+distinct edges can share endpoints. One helper (`_dropped_selection`) serves
+both modifiers.
+
+The check runs **before** `Build()`. `Add` populates the contour tables, and
+the tables were measured to be identical before and after `Build()` for every
+geometry in the suite — including the case where `Build()` raises — so checking
+first loses nothing, avoids asking the kernel to attempt a hopeless selection,
+and lets the error report counts rather than just an exception type.
+
+#### What the E5 message says
+
+```
+fillet 'round': the kernel accepted 4 of the 5 selected edge(s) and did not
+accept 1 (rule E5). It treats those as unsuitable for a blend, which is what a
+parameterisation seam or a smooth tangent edge is. They are not skipped: the
+whole feature fails and no geometry is produced. Not accepted:
+selection[4] length 10 mm from (30, 20, 10)
+```
+
+The feature id, the counts, and a description of each unaccepted edge. The
+descriptor is that edge's **position in this call's selection** plus its length
+and start point — geometry a caller can act on. It is not an identifier: nothing
+persists it, the same edge can appear at a different position under a different
+selector, and **no persistent named topology is introduced**. No object
+identity or memory address appears, and a test asserts that.
+
+#### The consequence, stated plainly
+
+With the two V1 selectors, **a drilled plate's vertical corners cannot be
+filleted or chamfered**, because `axis_parallel Z` also matches the cavity's
+parameterisation seam. Neither can a bare cylinder be filleted or chamfered on
+any axis selector. Both were previously possible for fillet, by silently
+ignoring the seam.
+
+That is the correct trade: silently changing what the user asked for is worse
+than refusing it, and refusing is visible. But it does mean Section C.7 has a
+gap — it says nothing about an edge a selector matches and the kernel will not
+modify. Closing that gap (a selector that skips seams, an explicit rule, or a
+per-edge exclusion) is a specification decision, not an engine one, so
+`docs/cad-specification.md` was **not** changed. It is a gap, not a
+contradiction.
 
 ## Chamfer semantics (Section C.6)
 
@@ -652,18 +708,12 @@ Six checks, in order. A kernel status flag alone is never accepted as success:
 | 5 | `Build()` does not raise, and `IsDone()` is true | **E5** |
 | 6 | exactly one solid, valid per the kernel's own analysis, with positive volume | **E3** / **E5** |
 
-Check 4 is the one fillet does not have. `Add` silently ignores an edge the
-kernel deems unsuitable, so coverage is verified from the builder's own
-`NbContours`/`NbEdges`/`Edge` tables, with membership decided by topological
-identity (`IsSame`) rather than coordinates. Any dropped edge fails the whole
-feature as E5 — an edge no distance can bevel is not one the distance is
-admissible for — and the message says how many were dropped and why.
-
-The reverse direction is **not** an error and is recorded rather than
-enforced: contour propagation follows tangency, so a contour may contain *more*
-edges than were selected, and the kernel then bevels those neighbours too.
-Measured on a Z-filleted box, an `axis_parallel X` selection of 4 edges
-produced 2 contours spanning 16 edges.
+Check 4 is the coverage rule, described in full under
+[Edge coverage](#edge-coverage-a-selected-edge-is-never-silently-skipped).
+Chamfer had it first; since Stage 14.1 `fillet` applies the identical rule
+through the same helper, so the two modifiers now agree on every input. The
+chamfer error message is worded differently — it was left byte-identical when
+fillet's was added — but the condition and the outcome are the same.
 
 ### Rule E4
 
@@ -680,7 +730,7 @@ fillet's, which is why they were measured rather than assumed:
 
 | Kernel outcome | Example | Detection |
 |---|---|---|
-| an edge is taken into no contour | the cavity seam of a drilled plate | the coverage check (before `Build()`) |
+| an edge is taken into no contour | the cavity seam of a drilled plate | the coverage check (before `Build()`) — shared with `fillet` since Stage 14.1 |
 | `IsDone()` is false | distance 30 on the plate's vertical edges; distance ≥ 5 on all twelve | `IsDone()`, with `NbContours()` in the message |
 | `Build()` raises `Standard_Failure` | a selection made only of unsuitable edges — the kernel's message is *"There are no suitable edges for chamfer or fillet"* | the exception |
 
@@ -863,12 +913,13 @@ Explicitly **not** part of this stage:
   asymmetric chamfer, no face-based blend, and no way to exclude an edge the
   selector matched. The two V1 selectors are the only vocabulary, so "round
   these three corners but not that one" is not expressible.
-- **A chamfer cannot be applied to any selection containing a
-  parameterisation seam.** That currently rules out `axis_parallel Z` and
-  `all` on a drilled plate, and any axis selector on a bare cylinder. It
-  follows from refusing to skip a matched edge, and it is the strongest
-  argument that Section C.7 needs a sentence about matched-but-unsuitable
-  edges.
+- **Neither a fillet nor a chamfer can be applied to any selection containing
+  a parameterisation seam.** That rules out `axis_parallel Z` and `all` on a
+  drilled plate, and any axis selector on a bare cylinder. It follows from
+  refusing to skip a matched edge, and it is the strongest argument that
+  Section C.7 needs a sentence about matched-but-unsuitable edges. Until then,
+  reach those corners with `axis_parallel X` or `Y`, which do not match a
+  seam.
 - **An admissible radius or distance is not predicted, only tested.** The
   engine asks the kernel and reports E5 when it objects; it computes no
   maximum, and the measured brackets in this document are observations about

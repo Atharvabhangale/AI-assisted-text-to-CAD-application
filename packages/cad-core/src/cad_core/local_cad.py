@@ -699,15 +699,22 @@ def _bevel_edges(
     return solid
 
 
-def _uncovered_edges(builder: Any, edges: Tuple[Any, ...]) -> int:
-    """Count selected edges the builder did not take into any contour.
+def _dropped_selection(builder: Any, edges: Tuple[Any, ...]) -> Tuple[int, ...]:
+    """Positions in ``edges`` that the builder took into no contour.
 
-    ``BRepFilletAPI_MakeChamfer.Add`` is documented to do nothing for an edge
-    that does not belong to the shape, and was measured to do nothing for an
-    edge the kernel considers unsuitable. The builder's own contour tables
-    (``NbContours``, ``NbEdges``, ``Edge``) say which edges it actually took,
-    and membership is decided by topological identity (``IsSame``), never by
-    coordinates.
+    Both ``BRepFilletAPI_MakeFillet`` and ``BRepFilletAPI_MakeChamfer``
+    expose the same contour tables -- ``NbContours``, ``NbEdges(i)``,
+    ``Edge(i, j)`` -- and both are documented to do nothing for an edge that
+    does not belong to the shape. Both were also measured to do nothing for an
+    edge the kernel considers unsuitable, while still reporting success for the
+    rest. This is the single detection used by fillet and chamfer alike.
+
+    Membership is decided by topological identity (``TopoDS_Shape.IsSame``),
+    never by coordinates: distinct edges can share endpoints.
+
+    The returned positions are indices into *this call's* selection. They are
+    not identifiers of anything: nothing persists them, and the same edge can
+    appear at a different position for a different selector.
 
     Note the reverse can also happen and is *not* an error: contour
     propagation follows tangency, so a contour may contain more edges than
@@ -719,11 +726,37 @@ def _uncovered_edges(builder: Any, edges: Tuple[Any, ...]) -> int:
         for contour in range(1, builder.NbContours() + 1)
         for position in range(1, builder.NbEdges(contour) + 1)
     ]
-    return sum(
-        1
-        for edge in edges
+    return tuple(
+        index
+        for index, edge in enumerate(edges)
         if not any(edge.wrapped.IsSame(other) for other in taken)
     )
+
+
+def _uncovered_edges(builder: Any, edges: Tuple[Any, ...]) -> int:
+    """Number of selected edges the builder took into no contour."""
+    return len(_dropped_selection(builder, edges))
+
+
+def _describe_selection(
+    edges: Tuple[Any, ...], positions: Tuple[int, ...]
+) -> Tuple[str, ...]:
+    """Describe selected edges for an error message, safely.
+
+    Each descriptor carries the edge's position in this selection, its length
+    and its start point -- geometry the caller can act on. No object identity,
+    no memory address and no invented edge id appears: there is no persistent
+    named topology in V1 and this does not introduce one.
+    """
+    described = []
+    for index in positions:
+        edge = edges[index]
+        start = edge.startPoint()
+        described.append(
+            f"selection[{index}] length {edge.Length():.6g} mm from "
+            f"({start.x:.6g}, {start.y:.6g}, {start.z:.6g})"
+        )
+    return tuple(described)
 
 
 def _blend_edges(
@@ -747,8 +780,15 @@ def _blend_edges(
     ever attempted: if the radius does not work for all of them, the feature
     fails.
 
-    Rules enforced, all three from measured kernel behaviour:
+    Rules enforced, all from measured kernel behaviour:
 
+    * **E5 (coverage)** -- every selected edge must actually be taken into one
+      of the builder's contours. ``Add`` accepts an edge the kernel considers
+      unsuitable -- a parameterisation seam, or a smooth tangent edge -- and
+      then builds no contour for it, afterwards reporting success for the
+      rest. Stage 14.1 added this check so that a matched edge is never
+      silently skipped; before it, a drilled plate's ``axis_parallel Z``
+      fillet quietly ignored the cavity seam.
     * **E5** -- ``Build()`` raising, ``IsDone()`` false, or a result that is
       not a valid solid. The third case is not redundant: for an over-large
       radius the kernel reports done and hands back an invalid shape whose
@@ -761,6 +801,23 @@ def _blend_edges(
     builder = BRepFilletAPI_MakeFillet(target.wrapped)
     for edge in edges:
         builder.Add(radius, edge.wrapped)
+
+    # Coverage is checked before Build, as it is for a chamfer. The contour
+    # tables are populated by Add, and were measured to be identical before
+    # and after Build for every geometry in the test suite -- including the
+    # case where Build raises -- so checking first loses nothing and avoids
+    # asking the kernel to attempt a hopeless selection.
+    dropped = _dropped_selection(builder, edges)
+    if dropped:
+        raise GeometryOperationError(
+            f"{label}: the kernel accepted {len(edges) - len(dropped)} of the "
+            f"{len(edges)} selected edge(s) and did not accept "
+            f"{len(dropped)} (rule E5). It treats those as unsuitable for a "
+            "blend, which is what a parameterisation seam or a smooth tangent "
+            "edge is. They are not skipped: the whole feature fails and no "
+            "geometry is produced. Not accepted: "
+            + "; ".join(_describe_selection(edges, dropped))
+        )
 
     try:
         builder.Build()

@@ -1158,8 +1158,10 @@ class TestEvaluatorDefences(SubtractTestCase):
                 Fillet(
                     id="round",
                     target="plate",
+                    # X, not Z: a Z selection on this body also matches the
+                    # cavity seam, which the kernel will not blend.
                     radius=2.0,
-                    edges=EdgeSelector(select="axis_parallel", axis="Z"),
+                    edges=EdgeSelector(select="axis_parallel", axis="X"),
                 ),
             ),
         )
