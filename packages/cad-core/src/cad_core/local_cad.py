@@ -18,20 +18,37 @@ CadQuery (over OpenCascade, via ``cadquery-ocp``). The geometry produced is a
 genuine B-rep solid from the kernel -- not a mesh, not triangles, not a
 bounding-box stand-in.
 
-Supported subset for this stage
--------------------------------
-Exactly one feature, of type ``box``, in millimetres. Anything else raises
-:class:`UnsupportedGeometryError`. Cylinders, through-holes, boolean
+Supported subset
+----------------
+Exactly one feature, of type ``box`` or ``cylinder``, in millimetres. Anything
+else raises :class:`UnsupportedGeometryError`. Through-holes, boolean
 subtraction, fillets and chamfers are **not implemented**: they are rejected,
 never partially built and never silently skipped.
 
-Coordinate semantics (specification Section C.1)
-------------------------------------------------
+Box semantics (specification Section C.1)
+-----------------------------------------
 ``position`` is the box's **minimum corner** and the box occupies
 ``[position, position + size]`` on each axis, axis-aligned with no rotation.
 ``cadquery.Solid.makeBox`` is used with ``pnt=position``, which places the
 minimum corner directly -- no centred-box default is involved, so there is no
 centring transform to get wrong.
+
+Cylinder semantics (specification Section C.2)
+----------------------------------------------
+``position`` is the **centre of the base circle**, the radius is
+``diameter / 2``, and the cylinder extends ``height`` along the signed
+principal direction given by ``axis`` (default ``"+Z"``). The base circle lies
+in the plane perpendicular to that axis, so the radial extent is the radius in
+each of the two perpendicular axes.
+
+``cadquery.Solid.makeCylinder(radius, height, pnt, dir)`` is used, which builds
+``BRepPrimAPI_MakeCylinder`` around ``gp_Ax2(pnt, dir)`` -- ``pnt`` is the base
+circle centre and ``dir`` the axis direction, matching the specification
+directly with no transform in between.
+
+The sign of the axis is honoured, not normalised away: ``"-Z"`` extends
+downward from the base centre. V1 has no arbitrary rotation, so only the six
+signed principal directions exist (:data:`AXIS_DIRECTIONS`).
 
 Units
 -----
@@ -54,9 +71,9 @@ from cad_core.local_cad import build_part
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Tuple
+from typing import Any, Mapping, Tuple
 
-from cad_core.model import Box, Part, Position, Size
+from cad_core.model import AXIS_VALUES, Box, Cylinder, Feature, Part, Position, Size
 
 try:
     import cadquery as _cq
@@ -72,6 +89,18 @@ BACKEND_NAME = "cadquery"
 
 #: Version of that backend, read from the installed package.
 BACKEND_VERSION = _cq.__version__
+
+#: The specification's six signed principal directions (Section A.4) as unit
+#: vectors. V1 has no arbitrary rotation, so this table is the whole of the
+#: orientation vocabulary. The sign is meaningful and is never normalised away.
+AXIS_DIRECTIONS: Mapping[str, Tuple[float, float, float]] = {
+    "+X": (1.0, 0.0, 0.0),
+    "-X": (-1.0, 0.0, 0.0),
+    "+Y": (0.0, 1.0, 0.0),
+    "-Y": (0.0, -1.0, 0.0),
+    "+Z": (0.0, 0.0, 1.0),
+    "-Z": (0.0, 0.0, -1.0),
+}
 
 #: Unit systems this engine accepts (specification Section A.3).
 SUPPORTED_UNITS: Tuple[str, ...] = ("mm",)
@@ -192,20 +221,53 @@ def build_part(part: Part) -> LocalCadResult:
             specification document is not accepted.
         UnsupportedGeometryError: if the part is outside the supported subset
             -- units other than millimetres, a feature count other than one, or
-            a feature that is not a box. Nothing partial is built.
+            a feature that is neither a box nor a cylinder. Nothing partial is
+            built.
     """
-    box = _require_supported_box(part)
-    shape = _cq.Solid.makeBox(
+    feature = _require_supported_feature(part)
+    if isinstance(feature, Box):
+        shape = _build_box(feature)
+    else:
+        shape = _build_cylinder(feature)
+    return LocalCadResult(part_name=part.name, feature_id=feature.id, shape=shape)
+
+
+def _build_box(box: Box) -> Any:
+    """Section C.1: ``position`` is the minimum corner."""
+    return _cq.Solid.makeBox(
         box.size.x,
         box.size.y,
         box.size.z,
         pnt=_cq.Vector(box.position.x, box.position.y, box.position.z),
     )
-    return LocalCadResult(part_name=part.name, feature_id=box.id, shape=shape)
 
 
-def _require_supported_box(part: Any) -> Box:
-    """Return the part's single box, or fail explicitly."""
+def _build_cylinder(cylinder: Cylinder) -> Any:
+    """Section C.2: ``position`` is the base circle centre.
+
+    The radius is ``diameter / 2`` and the solid extends ``height`` along the
+    signed principal direction named by ``axis``.
+    """
+    try:
+        direction = AXIS_DIRECTIONS[cylinder.axis]
+    except KeyError:
+        permitted = ", ".join(repr(axis) for axis in AXIS_VALUES)
+        raise UnsupportedGeometryError(
+            f"unsupported axis {cylinder.axis!r}; the specification permits "
+            f"only {permitted}"
+        ) from None
+    return _cq.Solid.makeCylinder(
+        cylinder.diameter / 2.0,
+        cylinder.height,
+        pnt=_cq.Vector(
+            cylinder.position.x, cylinder.position.y, cylinder.position.z
+        ),
+        dir=_cq.Vector(*direction),
+    )
+
+
+def _require_supported_feature(part: Any) -> Feature:
+    """Return the part's single supported feature, or fail explicitly."""
     if not isinstance(part, Part):
         raise TypeError(
             "build_part requires a typed cad_core.model.Part, such as the "
@@ -227,10 +289,10 @@ def _require_supported_box(part: Any) -> Box:
         )
 
     feature = part.features[0]
-    if not isinstance(feature, Box):
+    if not isinstance(feature, (Box, Cylinder)):
         raise UnsupportedGeometryError(
             f"unsupported feature type {feature.TYPE!r}; this engine builds "
-            "only 'box'. Cylinders, through-holes, boolean subtraction, "
+            "only 'box' and 'cylinder'. Through-holes, boolean subtraction, "
             "fillets and chamfers are not implemented."
         )
     return feature

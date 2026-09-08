@@ -162,10 +162,23 @@ STEP exporter, so all three measure alike:
 
 ## Why byte determinism is not required
 
-Two IGES exports of the same solid are not required to be byte-identical: the
-IGES global section carries a creation timestamp, so the bytes legitimately
-differ between runs. Asserting byte equality would test the clock, not the
-geometry.
+Two IGES exports of the same solid are not required to be byte-identical, and
+Stage 9 measured what actually happens rather than leaving it asserted:
+
+| Comparison | Bytes identical? |
+|---|---|
+| repeated exports **within one process** | **yes** |
+| exports from **separate processes** | **no** |
+
+The IGES global section carries a creation timestamp (e.g.
+`20260908.055551`), and it is captured once per process rather than per write —
+so within a run the bytes come out stable, and across runs the timestamp
+advances and they diverge. (An earlier version of this document asserted the
+bytes "differ between runs" as though that applied within a run too; the
+measurement above corrects it.)
+
+Either way, byte equality is not what is asserted: it would test the clock, not
+the geometry.
 
 What is asserted instead: repeated exports all round-trip to identical
 geometry — same shape type, same solid count, same bounding box, same volume.

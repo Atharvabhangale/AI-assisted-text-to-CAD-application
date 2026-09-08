@@ -31,7 +31,6 @@ from cad_core.render_model import (
     RENDER_FORMAT_VERSION,
     RENDER_UNITS,
     WINDING,
-    RenderBounds,
     RenderModel,
     TessellationSettings,
     build_render_model,
@@ -572,13 +571,20 @@ class TestInputBoundary(RenderTestCase):
 
     def test_unsupported_geometry_is_still_rejected_by_the_backend(self) -> None:
         """Rendering adds no route around the local engine's supported subset."""
-        from cad_core.model import Cylinder
+        from cad_core.model import ThroughHole
 
         part = Part(
             schema_version="1.0.0",
             units="mm",
             name="p",
-            features=(Cylinder(id="c", diameter=8.0, height=20.0),),
+            features=(
+                ThroughHole(
+                    id="h",
+                    target="plate",
+                    diameter=8.0,
+                    position=Position(0.0, 0.0, 0.0),
+                ),
+            ),
         )
         with self.assertRaises(UnsupportedGeometryError):
             build_part(part)

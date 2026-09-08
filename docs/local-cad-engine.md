@@ -55,14 +55,14 @@ specification, the validator and the FeatureScript generator have no
 dependencies at all, and importing `cad_core` does not require CadQuery.
 `cad_core.local_cad` is therefore not re-exported from the package root.
 
-## Supported V1 subset for this stage
+## Supported V1 subset
 
-Exactly one feature, of type **`box`**, in **millimetres**.
+Exactly one feature, of type **`box`** or **`cylinder`**, in **millimetres**.
 
-Everything else is rejected with `UnsupportedGeometryError`: cylinders,
-through-holes, boolean subtraction, fillets, chamfers, multi-feature histories,
-empty histories, and any other unit system. Nothing is partially built and no
-feature is silently skipped. The engine does not repair or reinterpret a part.
+Everything else is rejected with `UnsupportedGeometryError`: through-holes,
+boolean subtraction, fillets, chamfers, multi-feature histories, empty
+histories, and any other unit system. Nothing is partially built and no feature
+is silently skipped. The engine does not repair or reinterpret a part.
 
 ## Box coordinate semantics
 
@@ -87,6 +87,49 @@ So `size = (100, 60, 10)` at `position = (10, 20, 30)` occupies:
 `pnt=position`, which places the minimum corner directly, so there is no
 centring transform that could be got wrong. A test asserts the box does *not*
 straddle its position the way a centred box would.
+
+## Cylinder coordinate semantics
+
+Section C.2 of the specification defines a cylinder by `diameter`, `height`,
+`position` and `axis`, where **`position` is the centre of the base circle**,
+the radius is `diameter / 2`, and the solid extends `height` along the signed
+principal direction named by `axis` (default `"+Z"`). The base circle lies in
+the plane perpendicular to that axis, so the radial extent is the radius in
+each of the two perpendicular axes.
+
+`cadquery.Solid.makeCylinder(radius, height, pnt, dir)` is used, which builds
+`BRepPrimAPI_MakeCylinder` around `gp_Ax2(pnt, dir)` — `pnt` is the base circle
+centre and `dir` the axis direction. That maps onto the specification directly,
+with no transform in between and no centring convention to get wrong.
+
+**The sign of the axis is honoured, not normalised away.** `"-Z"` extends
+*downward* from the base centre; the base circle stays at `position` in every
+case. V1 has no arbitrary rotation vectors, so the six signed principal
+directions in `AXIS_DIRECTIONS` are the whole orientation vocabulary. A part
+carrying any other axis string is rejected rather than guessed at.
+
+For a cylinder of diameter 20, height 50, base centre (10, 20, 30), every
+bounding box below was derived by hand from those semantics and then measured:
+
+| Axis | minimum | maximum | dimensions |
+|---|---|---|---|
+| `+X` | (10, 10, 20) | (60, 30, 40) | (50, 20, 20) |
+| `-X` | (−40, 10, 20) | (10, 30, 40) | (50, 20, 20) |
+| `+Y` | (0, 20, 20) | (20, 70, 40) | (20, 50, 20) |
+| `-Y` | (0, −30, 20) | (20, 20, 40) | (20, 50, 20) |
+| `+Z` | (0, 10, 30) | (20, 30, 80) | (20, 20, 50) |
+| `-Z` | (0, 10, −20) | (20, 30, 30) | (20, 20, 50) |
+
+Volume is checked against **π r² h = 15707.963267948966 mm³**, computed
+mathematically rather than read back from the kernel. The kernel agreed to
+0.000e+00 for all six axes.
+
+### Cylinder topology is a kernel observation
+
+OpenCascade builds a full cylinder as **3 faces** (the side plus two caps),
+**3 edges** (a seam plus two circles) and **2 vertices**. This is recorded as a
+property of this backend, **not** part of the neutral CAD specification, and
+nothing else in the project depends on it.
 
 ### Units
 
@@ -158,8 +201,9 @@ Explicitly **not** part of this stage:
 
 ## Known limitations
 
-- One box only. The engine has no vocabulary for feature history, because
-  nothing beyond a single constructive feature is supported yet.
+- One constructive feature only — a box or a cylinder. The engine has no
+  vocabulary for feature history, because nothing beyond a single constructive
+  feature is supported yet.
 - The engine trusts the validator. A hand-built `Part` that bypasses validation
   with, say, a zero extent would reach the kernel and fail there rather than
   being caught politely — by design, since re-validating would duplicate

@@ -214,9 +214,16 @@ specification valuable: it is the format for *looking at* geometry, not for
 - **Binary only.** No ASCII STL.
 - **No mesh volume, no closure check.** The mesh is not verified to be a closed
   manifold, so no volume is derived from it.
-- **Tessellation quality is untested on curves**, because no curved geometry
-  can be built yet — and curves are the only place the tolerance settings
-  actually change the output.
+- **Curved geometry is now exercised** (Stage 9 added the cylinder), which
+  changed what the settings mean in practice. For a cylinder of diameter 20 and
+  height 50 the exporter produces **500 triangles / 25084 bytes**, the mesh is
+  inscribed in the true surface (worst vertex 9.13e-7 mm outside the exact
+  radius, i.e. on it within numerical noise), and the worst radial
+  approximation error is **3.109e-3 mm** — comfortably inside the 0.01 mm
+  deflection budget. One finding: at this size the **angular** deflection is
+  the binding constraint, not the linear one. Coarsening the linear tolerance
+  from 0.01 mm to 0.5 mm leaves the count at 500; tightening it to 0.005 mm
+  raises it to 560.
 - **No 3MF, OBJ, glTF or GLB.** Not implemented.
 - **Not verified in third-party mesh tools.** The round trip is OpenCascade
   writing and OpenCascade reading; whether the file loads correctly in a slicer

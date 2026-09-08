@@ -255,10 +255,23 @@ result for this backend and this geometry, not as a guarantee.
 
 ## Limitations
 
-- **One box.** The engine builds only a single-box part, so the representation
-  is exercised on planar geometry only — which is exactly where tessellation
-  tolerance does not matter. Curved geometry is where these settings and the
-  smooth-normal behaviour will first be tested for real.
+- **Curved geometry is now exercised** (Stage 9 added the cylinder). Measured
+  for a cylinder of diameter 20, height 50: **566 vertices / 560 triangles**,
+  bounds within 2.5e-3 mm of the true surface, all normals unit-length, and
+  curved-side normals that genuinely vary — 284 sampled side vertices produced
+  **249 distinct normals**, each aligned with the exact radial direction to
+  better than 0.99975. End-cap normals come out exactly ±1.0 in Z. This is the
+  first geometry for which the smooth-normal path does anything at all.
+
+- **The `relative` difference with STL is now material.** Stage 8 recorded that
+  `Shape.mesh` (used by `tessellate`) passes `relative=True` while
+  `stl_export` passes `relative=False`, and predicted it would matter once
+  curves existed. It does: for the same cylinder the render model has 560
+  triangles and the STL 500, with slightly different mesh bounds. Both stay
+  well inside tolerance of the true surface, and each is self-consistent and
+  deterministic — but they are **not the same mesh**. Anything that needs the
+  render model and the STL to agree triangle-for-triangle would have to unify
+  those parameters first.
 - **No topology, no feature identity per triangle.** By design.
 - **No volume, no mass properties, no material, no colour.** A viewer that
   needs them should ask the B-rep, not the render model.

@@ -241,12 +241,6 @@ class TestUnsupportedFeatures(LocalCadTestCase):
             schema_version="1.0.0", units="mm", name="p", features=(feature,)
         )
 
-    def test_cylinder_is_rejected(self) -> None:
-        part = self.single_feature_part(Cylinder(id="c", diameter=8.0, height=20.0))
-        with self.assertRaises(UnsupportedGeometryError) as caught:
-            build_part(part)
-        self.assertIn("cylinder", str(caught.exception))
-
     def test_through_hole_is_rejected(self) -> None:
         part = self.single_feature_part(
             ThroughHole(
@@ -331,13 +325,25 @@ class TestUnsupportedFeatures(LocalCadTestCase):
 
     def test_rejection_builds_nothing_partial(self) -> None:
         """An unsupported part yields an exception, never a partial shape."""
-        part = self.single_feature_part(Cylinder(id="c", diameter=8.0, height=20.0))
+        part = self.single_feature_part(
+            ThroughHole(
+                id="h", target="plate", diameter=8.0, position=Position(0.0, 0.0, 0.0)
+            )
+        )
         try:
             build_part(part)
         except UnsupportedGeometryError:
             pass
         else:  # pragma: no cover - the assertions above already guard this
-            self.fail("a cylinder must be rejected")
+            self.fail("a through-hole must be rejected")
+
+    def test_the_supported_set_is_box_and_cylinder(self) -> None:
+        """Stage 9 widened the subset; everything else is still refused."""
+        self.assertIsNotNone(build_part(self.part_from(box_document())).shape)
+        supported = self.single_feature_part(
+            Cylinder(id="c", diameter=8.0, height=20.0)
+        )
+        self.assertTrue(build_part(supported).is_solid())
 
 
 # --- 5: typed API boundary -------------------------------------------------
