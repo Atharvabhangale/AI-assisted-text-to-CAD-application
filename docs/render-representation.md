@@ -227,6 +227,12 @@ The 530 vertices for 260 distinct mesh nodes are the usual per-face
 duplication (`stl_export` reports 260 nodes for the same geometry, because the
 STL reader merges coincident coordinates and this model deliberately does not).
 
+The same holds for a cavity produced by Stage 11's general `subtract` rather
+than by a `through_hole`: measured, the two routes give the same 530 vertices
+and 520 triangles, and — for the same part name and target id — a
+byte-identical `json.dumps(..., sort_keys=True)` payload. The render model is
+built from `LocalCadResult`, so it never sees which feature made the cavity.
+
 ## Bounds
 
 `bounds` is computed **from the render vertices**, not copied from the B-rep —

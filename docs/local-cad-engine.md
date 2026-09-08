@@ -1,7 +1,7 @@
 # Local CAD engine
 
-Status: **Stage 10 — one constructive primitive (box or cylinder) plus any
-number of `through_hole` modifiers, built as a real B-rep solid.**
+Status: **Stage 11 — box and cylinder primitives, `through_hole`, and general
+boolean `subtract`, built as real B-rep solids.**
 
 ## Why a local backend exists
 
@@ -58,23 +58,24 @@ dependencies at all, and importing `cad_core` does not require CadQuery.
 
 ## Supported V1 subset
 
-A part in **millimetres** whose feature history is:
+A part in **millimetres** whose feature history:
 
-1. exactly one **constructive** feature — `box` or `cylinder` — first, and
-2. then **any number of `through_hole` modifiers**, each targeting a solid in
-   the set.
+1. begins with a **constructive** feature — `box` or `cylinder` — and
+2. uses only `box`, `cylinder`, `through_hole` and `subtract`.
 
-Everything else is rejected with `UnsupportedGeometryError`: generic
-`subtract`, `fillet`, `chamfer`, a second constructive feature, a history that
-does not begin with a constructive feature, an empty history, and any other
-unit system. Nothing is partially built and no feature is silently skipped. The
-engine does not repair or reinterpret a part.
+Several constructive features are allowed, provided the extras are consumed as
+`subtract` tools so that exactly one solid is left. `fillet` and `chamfer` are
+rejected with `UnsupportedGeometryError`, as are a history that does not begin
+with a constructive feature, an empty history, and any other unit system.
+Nothing is partially built and no feature is silently skipped. The engine does
+not repair or reinterpret a part.
 
-That shape of history is not an arbitrary cut-off. It is what the
-specification's own solid-set rules (Section B.4) permit given the features
-implemented here: a second constructive feature would leave two solids in the
-set and fail rule S9, and the only V1 feature that could consume one of them is
-`subtract`, which is not implemented.
+The number of constructive features is deliberately **not** capped up front.
+Whether extra solids are legitimate depends on whether something consumes
+them, which is only known once the history has been evaluated — so a leftover
+solid is caught by the rule S9 check after the last feature, which is where
+the specification puts it. Stage 10's up-front "exactly one constructive
+feature" restriction was correct only while `subtract` was missing.
 
 ## The solid set (Section B.4)
 
@@ -82,9 +83,11 @@ The engine evaluates features in order against an ordered **solid set**, a
 `collections.OrderedDict` keyed by solid id:
 
 - a constructive feature **adds** a solid named by its own `id`;
-- a `through_hole` **replaces its target in place** — the surviving solid keeps
-  the *target's* id and the target's position in the set, and the hole's own
-  `id` never names a solid;
+- a modifier (`through_hole`, `subtract`) **replaces its target in place** —
+  the surviving solid keeps the *target's* id and the target's position in the
+  set, and the modifier's own `id` never names a solid;
+- a `subtract` additionally **consumes** each solid named in `tools`, deleting
+  it from the set so no later feature can resolve it;
 - after the last feature the set must hold **exactly one** solid (rule S9),
   which becomes the part's geometry.
 
@@ -212,18 +215,6 @@ dimension, so the result is geometrically identical to the unbounded cut while
 staying a finite boolean the kernel can evaluate. There is no magic constant and
 no "sufficiently huge" number anywhere in the module.
 
-### Boolean operation
-
-`cadquery.Shape.cut(cutter)`, which is OpenCascade's `BRepAlgoAPI_Cut`. A
-kernel failure is not swallowed: `cut` raising, or returning something that
-fails the checks below, produces a `GeometryOperationError`, never a
-best-effort shape.
-
-`cut` returns a **`Compound`**, not a `Solid`. After the single-solid check
-below the surviving solid is unwrapped, so `LocalCadResult.shape` is always a
-`Solid` and `is_solid()` stays meaningful for a drilled part exactly as it is
-for a box.
-
 ### Rule E1 — the centreline must intersect the target
 
 Checked with the kernel rather than by special-casing geometry: a line segment
@@ -241,21 +232,21 @@ Testing the *centreline* rather than "did any material disappear" is
 deliberate: a hole whose centreline lies outside the body but whose radius
 still clips a corner is caught by this check, which is what E1 says.
 
-### Rules E2 and E3 — the result must be one connected solid
+### Rules E2 and E3
 
-Both come from the kernel's own count of solids in the boolean result:
-
-| Solids in result | Meaning | Behaviour |
-|---|---|---|
-| 0 | the cut consumed the whole body | `GeometryOperationError`, rule E2 |
-| 1 | valid | unwrapped and kept |
-| > 1 | the cut split the body | `GeometryOperationError`, rule E3 |
+Handled by the shared boolean machinery described under
+[One boolean implementation](#one-boolean-implementation). A through-hole has
+exactly one cutter, so the per-cut and per-feature checks coincide.
 
 Measured examples: a Ø20 hole through a Ø10 × 20 cylinder leaves nothing —
-`cutting target 'c' left no material (rule E2)`; a Ø40 hole through the middle
-of a 100 × 20 × 10 bar leaves two pieces — `cutting target 'bar' split it into
-2 disconnected solids (rule E3); V1 has no multi-body parts`. Neither is
-repaired, and neither returns a shape.
+`through_hole 'h': cutting target 'c' left no material (rule E2)`; a Ø40 hole
+through the middle of a 100 × 20 × 10 bar leaves two pieces —
+`through_hole 'slot': the cut split the body into 2 disconnected solids
+(rule E3); V1 has no multi-body parts`. Neither is repaired, and neither
+returns a shape.
+
+Rule E1 is what a through-hole has *instead of* the no-op check generic
+subtraction needs: if the centreline meets the target, material is removed.
 
 ### Topology is a kernel observation
 
@@ -277,6 +268,165 @@ and for a drilled part the loosening is about 3.1e-3 mm — far larger than the
 query over an attached triangulation, not of the cut. Measure the B-rep before
 meshing if a 1e-6 mm answer is wanted; `docs/render-representation.md` records
 the numbers.
+
+## Subtract semantics (Section C.4)
+
+`subtract` takes a `target` and a non-empty list of `tools`, and removes each
+tool solid from the target **in `tools` order**. Only subtraction exists in V1:
+there is no union, no intersection, and no boolean expression tree. A tool is
+an ordinary solid already in the set — usually a `cylinder` — not a special
+"cutting tool" concept.
+
+### Target replacement and tool consumption
+
+```
+plate ─┐
+        ├─ subtract(target=plate, tools=[toolA, toolB]) ─→ plate
+toolA ─┤                                                   (toolA, toolB gone)
+toolB ─┘
+```
+
+- the result is written back to the **target's key**, so it keeps the target's
+  id and its position in the ordered set;
+- each tool id is **deleted** from the set, so no later feature can resolve it
+  (the validator reports that as rule S6);
+- the subtract's own `id` never names a solid — it appears only in error
+  messages;
+- **nothing is written back unless the whole feature succeeds.** The
+  replacement and all the deletions happen after the last cut has passed its
+  checks, so a failed subtract leaves no partial geometry and no half-consumed
+  tools. A test drives a two-tool subtract whose second tool is unresolvable
+  and confirms the failure is reported against the subtract, not later as a
+  confusing rule S9 error about a set that was quietly mutated.
+
+### Order is honoured, and what it actually affects
+
+Two different things are kept apart deliberately:
+
+**The geometry is order-independent.** Subtracting a set of tools removes their
+union, and `A \ (B ∪ C) = (A \ B) \ C = (A \ C) \ B`. So the claim is not
+that order changes the shape — it is set algebra, and it was measured too:
+cutting two disjoint cylinders from the plate in either order, or both at once
+with `cut(first, second)`, gives volume agreement to 0.0 and identical
+topology (8 faces, 18 edges, 12 vertices).
+
+**The acceptance is order-dependent.** Because each tool is applied to the
+*current* target, a tool whose material an earlier tool already removed
+removes nothing itself. Measured on a plate with a Ø20 tool and a coaxial Ø10
+tool inside it:
+
+| `tools` | Outcome |
+|---|---|
+| `["wide", "narrow"]` | **refused** — `'narrow'` would remove no material |
+| `["narrow", "wide"]` | builds; volume `56858.407346410204` mm³, identical to the wide tool alone |
+
+That is the evidence that tools really are applied in list order, and the
+reason the specification's "in list order" is not a redundant phrase.
+
+## One boolean implementation
+
+`through_hole` and `subtract` share a single boolean path
+(`_cut_in_order`), so there is only ever one implementation of "cut and check"
+in this engine. A through-hole passes one derived cutter; a subtract passes its
+tools in order.
+
+### Boolean API
+
+`cadquery.Shape.cut(tool)` → OpenCascade **`BRepAlgoAPI_Cut`** (via CadQuery's
+`_bool_op`, which sets the target as the argument list and the tools as the
+tool list). Cuts are applied **sequentially**, one `cut` call per tool, which
+is what "in list order" asks for and what makes per-tool error attribution
+possible. CadQuery's `cut` also accepts several tools in one call; that path
+was measured to agree exactly with the sequential one and is not used, because
+it cannot say which tool caused a failure.
+
+A kernel failure is not swallowed: `cut` raising, or returning something that
+fails the checks below, produces a `GeometryOperationError`, never a
+best-effort shape.
+
+### Return type
+
+`cut` returns a **`Compound`**, not a `Solid` — measured, not assumed. Only
+after the single-solid check does the engine unwrap that one solid, so
+`LocalCadResult.shape` is always a `Solid` and `is_solid()` means the same
+thing for a cut part as for a box. A multi-solid result is never reduced by
+picking a component.
+
+### Rule E2 — a cut must leave material
+
+Checked from the kernel's solid count **after every individual cut**, because
+an empty result is absorbing: once no material is left, no later tool can
+bring any back, and naming the tool that emptied the body is more useful than
+reporting at the end. Measured: cutting the plate with a 200 mm box gives a
+compound with **0 solids and 0 faces**, and `Volume()` still answers `0.0`
+rather than failing — which is exactly why the classification is on the solid
+count and not on volume.
+
+```
+GeometryOperationError: subtract 'cut': subtracting tool 'swallow' from target
+'plate' left no material (rule E2)
+```
+
+### Rule E3 — the result must be one connected solid
+
+Checked **once, on what the feature leaves**. Section E.2 says "every modifier
+leaves a single connected solid", so the subject is the modifier's result, not
+each intermediate cut:
+
+| Solids in the feature's result | Behaviour |
+|---|---|
+| 0 | `GeometryOperationError`, rule E2 (reported at the cut that emptied it) |
+| 1 | unwrapped and kept |
+| > 1 | `GeometryOperationError`, rule E3 |
+
+```
+GeometryOperationError: subtract 'cut': the cut split the body into 2
+disconnected solids (rule E3); V1 has no multi-body parts
+```
+
+**A consequence, chosen deliberately and recorded here:** a multi-tool subtract
+may pass *through* a split state if a later tool removes the extra pieces. A
+100 × 20 × 10 bar severed by a Ø40 cylinder and then trimmed of its right-hand
+piece builds successfully, leaving one solid of 6173.554090037926 mm³ — which
+matches the analytic value `(55·20 − (100 + 100√3 + 200π/3))·10` to
+3.8e-8 mm³. Checking each intermediate instead would reject it. That reading
+would be a stricter rule than E3 states, so the engine does not apply it; the
+alternative is noted under **Known limitations** as an open question for a
+future specification revision.
+
+### The unclassified case: a tool that removes nothing
+
+**V1 does not classify this.** Section C.4 lists only E2 and E3 for
+`subtract`. The specification says a no-op is an error where it means it —
+E1 for a through-hole that misses, E4 for a selector that matches nothing —
+and it does not say it here.
+
+The engine **refuses** such a subtraction, which is the narrowest reading
+consistent with the contract, and the message says plainly that the case is
+unclassified rather than claiming a rule code it does not have:
+
+```
+GeometryOperationError: subtract 'cut': subtracting tool 'far' from target
+'plate' would remove no material -- the two solids do not overlap. V1 does not
+classify this case (E2 and E3 are the only geometric rules given for
+'subtract'), so the engine refuses it rather than accepting a subtraction that
+means nothing
+```
+
+Two measurements support refusing over accepting:
+
+- **the kernel accepts it silently.** A disjoint tool returns the target's
+  volume to the last bit and the same six faces, so nothing downstream —
+  volume, bounds, topology, mesh — would notice.
+- **a *touching* tool removes no volume yet still changes topology.** A
+  cylinder tangent to the plate's +X face leaves the volume at exactly
+  60000.0 but the box comes back with a **seventh face**: the kernel imprints
+  the contact. Accepting no-ops would let a tool that means nothing
+  geometrically alter the result.
+
+Overlap is decided by the kernel, not by comparing volumes:
+`Shape.intersect` (`BRepAlgoAPI_Common`) must yield at least one **solid**.
+Touching faces yield none — measured — which is the intended answer.
 
 ## Input / output boundary
 
@@ -332,9 +482,13 @@ a value that came from the kernel.
 
 Explicitly **not** part of this stage:
 
-- **The remaining V1 features are unimplemented**: generic `subtract`,
-  `fillet`, `chamfer`. There are no hole patterns either — four holes are four
-  `through_hole` features, and the engine has no pattern concept.
+- **The remaining V1 features are unimplemented**: `fillet` and `chamfer`.
+  There are no hole patterns either — four holes are four `through_hole`
+  features, and the engine has no pattern concept.
+- **Only subtraction.** V1 defines no union and no intersection, and neither is
+  implemented. `Shape.fuse` and `Shape.intersect` exist in CadQuery; the latter
+  is used *internally* to decide overlap, and neither is reachable as a
+  feature.
 - **No generalized feature graph.** The evaluator is an ordered dictionary of
   solids walked once, which is exactly what Section B.4 describes. It is not a
   dependency graph, a rollback stack, or a re-orderable history.
@@ -348,23 +502,35 @@ Explicitly **not** part of this stage:
 
 ## Known limitations
 
-- **One constructive feature.** Multi-body parts, assemblies, and any history
-  with two primitives are rejected. This follows from rule S9 plus the missing
-  `subtract`, not from a limit of the kernel.
-- **Only `through_hole` cuts.** There is no generic boolean: the tool is always
-  a cylinder derived from a `through_hole`, never an arbitrary solid, and no
-  arbitrary boolean operation is exposed.
-- **A through-hole always replaces its target.** There is no way to keep both
-  the original and the drilled body, because V1 has no vocabulary for it.
+- **One solid at the end.** Multi-body parts and assemblies are rejected.
+  Several primitives may exist *during* evaluation, but rule S9 requires
+  exactly one solid after the last feature, so every extra one must be
+  consumed as a `subtract` tool.
+- **A modifier always replaces its target, and a tool is always consumed.**
+  There is no way to keep both the original and the modified body, or to reuse
+  a tool for a second cut — V1 has no vocabulary for either. A part that needs
+  the same shape removed twice must declare two tools.
+- **Subtraction only, one target at a time.** No union, no intersection, no
+  boolean expression tree, and no multi-target operation.
 - The engine trusts the validator. A hand-built `Part` that bypasses validation
   with, say, a zero extent would reach the kernel and fail there rather than
   being caught politely — by design, since re-validating would duplicate
   Stage 2 and repairing is forbidden. The rule S6 target check in the
   evaluator is the one exception, and exists only because the evaluator cannot
   proceed without a target.
-- **E4 and E5 are still not implemented.** Only E1, E2 and E3 are enforced, and
-  only for `through_hole`; E4 and E5 concern fillets and chamfers, which do not
-  exist here yet.
+- **E4 and E5 are still not implemented.** E1, E2 and E3 are enforced — E1 for
+  `through_hole`, E2 and E3 for both cutting features. E4 and E5 concern
+  fillets and chamfers, which do not exist here yet.
+- **Two open questions in the contract, both recorded rather than resolved
+  quietly.** (1) V1 does not classify a `subtract` tool that removes no
+  material; the engine refuses it, and a future revision should either add a
+  rule or state that it is permitted. (2) V1 does not say whether E3 applies to
+  each intermediate cut inside a multi-tool `subtract` or only to the feature's
+  result; the engine reads it as the feature's result, which is what E.2 says,
+  so a subtract that severs the body and then trims away the extra piece is
+  accepted. Both readings are documented above with the measurements that
+  distinguish them. Neither is a contradiction in the specification — they are
+  gaps — so `docs/cad-specification.md` was not changed.
 - **Tangency is not classified.** A centreline that passes exactly through a
   face or edge of the target is left to the kernel's own tolerance rather than
   being detected and reported as a distinct condition. The specification does

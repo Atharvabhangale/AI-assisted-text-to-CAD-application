@@ -669,8 +669,8 @@ class TestBoundaries(ThroughHoleTestCase):
                     build_part(part)
 
     def test_still_unimplemented_features_remain_rejected(self) -> None:
+        """Fillet and chamfer only: Stage 11 implemented 'subtract'."""
         for feature in (
-            Subtract(id="s", target="plate", tools=("tool",)),
             Fillet(id="f", target="plate", radius=2.0, edges=EdgeSelector(select="all")),
             Chamfer(
                 id="c", target="plate", distance=1.0, edges=EdgeSelector(select="all")
@@ -687,7 +687,13 @@ class TestBoundaries(ThroughHoleTestCase):
                     build_part(part)
                 self.assertIn(feature.TYPE, str(caught.exception))
 
-    def test_two_constructive_features_remain_rejected(self) -> None:
+    def test_an_unconsumed_second_solid_is_rejected(self) -> None:
+        """Rule S9, now checked after the last feature rather than up front.
+
+        Stage 11 made several constructive features legal when a 'subtract'
+        consumes the extras, so a leftover solid is caught where the
+        specification puts the rule: at the end of evaluation.
+        """
         part = Part(
             schema_version="1.0.0",
             units="mm",
@@ -697,9 +703,9 @@ class TestBoundaries(ThroughHoleTestCase):
                 Cylinder(id="b", diameter=5.0, height=5.0),
             ),
         )
-        with self.assertRaises(UnsupportedGeometryError) as caught:
+        with self.assertRaises(GeometryOperationError) as caught:
             build_part(part)
-        self.assertIn("one constructive feature", str(caught.exception))
+        self.assertIn("S9", str(caught.exception))
 
     def test_a_history_starting_with_a_modifier_is_rejected(self) -> None:
         part = Part(

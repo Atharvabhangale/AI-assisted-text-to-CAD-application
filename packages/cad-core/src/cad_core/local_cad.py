@@ -20,30 +20,47 @@ bounding-box stand-in.
 
 Supported subset
 ----------------
-A part in millimetres whose feature history is **one constructive feature**
-(``box`` or ``cylinder``) optionally followed by **any number of
-``through_hole`` modifiers targeting it**. Generic ``subtract``, ``fillet`` and
-``chamfer`` are **not implemented**: they are rejected, never partially built
-and never silently skipped.
-
-That subset is not an arbitrary choice -- it is what the specification's
-solid-set rules (Section B.4) allow with the features implemented here. A
-second constructive feature would leave two solids and fail rule S9 unless a
-``subtract`` consumed one, and ``subtract`` is not implemented.
+A part in millimetres whose feature history begins with a constructive feature
+(``box`` or ``cylinder``) and uses only ``box``, ``cylinder``,
+``through_hole`` and ``subtract``. Several constructive features are allowed,
+provided the extras are consumed as ``subtract`` tools so that exactly one
+solid is left (rule S9). ``fillet`` and ``chamfer`` are **not implemented**:
+they are rejected, never partially built and never silently skipped.
 
 Evaluation model (specification Section B.4)
 --------------------------------------------
 Features are evaluated in order against an ordered **solid set**:
 
 * a constructive feature adds a solid named by its own ``id``;
-* a ``through_hole`` **replaces its target in place** -- the result keeps the
-  *target's* id and the target's position in the set, and the hole's own ``id``
-  never names a solid;
+* a modifier (``through_hole``, ``subtract``) **replaces its target in place**
+  -- the result keeps the *target's* id and the target's position in the set,
+  and the modifier's own ``id`` never names a solid;
+* a ``subtract`` additionally **consumes** each solid in ``tools``, deleting it
+  from the set so no later feature can use it;
 * after the last feature the set must hold exactly one solid, which becomes the
   part's geometry.
 
 So a plate with four holes stays one solid called ``plate`` throughout, and
 :attr:`LocalCadResult.feature_id` is the id of that surviving solid.
+
+Subtract semantics (specification Section C.4)
+----------------------------------------------
+``subtract`` removes each solid in ``tools`` from ``target`` **in list order**
+(:func:`_cut_in_order`). Only subtraction exists in V1: there is no union, no
+intersection and no boolean expression tree.
+
+Order is honoured, and the two things it affects are kept apart deliberately:
+
+* the **geometry** is order-independent, by set algebra
+  (``A \ (B u C) == (A \ B) \ C``) and by measurement -- cutting two tools in
+  either order, or both at once, gives the same volume and topology;
+* the **acceptance** is not. A tool whose material a previous tool already
+  removed is a no-op in one order and not in the other, so the same feature can
+  build under one ordering and be refused under the reverse.
+
+Tools are consumed only if the whole feature succeeds. Nothing is written back
+to the solid set until every cut has passed its checks, so a failed subtract
+leaves no partial geometry and no half-consumed tools behind.
 
 Through-hole semantics (specification Section C.3)
 --------------------------------------------------
@@ -79,9 +96,9 @@ The cutter therefore protrudes past both faces by at least the target's largest
 dimension, so the cut is geometrically identical to the unbounded one while
 staying a finite boolean the kernel can evaluate.
 
-Geometric rules E1 and E3
--------------------------
-Both are checked with the kernel, and a failure raises
+Geometric rules E1, E2 and E3
+-----------------------------
+All are checked with the kernel, and a failure raises
 :class:`GeometryOperationError` rather than returning a best-effort shape:
 
 * **E1** -- the centreline must actually intersect the target. Tested by
@@ -90,11 +107,22 @@ Both are checked with the kernel, and a failure raises
   error, not a silent no-op. A hole that merely grazes the material is caught
   by this too, because the test is on the *centreline*, not on whether any
   material happened to be removed.
-* **E3** -- the result must be a single connected solid. A boolean returns a
-  compound; if it holds no solid the cut consumed the body, and if it holds
-  more than one the cut split it. Only a compound holding exactly one solid is
-  accepted, and that solid is unwrapped so
-  :attr:`LocalCadResult.shape` is always a ``Solid``.
+* **E2** -- a cut must leave material. Checked after every individual cut,
+  because an empty result is absorbing: once nothing is left, no later tool can
+  bring anything back, and reporting at the tool that emptied the body is more
+  useful than reporting at the end.
+* **E3** -- the result must be a single connected solid. Checked once, on what
+  the *feature* leaves, which is what Section E.2 states ("every modifier
+  leaves a single connected solid"); an intermediate cut inside a multi-tool
+  subtract may therefore pass through a split state if a later tool removes the
+  extra pieces. Only a result holding exactly one solid is accepted, and that
+  solid is unwrapped out of the compound the kernel returns, so
+  :attr:`LocalCadResult.shape` is always a ``Solid``. No component is ever
+  picked out of a multi-solid result.
+
+A fourth case has no rule: a ``subtract`` tool that removes no material.
+Section C.4 lists only E2 and E3 for ``subtract``, so the engine refuses it
+without claiming a rule code -- see :func:`_require_overlap`.
 
 Box semantics (specification Section C.1)
 -----------------------------------------
@@ -153,6 +181,7 @@ from cad_core.model import (
     Part,
     Position,
     Size,
+    Subtract,
     ThroughHole,
 )
 
@@ -297,7 +326,7 @@ def shape_volume(shape: Any) -> float:
 
 
 def build_part(part: Part) -> LocalCadResult:
-    """Build real CAD geometry for a single-box part.
+    """Build real CAD geometry for a validated V1 part.
 
     Args:
         part: A validated :class:`~cad_core.model.Part`, as returned in
@@ -313,12 +342,13 @@ def build_part(part: Part) -> LocalCadResult:
             specification document is not accepted.
         UnsupportedGeometryError: if the part is outside the supported subset
             -- units other than millimetres, an empty history, a feature type
-            this engine does not build, or a history shape it does not
-            evaluate. Nothing partial is built.
+            this engine does not build, or a history that does not start with
+            a constructive feature. Nothing partial is built.
         GeometryOperationError: if the geometry itself cannot be built -- an
-            unresolvable target, a centreline that misses its target (E1), a
-            failed boolean, an empty result, or a result that is not a single
-            connected solid (E3).
+            unresolvable target or tool, a centreline that misses its target
+            (E1), a failed boolean, a cut that removes everything (E2), a cut
+            that splits the body (E3), a subtract tool that removes nothing, or
+            more than one solid left after the last feature (S9).
     """
     _require_supported_part(part)
 
@@ -328,10 +358,14 @@ def build_part(part: Part) -> LocalCadResult:
             solids[feature.id] = _build_box(feature)
         elif isinstance(feature, Cylinder):
             solids[feature.id] = _build_cylinder(feature)
-        else:
-            # A through_hole replaces its target in place, keeping the
-            # target's id and its position in the set (Section B.4).
+        elif isinstance(feature, ThroughHole):
+            # A modifier replaces its target in place, keeping the target's id
+            # and its position in the set (Section B.4).
             solids[feature.target] = _apply_through_hole(feature, solids)
+        else:
+            # A subtract also replaces its target in place, and additionally
+            # consumes each tool: _apply_subtract mutates ``solids``.
+            _apply_subtract(feature, solids)
 
     if len(solids) != 1:
         remaining = ", ".join(repr(name) for name in solids)
@@ -398,29 +432,174 @@ def _apply_through_hole(hole: ThroughHole, solids: "Dict[str, Any]") -> Any:
         pnt=_cq.Vector(*centre),
         dir=_cq.Vector(*direction),
     )
-    try:
-        result = target.cut(cutter)
-    except Exception as exc:  # pragma: no cover - kernel refusal is rare
-        raise GeometryOperationError(
-            f"through_hole {hole.id!r}: the boolean cut of target "
-            f"{hole.target!r} failed: {exc}"
-        ) from exc
+    # Rules E2 and E3 are enforced by the shared boolean machinery. A
+    # through_hole has exactly one cutter, so "in order" is trivial here; E1
+    # above is what a through_hole has instead of a no-op check.
+    return _cut_in_order(
+        target,
+        ((cutter, f"cutting target {hole.target!r}"),),
+        label=f"through_hole {hole.id!r}",
+        require_material_removal=False,
+    )
 
-    # E3: exactly one connected solid must remain. A boolean returns a
-    # compound, so the single solid is unwrapped for the caller.
-    remaining = result.Solids()
-    if not remaining:
+
+def _apply_subtract(subtract: Subtract, solids: "Dict[str, Any]") -> None:
+    """Apply Section C.4 to ``solids`` in place.
+
+    Removes each tool solid from the target in ``tools`` order, replaces the
+    target in place (keeping its id and its position in the set), and consumes
+    every tool by deleting it from the set. Nothing is written back unless the
+    whole feature succeeds, so a failure leaves no partial geometry behind.
+    """
+    label = f"subtract {subtract.id!r}"
+    target = solids.get(subtract.target)
+    if target is None:
+        available = ", ".join(repr(name) for name in solids) or "nothing"
         raise GeometryOperationError(
-            f"through_hole {hole.id!r}: cutting target {hole.target!r} left no "
-            "material (rule E2)"
+            f"{label} targets {subtract.target!r}, which is not a solid in the "
+            f"solid set (rule S6); available: {available}"
         )
+
+    if not subtract.tools:
+        raise GeometryOperationError(
+            f"{label} has an empty tool list (rule S14); a subtract must remove "
+            "at least one solid"
+        )
+
+    # Defensive resolution of the tool list. The validator already enforces
+    # S6, S14 and S15, so none of these can be reached from a validated part;
+    # they exist so that inconsistent typed input is reported rather than
+    # producing nonsense geometry or an IndexError.
+    steps = []
+    seen = []
+    for position, tool_id in enumerate(subtract.tools):
+        if tool_id == subtract.target:
+            raise GeometryOperationError(
+                f"{label} lists its own target {tool_id!r} as tools[{position}] "
+                "(rule S15); a solid cannot be subtracted from itself"
+            )
+        if tool_id in seen:
+            raise GeometryOperationError(
+                f"{label} lists tool {tool_id!r} twice (rule S15); a tool is "
+                "consumed by its first use and cannot be reused"
+            )
+        tool = solids.get(tool_id)
+        if tool is None:
+            available = ", ".join(repr(name) for name in solids) or "nothing"
+            raise GeometryOperationError(
+                f"{label} uses tool {tool_id!r} at tools[{position}], which is "
+                f"not a solid in the solid set (rule S6); available: {available}"
+            )
+        seen.append(tool_id)
+        steps.append(
+            (
+                tool,
+                f"subtracting tool {tool_id!r} from target {subtract.target!r}",
+            )
+        )
+
+    result = _cut_in_order(
+        target,
+        tuple(steps),
+        label=label,
+        require_material_removal=True,
+    )
+
+    # Commit: the target is replaced in place, so assigning to the existing key
+    # keeps both its id and its position in the ordered set (Section B.4).
+    solids[subtract.target] = result
+    for tool_id in seen:
+        del solids[tool_id]
+
+
+def _cut_in_order(
+    target: Any,
+    steps: Tuple[Tuple[Any, str], ...],
+    *,
+    label: str,
+    require_material_removal: bool,
+) -> Any:
+    """Subtract each tool from ``target`` in order and enforce E2 and E3.
+
+    ``steps`` pairs each cutting solid with a description used in error
+    messages. One implementation serves both ``through_hole`` and ``subtract``
+    so there is only ever one boolean path in this engine.
+
+    ``require_material_removal`` asks for the pre-cut overlap check that
+    generic subtraction needs (see :func:`_require_overlap`). A
+    ``through_hole`` passes ``False`` because rule E1 has already established
+    that its centreline meets the target.
+
+    Returns the single surviving solid, unwrapped out of the compound the
+    kernel returns. Raises :class:`GeometryOperationError` on any failure --
+    never a best-effort shape.
+    """
+    for tool, description in steps:
+        if require_material_removal:
+            _require_overlap(target, tool, label=label, description=description)
+        try:
+            target = target.cut(tool)
+        except Exception as exc:  # pragma: no cover - kernel refusal is rare
+            raise GeometryOperationError(
+                f"{label}: the boolean cut failed while {description}: {exc}"
+            ) from exc
+        # E2 is checked per step because an empty result is absorbing: once no
+        # material is left, no later cut can bring any back.
+        if not target.Solids():
+            raise GeometryOperationError(
+                f"{label}: {description} left no material (rule E2)"
+            )
+
+    # E3 applies to what the modifier leaves (Section E.2), so it is checked
+    # once, on the feature's final result, not after each intermediate cut.
+    remaining = target.Solids()
     if len(remaining) > 1:
         raise GeometryOperationError(
-            f"through_hole {hole.id!r}: cutting target {hole.target!r} split it "
-            f"into {len(remaining)} disconnected solids (rule E3); V1 has no "
-            "multi-body parts"
+            f"{label}: the cut split the body into {len(remaining)} "
+            "disconnected solids (rule E3); V1 has no multi-body parts"
         )
+    # A boolean returns a compound; the single solid is unwrapped so callers
+    # always receive a Solid.
     return remaining[0]
+
+
+def _require_overlap(
+    target: Any, tool: Any, *, label: str, description: str
+) -> None:
+    """Refuse a subtraction whose tool removes no material.
+
+    **This case is not classified by the V1 specification.** E1 says a
+    ``through_hole`` that misses is an error and E4 says a fillet or chamfer
+    that matches nothing is an error, but the rules listed for ``subtract``
+    are only E2 and E3, neither of which covers a tool that removes nothing.
+
+    The engine refuses rather than guessing, which is the narrowest reading
+    consistent with the contract, and it does not fabricate a rule code for
+    the refusal. Two measured facts support refusing over accepting:
+
+    * the kernel accepts such a cut silently -- a disjoint tool returns the
+      target's volume to the last bit, so nothing downstream would notice;
+    * a tool that merely *touches* the target removes no volume yet still
+      changes its topology (a box gains a seventh face), so accepting no-ops
+      would let a tool that means nothing geometrically alter the result.
+
+    Overlap is decided by the kernel: ``Shape.intersect`` (BRepAlgoAPI_Common)
+    must yield at least one solid. Touching faces yield none, which is the
+    intended answer.
+    """
+    try:
+        common = target.intersect(tool)
+    except Exception as exc:  # pragma: no cover - kernel refusal is rare
+        raise GeometryOperationError(
+            f"{label}: could not test overlap while {description}: {exc}"
+        ) from exc
+    if not common.Solids():
+        raise GeometryOperationError(
+            f"{label}: {description} would remove no material -- the two solids "
+            "do not overlap. V1 does not classify this case (E2 and E3 are the "
+            "only geometric rules given for 'subtract'), so the engine refuses "
+            "it rather than accepting a subtraction that means nothing"
+        )
 
 
 def _axial_span(target: Any, axis_index: int) -> Tuple[float, float, float]:
@@ -493,12 +672,12 @@ def _require_supported_part(part: Any) -> None:
         )
 
     for position, feature in enumerate(part.features):
-        if not isinstance(feature, (Box, Cylinder, ThroughHole)):
+        if not isinstance(feature, (Box, Cylinder, ThroughHole, Subtract)):
             raise UnsupportedGeometryError(
                 f"unsupported feature type {feature.TYPE!r} at features[{position}]; "
                 "this engine builds 'box' and 'cylinder' and applies "
-                "'through_hole'. Generic boolean subtraction, fillets and "
-                "chamfers are not implemented."
+                "'through_hole' and 'subtract'. Fillets and chamfers are not "
+                "implemented."
             )
 
     first = part.features[0]
@@ -508,12 +687,7 @@ def _require_supported_part(part: Any) -> None:
             f"{first.TYPE!r}"
         )
 
-    constructive = sum(
-        1 for feature in part.features if isinstance(feature, (Box, Cylinder))
-    )
-    if constructive != 1:
-        raise UnsupportedGeometryError(
-            f"this engine evaluates exactly one constructive feature; got "
-            f"{constructive}. Two solids could only be reduced to one by a "
-            "'subtract', which is not implemented."
-        )
+    # The number of constructive features is deliberately *not* restricted
+    # here. Several are legitimate as long as every extra solid is consumed by
+    # a 'subtract' (Section B.4); a leftover solid is caught by the rule S9
+    # check after the last feature, which is where the specification puts it.

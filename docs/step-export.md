@@ -140,6 +140,18 @@ exact floating-point equality:
 - lengths: **1e-6 mm** (matching the local CAD engine)
 - volumes: **1e-6 mm³**
 
+### A subtract-produced part measures the same
+
+Stage 11 added generic `subtract`. Cutting the same plate with a Ø20 cylinder
+tool that overshoots it in Z produces the same solid as the through-hole, and
+STEP treats it the same: valid solid, 1 solid, 7 faces / 15 edges / 10
+vertices preserved, bounds exact, volume `56858.40734641042` — the identical
+2.18e-10 mm³ deviation. The file is 19048 bytes against 19097 for the drilled
+route; the difference is header text, not geometry.
+
+Nothing in this exporter needed changing for `subtract`, which is the point of
+the exporters hanging off `LocalCadResult` rather than off feature types.
+
 ## Determinism is geometric, not byte-for-byte
 
 Two exports of the same solid are **not** byte-identical, and this is measured
@@ -175,10 +187,10 @@ STEP export needs the optional `local-cad` extra, like the engine it exports fro
 
 ## Limitations
 
-- **Whatever the local engine can build, and no more.** That is currently one
-  box or cylinder plus any number of through-holes. Generic boolean
-  subtraction, fillets and chamfers remain unimplemented, so nothing here
-  demonstrates STEP fidelity for them.
+- **Whatever the local engine can build, and no more.** That is currently
+  boxes and cylinders, `through_hole` and general `subtract`. Fillets and
+  chamfers remain unimplemented, so nothing here demonstrates STEP fidelity
+  for blended or bevelled edges.
 - **STEP only.** No IGES, no STL, no 3MF, no BREP, no mesh formats.
 - **No import pipeline.** `read_step` is verification support. STEP is not an
   input to the application and never will be on the normal path.

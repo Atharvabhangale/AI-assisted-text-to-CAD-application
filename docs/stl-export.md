@@ -208,6 +208,15 @@ Two things worth recording:
   consequence. This is one more reason STL is an output, never the
   representation: a mesh hole is not a Ø20 hole.
 
+### A subtract-produced part meshes byte-identically
+
+Stage 11 added general `subtract`. Cutting the same plate with a Ø20 cylinder
+tool that overshoots it in Z produces the same B-rep as the through-hole, and
+the STL files are **byte-identical** — same SHA-256, 26084 bytes, 520
+triangles, 260 nodes. That is the strongest equivalence check available for
+the shared boolean path, and a test asserts it: a divergence between the two
+routes would show up here even if volume and face counts still agreed.
+
 ### Tolerance
 
 Mesh coordinates are compared with **0.010001 mm** — the linear deflection
@@ -244,9 +253,9 @@ specification valuable: it is the format for *looking at* geometry, not for
 
 ## Limitations
 
-- **Whatever the local engine can build, and no more.** That is currently one
-  box or cylinder plus any number of through-holes. Generic boolean
-  subtraction, fillets and chamfers remain unimplemented.
+- **Whatever the local engine can build, and no more.** That is currently
+  boxes and cylinders, `through_hole` and general `subtract`. Fillets and
+  chamfers remain unimplemented.
 - **Binary only.** No ASCII STL.
 - **No mesh volume, no closure check.** The mesh is not verified to be a closed
   manifold, so no volume is derived from it.

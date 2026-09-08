@@ -149,6 +149,14 @@ is notable because the same solid through STEP came back 2.18e-10 mm³ off (see
 `docs/step-export.md`). No claim is made about *why*; it is one measurement of
 one solid, recorded rather than explained.
 
+### A subtract-produced part measures the same
+
+Stage 11's general `subtract` produces the same solid as the through-hole when
+the tool is a cylinder overshooting the plate, and IGES round-trips it
+identically: `Solid`, 1 solid, 7 faces / 15 edges / 10 vertices, bounds exact,
+volume `56858.407346410204` with **delta 0.0**, 17658 bytes — the same file
+size as the drilled route. No exporter change was needed.
+
 ## Verifying the file is really IGES
 
 Extension is not evidence, and neither is a textual "looks like IGES" check.
@@ -209,9 +217,9 @@ solid*, not *the same bytes*. This matches the position taken for STEP.
 
 ## Limitations
 
-- **Whatever the local engine can build, and no more.** That is currently one
-  box or cylinder plus any number of through-holes. Generic boolean
-  subtraction, fillets and chamfers remain unimplemented.
+- **Whatever the local engine can build, and no more.** That is currently
+  boxes and cylinders, `through_hole` and general `subtract`. Fillets and
+  chamfers remain unimplemented.
 - **Faces mode is not offered.** The mode is fixed at BRep. Exposing mode 0
   would mean offering an export whose round trip silently loses the solid and
   misreports volume.

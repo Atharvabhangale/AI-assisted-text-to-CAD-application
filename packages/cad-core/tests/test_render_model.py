@@ -18,6 +18,7 @@ from typing import Any, Dict
 from cad_core import validate
 from cad_core.local_cad import (
     SUPPORTED_UNITS,
+    GeometryOperationError,
     LocalCadResult,
     UnsupportedGeometryError,
     build_part,
@@ -589,7 +590,13 @@ class TestInputBoundary(RenderTestCase):
         with self.assertRaises(UnsupportedGeometryError):
             build_part(part)
 
-    def test_a_multi_feature_part_cannot_reach_the_renderer(self) -> None:
+    def test_an_orphan_solid_cannot_reach_the_renderer(self) -> None:
+        """Two disjoint boxes and no subtract: rule S9 leaves nothing to render.
+
+        Stage 11 made several constructive features legal *when consumed*, so
+        the engine now refuses this at the end of evaluation (S9) rather than
+        up front. Either way no geometry escapes to the render model.
+        """
         part = Part(
             schema_version="1.0.0",
             units="mm",
@@ -599,8 +606,9 @@ class TestInputBoundary(RenderTestCase):
                 Box(id="b", size=Size(1.0, 1.0, 1.0), position=Position(2.0, 0.0, 0.0)),
             ),
         )
-        with self.assertRaises(UnsupportedGeometryError):
+        with self.assertRaises(GeometryOperationError) as caught:
             build_part(part)
+        self.assertIn("S9", str(caught.exception))
 
     def test_an_invalid_specification_cannot_reach_the_renderer(self) -> None:
         result = validate(box_document(feature={"size": {"x": -1, "y": 60, "z": 10}}))

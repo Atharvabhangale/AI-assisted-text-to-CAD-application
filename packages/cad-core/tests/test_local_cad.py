@@ -15,6 +15,7 @@ from cad_core.local_cad import (
     BACKEND_NAME,
     BACKEND_VERSION,
     BoundingBox,
+    GeometryOperationError,
     LocalCadResult,
     UnsupportedGeometryError,
     build_part,
@@ -296,8 +297,33 @@ class TestUnsupportedFeatures(LocalCadTestCase):
         self.assertEqual(result.solid_count(), 1)
         self.assertEqual(result.feature_id, "plate")  # target identity kept
 
-    def test_two_constructive_features_are_still_rejected(self) -> None:
-        """Only a 'subtract' could reduce two solids to one, and it is not built."""
+    def test_two_constructive_features_now_build_when_one_is_consumed(self) -> None:
+        """Stage 11 added 'subtract', so a second solid may be a tool."""
+        document = box_document()
+        document["features"].extend(
+            [
+                {
+                    "id": "tool",
+                    "type": "cylinder",
+                    "diameter": 20,
+                    "height": 20,
+                    "position": {"x": 30, "y": 40, "z": -5},
+                },
+                {"id": "cut", "type": "subtract", "target": "plate", "tools": ["tool"]},
+            ]
+        )
+        result = build_part(self.part_from(document))
+        self.assertTrue(result.is_solid())
+        self.assertEqual(result.solid_count(), 1)
+        self.assertEqual(result.feature_id, "plate")  # target identity kept
+
+    def test_an_unconsumed_second_solid_is_rejected(self) -> None:
+        """Two solids and no subtract: rule S9, checked after the last feature.
+
+        Before Stage 11 the engine refused this up front as unsupported. Now
+        several constructive features are legal *when consumed*, so the refusal
+        moves to where the specification puts it -- the end of evaluation.
+        """
         part = Part(
             schema_version="1.0.0",
             units="mm",
@@ -307,9 +333,12 @@ class TestUnsupportedFeatures(LocalCadTestCase):
                 Box(id="b", size=Size(10.0, 10.0, 10.0), position=Position(20.0, 0.0, 0.0)),
             ),
         )
-        with self.assertRaises(UnsupportedGeometryError) as caught:
+        with self.assertRaises(GeometryOperationError) as caught:
             build_part(part)
-        self.assertIn("one constructive feature", str(caught.exception))
+        message = str(caught.exception)
+        self.assertIn("S9", message)
+        self.assertIn("'a'", message)
+        self.assertIn("'b'", message)
 
     def test_two_boxes_are_rejected(self) -> None:
         part = Part(
@@ -321,7 +350,7 @@ class TestUnsupportedFeatures(LocalCadTestCase):
                 Box(id="b", size=Size(1.0, 1.0, 1.0)),
             ),
         )
-        with self.assertRaises(UnsupportedGeometryError):
+        with self.assertRaises(GeometryOperationError):
             build_part(part)
 
     def test_empty_feature_history_is_rejected(self) -> None:
