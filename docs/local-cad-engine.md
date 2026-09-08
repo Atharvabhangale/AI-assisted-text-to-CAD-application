@@ -484,7 +484,10 @@ Explicitly **not** part of this stage:
 
 - **The remaining V1 features are unimplemented**: `fillet` and `chamfer`.
   There are no hole patterns either — four holes are four `through_hole`
-  features, and the engine has no pattern concept.
+  features, and the engine has no pattern concept. The deterministic edge
+  selection those two modifiers will need does exist and is measured
+  separately (`docs/edge-selection.md`), but it only *reads* a shape: this
+  engine does not call it, and no geometry operation uses it yet.
 - **Only subtraction.** V1 defines no union and no intersection, and neither is
   implemented. `Shape.fuse` and `Shape.intersect` exist in CadQuery; the latter
   is used *internally* to decide overlap, and neither is reachable as a
