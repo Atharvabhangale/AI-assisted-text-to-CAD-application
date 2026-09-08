@@ -1,7 +1,7 @@
 # Local build job layer
 
-Status: **Stage 16 — a local, in-memory build/job abstraction. Infrastructure
-only.**
+Status: **Stage 17 — a local, in-memory build/job abstraction over the
+artifact registry. Infrastructure only.**
 
 ## Purpose
 
@@ -16,8 +16,20 @@ BuildJob       (QUEUED → RUNNING → SUCCEEDED | FAILED)
       │
 execution      (local CAD engine, then the requested exporters)
       │
-BuildResult    (artifact metadata, or one structured BuildError)
+BuildResult ──→ ArtifactManifest ──→ Artifact[]
+               (or one structured BuildError)
 ```
+
+Since Stage 17 the artifact model lives in `cad_core.artifact_registry`
+(`docs/artifact-registry.md`), which owns artifact **identity**, content
+**checksums** and **storage kind**. This layer orchestrates: it runs the
+engine and the exporters, hands each produced output to the registry to be
+*published*, and assembles the results into an `ArtifactManifest` reachable as
+`BuildResult.manifest`.
+
+`BuildOutput` and `BuildArtifact` are this layer's names for
+`ArtifactKind` and `Artifact` — the definitions moved, the names did not, so
+no Stage 16 caller changed.
 
 ## The document stays the source of truth
 
@@ -124,7 +136,10 @@ them would mean putting them in the build key too.
 
 ## Artifact metadata
 
-`BuildArtifact` describes an output; it never holds its bytes.
+`BuildArtifact` **is** `artifact_registry.Artifact`; the full model, the
+identity rules, the checksum definitions and the publication rules are
+documented in `docs/artifact-registry.md`. In summary, it describes an output
+and never holds its bytes.
 
 | Field | Meaning |
 |---|---|
@@ -134,6 +149,9 @@ them would mean putting them in the build key too.
 | `build_key` | the build this came from |
 | `path` | **physical** location, for file outputs only; `None` in memory |
 | `size_bytes` | size on disk, for file outputs only |
+| `checksum` | SHA-256 of the artifact's bytes; `None` for the B-rep |
+| `file_extension` | the produced file's exact extension — content, not identity |
+| `storage` | `file` or `in_memory` |
 | `details` | neutral measurements — plain JSON data |
 
 **Logical identity is separated from the physical path.** The identity is
@@ -143,15 +161,28 @@ contains no path separator and no part of the temp directory name, and that
 two builds into different directories share logical ids while their paths
 differ.
 
-Filenames are `<build key>.<ext>` inside the given directory. That is a
-convenience — deterministic and collision-free across documents and option
-sets — not the artifact's identity.
+Filenames are `<build key>.<ext>` inside the given directory, using the
+artifact layer's default extension per kind. That is a convenience —
+deterministic and collision-free across documents and option sets — not the
+artifact's identity. Two files of the same logical output written with
+different extensions (`.step` and `.stp`) share one identity; see the artifact
+document.
 
 `details` holds real measurements: for geometry the feature id, solid count,
 volume, bounding box and face/edge/vertex counts; for STL the triangle count
 and structural consistency; for render the counts, bounds, winding, normal
 binding and tessellation settings. All plain data — a test serializes a whole
 result to JSON and asserts no kernel vocabulary appears.
+
+### The manifest
+
+`BuildResult.manifest` is the build-level `ArtifactManifest`: the document
+hash, the build key and exactly the artifacts this build published, in the
+canonical artifact order. It is empty for a failed build. Its
+`canonical_bytes()` is byte-deterministic across builds even though STEP and
+IGES file bytes are not, because the canonical view excludes paths, sizes and
+content checksums — the artifact document explains why that separation
+matters.
 
 ### The render artifact
 
@@ -225,6 +256,12 @@ success-looking artifact from a failed build. Deletion is best-effort — a file
 that cannot be removed does not turn a classified failure into an internal
 one.
 
+Stage 17 added one more way an output can fail: **publication**. A written
+file that is missing, empty, wrongly named for its kind, or (for STL)
+structurally inconsistent with its own triangle count is refused by the
+artifact layer, and that refusal is an `EXPORT_FAILED` like any other — same
+cleanup, same empty manifest.
+
 Measured example (a test): STEP and STL requested, the STL path blocked. STEP
 is written, STL fails, the job is `FAILED` with `error.output == STL` and
 `error.completed_outputs == (STEP,)`, the STEP file is gone, the artifact list
@@ -258,7 +295,8 @@ Python object that lives as long as the caller holds it.
 
 What this stage explicitly **does not** contain, and does not imply:
 
-- no database, no file-backed job store, no index;
+- no database, no file-backed job store, no index, no artifact store or
+  cache — an artifact lives only as long as the process and its file do;
 - no queue, broker, Redis, Celery or scheduler;
 - no worker pool, thread pool, process pool or async execution;
 - no HTTP API, no frontend, no LLM, no MCP;
@@ -279,6 +317,8 @@ CAD document
 BuildRequest / BuildOptions
     ↓
 BuildExecutor (run_job)
+    ↓
+ArtifactManifest → Artifact[]
     ↓
 local CAD engine  ·  STEP / IGES / STL  ·  RenderModel
 ```

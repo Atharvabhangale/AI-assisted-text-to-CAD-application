@@ -1,0 +1,642 @@
+"""Backend-independent representation and publication of derived artifacts.
+
+Three things this module keeps apart, because conflating them is how an
+artifact layer becomes tied to one machine:
+
+======================  ==================================================
+**identity**            :attr:`Artifact.logical_id` -- reproducible from the
+                        build alone: ``<build key>:<kind>``
+**content**             :attr:`Artifact.checksum`, :attr:`Artifact.size_bytes`
+                        -- facts about *this* produced file
+**physical location**   :attr:`Artifact.path` -- where this process happens to
+                        have put it
+======================  ==================================================
+
+```
+Build
+  |
+ArtifactManifest  (document_hash, build_key, artifacts[])
+  |
+Artifact
+  |-- logical identity      <build key>:<kind>
+  |-- kind / format         geometry | step | iges | stl | render
+  |-- source document       the canonical CAD document's SHA-256
+  |-- build                 the build key
+  |-- size, checksum        content facts, file-backed artifacts (and render)
+  +-- path                  physical, machine-specific, never identity
+```
+
+Nothing here knows about a filesystem *layout*: an artifact is told its path,
+never asked to invent one. There is **no** storage service, cache, database or
+remote backend, and none is implied -- a ``pathlib.Path`` is the whole of the
+physical side for now.
+
+Identity versus content
+-----------------------
+This distinction is the point of the module, and the two must never be merged:
+
+* :attr:`Artifact.logical_id` is **deterministic**: the same canonical CAD
+  document built with the same options always yields the same logical ids, on
+  any machine, at any time. It reuses the Stage 16 build key -- no second hash
+  scheme is invented for identity.
+* :attr:`Artifact.checksum` is the SHA-256 of the bytes *this run* produced.
+  For STEP and IGES those bytes are **not** reproducible: earlier stages
+  measured a timestamp and an incrementing translator counter in their
+  headers. So a checksum is content metadata and is deliberately excluded
+  from :meth:`ArtifactManifest.canonical`, which is why the canonical manifest
+  stays byte-deterministic while STEP bytes do not.
+
+A future cache can use both concepts -- identity to look an artifact up,
+checksum to know whether the bytes it holds are the ones it recorded. Nothing
+here caches anything.
+
+Logical format, not file extension
+----------------------------------
+``.step`` and ``.stp`` are two file representations of one logical output, and
+so are ``.igs`` and ``.iges``. Identity follows the **logical** output:
+:data:`ArtifactKind`. Two STEP files of the same build written with different
+extensions therefore share a logical id and differ only in content -- path,
+extension, size, checksum. The exact extension is recorded in
+:attr:`Artifact.file_extension`, as content, not identity.
+
+The alternative (extension in identity) was rejected because it would make
+``build --step`` mean two different artifacts depending on a filename, which
+no build option can express.
+
+Checksums
+---------
+:data:`CHECKSUM_ALGORITHM` is SHA-256 throughout.
+
+* **file-backed** -- computed from the file's actual bytes, streamed from
+  disk, only *after* the write has completed. Never from the document JSON,
+  the geometry, the build key or the filename.
+* **render** -- computed from :func:`canonical_render_bytes`: the existing
+  :meth:`~cad_core.render_model.RenderModel.to_dict` serialized with the
+  canonical document's own JSON conventions plus ``sort_keys=True``. No second
+  render serialization is introduced; this is the one definition, and the
+  render model was measured deterministic in Stage 8.
+* **geometry** -- **none**. A B-rep has no canonical byte representation here,
+  so no checksum is fabricated. The geometry artifact carries measurements
+  only, and :attr:`Artifact.checksum` and :attr:`Artifact.size_bytes` are both
+  ``None``.
+
+Publication
+-----------
+An artifact does not exist until it is publishable. For a file that means the
+write returned, the file is present, its size is greater than zero and its
+checksum computed -- and, for STL, that the file is structurally consistent
+with its own declared triangle count. For an in-memory artifact it means the
+object was constructed. See :func:`publish_file_artifact`.
+
+A build that fails publishes nothing: the manifest lists only artifacts that
+passed those checks, and the build layer deletes files it wrote before
+failing. That is Stage 16's behaviour, unchanged.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+from dataclasses import dataclass, field
+from enum import Enum
+from pathlib import Path
+from typing import Any, Dict, Iterable, Mapping, Optional, Tuple, Union
+
+from cad_core.iges_export import IGES_EXTENSIONS
+from cad_core.local_cad import LocalCadResult
+from cad_core.render_model import RenderModel
+from cad_core.serialization import CANONICAL_ENCODING, CANONICAL_SEPARATORS
+from cad_core.step_export import STEP_EXTENSIONS
+from cad_core.stl_export import STL_EXTENSIONS, binary_stl_facts
+
+PathLike = Union[str, "os.PathLike[str]"]
+
+#: Hash used for every artifact checksum, from :mod:`hashlib`.
+CHECKSUM_ALGORITHM = "sha256"
+
+#: Bytes read per chunk when checksumming a file.
+_CHECKSUM_CHUNK_BYTES = 1 << 16
+
+
+class ArtifactKind(Enum):
+    """The logical type of one derived artifact.
+
+    Exactly the outputs the project already produces. This is the *logical*
+    output, not a file extension: see the module docstring.
+    """
+
+    #: The local B-rep solid. In memory; measurements only, no checksum.
+    GEOMETRY = "geometry"
+
+    #: A STEP file (``.step`` or ``.stp``).
+    STEP = "step"
+
+    #: An IGES file in BRep mode (``.igs`` or ``.iges``).
+    IGES = "iges"
+
+    #: A binary STL file (``.stl``).
+    STL = "stl"
+
+    #: The neutral render representation. In memory, with a canonical-JSON
+    #: checksum.
+    RENDER = "render"
+
+
+class ArtifactStorage(Enum):
+    """Where an artifact's payload lives."""
+
+    #: Written to the filesystem; has a path, a size and a checksum.
+    FILE = "file"
+
+    #: Held in the process; has no path.
+    IN_MEMORY = "in_memory"
+
+
+#: Storage per kind.
+KIND_STORAGE: Mapping[ArtifactKind, ArtifactStorage] = {
+    ArtifactKind.GEOMETRY: ArtifactStorage.IN_MEMORY,
+    ArtifactKind.STEP: ArtifactStorage.FILE,
+    ArtifactKind.IGES: ArtifactStorage.FILE,
+    ArtifactKind.STL: ArtifactStorage.FILE,
+    ArtifactKind.RENDER: ArtifactStorage.IN_MEMORY,
+}
+
+#: Kinds written to the filesystem, in canonical order.
+FILE_KINDS: Tuple[ArtifactKind, ...] = tuple(
+    kind for kind in ArtifactKind if KIND_STORAGE[kind] is ArtifactStorage.FILE
+)
+
+#: Kinds that stay in the process, in canonical order.
+IN_MEMORY_KINDS: Tuple[ArtifactKind, ...] = tuple(
+    kind for kind in ArtifactKind if KIND_STORAGE[kind] is ArtifactStorage.IN_MEMORY
+)
+
+#: File extensions each file kind may legitimately carry. Taken from the
+#: exporters themselves, so this table cannot drift from what they accept.
+#: Several extensions per kind is exactly why identity is the *kind*.
+KIND_EXTENSIONS: Mapping[ArtifactKind, Tuple[str, ...]] = {
+    ArtifactKind.STEP: STEP_EXTENSIONS,
+    ArtifactKind.IGES: IGES_EXTENSIONS,
+    ArtifactKind.STL: STL_EXTENSIONS,
+}
+
+#: What each artifact's ``format`` says: a description of the payload's shape,
+#: not a MIME type and not a version.
+KIND_FORMATS: Mapping[ArtifactKind, str] = {
+    ArtifactKind.GEOMETRY: "brep-in-memory",
+    ArtifactKind.STEP: "step",
+    ArtifactKind.IGES: "iges-brep",
+    ArtifactKind.STL: "stl-binary",
+    ArtifactKind.RENDER: "render-model",
+}
+
+#: Default file extension per file kind, used when a caller wants one.
+KIND_DEFAULT_EXTENSION: Mapping[ArtifactKind, str] = {
+    kind: extensions[0] for kind, extensions in KIND_EXTENSIONS.items()
+}
+
+
+class ArtifactError(Exception):
+    """Base class for artifact-layer failures."""
+
+
+class ArtifactPublicationError(ArtifactError):
+    """Raised when an artifact cannot be published.
+
+    Publication is the gate between "the exporter returned" and "this exists":
+    a missing file, an empty file, an extension the kind does not use, or an
+    STL whose bytes disagree with its own triangle count.
+    """
+
+
+def artifact_logical_id(build_key: str, kind: ArtifactKind) -> str:
+    """Return the reproducible identity of one artifact of one build.
+
+    ``<build key>:<kind>`` -- and nothing else. Not a path, not a filename,
+    not an execution id, not a timestamp, not a file checksum. The build key
+    already folds in the canonical CAD document's hash and the canonical build
+    options (Stage 16), so this needs no hash scheme of its own.
+    """
+    if not isinstance(kind, ArtifactKind):
+        raise ArtifactError(f"kind must be an ArtifactKind; got {type(kind).__name__}")
+    return f"{build_key}:{kind.value}"
+
+
+@dataclass(frozen=True)
+class Artifact:
+    """One derived artifact: identity, content facts and a physical location.
+
+    ``details`` holds deterministic, JSON-compatible measurements -- never a
+    CAD kernel object, never a traceback, never anything from the environment,
+    and never a full payload (the render model is described, not duplicated).
+    """
+
+    kind: ArtifactKind
+    format: str
+    document_hash: str
+    build_key: str
+    storage: ArtifactStorage
+
+    #: Physical location, file-backed artifacts only. Machine-specific, and
+    #: never part of identity.
+    path: Optional[str] = None
+
+    #: Exact extension of the produced file. Content, not identity: ``.step``
+    #: and ``.stp`` are the same logical artifact.
+    file_extension: Optional[str] = None
+
+    #: Byte size. The file's real size for a file artifact, the canonical
+    #: byte length for the render model, ``None`` for the B-rep.
+    size_bytes: Optional[int] = None
+
+    #: SHA-256 of the artifact's bytes. ``None`` for the B-rep, which has no
+    #: canonical byte representation.
+    checksum: Optional[str] = None
+
+    #: Deterministic measurements of the payload.
+    details: Mapping[str, Any] = field(default_factory=dict)
+
+    @property
+    def logical_id(self) -> str:
+        """Reproducible identity: ``<build key>:<kind>``."""
+        return artifact_logical_id(self.build_key, self.kind)
+
+    @property
+    def in_memory(self) -> bool:
+        return self.storage is ArtifactStorage.IN_MEMORY
+
+    @property
+    def output(self) -> ArtifactKind:
+        """Compatibility alias for :attr:`kind` (Stage 16 name)."""
+        return self.kind
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Full JSON-compatible report: identity, content and location."""
+        return {
+            "kind": self.kind.value,
+            "output": self.kind.value,
+            "format": self.format,
+            "storage": self.storage.value,
+            "logical_id": self.logical_id,
+            "document_hash": self.document_hash,
+            "build_key": self.build_key,
+            "path": self.path,
+            "file_extension": self.file_extension,
+            "size_bytes": self.size_bytes,
+            "checksum": self.checksum,
+            "checksum_algorithm": (
+                CHECKSUM_ALGORITHM if self.checksum is not None else None
+            ),
+            "details": dict(self.details),
+        }
+
+    def canonical(self) -> Dict[str, Any]:
+        """Identity and deterministic properties only.
+
+        Excludes the physical path, the byte size and the content checksum:
+        those describe one produced file, and for STEP and IGES they are not
+        reproducible between runs. What remains is identical for every build
+        of the same document with the same options.
+        """
+        return {
+            "logical_id": self.logical_id,
+            "kind": self.kind.value,
+            "format": self.format,
+            "storage": self.storage.value,
+            "details": dict(self.details),
+        }
+
+
+@dataclass(frozen=True)
+class ArtifactManifest:
+    """Every artifact one successful build published.
+
+    Ordering is the canonical :class:`ArtifactKind` order -- the same
+    convention :class:`~cad_core.build_job.BuildOptions` already canonicalizes
+    its output set with -- so a manifest does not depend on the order a caller
+    happened to request outputs in. The constructor sorts, so the invariant
+    cannot be bypassed.
+    """
+
+    document_hash: str
+    build_key: str
+    artifacts: Tuple[Artifact, ...] = ()
+
+    def __post_init__(self) -> None:
+        ordered = tuple(
+            sorted(self.artifacts, key=lambda item: _KIND_ORDER[item.kind])
+        )
+        object.__setattr__(self, "artifacts", ordered)
+        seen = [artifact.kind for artifact in ordered]
+        if len(set(seen)) != len(seen):
+            raise ArtifactError(
+                "a manifest holds at most one artifact per kind; got "
+                + ", ".join(kind.value for kind in seen)
+            )
+        for artifact in ordered:
+            if artifact.build_key != self.build_key:
+                raise ArtifactError(
+                    f"artifact {artifact.logical_id} belongs to another build"
+                )
+            if artifact.document_hash != self.document_hash:
+                raise ArtifactError(
+                    f"artifact {artifact.logical_id} names another document"
+                )
+
+    def kinds(self) -> Tuple[ArtifactKind, ...]:
+        return tuple(artifact.kind for artifact in self.artifacts)
+
+    def artifact(self, kind: ArtifactKind) -> Optional[Artifact]:
+        for artifact in self.artifacts:
+            if artifact.kind is kind:
+                return artifact
+        return None
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Full JSON-compatible report, including paths and checksums."""
+        return {
+            "document_hash": self.document_hash,
+            "build_key": self.build_key,
+            "artifacts": [artifact.to_dict() for artifact in self.artifacts],
+        }
+
+    def canonical(self) -> Dict[str, Any]:
+        """The reproducible manifest: identity and deterministic properties.
+
+        No filesystem path, no size, no content checksum. Two successful builds
+        of the same document with the same options produce identical canonical
+        manifests, on any machine.
+        """
+        return {
+            "document_hash": self.document_hash,
+            "build_key": self.build_key,
+            "artifacts": [artifact.canonical() for artifact in self.artifacts],
+        }
+
+    def canonical_bytes(self) -> bytes:
+        """The canonical manifest as deterministic UTF-8 JSON.
+
+        Uses the canonical document's own conventions -- minimal separators,
+        ``ensure_ascii=False`` -- plus ``sort_keys=True``, so key order cannot
+        depend on construction order.
+        """
+        return _canonical_json(self.canonical())
+
+    def canonical_hash(self) -> str:
+        """SHA-256 of :meth:`canonical_bytes`.
+
+        A convenience for comparing two manifests; it is *not* an artifact
+        identity and nothing keys on it.
+        """
+        return hashlib.new(CHECKSUM_ALGORITHM, self.canonical_bytes()).hexdigest()
+
+
+_KIND_ORDER: Mapping[ArtifactKind, int] = {
+    kind: index for index, kind in enumerate(ArtifactKind)
+}
+
+
+# --- checksums --------------------------------------------------------------
+
+
+def file_checksum(path: PathLike) -> str:
+    """Return the SHA-256 of a file's actual bytes, streamed from disk.
+
+    Not the document JSON, not the geometry, not the build key, not the
+    filename -- the bytes.
+    """
+    digest = hashlib.new(CHECKSUM_ALGORITHM)
+    with open(os.fspath(path), "rb") as handle:
+        for chunk in iter(lambda: handle.read(_CHECKSUM_CHUNK_BYTES), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def canonical_render_bytes(model: RenderModel) -> bytes:
+    """Return the canonical UTF-8 bytes of a render model.
+
+    ``model.to_dict()`` is the render model's own existing serialization
+    (Stage 8); this adds only the canonical JSON conventions used for the CAD
+    document -- minimal separators, ``ensure_ascii=False`` -- plus
+    ``sort_keys=True``. No second render serialization is introduced.
+    """
+    if not isinstance(model, RenderModel):
+        raise ArtifactError(
+            f"expected a RenderModel; got {type(model).__name__}"
+        )
+    return _canonical_json(model.to_dict())
+
+
+def render_checksum(model: RenderModel) -> str:
+    """SHA-256 of :func:`canonical_render_bytes`."""
+    return hashlib.new(CHECKSUM_ALGORITHM, canonical_render_bytes(model)).hexdigest()
+
+
+# --- publication ------------------------------------------------------------
+
+
+def publish_file_artifact(
+    *,
+    document_hash: str,
+    build_key: str,
+    kind: ArtifactKind,
+    path: PathLike,
+    details: Optional[Mapping[str, Any]] = None,
+) -> Artifact:
+    """Verify a written file and return its :class:`Artifact`.
+
+    Call this only **after** the exporter has returned. The order is fixed:
+    check the file exists, take its size, compute its checksum from the bytes
+    on disk, then build the record -- so no artifact can exist with a checksum
+    taken before the write finished.
+
+    Raises:
+        ArtifactPublicationError: if the kind is not file-backed, the
+            extension is not one the exporter uses for that kind, the file is
+            missing or empty, or an STL's bytes disagree with its own declared
+            triangle count.
+    """
+    if KIND_STORAGE[kind] is not ArtifactStorage.FILE:
+        raise ArtifactPublicationError(
+            f"{kind.value} is not a file-backed artifact"
+        )
+    location = Path(os.fspath(path))
+    extension = location.suffix.lower()
+    permitted = KIND_EXTENSIONS[kind]
+    if extension not in permitted:
+        allowed = ", ".join(repr(item) for item in permitted)
+        raise ArtifactPublicationError(
+            f"a {kind.value} artifact is written as {allowed}; got "
+            f"{extension!r}"
+        )
+    if not location.is_file():
+        raise ArtifactPublicationError(
+            f"the {kind.value} artifact was not written"
+        )
+    size = location.stat().st_size
+    if size <= 0:
+        raise ArtifactPublicationError(
+            f"the {kind.value} artifact is empty"
+        )
+
+    measured: Dict[str, Any] = dict(details or {})
+    if kind is ArtifactKind.STL:
+        facts = binary_stl_facts(location)
+        if not facts.is_structurally_consistent:
+            raise ArtifactPublicationError(
+                "the stl artifact's size does not match its declared "
+                "triangle count"
+            )
+        measured.setdefault("triangle_count", facts.declared_triangles)
+        measured.setdefault("is_structurally_consistent", True)
+
+    checksum = file_checksum(location)
+    return Artifact(
+        kind=kind,
+        format=KIND_FORMATS[kind],
+        document_hash=document_hash,
+        build_key=build_key,
+        storage=ArtifactStorage.FILE,
+        path=str(location),
+        file_extension=extension,
+        size_bytes=size,
+        checksum=checksum,
+        details=measured,
+    )
+
+
+def publish_geometry_artifact(
+    *, document_hash: str, build_key: str, result: LocalCadResult
+) -> Artifact:
+    """Return the geometry artifact for a built B-rep.
+
+    Measurements only. There is no canonical byte representation of a B-rep
+    here, so both :attr:`Artifact.checksum` and :attr:`Artifact.size_bytes`
+    are ``None`` -- no binary checksum is invented, and object memory is not
+    passed off as artifact size. No kernel object reaches the record.
+    """
+    if not isinstance(result, LocalCadResult):
+        raise ArtifactError(
+            f"expected a LocalCadResult; got {type(result).__name__}"
+        )
+    box = result.bounding_box()
+    shape = result.shape
+    return Artifact(
+        kind=ArtifactKind.GEOMETRY,
+        format=KIND_FORMATS[ArtifactKind.GEOMETRY],
+        document_hash=document_hash,
+        build_key=build_key,
+        storage=ArtifactStorage.IN_MEMORY,
+        path=None,
+        file_extension=None,
+        size_bytes=None,
+        checksum=None,
+        details={
+            "part_name": result.part_name,
+            "feature_id": result.feature_id,
+            "is_solid": result.is_solid(),
+            "solid_count": result.solid_count(),
+            "volume_mm3": result.volume(),
+            "bounding_box": {
+                "minimum": _vector(box.minimum),
+                "maximum": _vector(box.maximum),
+                "size": _vector(box.size),
+            },
+            "face_count": len(shape.Faces()),
+            "edge_count": len(shape.Edges()),
+            "vertex_count": len(shape.Vertices()),
+        },
+    )
+
+
+def publish_render_artifact(
+    *, document_hash: str, build_key: str, model: RenderModel
+) -> Artifact:
+    """Return the render artifact for a built render model.
+
+    Metadata plus a canonical-JSON checksum and the length of those canonical
+    bytes. The model itself is **not** duplicated here -- the build result
+    holds it as a reference.
+    """
+    payload = canonical_render_bytes(model)
+    return Artifact(
+        kind=ArtifactKind.RENDER,
+        format=KIND_FORMATS[ArtifactKind.RENDER],
+        document_hash=document_hash,
+        build_key=build_key,
+        storage=ArtifactStorage.IN_MEMORY,
+        path=None,
+        file_extension=None,
+        size_bytes=len(payload),
+        checksum=hashlib.new(CHECKSUM_ALGORITHM, payload).hexdigest(),
+        details={
+            "format_version": model.format_version,
+            "part_name": model.part_name,
+            "feature_id": model.feature_id,
+            "units": model.units,
+            "coordinate_system": model.coordinate_system,
+            "winding": model.winding,
+            "normal_binding": model.normal_binding,
+            "vertex_count": model.vertex_count(),
+            "triangle_count": model.triangle_count(),
+            "bounds": {
+                "minimum": list(model.bounds.minimum),
+                "maximum": list(model.bounds.maximum),
+            },
+            "tessellation": model.tessellation.to_dict(),
+        },
+    )
+
+
+def build_manifest(
+    *, document_hash: str, build_key: str, artifacts: Iterable[Artifact]
+) -> ArtifactManifest:
+    """Assemble a manifest, ordered canonically and checked for consistency."""
+    return ArtifactManifest(
+        document_hash=document_hash,
+        build_key=build_key,
+        artifacts=tuple(artifacts),
+    )
+
+
+# --- internals --------------------------------------------------------------
+
+
+def _canonical_json(structure: Mapping[str, Any]) -> bytes:
+    return json.dumps(
+        structure,
+        separators=CANONICAL_SEPARATORS,
+        ensure_ascii=False,
+        allow_nan=False,
+        sort_keys=True,
+    ).encode(CANONICAL_ENCODING)
+
+
+def _vector(value: Any) -> Dict[str, float]:
+    return {"x": value.x, "y": value.y, "z": value.z}
+
+
+__all__ = [
+    "CHECKSUM_ALGORITHM",
+    "FILE_KINDS",
+    "IN_MEMORY_KINDS",
+    "KIND_DEFAULT_EXTENSION",
+    "KIND_EXTENSIONS",
+    "KIND_FORMATS",
+    "KIND_STORAGE",
+    "Artifact",
+    "ArtifactError",
+    "ArtifactKind",
+    "ArtifactManifest",
+    "ArtifactPublicationError",
+    "ArtifactStorage",
+    "artifact_logical_id",
+    "build_manifest",
+    "canonical_render_bytes",
+    "file_checksum",
+    "publish_file_artifact",
+    "publish_geometry_artifact",
+    "publish_render_artifact",
+    "render_checksum",
+]

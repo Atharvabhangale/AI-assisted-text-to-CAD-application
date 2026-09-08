@@ -11,8 +11,20 @@ BuildJob      (QUEUED -> RUNNING -> SUCCEEDED | FAILED)
     |
 execution     (local CAD engine, then the requested exporters)
     |
-BuildResult   (artifact metadata, or one structured BuildError)
+BuildResult   -> ArtifactManifest -> Artifact[]
+              (or one structured BuildError)
 ```
+
+Since Stage 17 the artifact model lives in
+:mod:`cad_core.artifact_registry`, which owns artifact identity, content
+checksums and storage kind. This module orchestrates: it runs the engine and
+the exporters, hands each produced output to the registry to be **published**,
+and assembles the results into an :class:`~cad_core.artifact_registry.ArtifactManifest`
+reachable as :attr:`BuildResult.manifest`. ``BuildOutput`` and
+``BuildArtifact`` are the build layer's names for
+:class:`~cad_core.artifact_registry.ArtifactKind` and
+:class:`~cad_core.artifact_registry.Artifact`; nothing about the Stage 16 API
+changed.
 
 There is **no** database, queue, broker, worker pool, scheduler, HTTP surface
 or persistence layer here, and none is implied. A job is an ordinary Python
@@ -43,6 +55,15 @@ Two different things, deliberately separate:
 * :attr:`BuildJob.execution_id` -- a random identifier for **one run**. Useful
   for telling two executions of the same build apart. It is never part of a
   build's identity, and no timestamp is used as identity anywhere.
+
+Artifact identity versus artifact content
+-----------------------------------------
+An artifact's **identity** is ``<build key>:<kind>`` -- reproducible anywhere
+from the document and the options. Its **content** facts (size, SHA-256) and
+its **physical path** are separate, because STEP and IGES bytes are not
+reproducible between runs. So two builds of the same document produce
+identical canonical manifests and possibly different file checksums. The
+artifact layer documents the distinction in full.
 
 Artifact selection is explicit
 ------------------------------
@@ -104,6 +125,19 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, Iterable, Mapping, Optional, Tuple, Union
 
+from cad_core.artifact_registry import (
+    KIND_STORAGE as _STORAGE,
+    Artifact,
+    ArtifactKind,
+    ArtifactManifest,
+    ArtifactPublicationError,
+    ArtifactStorage,
+    KIND_DEFAULT_EXTENSION,
+    build_manifest,
+    publish_file_artifact,
+    publish_geometry_artifact,
+    publish_render_artifact,
+)
 from cad_core.errors import ValidationError
 from cad_core.iges_export import export_iges
 from cad_core.local_cad import (
@@ -122,7 +156,7 @@ from cad_core.serialization import (
     part_hash,
 )
 from cad_core.step_export import export_step
-from cad_core.stl_export import binary_stl_facts, export_stl
+from cad_core.stl_export import export_stl
 
 PathLike = Union[str, "os.PathLike[str]"]
 
@@ -131,60 +165,26 @@ PathLike = Union[str, "os.PathLike[str]"]
 BUILD_KEY_ALGORITHM = "sha256"
 
 
-class BuildOutput(Enum):
-    """One requestable output of a build.
-
-    These are exactly the outputs the project already produces locally. No new
-    format is introduced here.
-    """
-
-    #: The local B-rep solid. Always constructed, because everything else
-    #: derives from it; listed as an artifact only when requested.
-    GEOMETRY = "geometry"
-
-    #: A STEP file (``cad_core.step_export``).
-    STEP = "step"
-
-    #: An IGES file in BRep mode (``cad_core.iges_export``).
-    IGES = "iges"
-
-    #: A binary STL file (``cad_core.stl_export``).
-    STL = "stl"
-
-    #: The neutral render representation (``cad_core.render_model``).
-    RENDER = "render"
+#: The requestable outputs of a build.
+#:
+#: **The same enum as** :class:`~cad_core.artifact_registry.ArtifactKind`: a
+#: build output and the artifact it produces are one concept, and Stage 17
+#: moved the definition to the artifact layer, where identity is defined.
+#: ``BuildOutput`` remains as the build layer's name for it, so existing
+#: callers are unaffected.
+BuildOutput = ArtifactKind
 
 
 #: Outputs written to the filesystem. Requesting any of these requires an
-#: output directory.
-FILE_OUTPUTS: Tuple[BuildOutput, ...] = (
-    BuildOutput.STEP,
-    BuildOutput.IGES,
-    BuildOutput.STL,
+#: output directory. Defined by the artifact layer, which owns storage kind.
+FILE_OUTPUTS: Tuple[BuildOutput, ...] = tuple(
+    kind for kind in ArtifactKind if _STORAGE[kind] is ArtifactStorage.FILE
 )
 
 #: Outputs that stay in memory for this stage.
-IN_MEMORY_OUTPUTS: Tuple[BuildOutput, ...] = (
-    BuildOutput.GEOMETRY,
-    BuildOutput.RENDER,
+IN_MEMORY_OUTPUTS: Tuple[BuildOutput, ...] = tuple(
+    kind for kind in ArtifactKind if _STORAGE[kind] is ArtifactStorage.IN_MEMORY
 )
-
-#: File extension per file output.
-_OUTPUT_EXTENSIONS: Mapping[BuildOutput, str] = {
-    BuildOutput.STEP: ".step",
-    BuildOutput.IGES: ".igs",
-    BuildOutput.STL: ".stl",
-}
-
-#: What each artifact's ``format`` says. A description of the payload, not a
-#: MIME type and not a version.
-_OUTPUT_FORMATS: Mapping[BuildOutput, str] = {
-    BuildOutput.GEOMETRY: "brep-in-memory",
-    BuildOutput.STEP: "step",
-    BuildOutput.IGES: "iges-brep",
-    BuildOutput.STL: "stl-binary",
-    BuildOutput.RENDER: "render-model",
-}
 
 
 class BuildStatus(Enum):
@@ -386,51 +386,13 @@ def request_for_document(
 # --- artifacts and results --------------------------------------------------
 
 
-@dataclass(frozen=True)
-class BuildArtifact:
-    """Metadata for one produced output. Never the payload's bytes.
-
-    ``path`` is a *physical* location and is machine-specific; it is never
-    part of the artifact's identity. :attr:`logical_id` is the identity:
-    build key plus output kind, which is reproducible anywhere.
-    """
-
-    output: BuildOutput
-    format: str
-    document_hash: str
-    build_key: str
-
-    #: Physical location, for file outputs only. ``None`` for the in-memory
-    #: geometry and render outputs.
-    path: Optional[str] = None
-
-    #: Size on disk, for file outputs only.
-    size_bytes: Optional[int] = None
-
-    #: Neutral measurements about the payload -- plain JSON data, never a
-    #: kernel object.
-    details: Mapping[str, Any] = field(default_factory=dict)
-
-    @property
-    def logical_id(self) -> str:
-        """Machine-independent identity: ``<build key>:<output>``."""
-        return f"{self.build_key}:{self.output.value}"
-
-    @property
-    def in_memory(self) -> bool:
-        return self.path is None
-
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "output": self.output.value,
-            "format": self.format,
-            "logical_id": self.logical_id,
-            "document_hash": self.document_hash,
-            "build_key": self.build_key,
-            "path": self.path,
-            "size_bytes": self.size_bytes,
-            "details": dict(self.details),
-        }
+#: Metadata for one produced output.
+#:
+#: **The same class as** :class:`~cad_core.artifact_registry.Artifact`. Stage
+#: 17 moved the artifact model to the artifact layer, which owns identity,
+#: content checksums and storage kind; ``BuildArtifact`` remains as the build
+#: layer's name for it so existing callers are unaffected.
+BuildArtifact = Artifact
 
 
 @dataclass(frozen=True)
@@ -528,6 +490,20 @@ class BuildResult:
     def succeeded(self) -> bool:
         return self.status is BuildStatus.SUCCEEDED
 
+    @property
+    def manifest(self) -> ArtifactManifest:
+        """The build-level artifact manifest.
+
+        Lists exactly the artifacts this build published, in the canonical
+        artifact order. Empty for a failed build, because a failed build
+        publishes nothing. See ``docs/artifact-registry.md``.
+        """
+        return build_manifest(
+            document_hash=self.document_hash,
+            build_key=self.build_key,
+            artifacts=self.artifacts,
+        )
+
     def artifact(self, output: BuildOutput) -> Optional[BuildArtifact]:
         for artifact in self.artifacts:
             if artifact.output is output:
@@ -549,6 +525,7 @@ class BuildResult:
             "execution_id": self.execution_id,
             "status": self.status.value,
             "artifacts": [artifact.to_dict() for artifact in self.artifacts],
+            "manifest": self.manifest.to_dict(),
             "error": self.error.to_dict() if self.error is not None else None,
         }
 
@@ -736,14 +713,20 @@ def run_job(
         render: Optional[RenderModel] = None
 
         if options.wants(BuildOutput.GEOMETRY):
-            artifacts.append(_geometry_artifact(job, local))
+            artifacts.append(
+                publish_geometry_artifact(
+                    document_hash=job.document_hash,
+                    build_key=job.build_key,
+                    result=local,
+                )
+            )
             completed.append(BuildOutput.GEOMETRY)
 
         for output in (BuildOutput.STEP, BuildOutput.IGES, BuildOutput.STL):
             if not options.wants(output):
                 continue
             assert directory is not None  # guaranteed by _resolve_directory
-            path = directory / f"{job.build_key}{_OUTPUT_EXTENSIONS[output]}"
+            path = directory / f"{job.build_key}{KIND_DEFAULT_EXTENSION[output]}"
             try:
                 _EXPORTERS[output](local, path)
             except Exception as exc:  # exporter-defined; classified below
@@ -751,8 +734,21 @@ def run_job(
                     _export_error(output, exc, tuple(completed))
                 )
             written.append(path)
+            # Publication is the gate between "the exporter returned" and
+            # "this artifact exists": the file must be present, non-empty and
+            # checksummable. A file that cannot be published is an export
+            # failure, and the write above is cleaned up like any other.
+            try:
+                artifact = publish_file_artifact(
+                    document_hash=job.document_hash,
+                    build_key=job.build_key,
+                    kind=output,
+                    path=path,
+                )
+            except ArtifactPublicationError as exc:
+                return job.fail(_export_error(output, exc, tuple(completed)))
             completed.append(output)
-            artifacts.append(_file_artifact(job, output, path))
+            artifacts.append(artifact)
 
         if options.wants(BuildOutput.RENDER):
             try:
@@ -761,7 +757,13 @@ def run_job(
                 return job.fail(
                     _export_error(BuildOutput.RENDER, exc, tuple(completed))
                 )
-            artifacts.append(_render_artifact(job, render))
+            artifacts.append(
+                publish_render_artifact(
+                    document_hash=job.document_hash,
+                    build_key=job.build_key,
+                    model=render,
+                )
+            )
             completed.append(BuildOutput.RENDER)
 
         return job.succeed(
@@ -860,84 +862,6 @@ def _resolve_directory(
     if not directory.is_dir():
         raise BuildRequestError(f"{directory} is not a directory")
     return directory
-
-
-def _geometry_artifact(job: BuildJob, local: LocalCadResult) -> BuildArtifact:
-    """Neutral measurements of the B-rep. No kernel object escapes."""
-    box = local.bounding_box()
-    shape = local.shape
-    return BuildArtifact(
-        output=BuildOutput.GEOMETRY,
-        format=_OUTPUT_FORMATS[BuildOutput.GEOMETRY],
-        document_hash=job.document_hash,
-        build_key=job.build_key,
-        details={
-            "part_name": local.part_name,
-            "feature_id": local.feature_id,
-            "is_solid": local.is_solid(),
-            "solid_count": local.solid_count(),
-            "volume_mm3": local.volume(),
-            "bounding_box": {
-                "minimum": _vector(box.minimum),
-                "maximum": _vector(box.maximum),
-                "size": _vector(box.size),
-            },
-            "face_count": len(shape.Faces()),
-            "edge_count": len(shape.Edges()),
-            "vertex_count": len(shape.Vertices()),
-        },
-    )
-
-
-def _file_artifact(job: BuildJob, output: BuildOutput, path: Path) -> BuildArtifact:
-    details: Dict[str, Any] = {}
-    if output is BuildOutput.STL:
-        facts = binary_stl_facts(path)
-        details = {
-            "triangle_count": facts.declared_triangles,
-            "is_structurally_consistent": facts.is_structurally_consistent,
-        }
-    return BuildArtifact(
-        output=output,
-        format=_OUTPUT_FORMATS[output],
-        document_hash=job.document_hash,
-        build_key=job.build_key,
-        path=str(path),
-        size_bytes=path.stat().st_size,
-        details=details,
-    )
-
-
-def _render_artifact(job: BuildJob, render: RenderModel) -> BuildArtifact:
-    """Metadata for the render output. The model itself is a reference.
-
-    The raw JSON is deliberately *not* stored here: the render model is
-    already plain, deterministic data on :attr:`BuildResult.render_model`, so
-    serializing it into the artifact would be the duplication this layer is
-    meant to avoid.
-    """
-    return BuildArtifact(
-        output=BuildOutput.RENDER,
-        format=_OUTPUT_FORMATS[BuildOutput.RENDER],
-        document_hash=job.document_hash,
-        build_key=job.build_key,
-        details={
-            "format_version": render.format_version,
-            "part_name": render.part_name,
-            "feature_id": render.feature_id,
-            "units": render.units,
-            "coordinate_system": render.coordinate_system,
-            "winding": render.winding,
-            "normal_binding": render.normal_binding,
-            "vertex_count": render.vertex_count(),
-            "triangle_count": render.triangle_count(),
-            "bounds": {
-                "minimum": list(render.bounds.minimum),
-                "maximum": list(render.bounds.maximum),
-            },
-            "tessellation": render.tessellation.to_dict(),
-        },
-    )
 
 
 def _export_error(
@@ -1060,10 +984,6 @@ def _rule_codes_in(message: str) -> Tuple[str, ...]:
     return tuple(found)
 
 
-def _vector(value: Any) -> Dict[str, float]:
-    return {"x": value.x, "y": value.y, "z": value.z}
-
-
 def _hash_canonical(structure: Mapping[str, Any]) -> str:
     payload = json.dumps(
         structure,
@@ -1078,6 +998,10 @@ def _hash_canonical(structure: Mapping[str, Any]) -> str:
 __all__ = [
     "ALLOWED_TRANSITIONS",
     "BUILD_KEY_ALGORITHM",
+    "Artifact",
+    "ArtifactKind",
+    "ArtifactManifest",
+    "ArtifactStorage",
     "BuildArtifact",
     "BuildError",
     "BuildFailure",
