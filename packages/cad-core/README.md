@@ -34,6 +34,10 @@ document is authoritative and this package implements schema version `1.0.0`.
   `LocalCadResult` to an IGES file (`.igs` / `.iges`) via OpenCascade directly,
   plus `read_iges`. Independent of the STEP exporter. See
   `docs/iges-export.md`.
+- `cad_core.stl_export` — `export_stl(result, path) -> Path`, tessellating a
+  `LocalCadResult` to a binary STL mesh (`.stl`), plus `read_stl` and
+  `binary_stl_facts`. A mesh output path, not a CAD format; independent of the
+  STEP and IGES exporters. See `docs/stl-export.md`.
 
 ## What this package does not do
 
