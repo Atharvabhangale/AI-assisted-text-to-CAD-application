@@ -1,21 +1,30 @@
 """The ASGI application: three routes, and no CAD logic.
 
 ```
-POST /validate  ->  ValidateBody  ->  CadApiContract.validate_document_payload
-POST /build     ->  BuildBody     ->  CadApiContract.build_document_payload
-GET  /health    ->  {"status": "ok"}
+POST /validate              ->  ValidateBody  ->  CadApiContract.validate_document_payload
+POST /build                 ->  BuildBody     ->  CadApiContract.build_document_payload
+GET  /artifacts/{id}        ->  ArtifactResolver.resolve  ->  verified bytes
+GET  /health                ->  {"status": "ok"}
 ```
 
-Each route does four things: let Pydantic check the envelope, hand the payload
-to the transport-neutral contract, choose a status from the contract's
-``failure`` value, and return the payload as JSON. Nothing else. There is no
-validation rule, no geometry call, no exporter call, no cache call and no
-process management in this module -- tests assert it imports none of those
-modules and calls none of their names.
+The two JSON routes each do four things: let Pydantic check the envelope,
+hand the payload to the transport-neutral contract, choose a status from the
+contract's ``failure`` value, and return the payload as JSON.
+
+The artifact route does four things: hand the id to
+:class:`~cad_api.artifacts.ArtifactResolver`, choose a status from the
+resolver's ``reason``, set the headers, return the bytes it was given. It
+**never** touches a path, a directory, a manifest or a checksum -- the
+resolver (``docs/artifact-delivery.md``) owns all of that, and tests assert
+this module names none of those operations.
+
+There is no validation rule, no geometry call, no exporter call, no cache call
+and no process management in this module -- tests assert it imports none of
+those modules and calls none of their names.
 
 **Not exposed**, and not implemented: editing, deleting, versioning or
-comparing documents; FeatureScript; filesystem browsing; file download;
-artifact bytes; job control; authentication; anything else.
+comparing documents; FeatureScript; filesystem browsing; arbitrary file
+download; B-rep or render bytes; job control; authentication; anything else.
 """
 
 from __future__ import annotations
@@ -24,8 +33,10 @@ import logging
 from typing import Any, Dict, Optional
 
 from fastapi import Depends, FastAPI, Request
+from fastapi.exception_handlers import http_exception_handler
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from cad_core.api_contract import (
     BuildDocumentResponse,
@@ -35,12 +46,21 @@ from cad_core.api_contract import (
 )
 from cad_core.application_service import CadApplicationService, ServiceFailure
 
+from cad_api.artifacts import (
+    NOT_FOUND_MESSAGE,
+    ArtifactResolver,
+    DeliveredArtifact,
+    DeliveryProblem,
+    DeliveryReason,
+)
 from cad_api.config import ApiConfig
 from cad_api.schemas import BuildBody, ValidateBody
 from cad_api.status import (
     INTERNAL_STATUS,
+    NOT_FOUND_STATUS,
     OK_STATUS,
     TRANSPORT_STATUS,
+    status_for_delivery,
     status_for_failure,
 )
 
@@ -63,6 +83,16 @@ INTERNAL_ERROR = ErrorContract(
 VALIDATE_PATH = "/validate"
 BUILD_PATH = "/build"
 HEALTH_PATH = "/health"
+ARTIFACTS_PREFIX = "/artifacts/"
+ARTIFACT_PATH = ARTIFACTS_PREFIX + "{artifact_id}"
+
+#: The error for a delivery failure this layer did not expect. Its own small
+#: shape, deliberately: a download is not a build, so it carries a delivery
+#: ``reason`` rather than the build taxonomy's ``failure``.
+DELIVERY_FAILED = DeliveryProblem(
+    reason=DeliveryReason.DELIVERY_FAILED,
+    message="the artifact could not be delivered",
+)
 
 #: The title FastAPI puts in the generated OpenAPI document.
 API_TITLE = "Text-to-CAD build API"
@@ -107,6 +137,12 @@ def create_app(
     )
     app.state.service = service
     app.state.contract = CadApiContract(service)
+    # The resolver is given the one cache the service was configured with, so
+    # artifact delivery and building see the same entries. A service whose
+    # backend exposes no cache delivers nothing rather than guessing at one.
+    app.state.resolver = ArtifactResolver(
+        getattr(getattr(service, "backend", None), "cache", None)
+    )
 
     @app.exception_handler(RequestValidationError)
     async def _malformed_request(
@@ -129,6 +165,41 @@ def create_app(
                 ),
             ),
         )
+
+    @app.exception_handler(StarletteHTTPException)
+    async def _http_error(
+        request: Request, exc: StarletteHTTPException
+    ) -> Response:
+        """Answer an artifact URL that matched no route in the delivery shape.
+
+        An id containing a URL path separator never reaches the route -- it
+        matches nothing, and the framework answers 404. That is already safe,
+        but its body is the framework's ``detail`` shape, so for this one
+        prefix it is replaced by the stable delivery error. Every other path
+        keeps FastAPI's own behaviour.
+        """
+        path = request.scope.get("path", "")
+        # Only a *not found* is rewritten. A wrong method still answers 405,
+        # because turning that into "not available" would misreport it: HEAD
+        # is not offered on this route (FastAPI adds no HEAD of its own, and
+        # this stage adds no extra route), and saying so is more useful than
+        # pretending the artifact is missing.
+        if exc.status_code == NOT_FOUND_STATUS and (
+            path.startswith(ARTIFACTS_PREFIX)
+            or path == ARTIFACTS_PREFIX.rstrip("/")
+        ):
+            return JSONResponse(
+                status_code=status_for_delivery(
+                    DeliveryReason.ARTIFACT_NOT_FOUND
+                ),
+                content={
+                    "error": {
+                        "reason": DeliveryReason.ARTIFACT_NOT_FOUND.value,
+                        "message": NOT_FOUND_MESSAGE,
+                    }
+                },
+            )
+        return await http_exception_handler(request, exc)
 
     @app.exception_handler(Exception)
     async def _unexpected(request: Request, exc: Exception) -> JSONResponse:
@@ -169,6 +240,28 @@ def create_app(
             content=contract.validate_document_payload(body.to_payload()),
         )
 
+    @app.get(ARTIFACT_PATH)
+    async def download_artifact(
+        artifact_id: str, resolver: ArtifactResolver = Depends(_resolver)
+    ) -> Response:
+        """Deliver a file-backed artifact's bytes.
+
+        The path parameter is a **logical artifact id** and nothing else. It
+        is handed to the resolver as text; this route builds no path, opens no
+        file and computes no checksum.
+
+        **200** with the bytes, **400** for an id that is not an identifier,
+        **404** for an artifact that is not available or has no bytes to
+        deliver, **500** if delivery itself failed.
+        """
+        outcome = resolver.resolve(artifact_id)
+        if isinstance(outcome, DeliveryProblem):
+            return JSONResponse(
+                status_code=status_for_delivery(outcome.reason),
+                content={"error": dict(outcome.to_payload())},
+            )
+        return _artifact_response(outcome)
+
     @app.post(BUILD_PATH)
     async def build_document(
         body: BuildBody, contract: CadApiContract = Depends(_contract)
@@ -205,6 +298,30 @@ async def _contract(request: Request) -> CadApiContract:
     return request.app.state.contract
 
 
+async def _resolver(request: Request) -> ArtifactResolver:
+    """The application's one artifact resolver, built at startup."""
+    return request.app.state.resolver
+
+
+def _artifact_response(artifact: DeliveredArtifact) -> Response:
+    """The bytes the resolver verified, with safe headers.
+
+    Every header value comes from the resolver's trusted metadata: the
+    filename is ``<build key><extension>`` from the validated manifest record,
+    never from the URL; the length is the real length of these bytes; and the
+    entity tag is the artifact's own SHA-256, not a second hash.
+    """
+    return Response(
+        content=artifact.content,
+        media_type=artifact.content_type,
+        headers={
+            "content-disposition": f'attachment; filename="{artifact.filename}"',
+            "content-length": str(artifact.size_bytes),
+            "etag": artifact.etag,
+        },
+    )
+
+
 def _failure_body(request: Request, error: ErrorContract) -> Dict[str, Any]:
     """A failure body in the shape that route's success would have had.
 
@@ -214,6 +331,8 @@ def _failure_body(request: Request, error: ErrorContract) -> Dict[str, Any]:
     contract's own response types -- no JSON is invented here.
     """
     path = request.scope.get("path", "")
+    if path.startswith(ARTIFACTS_PREFIX):
+        return {"error": dict(DELIVERY_FAILED.to_payload())}
     if path == BUILD_PATH:
         return BuildDocumentResponse(
             status="failed", succeeded=False, error=error

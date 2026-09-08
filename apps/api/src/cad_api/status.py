@@ -16,6 +16,8 @@ from typing import Mapping, Tuple
 
 from cad_core.application_service import ServiceFailure
 
+from cad_api.artifacts import DeliveryReason
+
 #: 200. A successful operation, and also a *completed* validation whose answer
 #: happens to be "no" -- see :mod:`cad_api.app`.
 OK_STATUS = 200
@@ -50,13 +52,40 @@ FAILURE_STATUS: Mapping[ServiceFailure, int] = {
     ServiceFailure.INTERNAL_ERROR: INTERNAL_STATUS,
 }
 
+#: 400 Bad Request. The request's own identifier is malformed.
+BAD_REQUEST_STATUS = 400
+
+#: 404 Not Found.
+NOT_FOUND_STATUS = 404
+
+#: One status per artifact-delivery refusal. Complete by construction: a test
+#: asserts every :class:`DeliveryReason` member appears.
+#:
+#: ``ARTIFACT_NOT_FOUND`` and ``ARTIFACT_NOT_DOWNLOADABLE`` share a status and
+#: differ by ``reason``, which is what a client branches on. They are both
+#: 404 because neither names a document that can be fetched -- one does not
+#: exist, and the other has no bytes to have.
+DELIVERY_STATUS: Mapping[DeliveryReason, int] = {
+    DeliveryReason.ARTIFACT_ID_INVALID: BAD_REQUEST_STATUS,
+    DeliveryReason.ARTIFACT_NOT_FOUND: NOT_FOUND_STATUS,
+    DeliveryReason.ARTIFACT_NOT_DOWNLOADABLE: NOT_FOUND_STATUS,
+    DeliveryReason.DELIVERY_FAILED: INTERNAL_STATUS,
+}
+
 #: Statuses this application can return, for documentation and tests.
 STATUSES: Tuple[int, ...] = (
     OK_STATUS,
+    BAD_REQUEST_STATUS,
+    NOT_FOUND_STATUS,
     UNPROCESSABLE_STATUS,
     INTERNAL_STATUS,
     UNAVAILABLE_STATUS,
 )
+
+
+def status_for_delivery(reason: DeliveryReason) -> int:
+    """The HTTP status for an artifact-delivery refusal."""
+    return DELIVERY_STATUS.get(reason, INTERNAL_STATUS)
 
 
 def status_for_failure(failure: str) -> int:

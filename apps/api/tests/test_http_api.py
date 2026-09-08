@@ -38,6 +38,7 @@ from typing import Any, Dict, Iterator, List, Optional, Tuple
 from fastapi.testclient import TestClient
 
 from cad_api.app import (
+    ARTIFACT_PATH,
     BUILD_PATH,
     HEALTH_PATH,
     VALIDATE_PATH,
@@ -1399,23 +1400,25 @@ print("OK")
             "DELETE /",
             "PUT /",
             "PATCH /",
-            "GET /artifacts",
             "GET /build",
+            "POST /artifacts",
             "POST /featurescript",
         ):
             self.assertNotIn(absent, text)
 
 
 class TestOpenApi(ApiTestCase):
-    def test_the_generated_schema_lists_only_the_three_routes(self) -> None:
+    def test_the_generated_schema_lists_only_the_declared_routes(self) -> None:
         schema = self.client().get("/openapi.json").json()
         self.assertEqual(
             sorted(schema["paths"]),
-            sorted([BUILD_PATH, HEALTH_PATH, VALIDATE_PATH]),
+            sorted([ARTIFACT_PATH, BUILD_PATH, HEALTH_PATH, VALIDATE_PATH]),
         )
         for path, spec in schema["paths"].items():
             with self.subTest(path=path):
-                expected = ["get"] if path == HEALTH_PATH else ["post"]
+                expected = (
+                    ["post"] if path in (BUILD_PATH, VALIDATE_PATH) else ["get"]
+                )
                 self.assertEqual(sorted(spec), expected)
 
     def test_the_schema_defines_only_the_two_request_envelopes(self) -> None:

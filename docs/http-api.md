@@ -1,7 +1,8 @@
 # HTTP API
 
 Status: **Stage 22 — the first HTTP transport, as a thin adapter over the
-transport-neutral contract. Local development only.**
+transport-neutral contract. Stage 23 added artifact delivery. Local
+development only.**
 
 > **HTTP API contains no CAD business logic.**
 
@@ -57,7 +58,7 @@ extra and imported by nothing.
 
 ## Endpoints
 
-Three, and only these three.
+Four, and only these four.
 
 ### `GET /health`
 
@@ -138,6 +139,48 @@ The repeat of an identical request is a **cache hit**: `200`,
 otherwise identical to the first. A test asserts the cached body equals the
 transport contract's own payload for that request, field for field.
 
+### `GET /artifacts/{artifact_id}`
+
+Deliver a file-backed artifact's bytes. The path parameter is the
+**logical artifact id** a build response already returned
+(`<build key>:<kind>`) — never a path, a filename or an extension.
+
+```
+GET /artifacts/a6cd6fa1…:step
+200  application/octet-stream
+     content-disposition: attachment; filename="a6cd6fa1….step"
+     content-length: 30084
+     etag: "<the artifact's SHA-256>"
+     <the exact cached bytes>
+```
+
+| | |
+|---|---|
+| **downloadable kinds** | `step`, `iges`, `stl` — the file-backed ones, from `FILE_KINDS` |
+| **not downloadable** | `geometry` and `render` have no file; both answer **404** with `reason: artifact_not_downloadable`. No B-rep serialization and no second render format is invented |
+| **Content-Type** | `application/octet-stream` for all three. Python's IANA table does offer `model/step`, `model/iges` and `model/stl` — verified locally — and they are deliberately not used: these are opaque bytes to save, `Content-Disposition: attachment` says so, and octet-stream cannot tempt a browser into rendering a CAD file. No custom type is invented either way |
+| **Content-Disposition** | `attachment; filename="<build key><extension>"`, from the validated manifest record. Never from the URL, never the original build directory's filename. A build key is hexadecimal and the extension comes from the registry, so CR, LF and quotes are impossible — and asserted so |
+| **ETag** | the artifact's own SHA-256, quoted. Not a second hash |
+| **Content-Length** | the real length of the bytes served |
+| **integrity** | the payload is read once and its length and SHA-256 are checked against the manifest *after* the read, so what is delivered is exactly what was verified |
+| **Range requests** | not implemented; see `docs/artifact-delivery.md` for why |
+| **HEAD** | not offered. FastAPI adds none for a `GET` route and this stage adds no extra route, so `HEAD` answers **405** |
+
+Statuses: **200** with the bytes, **400** for an id that is not an identifier,
+**404** for an artifact that is not available or has no bytes, **500** if
+delivery itself failed. A refusal body is
+`{"error": {"reason": ..., "message": ...}}`.
+
+`reason` is deliberately not the build taxonomy's `failure`: a download is not
+a build.
+
+**Path traversal is refused before any filesystem access.** The id is
+whitelisted against `[0-9a-f]{64}:<kind>`, every path comes from the cache's
+own validated manifest, real-path containment is checked with
+`os.path.commonpath`, and symlinks are rejected outright. The full flow, the
+symlink measurement and the security limits are in
+`docs/artifact-delivery.md`.
+
 ## HTTP status mapping
 
 The line a status code draws here is **whose fault** the failure is.
@@ -154,10 +197,13 @@ The line a status code draws here is **whose fault** the failure is.
 | export or publication failure | `output_failed` | **500** |
 | execution or cache failure (crash, timeout) | `execution_failed` | **503** |
 | unexpected internal error | `internal_error` | **500** |
+| artifact id that is not an identifier | `artifact_id_invalid` | **400** |
+| artifact unavailable, or with no bytes to deliver | `artifact_not_found` / `artifact_not_downloadable` | **404** |
+| artifact delivery failed unexpectedly | `delivery_failed` | **500** |
 | wrong method on an existing route | — | 405 (FastAPI) |
 | unknown route | — | 404 (FastAPI) |
 
-Four statuses in total: `200`, `422`, `500`, `503`.
+Six statuses in total: `200`, `400`, `404`, `422`, `500`, `503`.
 
 - **422 Unprocessable Content** for everything the client can fix — a bad
   envelope, an unbuildable document, an impossible geometry. The request was
@@ -333,8 +379,11 @@ cache or a path.
 
 - document editing, deletion, versioning or comparison;
 - FeatureScript generation, in any form;
-- filesystem browsing or arbitrary file download;
-- artifact bytes, and any B-rep endpoint;
+- filesystem browsing or arbitrary file download — `GET /artifacts/{id}` takes
+  a logical id, never a path, and can reach nothing outside a validated cache
+  entry;
+- `geometry` or `render` bytes, and any B-rep endpoint;
+- an artifact listing endpoint: a build response is the only source of ids;
 - job control, job listing or job cancellation;
 - anything Onshape or MCP;
 - WebSockets, GraphQL, server-sent events, streaming or background tasks —
@@ -353,7 +402,7 @@ semantics** — the transport-neutral contract is. Consequently no
 `response_model` is declared: mirroring the response DTOs in Pydantic would
 create a second definition of the contract, so the generated schema describes
 the two request envelopes (`ValidateBody`, `BuildBody`) and leaves responses
-generic. A test asserts the schema lists exactly the three routes and defines
+generic. A test asserts the schema lists exactly the four routes and defines
 no response, artifact, error or CAD model.
 
 ## Logging
@@ -378,7 +427,7 @@ The current API has:
   each miss runs a real CAD build;
 - **no user isolation** — one cache and one service are shared by every
   caller, and a build key is global: any client can observe another's cache
-  hit;
+  hit, and **can download another's artifacts** if it knows the build key;
 - **no production sandboxing** — Stage 19's process isolation is crash
   containment, not a security sandbox: the child runs as the same OS user with
   the same filesystem permissions, with no seccomp, container, network

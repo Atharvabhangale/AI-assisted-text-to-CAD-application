@@ -13,13 +13,22 @@ HTTP response <-  transport contract  <-  application result
 See ``docs/http-api.md``.
 """
 
+from cad_api.artifacts import ArtifactResolver, DeliveryReason
 from cad_api.config import ApiConfig, config_from_environment
-from cad_api.status import FAILURE_STATUS, INTERNAL_STATUS, TRANSPORT_STATUS
+from cad_api.status import (
+    DELIVERY_STATUS,
+    FAILURE_STATUS,
+    INTERNAL_STATUS,
+    TRANSPORT_STATUS,
+)
 
 __all__ = [
+    "DELIVERY_STATUS",
     "FAILURE_STATUS",
     "INTERNAL_STATUS",
     "TRANSPORT_STATUS",
     "ApiConfig",
+    "ArtifactResolver",
+    "DeliveryReason",
     "config_from_environment",
 ]
