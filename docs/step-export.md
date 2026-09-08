@@ -106,6 +106,32 @@ the file back through a real OpenCascade import, and measure the result:
 for a box of `size = (100, 60, 10)` at `position = (10, 20, 30)`. Both
 extensions, the origin box, and a negative-position box are covered too.
 
+### Drilled parts round-trip as solids too
+
+Stage 10 added the `through_hole` modifier, so the exported solid can now
+contain a cylindrical internal wall. Measured for a 100 × 60 × 10 mm plate at
+the origin with one Ø20 `+Z` hole at (20, 20):
+
+| Check | Value |
+|---|---|
+| imported object is a valid solid | ✓ (`ShapeType() == "Solid"`, `isValid()`) |
+| solid count | 1 |
+| topology | 7 faces, 15 edges, 10 vertices — unchanged by the round trip |
+| bounding box | (0, 0, 0) → (100, 60, 10) mm |
+| volume | 56858.40734641042 mm³ |
+| against `100·60·10 − π·10²·10` | 2.18e-10 mm³ |
+| file size | 19097 bytes |
+
+So STEP preserves the hole as real topology — a cylindrical face bounded by two
+circles — not as a mesh approximation. The 2.18e-10 mm³ discrepancy is the
+first measured case where a round-tripped volume is *not* bit-identical to the
+value the engine reported. It is not simply "because the surface is curved":
+the plain box **and** the plain cylinder both round-trip to their exact values
+(60000.0 and 15707.963267948966 mm³, delta 0.0). What differs here is that the
+solid came out of a boolean, so its faces are trimmed rather than primitive.
+The deviation is four orders of magnitude inside the 1e-6 mm³ tolerance, and
+the tests compare with that tolerance rather than with `==`.
+
 ### Tolerance
 
 Kernel-derived measurements are compared with explicit tolerances, never with
@@ -149,18 +175,20 @@ STEP export needs the optional `local-cad` extra, like the engine it exports fro
 
 ## Limitations
 
-- **One box.** The exporter writes whatever the local engine built, and the
-  engine still builds only a single-box part. Cylinders, through-holes,
-  boolean subtraction, fillets and chamfers remain unimplemented.
+- **Whatever the local engine can build, and no more.** That is currently one
+  box or cylinder plus any number of through-holes. Generic boolean
+  subtraction, fillets and chamfers remain unimplemented, so nothing here
+  demonstrates STEP fidelity for them.
 - **STEP only.** No IGES, no STL, no 3MF, no BREP, no mesh formats.
 - **No import pipeline.** `read_step` is verification support. STEP is not an
   input to the application and never will be on the normal path.
 - **No assembly, colour, material or metadata.** The file carries a single
   solid body and nothing else. The part's name and feature id are not written
   into the STEP file; STEP metadata is not part of this stage.
-- **Round-trip fidelity is verified for a box.** Planar geometry is the easiest
-  case for STEP; nothing here demonstrates fidelity for curved geometry,
-  because no curved geometry can be built yet.
+- **Round-trip fidelity is verified for planar and cylindrical geometry only** —
+  boxes, cylinders, and cylindrical hole walls. Those are the easiest cases for
+  STEP; nothing here demonstrates fidelity for freeform surfaces, and V1 cannot
+  build any.
 - **Not verified against third-party CAD.** The round trip is OpenCascade
   writing and OpenCascade reading. That a file opens correctly in, say,
   SolidWorks or Fusion is untested here.

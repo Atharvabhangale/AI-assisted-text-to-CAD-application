@@ -195,6 +195,38 @@ every case.
 no CAD topology, no design intent. The render model claims nothing about
 preserving topology.
 
+### Internal surfaces: hole-wall normals point *inward*
+
+Stage 10 added `through_hole`, which puts the first **internal** surface into
+the render model. Measured on the drilled plate — 100 × 60 × 10 mm at the
+origin, one Ø20 `+Z` hole at (20, 20), giving **530 vertices / 520 triangles**:
+
+| Vertex group | Count | Normal |
+|---|---|---|
+| on the cylindrical hole wall | 254 | dot with the *outward radial* direction between −1.0 and −0.99969 — i.e. pointing **at the hole axis** |
+| on the two circular rings, belonging to the top/bottom faces | 252 | ±Z, radial dot exactly 0.0 |
+| on the top face (`z = 10`) | 130 | exactly `(0, 0, 1)` |
+| on the bottom face (`z = 0`) | 130 | exactly `(0, 0, −1)` |
+| on each of the four sides | 4 each | exactly the outward axis direction |
+
+The inward hole-wall normals are **correct, not a bug**: a surface normal points
+out of the material, and for a hole that direction is into the void. "Outward"
+in the `winding` field means *out of the solid*, which on an internal surface
+means towards the axis. A renderer that assumed "away from the part centre"
+would shade the hole wrong.
+
+That also breaks the cheap winding check used for the box and the cylinder. A
+drilled plate is not star-shaped, so "does the triangle normal point away from
+the centroid?" is no longer a valid test. The tests therefore verify winding
+with the kernel instead: step a short distance along each triangle's normal
+from its centroid and classify that point with
+`BRepClass3d_SolidClassifier` — it must land **outside** the solid. That works
+for the hole wall and the outer faces alike, with no assumption about shape.
+
+The 530 vertices for 260 distinct mesh nodes are the usual per-face
+duplication (`stl_export` reports 260 nodes for the same geometry, because the
+STL reader merges coincident coordinates and this model deliberately does not).
+
 ## Bounds
 
 `bounds` is computed **from the render vertices**, not copied from the B-rep —
@@ -214,10 +246,21 @@ A test compares them and asserts the difference is within the documented
 tolerance of **0.010001 mm** — the linear deflection plus 1e-6 mm of kernel
 float noise. Normals are checked to unit length within **1e-9**.
 
+For a **drilled** part the render bounds are exactly the envelope the V1
+semantics predict — (0, 0, 0) → (100, 60, 10) — because a through-hole removes
+interior material and does not touch the envelope. Two consequences:
+
+- Bounds are **no evidence at all** that a hole is present. A plate with the
+  hole and a plate without it measure identically; only the triangle count and
+  the B-rep volume tell them apart.
+- They match the B-rep's bounding box **as measured before meshing**. After
+  meshing they do not — see below, where the drilled part makes that gap much
+  larger than the box did.
+
 ### A measured subtlety: the B-rep query shifts after meshing
 
 Querying the B-rep's bounding box *after* tessellation returns bounds inflated
-outward by about **1e-7 mm**:
+outward. For the reference box the inflation is about **1e-7 mm**:
 
 | | minimum x |
 |---|---|
@@ -225,10 +268,28 @@ outward by about **1e-7 mm**:
 | B-rep, after tessellation | `9.9999999` |
 | render vertices | `10.0` |
 
-OpenCascade's `BoundingBox()` bounds an attached triangulation with a small gap
+OpenCascade's `BoundingBox()` bounds an attached triangulation with a gap
 rather than the analytic surface, so once a mesh exists the query loosens.
 Volume and solidity are unaffected, and 1e-7 mm is well inside every tolerance
 this project uses.
+
+**Stage 10 found the gap is not always negligible.** For the drilled plate the
+post-mesh query loosens along the drilled axis by **3.108e-3 mm** — four orders
+of magnitude more than the box, and the same magnitude as the chord sag of the
+tessellated hole wall:
+
+| | minimum z | maximum z |
+|---|---|---|
+| B-rep, before tessellation | `0.0` | `10.0` |
+| B-rep, after tessellation | `-0.0031082799918424` | `10.0031082799918` |
+| render vertices | `0.0` | `10.0` |
+
+That is still comfortably inside the 0.010001 mm mesh tolerance, but it is well
+outside the 1e-6 mm tolerance used for B-rep lengths — so a test that measured
+the B-rep *after* building a render model and compared with 1e-6 mm would fail.
+A test now pins the direction (outward only) and the bound (no more than the
+mesh tolerance) rather than a specific number, and confirms the render bounds
+stay exact either way.
 
 Two things follow. First, this is **not** specific to the render model — STL
 export meshes the shape and has exactly the same effect, so the behaviour
@@ -271,7 +332,15 @@ result for this backend and this geometry, not as a guarantee.
   well inside tolerance of the true surface, and each is self-consistent and
   deterministic — but they are **not the same mesh**. Anything that needs the
   render model and the STL to agree triangle-for-triangle would have to unify
-  those parameters first.
+  those parameters first. Stage 10 sharpened this: for the **drilled plate**
+  both paths happen to produce **520 triangles**. Equal counts for one solid are
+  a coincidence of that geometry, not agreement between the two settings — the
+  cylinder case above shows they diverge — so the divergence stands as a
+  limitation regardless.
+- **Internal surfaces need care from the consumer.** Hole walls are present and
+  correctly oriented, but their normals point at the hole axis (see above).
+  Nothing in the model marks a triangle as "internal", so a viewer cannot
+  distinguish a hole wall from an outer face except geometrically.
 - **No topology, no feature identity per triangle.** By design.
 - **No volume, no mass properties, no material, no colour.** A viewer that
   needs them should ask the B-rep, not the render model.

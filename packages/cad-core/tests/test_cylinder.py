@@ -734,12 +734,12 @@ class TestCylinderValidationBoundary(CylinderTestCase):
                     build_part(part)
                 self.assertIn(feature.TYPE, str(caught.exception))
 
-    def test_multiple_feature_histories_remain_rejected(self) -> None:
-        """A cylinder plus a through-hole is a valid V1 part, but not buildable.
+    def test_a_cylinder_with_a_coaxial_through_hole_builds_a_tube(self) -> None:
+        """Reasoned from the solid-set rules, then covered explicitly.
 
-        Two constructive features would leave two solids and fail rule S9, so
-        the valid multi-feature shape to test with is a modifier on the
-        cylinder -- which the engine must still refuse.
+        A cylinder followed by a through_hole targeting it leaves exactly one
+        solid, so it is a valid V1 history (Section B.4 / rule S9) and Stage 10
+        builds it. The result is a tube; its volume is the annulus.
         """
         document = cylinder_document()
         document["features"].append(
@@ -751,11 +751,32 @@ class TestCylinderValidationBoundary(CylinderTestCase):
                 "position": {"x": 10, "y": 20, "z": 30},
             }
         )
-        part = self.part_from(document)  # valid specification
+        part = self.part_from(document)
         self.assertEqual(len(part.features), 2)
-        with self.assertRaises(UnsupportedGeometryError) as caught:
-            build_part(part)
-        self.assertIn("exactly one feature", str(caught.exception))
+
+        result = build_part(part)
+        self.assertTrue(result.is_solid())
+        self.assertEqual(result.solid_count(), 1)
+        self.assertEqual(result.feature_id, "pin")  # target identity kept
+        annulus = math.pi * (RADIUS**2 - 4.0**2) * HEIGHT
+        self.assertAlmostEqual(result.volume(), annulus, delta=VOLUME_TOLERANCE_MM3)
+        box = result.bounding_box()
+        self.assertTripleAlmostEqual(box.minimum, PRIMARY_MINIMUM)
+        self.assertTripleAlmostEqual(box.maximum, PRIMARY_MAXIMUM)
+
+    def test_two_constructive_features_remain_rejected(self) -> None:
+        document = cylinder_document()
+        document["features"].append(
+            {
+                "id": "pin2",
+                "type": "cylinder",
+                "diameter": 8,
+                "height": 10,
+                "position": {"x": 0, "y": 0, "z": 0},
+            }
+        )
+        # Two solids and no subtract: the specification itself rejects this.
+        self.assertFalse(validate(document).valid)
 
     def test_the_engine_still_refuses_a_raw_dictionary(self) -> None:
         with self.assertRaises(TypeError):

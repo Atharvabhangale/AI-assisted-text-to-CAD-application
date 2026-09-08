@@ -20,10 +20,81 @@ bounding-box stand-in.
 
 Supported subset
 ----------------
-Exactly one feature, of type ``box`` or ``cylinder``, in millimetres. Anything
-else raises :class:`UnsupportedGeometryError`. Through-holes, boolean
-subtraction, fillets and chamfers are **not implemented**: they are rejected,
-never partially built and never silently skipped.
+A part in millimetres whose feature history is **one constructive feature**
+(``box`` or ``cylinder``) optionally followed by **any number of
+``through_hole`` modifiers targeting it**. Generic ``subtract``, ``fillet`` and
+``chamfer`` are **not implemented**: they are rejected, never partially built
+and never silently skipped.
+
+That subset is not an arbitrary choice -- it is what the specification's
+solid-set rules (Section B.4) allow with the features implemented here. A
+second constructive feature would leave two solids and fail rule S9 unless a
+``subtract`` consumed one, and ``subtract`` is not implemented.
+
+Evaluation model (specification Section B.4)
+--------------------------------------------
+Features are evaluated in order against an ordered **solid set**:
+
+* a constructive feature adds a solid named by its own ``id``;
+* a ``through_hole`` **replaces its target in place** -- the result keeps the
+  *target's* id and the target's position in the set, and the hole's own ``id``
+  never names a solid;
+* after the last feature the set must hold exactly one solid, which becomes the
+  part's geometry.
+
+So a plate with four holes stays one solid called ``plate`` throughout, and
+:attr:`LocalCadResult.feature_id` is the id of that surviving solid.
+
+Through-hole semantics (specification Section C.3)
+--------------------------------------------------
+The hole's centreline is the **infinite** line through ``position`` along
+``axis``, and the material removed is the infinite cylinder of the given
+diameter about that line, intersected with the target. There is no depth, no
+counterbore and no taper.
+
+Two consequences follow from the line being infinite, and both are implemented
+rather than approximated:
+
+* the component of ``position`` along the axis has no effect;
+* the **sign** of the axis has no effect either. An infinite line through a
+  point along ``+Z`` is the same line as along ``-Z``, so a ``+Z`` and a ``-Z``
+  hole at the same position cut identically. (This is unlike a *cylinder*,
+  where the sign decides which way the solid extends.) The implementation
+  therefore works from the unsigned axis.
+
+How the infinite cut is realised
+--------------------------------
+OpenCascade booleans need bounded solids, so the cut is performed with a finite
+cylinder whose length is **derived from the target's own bounding box**, never
+from a hard-coded size:
+
+1. measure the target's bounding box;
+2. take its extent ``[lo, hi]`` along the hole axis;
+3. take the box's diagonal length as the margin -- necessarily at least as long
+   as any single extent, and zero only for a degenerate solid;
+4. build the cutting cylinder from ``lo - margin``, of length
+   ``(hi - lo) + 2 * margin``.
+
+The cutter therefore protrudes past both faces by at least the target's largest
+dimension, so the cut is geometrically identical to the unbounded one while
+staying a finite boolean the kernel can evaluate.
+
+Geometric rules E1 and E3
+-------------------------
+Both are checked with the kernel, and a failure raises
+:class:`GeometryOperationError` rather than returning a best-effort shape:
+
+* **E1** -- the centreline must actually intersect the target. Tested by
+  intersecting a line segment along the centreline with the target solid: if
+  the common shape contains no edge, the centreline misses, and that is an
+  error, not a silent no-op. A hole that merely grazes the material is caught
+  by this too, because the test is on the *centreline*, not on whether any
+  material happened to be removed.
+* **E3** -- the result must be a single connected solid. A boolean returns a
+  compound; if it holds no solid the cut consumed the body, and if it holds
+  more than one the cut split it. Only a compound holding exactly one solid is
+  accepted, and that solid is unwrapped so
+  :attr:`LocalCadResult.shape` is always a ``Solid``.
 
 Box semantics (specification Section C.1)
 -----------------------------------------
@@ -71,9 +142,19 @@ from cad_core.local_cad import build_part
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Mapping, Tuple
+from collections import OrderedDict
+from typing import Any, Dict, Mapping, Tuple
 
-from cad_core.model import AXIS_VALUES, Box, Cylinder, Feature, Part, Position, Size
+from cad_core.model import (
+    AXIS_VALUES,
+    Box,
+    Cylinder,
+    Feature,
+    Part,
+    Position,
+    Size,
+    ThroughHole,
+)
 
 try:
     import cadquery as _cq
@@ -104,6 +185,17 @@ AXIS_DIRECTIONS: Mapping[str, Tuple[float, float, float]] = {
 
 #: Unit systems this engine accepts (specification Section A.3).
 SUPPORTED_UNITS: Tuple[str, ...] = ("mm",)
+
+
+class GeometryOperationError(Exception):
+    """Raised when a geometric operation fails on otherwise supported input.
+
+    Distinct from :class:`UnsupportedGeometryError`, which reports a part this
+    engine does not attempt at all. This one reports a part the engine tried
+    and could not build: an unresolvable target, a centreline that misses
+    (rule E1), a boolean the kernel refused, an empty result, or a result that
+    is not a single connected solid (rule E3).
+    """
 
 
 class UnsupportedGeometryError(Exception):
@@ -220,16 +312,129 @@ def build_part(part: Part) -> LocalCadResult:
         TypeError: if ``part`` is not a :class:`~cad_core.model.Part`. A raw
             specification document is not accepted.
         UnsupportedGeometryError: if the part is outside the supported subset
-            -- units other than millimetres, a feature count other than one, or
-            a feature that is neither a box nor a cylinder. Nothing partial is
-            built.
+            -- units other than millimetres, an empty history, a feature type
+            this engine does not build, or a history shape it does not
+            evaluate. Nothing partial is built.
+        GeometryOperationError: if the geometry itself cannot be built -- an
+            unresolvable target, a centreline that misses its target (E1), a
+            failed boolean, an empty result, or a result that is not a single
+            connected solid (E3).
     """
-    feature = _require_supported_feature(part)
-    if isinstance(feature, Box):
-        shape = _build_box(feature)
-    else:
-        shape = _build_cylinder(feature)
-    return LocalCadResult(part_name=part.name, feature_id=feature.id, shape=shape)
+    _require_supported_part(part)
+
+    solids: "Dict[str, Any]" = OrderedDict()
+    for feature in part.features:
+        if isinstance(feature, Box):
+            solids[feature.id] = _build_box(feature)
+        elif isinstance(feature, Cylinder):
+            solids[feature.id] = _build_cylinder(feature)
+        else:
+            # A through_hole replaces its target in place, keeping the
+            # target's id and its position in the set (Section B.4).
+            solids[feature.target] = _apply_through_hole(feature, solids)
+
+    if len(solids) != 1:
+        remaining = ", ".join(repr(name) for name in solids)
+        raise GeometryOperationError(
+            "after the last feature the solid set must contain exactly one "
+            f"solid (rule S9); it contains {len(solids)} ({remaining})"
+        )
+
+    solid_id, shape = next(iter(solids.items()))
+    return LocalCadResult(part_name=part.name, feature_id=solid_id, shape=shape)
+
+
+def _apply_through_hole(hole: ThroughHole, solids: "Dict[str, Any]") -> Any:
+    """Cut ``hole`` through its target and return the replacement solid.
+
+    Implements Section C.3 with a finite cutter derived from the target's own
+    bounds, and enforces rules E1 and E3 against the kernel.
+    """
+    target = solids.get(hole.target)
+    if target is None:
+        available = ", ".join(repr(name) for name in solids) or "nothing"
+        raise GeometryOperationError(
+            f"through_hole {hole.id!r} targets {hole.target!r}, which is not a "
+            f"solid in the solid set (rule S6); available: {available}"
+        )
+
+    if hole.axis not in AXIS_DIRECTIONS:
+        permitted = ", ".join(repr(axis) for axis in AXIS_VALUES)
+        raise UnsupportedGeometryError(
+            f"through_hole {hole.id!r} has unsupported axis {hole.axis!r}; the "
+            f"specification permits only {permitted}"
+        )
+    # The sign is deliberately dropped here: the centreline is an infinite
+    # line, so "+Z" and "-Z" name the same one (Section C.3).
+    axis_index = "XYZ".index(hole.axis[1])
+
+    low, high, margin = _axial_span(target, axis_index)
+    if margin <= 0.0:
+        raise GeometryOperationError(
+            f"through_hole {hole.id!r}: target {hole.target!r} has a degenerate "
+            "bounding box, so no cutting extent can be derived from it"
+        )
+
+    centre = [hole.position.x, hole.position.y, hole.position.z]
+    centre[axis_index] = low - margin
+    direction = [0.0, 0.0, 0.0]
+    direction[axis_index] = 1.0
+    length = (high - low) + 2.0 * margin
+
+    # E1: the centreline must actually intersect the target.
+    far = list(centre)
+    far[axis_index] = high + margin
+    centreline = _cq.Edge.makeLine(_cq.Vector(*centre), _cq.Vector(*far))
+    if not target.intersect(centreline).Edges():
+        raise GeometryOperationError(
+            f"through_hole {hole.id!r}: its centreline does not intersect "
+            f"target {hole.target!r} (rule E1); a hole that misses the material "
+            "is an error, not a no-op"
+        )
+
+    cutter = _cq.Solid.makeCylinder(
+        hole.diameter / 2.0,
+        length,
+        pnt=_cq.Vector(*centre),
+        dir=_cq.Vector(*direction),
+    )
+    try:
+        result = target.cut(cutter)
+    except Exception as exc:  # pragma: no cover - kernel refusal is rare
+        raise GeometryOperationError(
+            f"through_hole {hole.id!r}: the boolean cut of target "
+            f"{hole.target!r} failed: {exc}"
+        ) from exc
+
+    # E3: exactly one connected solid must remain. A boolean returns a
+    # compound, so the single solid is unwrapped for the caller.
+    remaining = result.Solids()
+    if not remaining:
+        raise GeometryOperationError(
+            f"through_hole {hole.id!r}: cutting target {hole.target!r} left no "
+            "material (rule E2)"
+        )
+    if len(remaining) > 1:
+        raise GeometryOperationError(
+            f"through_hole {hole.id!r}: cutting target {hole.target!r} split it "
+            f"into {len(remaining)} disconnected solids (rule E3); V1 has no "
+            "multi-body parts"
+        )
+    return remaining[0]
+
+
+def _axial_span(target: Any, axis_index: int) -> Tuple[float, float, float]:
+    """Return the target's extent along one axis, plus a derived margin.
+
+    The margin is the bounding box's diagonal length, so the cutter always
+    protrudes past the target by at least its largest dimension. Derived from
+    the target rather than fixed, so it scales with the part.
+    """
+    box = target.BoundingBox()
+    low = (box.xmin, box.ymin, box.zmin)[axis_index]
+    high = (box.xmax, box.ymax, box.zmax)[axis_index]
+    diagonal = (box.xlen**2 + box.ylen**2 + box.zlen**2) ** 0.5
+    return low, high, diagonal
 
 
 def _build_box(box: Box) -> Any:
@@ -266,8 +471,8 @@ def _build_cylinder(cylinder: Cylinder) -> Any:
     )
 
 
-def _require_supported_feature(part: Any) -> Feature:
-    """Return the part's single supported feature, or fail explicitly."""
+def _require_supported_part(part: Any) -> None:
+    """Accept only a part whose whole history this engine evaluates."""
     if not isinstance(part, Part):
         raise TypeError(
             "build_part requires a typed cad_core.model.Part, such as the "
@@ -282,17 +487,33 @@ def _require_supported_feature(part: Any) -> Feature:
             "geometry and does not convert other unit systems"
         )
 
-    if len(part.features) != 1:
+    if not part.features:
         raise UnsupportedGeometryError(
-            "this engine builds a part with exactly one feature; got "
-            f"{len(part.features)}. Multi-feature histories are not supported yet."
+            "this engine needs at least one feature to build; the history is empty"
         )
 
-    feature = part.features[0]
-    if not isinstance(feature, (Box, Cylinder)):
+    for position, feature in enumerate(part.features):
+        if not isinstance(feature, (Box, Cylinder, ThroughHole)):
+            raise UnsupportedGeometryError(
+                f"unsupported feature type {feature.TYPE!r} at features[{position}]; "
+                "this engine builds 'box' and 'cylinder' and applies "
+                "'through_hole'. Generic boolean subtraction, fillets and "
+                "chamfers are not implemented."
+            )
+
+    first = part.features[0]
+    if not isinstance(first, (Box, Cylinder)):
         raise UnsupportedGeometryError(
-            f"unsupported feature type {feature.TYPE!r}; this engine builds "
-            "only 'box' and 'cylinder'. Through-holes, boolean subtraction, "
-            "fillets and chamfers are not implemented."
+            f"the first feature must be constructive ('box' or 'cylinder'); got "
+            f"{first.TYPE!r}"
         )
-    return feature
+
+    constructive = sum(
+        1 for feature in part.features if isinstance(feature, (Box, Cylinder))
+    )
+    if constructive != 1:
+        raise UnsupportedGeometryError(
+            f"this engine evaluates exactly one constructive feature; got "
+            f"{constructive}. Two solids could only be reduced to one by a "
+            "'subtract', which is not implemented."
+        )

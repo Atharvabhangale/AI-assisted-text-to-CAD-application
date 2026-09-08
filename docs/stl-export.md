@@ -175,6 +175,39 @@ parser, and measure. For the reference box — 100 × 60 × 10 mm at (10, 20, 30
 | mesh dimensions | (100.0, 60.0, 10.0) |
 | every vertex inside the envelope | ✓ |
 
+### A drilled part: the envelope check goes blind
+
+Measured for a 100 × 60 × 10 mm plate at the origin with one Ø20 `+Z` hole at
+(20, 20):
+
+| Check | Result |
+|---|---|
+| triangles | 520 |
+| mesh nodes | 260 |
+| file size | 26084 bytes = 84 + 50 × 520 ✓ |
+| mesh minimum corner | (0.0, 0.0, 0.0) |
+| mesh maximum corner | (100.0, 60.0, 10.0) |
+| mesh dimensions | (100.0, 60.0, 10.0) — **identical to the B-rep's**, as measured before meshing |
+| hole-wall nodes | 252, at radius 10 ± 9.13e-7 mm from the hole axis |
+| hole wall segments | 126 around the circle |
+| worst chord sag on the hole wall | 3.108e-3 mm |
+
+Two things worth recording:
+
+- **A through-hole does not change the mesh envelope at all.** The hole is
+  interior, so the bounding box of the mesh nodes equals the bounding box of the
+  B-rep exactly. The envelope check that verified the box therefore says nothing
+  whatsoever about whether the hole is present — a plate with the hole and a
+  plate without it have byte-identical bounds. Triangle count and volume are
+  what distinguish them, and the tests use those.
+- **The direction of the tessellation error flips for an internal surface.** A
+  meshed *cylinder* sits inside the true surface, so the mesh under-represents
+  material. A meshed *hole wall* also sits inside the true cylindrical surface —
+  but that surface bounds a void, so the mesh hole is slightly **narrower** than
+  Ø20 and under-*removes* material. Same geometric statement, opposite physical
+  consequence. This is one more reason STL is an output, never the
+  representation: a mesh hole is not a Ø20 hole.
+
 ### Tolerance
 
 Mesh coordinates are compared with **0.010001 mm** — the linear deflection
@@ -187,7 +220,10 @@ tighter 1e-6 mm shared with the local engine and the STEP/IGES exporters.
 
 Repeated exports of the same solid came out **byte-identical** — four exports,
 one SHA-256 digest — and identical under both `parallel=True` and
-`parallel=False`. This is recorded as an **empirical result for this backend,
+`parallel=False`. That still holds for a drilled part, and more strongly than
+for STEP or IGES: three exports of the drilled plate within one process share a
+digest, and so does an export made from a **separate process**, where STEP and
+IGES both diverge. This is recorded as an **empirical result for this backend,
 these settings and this geometry**, not as a guarantee of the STL format or of
 OpenCascade. Unlike STEP and IGES, binary STL has no timestamp in its header,
 which is the plausible reason it comes out stable where those do not.
@@ -208,8 +244,8 @@ specification valuable: it is the format for *looking at* geometry, not for
 
 ## Limitations
 
-- **One box.** The exporter meshes whatever the local engine built, and the
-  engine still builds only a single-box part. Cylinders, through-holes, boolean
+- **Whatever the local engine can build, and no more.** That is currently one
+  box or cylinder plus any number of through-holes. Generic boolean
   subtraction, fillets and chamfers remain unimplemented.
 - **Binary only.** No ASCII STL.
 - **No mesh volume, no closure check.** The mesh is not verified to be a closed

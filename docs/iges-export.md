@@ -127,6 +127,28 @@ evidenced rather than folklore.
 `volume()` is documented as meaningful **only when `is_solid()` is true**, and
 the test that checks it asserts `is_solid()` first.
 
+### Drilled parts survive the BRep-mode round trip
+
+Stage 10 added the `through_hole` modifier, so the exported body can carry an
+internal cylindrical wall. That is a fair question for IGES, which is
+surface-oriented: measured for a 100 × 60 × 10 mm plate at the origin with one
+Ø20 `+Z` hole at (20, 20), written in BRep mode:
+
+| Property | Value |
+|---|---|
+| imported `ShapeType` | `Solid` |
+| `isValid()` | True |
+| solids | 1 |
+| topology | 7 faces, 15 edges, 10 vertices — unchanged by the round trip |
+| bounding box | (0, 0, 0) → (100, 60, 10) mm |
+| volume | 56858.407346410204 mm³, **delta 0.0** from `100·60·10 − π·10²·10` |
+| file size | 17658 bytes |
+
+So the hole comes back as topology, and the volume comes back bit-exact — which
+is notable because the same solid through STEP came back 2.18e-10 mm³ off (see
+`docs/step-export.md`). No claim is made about *why*; it is one measurement of
+one solid, recorded rather than explained.
+
 ## Verifying the file is really IGES
 
 Extension is not evidence, and neither is a textual "looks like IGES" check.
@@ -187,8 +209,8 @@ solid*, not *the same bytes*. This matches the position taken for STEP.
 
 ## Limitations
 
-- **One box.** The exporter writes whatever the local engine built, and the
-  engine still builds only a single-box part. Cylinders, through-holes, boolean
+- **Whatever the local engine can build, and no more.** That is currently one
+  box or cylinder plus any number of through-holes. Generic boolean
   subtraction, fillets and chamfers remain unimplemented.
 - **Faces mode is not offered.** The mode is fixed at BRep. Exposing mode 0
   would mean offering an export whose round trip silently loses the solid and
@@ -196,10 +218,11 @@ solid*, not *the same bytes*. This matches the position taken for STEP.
 - **IGES is an older, looser format than STEP.** It carries no assembly
   structure, no colour, no material, and no metadata here; the file holds one
   body and nothing else. The part's name and feature id are not written into it.
-- **Round-trip fidelity is verified for planar geometry only**, because no
-  curved geometry can be built yet. IGES is a surface-oriented format and
-  curved-surface fidelity is exactly where it is most likely to differ; nothing
-  here demonstrates that case.
+- **Round-trip fidelity is verified for planar and cylindrical geometry only** —
+  boxes, cylinders and cylindrical hole walls. IGES is a surface-oriented format
+  and curved-surface fidelity is where it is most likely to differ, so those
+  cases now carry measurements; freeform surfaces remain untested because V1
+  cannot build any.
 - **Not verified against third-party CAD.** The round trip is OpenCascade
   writing and OpenCascade reading. Whether the file opens correctly in
   SolidWorks, Fusion or NX is untested here — and IGES interoperability in

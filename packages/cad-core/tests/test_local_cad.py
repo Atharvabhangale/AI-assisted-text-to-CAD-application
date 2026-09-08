@@ -279,7 +279,8 @@ class TestUnsupportedFeatures(LocalCadTestCase):
             build_part(part)
         self.assertIn("chamfer", str(caught.exception))
 
-    def test_multiple_feature_part_is_rejected(self) -> None:
+    def test_a_box_with_a_through_hole_now_builds(self) -> None:
+        """Stage 10 widened the engine to constructive + through_hole."""
         document = box_document()
         document["features"].append(
             {
@@ -290,9 +291,25 @@ class TestUnsupportedFeatures(LocalCadTestCase):
                 "position": {"x": 10, "y": 10, "z": 0},
             }
         )
+        result = build_part(self.part_from(document))
+        self.assertTrue(result.is_solid())
+        self.assertEqual(result.solid_count(), 1)
+        self.assertEqual(result.feature_id, "plate")  # target identity kept
+
+    def test_two_constructive_features_are_still_rejected(self) -> None:
+        """Only a 'subtract' could reduce two solids to one, and it is not built."""
+        part = Part(
+            schema_version="1.0.0",
+            units="mm",
+            name="p",
+            features=(
+                Box(id="a", size=Size(10.0, 10.0, 10.0)),
+                Box(id="b", size=Size(10.0, 10.0, 10.0), position=Position(20.0, 0.0, 0.0)),
+            ),
+        )
         with self.assertRaises(UnsupportedGeometryError) as caught:
-            build_part(self.part_from(document))
-        self.assertIn("exactly one feature", str(caught.exception))
+            build_part(part)
+        self.assertIn("one constructive feature", str(caught.exception))
 
     def test_two_boxes_are_rejected(self) -> None:
         part = Part(

@@ -1,6 +1,7 @@
 # Local CAD engine
 
-Status: **Stage 4 — a single box, built as a real B-rep solid.**
+Status: **Stage 10 — one constructive primitive (box or cylinder) plus any
+number of `through_hole` modifiers, built as a real B-rep solid.**
 
 ## Why a local backend exists
 
@@ -57,12 +58,47 @@ dependencies at all, and importing `cad_core` does not require CadQuery.
 
 ## Supported V1 subset
 
-Exactly one feature, of type **`box`** or **`cylinder`**, in **millimetres**.
+A part in **millimetres** whose feature history is:
 
-Everything else is rejected with `UnsupportedGeometryError`: through-holes,
-boolean subtraction, fillets, chamfers, multi-feature histories, empty
-histories, and any other unit system. Nothing is partially built and no feature
-is silently skipped. The engine does not repair or reinterpret a part.
+1. exactly one **constructive** feature — `box` or `cylinder` — first, and
+2. then **any number of `through_hole` modifiers**, each targeting a solid in
+   the set.
+
+Everything else is rejected with `UnsupportedGeometryError`: generic
+`subtract`, `fillet`, `chamfer`, a second constructive feature, a history that
+does not begin with a constructive feature, an empty history, and any other
+unit system. Nothing is partially built and no feature is silently skipped. The
+engine does not repair or reinterpret a part.
+
+That shape of history is not an arbitrary cut-off. It is what the
+specification's own solid-set rules (Section B.4) permit given the features
+implemented here: a second constructive feature would leave two solids in the
+set and fail rule S9, and the only V1 feature that could consume one of them is
+`subtract`, which is not implemented.
+
+## The solid set (Section B.4)
+
+The engine evaluates features in order against an ordered **solid set**, a
+`collections.OrderedDict` keyed by solid id:
+
+- a constructive feature **adds** a solid named by its own `id`;
+- a `through_hole` **replaces its target in place** — the surviving solid keeps
+  the *target's* id and the target's position in the set, and the hole's own
+  `id` never names a solid;
+- after the last feature the set must hold **exactly one** solid (rule S9),
+  which becomes the part's geometry.
+
+So a plate with four holes is one solid called `plate` from beginning to end,
+and `LocalCadResult.feature_id` is the id of that surviving solid — `"plate"`,
+not `"hole4"`. Rebuilding the specification's own Section D worked example (a
+100 × 60 × 10 plate with four Ø8 holes) gives one solid, 10 faces, 24 edges,
+16 vertices, and a volume of 57989.38070170254 mm³ against the hand-computed
+`100·60·10 − 4·π·4²·10 = 57989.38070170253` mm³.
+
+If a `through_hole` names a target that is not in the set,
+`GeometryOperationError` is raised naming rule S6. That is a defensive check,
+not a substitute for validation: a statically valid part cannot reach it,
+because rule S6 is enforced in Stage 2.
 
 ## Box coordinate semantics
 
@@ -138,6 +174,110 @@ unit, which V1 fixes as millimetres, so a measured volume of `60000` is
 60000 mm³. A part declaring any other unit system is rejected rather than
 converted.
 
+## Through-hole semantics
+
+Section C.3 of the specification defines a `through_hole` by `target`,
+`position`, `diameter` and `axis`. Its centreline is the **infinite** line
+through `position` along `axis`, and the material removed is the infinite
+cylinder of that diameter about that line, intersected with the target. There
+is no depth, no counterbore and no taper — those are not V1 concepts.
+
+Two consequences follow from the line being infinite, and the engine implements
+both rather than approximating them:
+
+- **The axial component of `position` has no effect.** For a 60 mm cube drilled
+  along `+Z`, `position.z` of −1000, 0, 5, 30, 60 and 1000 all produce the same
+  volume, 197150.44407846124 mm³, to the last bit.
+- **The sign of the axis has no effect either.** An infinite line through a
+  point along `+Z` is the same line as along `-Z`, so `+Z` and `-Z` holes at the
+  same position cut identically — measured identical, not assumed. This is
+  *unlike* a `cylinder`, where the sign decides which way the solid extends;
+  the through-hole implementation therefore works from the **unsigned** axis.
+
+### How the infinite cut is realised
+
+OpenCascade booleans need bounded solids, so the cut uses a finite cylinder
+whose length is **derived from the target's own bounding box**, never from a
+hard-coded size:
+
+1. measure the target's bounding box with the kernel;
+2. take its extent `[lo, hi]` along the hole axis;
+3. take the box's **diagonal length** as the margin — necessarily at least as
+   long as any single extent of the box, and zero only for a degenerate solid;
+4. build the cutting cylinder from `lo - margin`, of length
+   `(hi - lo) + 2 * margin`, along the positive axis direction.
+
+The cutter therefore protrudes past both faces by at least the target's largest
+dimension, so the result is geometrically identical to the unbounded cut while
+staying a finite boolean the kernel can evaluate. There is no magic constant and
+no "sufficiently huge" number anywhere in the module.
+
+### Boolean operation
+
+`cadquery.Shape.cut(cutter)`, which is OpenCascade's `BRepAlgoAPI_Cut`. A
+kernel failure is not swallowed: `cut` raising, or returning something that
+fails the checks below, produces a `GeometryOperationError`, never a
+best-effort shape.
+
+`cut` returns a **`Compound`**, not a `Solid`. After the single-solid check
+below the surviving solid is unwrapped, so `LocalCadResult.shape` is always a
+`Solid` and `is_solid()` stays meaningful for a drilled part exactly as it is
+for a box.
+
+### Rule E1 — the centreline must intersect the target
+
+Checked with the kernel rather than by special-casing geometry: a line segment
+along the centreline (spanning the same derived length as the cutter) is
+intersected with the target via `Shape.intersect` (`BRepAlgoAPI_Common`), and
+the common shape must contain at least one edge. If it contains none, the
+centreline misses the material and the build fails:
+
+```
+GeometryOperationError: through_hole 'h': its centreline does not intersect
+target 'b' (rule E1); a hole that misses the material is an error, not a no-op
+```
+
+Testing the *centreline* rather than "did any material disappear" is
+deliberate: a hole whose centreline lies outside the body but whose radius
+still clips a corner is caught by this check, which is what E1 says.
+
+### Rules E2 and E3 — the result must be one connected solid
+
+Both come from the kernel's own count of solids in the boolean result:
+
+| Solids in result | Meaning | Behaviour |
+|---|---|---|
+| 0 | the cut consumed the whole body | `GeometryOperationError`, rule E2 |
+| 1 | valid | unwrapped and kept |
+| > 1 | the cut split the body | `GeometryOperationError`, rule E3 |
+
+Measured examples: a Ø20 hole through a Ø10 × 20 cylinder leaves nothing —
+`cutting target 'c' left no material (rule E2)`; a Ø40 hole through the middle
+of a 100 × 20 × 10 bar leaves two pieces — `cutting target 'bar' split it into
+2 disconnected solids (rule E3); V1 has no multi-body parts`. Neither is
+repaired, and neither returns a shape.
+
+### Topology is a kernel observation
+
+Drilling one Ø20 hole through a 100 × 60 × 10 plate gives **7 faces, 15 edges,
+10 vertices**: the box's six planes plus one cylindrical wall, and the hole's
+two circular edges plus the cylinder's seam. Four Ø8 holes give 10 faces, 24
+edges, 16 vertices. These counts are recorded as properties of *this backend*,
+not as part of the neutral specification, and nothing else in the project
+depends on them.
+
+The bounding box is **unchanged** by a through-hole whose material lies wholly
+inside the body — a hole removes interior material, it does not shrink the
+envelope. A test asserts that rather than assuming it.
+
+One caveat, measured rather than assumed: `bounding_box()` on a shape that has
+since been **tessellated** (by STL export or the render model) loosens outward,
+and for a drilled part the loosening is about 3.1e-3 mm — far larger than the
+~1e-7 mm a plain box shows. It is a property of OpenCascade's bounding-box
+query over an attached triangulation, not of the cut. Measure the B-rep before
+meshing if a 1e-6 mm answer is wanted; `docs/render-representation.md` records
+the numbers.
+
 ## Input / output boundary
 
 **Input** is the typed `Part` from `cad_core.model` — in practice the `part` of
@@ -177,7 +317,10 @@ is never taken as evidence that geometry is sound.
 
 The same `Part` built repeatedly must measure identically: same bounding box,
 same placement, same solid count, same volume. Tests build the same part five
-times and assert the measurements collapse to a single value.
+times and assert the measurements collapse to a single value. This holds for
+drilled parts too: five builds of the drilled plate collapse to one
+`(volume, bounding box, solid count, face count, edge count)` tuple, so the
+boolean does not introduce run-to-run variation.
 
 Determinism here means *measured values*, not object identity — each call
 returns a fresh result object, and nothing relies on memory identity being
@@ -189,25 +332,43 @@ a value that came from the kernel.
 
 Explicitly **not** part of this stage:
 
-- **Export is a future stage.** No STEP, IGES, STL or any other exporter.
-- **Browser rendering / visualisation is a future stage.** Nothing renders.
-- **The remaining V1 features are unimplemented**: cylinder, through-hole,
-  boolean subtraction, fillet, chamfer.
+- **The remaining V1 features are unimplemented**: generic `subtract`,
+  `fillet`, `chamfer`. There are no hole patterns either — four holes are four
+  `through_hole` features, and the engine has no pattern concept.
+- **No generalized feature graph.** The evaluator is an ordered dictionary of
+  solids walked once, which is exactly what Section B.4 describes. It is not a
+  dependency graph, a rollback stack, or a re-orderable history.
 - **FeatureScript/Onshape remains a separate backend path.** This engine does
   not generate FeatureScript, does not talk to Onshape, and does not make the
   Onshape path unnecessary — verifying the FeatureScript backend still requires
-  Onshape.
+  Onshape. The FeatureScript generator still supports **only a single box**, so
+  the two backends' supported subsets have now diverged; that is what the
+  separate error types are for.
 - No frontend, no LLM, no MCP, no HTTP API.
 
 ## Known limitations
 
-- One constructive feature only — a box or a cylinder. The engine has no
-  vocabulary for feature history, because nothing beyond a single constructive
-  feature is supported yet.
+- **One constructive feature.** Multi-body parts, assemblies, and any history
+  with two primitives are rejected. This follows from rule S9 plus the missing
+  `subtract`, not from a limit of the kernel.
+- **Only `through_hole` cuts.** There is no generic boolean: the tool is always
+  a cylinder derived from a `through_hole`, never an arbitrary solid, and no
+  arbitrary boolean operation is exposed.
+- **A through-hole always replaces its target.** There is no way to keep both
+  the original and the drilled body, because V1 has no vocabulary for it.
 - The engine trusts the validator. A hand-built `Part` that bypasses validation
   with, say, a zero extent would reach the kernel and fail there rather than
   being caught politely — by design, since re-validating would duplicate
-  Stage 2 and repairing is forbidden.
+  Stage 2 and repairing is forbidden. The rule S6 target check in the
+  evaluator is the one exception, and exists only because the evaluator cannot
+  proceed without a target.
+- **E4 and E5 are still not implemented.** Only E1, E2 and E3 are enforced, and
+  only for `through_hole`; E4 and E5 concern fillets and chamfers, which do not
+  exist here yet.
+- **Tangency is not classified.** A centreline that passes exactly through a
+  face or edge of the target is left to the kernel's own tolerance rather than
+  being detected and reported as a distinct condition. The specification does
+  not define that case for V1, and the engine does not invent an answer.
 - Agreement between the two backends is untested, and cannot be tested until
   the Onshape path runs. Both are built from the same specification section,
   but that is an argument, not evidence.
