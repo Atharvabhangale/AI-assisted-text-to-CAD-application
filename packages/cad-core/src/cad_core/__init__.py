@@ -13,6 +13,15 @@ This package implements ``docs/cad-specification.md`` schema version 1.0.0:
 * :mod:`cad_core.onshape_adapter` -- the boundary the application will
   eventually deliver FeatureScript through, plus :mod:`cad_core.onshape_fakes`
   for the implementations that exist today. **Neither contacts Onshape.**
+* :mod:`cad_core.serialization` -- the canonical CAD document: the typed
+  ``Part`` serialized to and from deterministic JSON, with a content hash.
+  The document is the authoritative artifact; geometry, FeatureScript and
+  every export are derived from it.
+
+Importing this package does **not** load a geometry kernel. The local CAD
+engine (:mod:`cad_core.local_cad`) and the edge selector
+(:mod:`cad_core.edge_selection`) require CadQuery and are deliberately not
+re-exported here.
 """
 
 from cad_core.errors import ValidationError, ValidationResult
@@ -57,50 +66,80 @@ from cad_core.model import (
     ThroughHole,
 )
 from cad_core.rules import STATIC_RULES
+from cad_core.serialization import (
+    CANONICAL_ENCODING,
+    HASH_ALGORITHM,
+    CadDocumentError,
+    DocumentParseError,
+    DocumentValidationError,
+    deserialize_part,
+    load_part,
+    part_from_json,
+    part_hash,
+    part_to_bytes,
+    part_to_json,
+    parts_equivalent,
+    save_part,
+    serialize_part,
+)
 from cad_core.validator import validate
 
 __all__ = [
-    "AXIS_VALUES",
     "AdapterResult",
+    "AXIS_VALUES",
     "Box",
-    "CONSTRUCTIVE_TYPES",
+    "CadDocumentError",
+    "CANONICAL_ENCODING",
     "Chamfer",
+    "check_geometric_rules",
+    "CONSTRUCTIVE_TYPES",
     "Cylinder",
     "DEFAULT_AXIS",
+    "deliver_part",
     "DeliveryReport",
+    "deserialize_part",
+    "DocumentParseError",
+    "DocumentValidationError",
     "EDGE_SELECT_VALUES",
     "EdgeSelector",
-    "FEATURE_TYPES",
     "Feature",
+    "FEATURE_TYPES",
+    "featurescript_for",
     "Fillet",
-    "GEOMETRIC_RULES",
+    "generate_featurescript",
     "GeneratedFeatureScript",
-    "HANDLE_KINDS",
+    "GEOMETRIC_RULES",
     "Handle",
+    "HANDLE_KINDS",
+    "HASH_ALGORITHM",
     "ID_PATTERN",
+    "load_part",
     "MODIFIER_TYPES",
-    "OPERATIONS",
-    "ORIGIN",
     "OnshapeAdapter",
+    "OPERATIONS",
     "OperationStatus",
+    "ORIGIN",
     "Part",
+    "part_from_json",
+    "part_hash",
+    "part_to_bytes",
+    "part_to_json",
+    "parts_equivalent",
     "Position",
     "RecordingOnshapeAdapter",
+    "save_part",
     "SCHEMA_VERSION",
     "SELECTOR_AXIS_VALUES",
+    "serialize_part",
+    "Size",
     "STATIC_RULES",
+    "Subtract",
     "SUPPORTED_SCHEMA_MAJOR",
     "SUPPORTED_UNITS",
-    "Size",
-    "Subtract",
     "ThroughHole",
     "UnconfiguredOnshapeAdapter",
     "UnsupportedPartError",
+    "validate",
     "ValidationError",
     "ValidationResult",
-    "check_geometric_rules",
-    "deliver_part",
-    "featurescript_for",
-    "generate_featurescript",
-    "validate",
 ]
