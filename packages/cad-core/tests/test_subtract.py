@@ -1145,11 +1145,32 @@ class TestEvaluatorDefences(SubtractTestCase):
         with self.assertRaises(TypeError):
             build_part(primary_document())  # type: ignore[arg-type]
 
-    def test_fillet_and_chamfer_remain_unimplemented(self) -> None:
-        for feature in (
-            Fillet(
-                id="f", target="plate", radius=2.0, edges=EdgeSelector(select="all")
+    def test_a_fillet_after_a_subtract_now_builds(self) -> None:
+        """Stage 13 added 'fillet', which sees whatever the subtract left."""
+        part = Part(
+            schema_version="1.0.0",
+            units="mm",
+            name="hand-built",
+            features=(
+                Box(id="plate", position=Position(0.0, 0.0, 0.0), size=Size(*PLATE_SIZE)),
+                self.tool(),
+                Subtract(id="cut", target="plate", tools=("tool",)),
+                Fillet(
+                    id="round",
+                    target="plate",
+                    radius=2.0,
+                    edges=EdgeSelector(select="axis_parallel", axis="Z"),
+                ),
             ),
+        )
+        result = build_part(part)
+        self.assertTrue(result.is_solid())
+        self.assertEqual(result.solid_count(), 1)
+        self.assertEqual(result.feature_id, "plate")
+
+    def test_chamfer_remains_unimplemented(self) -> None:
+        """Stage 13 implemented 'fillet'; 'chamfer' is still rejected."""
+        for feature in (
             Chamfer(
                 id="c", target="plate", distance=1.0, edges=EdgeSelector(select="all")
             ),

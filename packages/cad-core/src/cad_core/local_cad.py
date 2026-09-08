@@ -178,6 +178,7 @@ from cad_core.model import (
     Box,
     Cylinder,
     Feature,
+    Fillet,
     Part,
     Position,
     Size,
@@ -193,6 +194,10 @@ except ImportError as exc:  # pragma: no cover - exercised only without the extr
         "dependency of cad-core. Install it with the 'local-cad' extra, e.g. "
         "`pip install cadquery`."
     ) from exc
+
+from OCP.BRepFilletAPI import BRepFilletAPI_MakeFillet
+
+from cad_core.edge_selection import select_edges
 
 #: Name of the geometry backend this module drives.
 BACKEND_NAME = "cadquery"
@@ -362,6 +367,8 @@ def build_part(part: Part) -> LocalCadResult:
             # A modifier replaces its target in place, keeping the target's id
             # and its position in the set (Section B.4).
             solids[feature.target] = _apply_through_hole(feature, solids)
+        elif isinstance(feature, Fillet):
+            solids[feature.target] = _apply_fillet(feature, solids)
         else:
             # A subtract also replaces its target in place, and additionally
             # consumes each tool: _apply_subtract mutates ``solids``.
@@ -510,6 +517,121 @@ def _apply_subtract(subtract: Subtract, solids: "Dict[str, Any]") -> None:
     solids[subtract.target] = result
     for tool_id in seen:
         del solids[tool_id]
+
+
+def _apply_fillet(fillet: Fillet, solids: "Dict[str, Any]") -> Any:
+    """Apply Section C.5 and return the replacement solid.
+
+    Selects edges with the Stage 12 selector layer -- no selector logic is
+    duplicated here -- then blends every matched edge with the one constant
+    radius. Rules E4 and E5 are enforced against the kernel, and nothing is
+    returned unless the whole operation produced a single valid solid.
+    """
+    label = f"fillet {fillet.id!r}"
+    target = solids.get(fillet.target)
+    if target is None:
+        available = ", ".join(repr(name) for name in solids) or "nothing"
+        raise GeometryOperationError(
+            f"{label} targets {fillet.target!r}, which is not a solid in the "
+            f"solid set (rule S6); available: {available}"
+        )
+
+    # Defensive: the validator enforces S16, so this cannot be reached from a
+    # validated part. A non-positive radius must not reach the kernel.
+    if not fillet.radius > 0.0:
+        raise GeometryOperationError(
+            f"{label} has radius {fillet.radius!r}, which must be greater than "
+            "zero (rule S16)"
+        )
+
+    edges = select_edges(target, fillet.edges)
+
+    # E4: the selector must match at least one edge, and the kernel is not
+    # called otherwise. The selector layer returns an empty result rather than
+    # raising, precisely so this feature can own the rule.
+    if not edges:
+        raise GeometryOperationError(
+            f"{label}: its edge selector matched no edge of target "
+            f"{fillet.target!r} (rule E4); a fillet that affects nothing "
+            "indicates a misread request, so no geometry is produced"
+        )
+
+    return _blend_edges(target, fillet.radius, edges, label=label)
+
+
+def _blend_edges(
+    target: Any, radius: float, edges: Tuple[Any, ...], *, label: str
+) -> Any:
+    """Round ``edges`` of ``target`` with one constant radius.
+
+    Drives OpenCascade's ``BRepFilletAPI_MakeFillet`` directly rather than
+    CadQuery's ``Solid.fillet``, for two measured reasons:
+
+    * ``Solid.fillet`` calls ``builder.Shape()`` without checking
+      ``IsDone()``. Calling ``Shape()`` on a builder that is not done raises
+      ``StdFail_NotDone`` **and leaves kernel state that segfaults a later
+      fillet in the same process** -- reproduced, and the reason this function
+      never touches ``Shape()`` unless ``IsDone()`` is true.
+    * ``Solid.fillet`` wraps the builder's result as ``Solid(...)`` although
+      the kernel returns a ``Compound``, producing a mislabelled object.
+
+    Every matched edge is added to one builder and built once, so the blend is
+    a single atomic kernel operation over the whole selection. No subset is
+    ever attempted: if the radius does not work for all of them, the feature
+    fails.
+
+    Rules enforced, all three from measured kernel behaviour:
+
+    * **E5** -- ``Build()`` raising, ``IsDone()`` false, or a result that is
+      not a valid solid. The third case is not redundant: for an over-large
+      radius the kernel reports done and hands back an invalid shape whose
+      volume *exceeds* the original, so ``IsDone()`` alone would accept
+      corrupt geometry.
+    * **E3** -- the result must hold exactly one solid, which is unwrapped out
+      of the compound the builder returns. No component is ever selected from
+      a multi-solid result.
+    """
+    builder = BRepFilletAPI_MakeFillet(target.wrapped)
+    for edge in edges:
+        builder.Add(radius, edge.wrapped)
+
+    try:
+        builder.Build()
+    except Exception as exc:
+        raise GeometryOperationError(
+            f"{label}: the kernel refused to blend {len(edges)} edge(s) at "
+            f"radius {radius} (rule E5): {type(exc).__name__}"
+        ) from exc
+
+    if not builder.IsDone():
+        # Do NOT ask the builder for its shape here: it raises, and doing so
+        # has been measured to corrupt kernel state for later operations.
+        raise GeometryOperationError(
+            f"{label}: radius {radius} is not admissible for all "
+            f"{len(edges)} selected edge(s) (rule E5); the kernel reports "
+            f"{builder.NbFaultyContours()} faulty contour(s) and "
+            f"{builder.NbFaultyVertices()} faulty vertex/vertices out of "
+            f"{builder.NbContours()} contour(s). No partial blend is applied."
+        )
+
+    result = _cq.Shape.cast(builder.Shape())
+    remaining = result.Solids()
+    if len(remaining) != 1:
+        raise GeometryOperationError(
+            f"{label}: blending {len(edges)} edge(s) at radius {radius} left "
+            f"{len(remaining)} solids (rule E3); V1 has no multi-body parts"
+        )
+
+    solid = remaining[0]
+    if not (result.isValid() and solid.isValid()):
+        raise GeometryOperationError(
+            f"{label}: radius {radius} is not admissible for all "
+            f"{len(edges)} selected edge(s) (rule E5); the kernel completed "
+            "but its own validity analysis rejects the result, which is what "
+            "consuming neighbouring geometry looks like. No partial blend is "
+            "applied."
+        )
+    return solid
 
 
 def _cut_in_order(
@@ -672,11 +794,11 @@ def _require_supported_part(part: Any) -> None:
         )
 
     for position, feature in enumerate(part.features):
-        if not isinstance(feature, (Box, Cylinder, ThroughHole, Subtract)):
+        if not isinstance(feature, (Box, Cylinder, ThroughHole, Subtract, Fillet)):
             raise UnsupportedGeometryError(
                 f"unsupported feature type {feature.TYPE!r} at features[{position}]; "
                 "this engine builds 'box' and 'cylinder' and applies "
-                "'through_hole' and 'subtract'. Fillets and chamfers are not "
+                "'through_hole', 'subtract' and 'fillet'. Chamfers are not "
                 "implemented."
             )
 

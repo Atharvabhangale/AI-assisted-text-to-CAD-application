@@ -1,7 +1,8 @@
 # Local CAD engine
 
-Status: **Stage 11 — box and cylinder primitives, `through_hole`, and general
-boolean `subtract`, built as real B-rep solids.**
+Status: **Stage 13 — box and cylinder primitives, `through_hole`, general
+boolean `subtract` and constant-radius `fillet`, built as real B-rep
+solids.**
 
 ## Why a local backend exists
 
@@ -61,12 +62,12 @@ dependencies at all, and importing `cad_core` does not require CadQuery.
 A part in **millimetres** whose feature history:
 
 1. begins with a **constructive** feature — `box` or `cylinder` — and
-2. uses only `box`, `cylinder`, `through_hole` and `subtract`.
+2. uses only `box`, `cylinder`, `through_hole`, `subtract` and `fillet`.
 
 Several constructive features are allowed, provided the extras are consumed as
-`subtract` tools so that exactly one solid is left. `fillet` and `chamfer` are
-rejected with `UnsupportedGeometryError`, as are a history that does not begin
-with a constructive feature, an empty history, and any other unit system.
+`subtract` tools so that exactly one solid is left. `chamfer` is rejected with
+`UnsupportedGeometryError`, as are a history that does not begin with a
+constructive feature, an empty history, and any other unit system.
 Nothing is partially built and no feature is silently skipped. The engine does
 not repair or reinterpret a part.
 
@@ -83,9 +84,9 @@ The engine evaluates features in order against an ordered **solid set**, a
 `collections.OrderedDict` keyed by solid id:
 
 - a constructive feature **adds** a solid named by its own `id`;
-- a modifier (`through_hole`, `subtract`) **replaces its target in place** —
-  the surviving solid keeps the *target's* id and the target's position in the
-  set, and the modifier's own `id` never names a solid;
+- a modifier (`through_hole`, `subtract`, `fillet`) **replaces its target in
+  place** — the surviving solid keeps the *target's* id and the target's
+  position in the set, and the modifier's own `id` never names a solid;
 - a `subtract` additionally **consumes** each solid named in `tools`, deleting
   it from the set so no later feature can resolve it;
 - after the last feature the set must hold **exactly one** solid (rule S9),
@@ -428,6 +429,144 @@ Overlap is decided by the kernel, not by comparing volumes:
 `Shape.intersect` (`BRepAlgoAPI_Common`) must yield at least one **solid**.
 Touching faces yield none — measured — which is the intended answer.
 
+## Fillet semantics (Section C.5)
+
+`fillet` takes a `target`, one constant `radius` and an edge selector. Every
+edge the selector matches is replaced by a circular blend of that radius, and
+the target is replaced in place — the surviving solid keeps the target's id,
+and the fillet's own `id` appears only in error messages.
+
+There is **no per-edge radius** in V1, no variable radius, no angle-driven
+blend and no face blend. One radius, one selection, one operation.
+
+### Selector integration
+
+Edge selection is delegated entirely to the Stage 12 layer
+(`docs/edge-selection.md`): `select_edges(target, fillet.edges)`. No selector
+logic is duplicated here, and the sequence passed to the kernel is exactly the
+sequence the selector returned — nothing is filtered, reordered or dropped.
+That includes edges a human might not have meant, such as a cylindrical
+face's parameterisation seam. Excluding them would be a change to the selector
+contract, and this stage did not make one.
+
+### Fillet API
+
+**`BRepFilletAPI_MakeFillet`**, driven directly: one builder per feature, every
+matched edge added with `Add(radius, edge)`, then a single `Build()`. So the
+blend is one atomic kernel operation over the whole selection — no subset is
+ever attempted, and there is no path by which some edges get rounded and
+others silently do not.
+
+CadQuery's own `Solid.fillet(radius, edgeList)` is **not** used, for two
+measured reasons:
+
+- it calls `builder.Shape()` without checking `IsDone()`. Asking a not-done
+  builder for its shape raises `StdFail_NotDone` **and leaves kernel state
+  that segfaults a later fillet in the same process** — reproduced twice, and
+  the reason this engine never touches `Shape()` unless `IsDone()` is true;
+- it wraps the result as `Solid(...)` although the kernel returns a
+  `Compound`, producing a mislabelled object whose `ShapeType()` is
+  `"Compound"`.
+
+Like the booleans, the builder returns a **`Compound`**; the single solid is
+unwrapped after the checks below, so `LocalCadResult.shape` is always a
+`Solid`.
+
+### Rule E4 — the selector must match at least one edge
+
+Checked before the kernel is called at all. An empty selection raises
+
+```
+GeometryOperationError: fillet 'round': its edge selector matched no edge of
+target 'pin' (rule E4); a fillet that affects nothing indicates a misread
+request, so no geometry is produced
+```
+
+The selector layer deliberately returns an empty tuple rather than raising, so
+that this feature owns the rule and can name its own id and target.
+
+### Rule E5 — the radius must be admissible for every selected edge
+
+Three distinct kernel outcomes were measured, and **all three** are E5:
+
+| Kernel outcome | Example | Detection |
+|---|---|---|
+| `Build()` raises `Standard_Failure` | filleting a cylinder's seam alone | the exception |
+| `IsDone()` is false | radius 30 on the plate's vertical edges | `IsDone()`, plus `NbFaultyContours()` / `NbFaultyVertices()` in the message |
+| done, but the result is not a valid solid | radius 6 on all twelve box edges | `isValid()` on the compound **and** on the unwrapped solid |
+
+The third row is the important one. For radius 6 the kernel reports
+`IsDone() == True`, returns one solid, and that solid has a volume of
+**75513.93 mm³ — larger than the 60000 mm³ box it came from** — with a
+bounding box spilling 0.09 mm outside the original. `IsDone()` alone would
+have accepted corrupt geometry, which is exactly what E5 means by a radius
+that "consumes neighbouring geometry".
+
+No edge is ever dropped to make a radius work, and no partial blend is
+applied: the whole feature fails and no geometry is produced.
+
+Rule **E3** is checked too — the result must hold exactly one solid — and no
+component is ever picked out of a multi-solid result.
+
+### Failure atomicity
+
+Measured rather than assumed of CadQuery. The source shape's full fingerprint
+— shape type, volume, face/edge/vertex counts, validity, and every edge's
+length and start point — is **unchanged** after:
+
+- a successful build,
+- a build that ends `IsDone() == False`,
+- a build whose `Build()` raises.
+
+On top of that, the engine only writes the result into the solid set after
+every check has passed, and it re-evaluates the whole history from scratch on
+each `build_part`, so a failed fillet leaves nothing behind anywhere. A test
+interleaves failing and succeeding fillets three times over, which also guards
+the crash hazard described above.
+
+### Measured results
+
+Primary case — 100 × 60 × 10 plate, radius 2, `axis_parallel Z`:
+
+| Measurement | Value |
+|---|---|
+| selected edges | 4 (the vertical corners) |
+| result | one valid `Solid` |
+| volume | `59965.663706143576` mm³ |
+| analytic reference `60000 − 4(r² − πr²/4)·10` | `59965.66370614359`, Δ 1.46e-11 |
+| bounding box | (0,0,0) → (100,60,10), unchanged |
+| topology | 10 faces, 24 edges, 16 vertices |
+| surfaces | 6 planes + **4 cylinders of radius exactly 2.0**, axes along Z at (2,2), (2,58), (98,2), (98,58) |
+
+The four corners really were rounded, and that is established from geometry,
+not from the volume difference: the blend surfaces are cylinders of the
+requested radius whose axes sit exactly `r` inside each corner, and a point at
+(0.1, 0.1, 5) classifies **IN** on the plain box and **OUT** on the filleted
+one, while points just inside each face stay IN.
+
+Other measured cases:
+
+| Case | Outcome |
+|---|---|
+| box, `all`, r = 2 | one valid solid; 26 faces = 6 planes + 12 cylinders + 8 spheres, every radius exactly 2.0; volume `59426.99687870704`, matching the Minkowski closed form for a rounded box **exactly** (Δ 0.0) |
+| box, `axis_parallel Z`, r = 29 | succeeds. r = 30 fails. A measured bracket for this geometry, **not** a rule |
+| box, `all`, r = 5 | `IsDone()` false → E5 |
+| box, `all`, r ≥ 5.01 | done but invalid → E5 |
+| 100 × 60 × 3 plate, `all`, r = 2 | E5 — a genuine mixed selection: `axis_parallel Z` alone succeeds at r = 2, `axis_parallel X` and `Y` alone each fail |
+| drilled plate, `axis_parallel Z`, r = 2 | succeeds with the cavity seam in the selection; volume is the drilled volume minus exactly the four corner blends, and faces go 7 → 11, so **the seam blend removed no material and added no face** |
+| drilled plate, `all`, r = 1 | succeeds; 29 faces = 6 planes + 13 cylinders + 8 spheres + **2 tori** (the hole rims are blended too) |
+| cylinder, `axis_parallel Z`, r = 0.5 or 2 | **`Build()` raises `Standard_Failure`** → E5. The seam alone cannot be blended |
+| cylinder, `all`, r = 1 | succeeds — 5 faces (2 planes, 1 cylinder, 2 tori). With the rims in the selection the seam resolves, which is a kernel observation, not a rule |
+
+### Supported histories
+
+Tested and supported: `box → fillet`, `box → through_hole → fillet`,
+`box → cylinder → subtract → fillet`, `cylinder → fillet`, and two fillets in
+sequence (the second sees the first, because each replaces the target in
+place). These all fall out of the existing ordered evaluator — no second
+mechanism was introduced — but only the combinations above are tested, and
+nothing broader is claimed.
+
 ## Input / output boundary
 
 **Input** is the typed `Part` from `cad_core.model` — in practice the `part` of
@@ -482,12 +621,9 @@ a value that came from the kernel.
 
 Explicitly **not** part of this stage:
 
-- **The remaining V1 features are unimplemented**: `fillet` and `chamfer`.
-  There are no hole patterns either — four holes are four `through_hole`
-  features, and the engine has no pattern concept. The deterministic edge
-  selection those two modifiers will need does exist and is measured
-  separately (`docs/edge-selection.md`), but it only *reads* a shape: this
-  engine does not call it, and no geometry operation uses it yet.
+- **`chamfer` is unimplemented** — the last V1 feature outstanding. There are
+  no hole patterns either: four holes are four `through_hole` features, and
+  the engine has no pattern concept.
 - **Only subtraction.** V1 defines no union and no intersection, and neither is
   implemented. `Shape.fuse` and `Shape.intersect` exist in CadQuery; the latter
   is used *internally* to decide overlap, and neither is reachable as a
@@ -521,9 +657,24 @@ Explicitly **not** part of this stage:
   Stage 2 and repairing is forbidden. The rule S6 target check in the
   evaluator is the one exception, and exists only because the evaluator cannot
   proceed without a target.
-- **E4 and E5 are still not implemented.** E1, E2 and E3 are enforced — E1 for
-  `through_hole`, E2 and E3 for both cutting features. E4 and E5 concern
-  fillets and chamfers, which do not exist here yet.
+- **All five geometric rules are now enforced**, each for the features it
+  applies to: E1 for `through_hole`, E2 and E3 for the cutting features, E3
+  for `fillet` as well, and E4 and E5 for `fillet`. `chamfer` would need E4
+  and E5 too; it is not implemented.
+- **Fillet limitations.** One constant radius per feature, no per-edge radius,
+  no variable radius, no angle-driven or face blends, and no way to exclude an
+  edge the selector matched. The two V1 selectors are the only vocabulary, so
+  "round these three corners but not that one" is not expressible.
+- **A fillet's admissible radius is not predicted, only tested.** The engine
+  asks the kernel and reports E5 when it objects; it does not compute a
+  maximum radius, and the measured brackets in this document are observations
+  about particular geometries, not a rule.
+- **A kernel crash hazard exists and is avoided rather than fixed.** Asking a
+  not-done `BRepFilletAPI_MakeFillet` for its shape corrupts kernel state and
+  segfaults a later fillet in the same process. This engine never does it, and
+  a test interleaves failing and succeeding fillets to keep that true — but
+  the hazard is in OpenCascade (and reachable through CadQuery's own
+  `Solid.fillet`), not something this project can repair.
 - **Two open questions in the contract, both recorded rather than resolved
   quietly.** (1) V1 does not classify a `subtract` tool that removes no
   material; the engine refuses it, and a future revision should either add a

@@ -669,9 +669,8 @@ class TestBoundaries(ThroughHoleTestCase):
                     build_part(part)
 
     def test_still_unimplemented_features_remain_rejected(self) -> None:
-        """Fillet and chamfer only: Stage 11 implemented 'subtract'."""
+        """Chamfer only: Stage 11 implemented 'subtract', Stage 13 'fillet'."""
         for feature in (
-            Fillet(id="f", target="plate", radius=2.0, edges=EdgeSelector(select="all")),
             Chamfer(
                 id="c", target="plate", distance=1.0, edges=EdgeSelector(select="all")
             ),
@@ -686,6 +685,33 @@ class TestBoundaries(ThroughHoleTestCase):
                 with self.assertRaises(UnsupportedGeometryError) as caught:
                     build_part(part)
                 self.assertIn(feature.TYPE, str(caught.exception))
+
+    def test_a_fillet_after_a_through_hole_now_builds(self) -> None:
+        """Stage 13 added 'fillet', applied to the drilled solid."""
+        part = Part(
+            schema_version="1.0.0",
+            units="mm",
+            name="p",
+            features=(
+                Box(id="plate", size=Size(*PLATE_SIZE)),
+                ThroughHole(
+                    id="bore",
+                    target="plate",
+                    diameter=HOLE_DIAMETER,
+                    position=Position(20.0, 20.0, 0.0),
+                ),
+                Fillet(
+                    id="round",
+                    target="plate",
+                    radius=2.0,
+                    edges=EdgeSelector(select="axis_parallel", axis="Z"),
+                ),
+            ),
+        )
+        result = build_part(part)
+        self.assertTrue(result.is_solid())
+        self.assertEqual(result.solid_count(), 1)
+        self.assertEqual(result.feature_id, "plate")
 
     def test_an_unconsumed_second_solid_is_rejected(self) -> None:
         """Rule S9, now checked after the last feature rather than up front.

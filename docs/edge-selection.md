@@ -1,6 +1,7 @@
 # Edge selection
 
 Status: **Stage 12 — deterministic edge selection. No geometry is modified.**
+Consumed since Stage 13 by the `fillet` modifier (`docs/local-cad-engine.md`).
 
 ## What this layer is for
 
@@ -15,11 +16,12 @@ EdgeSelector ─┘
 ```
 
 It is infrastructure, deliberately built and tested **before** the modifiers
-that will use it, so that "which edges?" is settled and measured separately
-from "what happens to them?".
+that use it, so that "which edges?" is settled and measured separately from
+"what happens to them?".
 
-Nothing here builds, moves or changes geometry. `fillet` and `chamfer` remain
-**unimplemented** — this stage did not start them.
+Nothing here builds, moves or changes geometry. Stage 13 added the first
+consumer — `fillet` calls `select_edges` and owns rules E4 and E5 itself — and
+that stage changed nothing in this layer. `chamfer` remains **unimplemented**.
 
 ## API
 
@@ -260,9 +262,12 @@ not an error, and this layer never raises E4.
 
 The reasoning: "matched nothing" is a fact about a selector, while "a fillet
 that affects nothing is an error" is a fact about a fillet. `len()` of the
-result is all a future modifier needs to enforce E4, and it should own that
-error so it can name its own feature id and field path the way Section E.3
-requires.
+result is all a modifier needs to enforce E4, and it should own that error so
+it can name its own feature id and field path the way Section E.3 requires.
+
+Stage 13 confirmed the split works: `_apply_fillet` checks `if not edges` and
+raises E4 naming its own feature, and the kernel is never called for an empty
+selection. A test asserts the selector still returns `()` rather than raising.
 
 ## What this layer does not do
 
@@ -282,7 +287,10 @@ requires.
   `docs/cad-specification.md` gain no CadQuery or OCP vocabulary, and this
   module is not re-exported from the package root, so importing `cad_core`
   still does not require CadQuery.
-- **No fillet, no chamfer.** Neither is implemented, and neither was started.
+- **Nothing about what happens to a selected edge.** Whether a radius fits, or
+  what a blend looks like, is the modifier's business — see
+  `docs/local-cad-engine.md`. This layer would return the same edges for a
+  radius of 0.5 mm and 500 mm.
 
 ## Package boundary
 
@@ -295,28 +303,36 @@ validated V1 EdgeSelector + B-rep  ─→  edge_selection  ─→  kernel edges
 Tests assert this from the source, not from prose: `model.py`,
 `validator.py`, `featurescript.py`, the three exporters and `render_model.py`
 do not import `cad_core.edge_selection`, and `edge_selection.py` imports none
-of them (it imports only `cad_core.model`, CadQuery and OCP). The local
-geometry engine may consume this layer later; it does not yet.
+of them (it imports only `cad_core.model`, CadQuery and OCP).
 
-## Findings for the fillet stage
+Since Stage 13 `local_cad.py` **does** import it, which is the one direction
+that was always intended. The exporters already depend on `local_cad`, so they
+now depend on this layer transitively; they still do not import it themselves,
+and nothing in this layer knows they exist.
 
-Two things to decide when `fillet` and `chamfer` are implemented. Both are
-recorded here rather than resolved, because resolving either would mean
-changing behaviour this stage was told not to change:
+## The seam findings, and what Stage 13 measured
 
-1. **`axis_parallel Z` on a drilled plate includes the cavity seam.** The
-   specification's stated intent is that the hole *rims* are not touched, and
-   they are not. But the seam is a straight axis-parallel edge, so it matches
-   the literal contract, and a fillet asked for the vertical corners would be
-   asked to blend it too. A seam is an artifact of how the kernel parameterises
-   a cylindrical face, not a feature of the part, so this may well fail rule
-   E5 (admissibility) or produce something unintended. The selector reports
-   what the contract says; whether `fillet` should refuse, succeed, or whether
-   C.7 needs a sentence, is a question for that stage.
-2. **`axis_parallel` on a cylinder matches exactly one edge — the seam.** So a
-   fillet with `axis_parallel Z` on a plain cylinder is *not* an E4 failure
-   (it matches one edge), even though a user almost certainly meant the two
-   circular rims. Again reported, not reinterpreted.
+Stage 12 recorded two open questions about selected seams. Stage 13 answered
+both by measurement, without changing this layer:
 
-Neither is a contradiction in the specification, so `docs/cad-specification.md`
-was not changed.
+1. **`axis_parallel Z` on a drilled plate includes the cavity seam** — and
+   filleting that selection **succeeds**. The blend is a geometric no-op on the
+   seam: for a 100 × 60 × 10 plate with one Ø20 hole at radius 2, the result's
+   volume is the drilled volume minus exactly the four corner blends, and the
+   face count goes 7 → 11, so the seam produced neither material change nor a
+   new face. That is consistent with a cylindrical face being smooth across its
+   own parameterisation seam. The specification's stated intent — that the hole
+   *rims* are untouched — holds: the rims are circles and are never selected.
+2. **`axis_parallel` on a plain cylinder matches exactly one edge, the seam** —
+   and filleting *that* alone **fails**: `BRepFilletAPI_MakeFillet.Build()`
+   raises `Standard_Failure` at every radius tried. So it is not an E4 failure
+   (one edge matched) but an E5 one, and the engine reports it as such rather
+   than succeeding vacuously. Curiously, `{"select": "all"}` on the same
+   cylinder — which includes the seam *and* both rims — succeeds.
+
+So a selected seam is sometimes harmless and sometimes fatal, and which one
+depends on the surrounding geometry. That is a property of the kernel, reported
+rather than reinterpreted. Neither case is a contradiction in the
+specification, so `docs/cad-specification.md` was not changed; if V1 ever wants
+seams excluded, that is a change to C.7 and a decision for the specification,
+not for this layer.

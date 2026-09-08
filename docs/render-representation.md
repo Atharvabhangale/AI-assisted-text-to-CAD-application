@@ -233,6 +233,27 @@ and 520 triangles, and — for the same part name and target id — a
 byte-identical `json.dumps(..., sort_keys=True)` payload. The render model is
 built from `LocalCadResult`, so it never sees which feature made the cavity.
 
+### Convex blends: fillet normals point *outward*
+
+Stage 13 added `fillet`, giving the mirror image of the hole wall above.
+Measured on a 100 × 60 × 10 plate with radius 2 on its four vertical edges —
+**544 vertices / 524 triangles**:
+
+| Vertex group | Normal |
+|---|---|
+| on a corner blend's cylindrical surface | dot with the *outward radial* direction from the blend axis between 0.99970 and 1.0 — pointing **away** from the axis |
+| on the top and bottom faces | exactly `(0, 0, ±1)` |
+| on the four side faces | exactly the outward axis direction |
+
+Both cases follow the same rule — a normal points out of the material — and
+they come out opposite because a hole wall is concave and a fillet is convex.
+Nothing in the model distinguishes them, so a consumer that hard-codes either
+"towards the axis" or "away from the axis" will be wrong on some parts.
+
+The blend is genuinely curved in the mesh: the blend-face vertices carry more
+than four distinct normals rather than one flat facet normal per corner, which
+a test asserts.
+
 ## Bounds
 
 `bounds` is computed **from the render vertices**, not copied from the B-rep —

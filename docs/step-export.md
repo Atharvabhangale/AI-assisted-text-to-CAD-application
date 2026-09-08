@@ -152,6 +152,25 @@ route; the difference is header text, not geometry.
 Nothing in this exporter needed changing for `subtract`, which is the point of
 the exporters hanging off `LocalCadResult` rather than off feature types.
 
+### Blend surfaces survive too
+
+Stage 13 added `fillet`, which puts the first non-cylindrical curved surfaces
+into an exported solid. Measured for a 100 × 60 × 10 plate with radius 2 on its
+four vertical edges:
+
+| Check | Value |
+|---|---|
+| imported object is a valid solid | ✓, 1 solid |
+| topology | 10 faces, 24 edges, 16 vertices — unchanged |
+| surfaces | 6 planes + 4 cylinders, every blend radius still exactly 2.0 |
+| bounding box | (0, 0, 0) → (100, 60, 10) |
+| volume | `59965.66370614366` against the analytic `59965.66370614359`, Δ 7.3e-11 |
+| file size | 31988 bytes |
+
+So STEP carries the blend as an analytic cylindrical face with its radius
+intact, not as an approximation. The Δ is of the same order as the drilled
+plate's, and both are far inside the 1e-6 mm³ tolerance.
+
 ## Determinism is geometric, not byte-for-byte
 
 Two exports of the same solid are **not** byte-identical, and this is measured

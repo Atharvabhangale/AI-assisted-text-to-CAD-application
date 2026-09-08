@@ -157,6 +157,16 @@ identically: `Solid`, 1 solid, 7 faces / 15 edges / 10 vertices, bounds exact,
 volume `56858.407346410204` with **delta 0.0**, 17658 bytes — the same file
 size as the drilled route. No exporter change was needed.
 
+### Blend surfaces survive too
+
+Measured for the same filleted plate (radius 2 on the four vertical edges),
+written in BRep mode: `Solid`, 1 solid, **10 faces / 24 edges / 16 vertices**
+preserved, 6 planes + 4 cylinders with every blend radius still exactly 2.0,
+bounds exact, volume `59965.663706143576` — **delta 1.46e-11** from the
+analytic value, matching what the engine itself reported. 28917 bytes. As with
+the drilled plate, IGES reproduces the engine's own volume more closely than
+STEP does; recorded, not explained.
+
 ## Verifying the file is really IGES
 
 Extension is not evidence, and neither is a textual "looks like IGES" check.

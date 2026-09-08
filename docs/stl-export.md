@@ -217,6 +217,26 @@ triangles, 260 nodes. That is the strongest equivalence check available for
 the shared boolean path, and a test asserts it: a divergence between the two
 routes would show up here even if volume and face counts still agreed.
 
+### A filleted part
+
+Stage 13 added `fillet`. Measured for a 100 × 60 × 10 plate with radius 2 on
+its four vertical edges:
+
+| Check | Result |
+|---|---|
+| triangles | 524 |
+| mesh nodes | 264 |
+| file size | 26284 bytes = 84 + 50 × 524 ✓ |
+| mesh bounds | (0, 0, 0) → (100, 60, 10), within tolerance of the B-rep |
+| blend representation | nodes on each of the four arcs, at radius 2 from (2,2), (2,58), (98,2), (98,58) |
+| old sharp corners | no node in the removed wedge |
+
+Unlike a through-hole, a fillet **does** change the surface the envelope is
+measured on — but not the envelope itself here, because the blends are tangent
+to the faces they join. The corner rounding is therefore invisible in the
+bounds and visible only in the node positions and the triangle count, which is
+what the tests check.
+
 ### Tolerance
 
 Mesh coordinates are compared with **0.010001 mm** — the linear deflection
