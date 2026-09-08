@@ -266,6 +266,9 @@ class StubBackend:
     def lookup(self, request: BuildRequest) -> Optional[Any]:
         return None
 
+    def find(self, build_key: str) -> Optional[Any]:
+        return None
+
 
 class ContractTestCase(unittest.TestCase):
     def setUp(self) -> None:

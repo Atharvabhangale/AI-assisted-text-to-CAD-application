@@ -97,6 +97,8 @@ from cad_core.build_job import (
     BuildOptions,
     BuildOutput,
     BuildRequest,
+    BuildRequestError,
+    build_key_of,
 )
 from cad_core.isolated_worker import (
     CACHE_ROOT_FLAG,
@@ -111,7 +113,7 @@ from cad_core.isolated_worker import (
     STATUS_EXIT_CODES,
     WorkerStatus,
 )
-from cad_core.local_build_cache import LocalBuildCache
+from cad_core.local_build_cache import CacheEntry, LocalBuildCache
 from cad_core.model import Part
 from cad_core.render_model import RenderModel
 from cad_core.serialization import serialize_part
@@ -560,21 +562,61 @@ def cached_execution(
         raise IsolationError(
             f"expected a BuildRequest; got {type(request).__name__}"
         )
+    return cached_execution_for_key(
+        request.build_key,
+        cache,
+        document_hash=request.document_hash,
+        required_kinds=request.options.requested,
+        timeout_seconds=timeout_seconds,
+    )
+
+
+def cached_execution_for_key(
+    build_key: str,
+    cache: LocalBuildCache,
+    *,
+    document_hash: Optional[str] = None,
+    required_kinds: Iterable[ArtifactKind] = (),
+    timeout_seconds: Optional[float] = None,
+) -> Optional[IsolatedExecution]:
+    """The cached result for a **build key**, or ``None`` on a miss.
+
+    The same lookup as :func:`cached_execution`, for a caller that has a build
+    key and not the document it came from -- a read-only retrieval, where the
+    key *is* the whole request. One definition of "a cache hit as a structured
+    execution" serves both.
+
+    A lookup and nothing more: **no child process is launched**, no build is
+    run and nothing is written. The Stage 18 cache re-verifies the entry,
+    recomputing every checksum from the cached bytes, so a hit is a validated
+    entry rather than a transcription of a stored manifest.
+
+    ``document_hash`` and ``required_kinds``, when given, are verifications
+    applied to whatever the entry claims -- never part of the lookup key.
+
+    Raises:
+        IsolationError: if ``cache`` is not a cache. A malformed build key is
+            the cache's own :class:`~cad_core.local_build_cache.CacheError`;
+            a caller taking a key from outside should check
+            :func:`~cad_core.build_job.is_build_key` first.
+    """
     if not isinstance(cache, LocalBuildCache):
         raise IsolationError(
             f"expected a LocalBuildCache; got {type(cache).__name__}"
         )
     lookup = cache.lookup(
-        request.build_key,
-        document_hash=request.document_hash,
-        required_kinds=request.options.requested,
+        build_key,
+        document_hash=document_hash,
+        required_kinds=tuple(required_kinds),
     )
     if not lookup.hit or lookup.entry is None:
         return None
+    if not _entry_matches_key(build_key, lookup.entry):
+        return None
     return IsolatedExecution(
         outcome=IsolationOutcome.SUCCEEDED,
-        build_key=request.build_key,
-        document_hash=request.document_hash,
+        build_key=build_key,
+        document_hash=lookup.entry.document_hash,
         manifest=lookup.entry.manifest,
         render_model=lookup.entry.render_model,
         worker_status=None,
@@ -584,6 +626,33 @@ def cached_execution(
         cache_published=False,
         timeout_seconds=timeout_seconds,
     )
+
+
+def _entry_matches_key(build_key: str, entry: CacheEntry) -> bool:
+    """Whether a cache entry's own claims re-derive the key that found it.
+
+    A build key is a **commitment** to the document hash and the canonical
+    output set (Stage 16), so an entry can be checked against the key a caller
+    asked for: recompute the key from the document hash and the artifact kinds
+    the entry claims, and require it to match.
+
+    This matters only for a key-only retrieval. :func:`cached_execution` has
+    the request, so it passes the document hash as a verification and the
+    cache checks it directly; a caller with nothing but a key has no hash to
+    compare -- **except the one the key itself commits to**. Measured while
+    writing Stage 24: without this, editing ``document_hash`` in a cached
+    manifest made a retrieval report the edited value, because a cache
+    manifest's artifact records carry no document hash of their own and the
+    entry therefore could not contradict itself.
+
+    No new hashing scheme: :func:`~cad_core.build_job.build_key_of` is the
+    build key's own computation.
+    """
+    try:
+        expected = build_key_of(entry.document_hash, entry.manifest.kinds())
+    except (BuildRequestError, TypeError, ValueError):
+        return False
+    return expected == build_key
 
 
 def invoke_worker(
@@ -1128,6 +1197,7 @@ __all__ = [
     "IsolationError",
     "IsolationOutcome",
     "cached_execution",
+    "cached_execution_for_key",
     "child_environment",
     "execute_isolated",
     "execute_isolated_document",

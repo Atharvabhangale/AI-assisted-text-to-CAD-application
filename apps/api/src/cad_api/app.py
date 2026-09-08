@@ -3,6 +3,7 @@
 ```
 POST /validate              ->  ValidateBody  ->  CadApiContract.validate_document_payload
 POST /build                 ->  BuildBody     ->  CadApiContract.build_document_payload
+GET  /builds/{build_key}    ->  BuildRetriever.retrieve   ->  the published result
 GET  /artifacts/{id}        ->  ArtifactResolver.resolve  ->  verified bytes
 GET  /health                ->  {"status": "ok"}
 ```
@@ -10,6 +11,12 @@ GET  /health                ->  {"status": "ok"}
 The two JSON routes each do four things: let Pydantic check the envelope,
 hand the payload to the transport-neutral contract, choose a status from the
 contract's ``failure`` value, and return the payload as JSON.
+
+The build-retrieval route does three things: hand the key to
+:class:`~cad_api.builds.BuildRetriever`, choose a status from the retriever's
+``reason``, and render the result with the **same** transport-contract mapping
+the build response uses. It is read-only: nothing is built, nothing is
+written.
 
 The artifact route does four things: hand the id to
 :class:`~cad_api.artifacts.ArtifactResolver`, choose a status from the
@@ -23,8 +30,10 @@ and no process management in this module -- tests assert it imports none of
 those modules and calls none of their names.
 
 **Not exposed**, and not implemented: editing, deleting, versioning or
-comparing documents; FeatureScript; filesystem browsing; arbitrary file
-download; B-rep or render bytes; job control; authentication; anything else.
+comparing documents; document retrieval by hash (there is no document store);
+cache or entry browsing; manifest download; FeatureScript; filesystem
+browsing; arbitrary file download; B-rep or render bytes; job control;
+authentication; anything else.
 """
 
 from __future__ import annotations
@@ -43,6 +52,7 @@ from cad_core.api_contract import (
     CadApiContract,
     ErrorContract,
     ValidateDocumentResponse,
+    build_response,
 )
 from cad_core.application_service import CadApplicationService, ServiceFailure
 
@@ -53,6 +63,12 @@ from cad_api.artifacts import (
     DeliveryProblem,
     DeliveryReason,
 )
+from cad_api.builds import (
+    NOT_FOUND_MESSAGE as BUILD_NOT_FOUND_MESSAGE,
+    BuildRetriever,
+    RetrievalProblem,
+    RetrievalReason,
+)
 from cad_api.config import ApiConfig
 from cad_api.schemas import BuildBody, ValidateBody
 from cad_api.status import (
@@ -62,6 +78,7 @@ from cad_api.status import (
     TRANSPORT_STATUS,
     status_for_delivery,
     status_for_failure,
+    status_for_retrieval,
 )
 
 #: Server-side logging only. A request never carries a log line back, and CAD
@@ -85,6 +102,14 @@ BUILD_PATH = "/build"
 HEALTH_PATH = "/health"
 ARTIFACTS_PREFIX = "/artifacts/"
 ARTIFACT_PATH = ARTIFACTS_PREFIX + "{artifact_id}"
+BUILDS_PREFIX = "/builds/"
+BUILD_LOOKUP_PATH = BUILDS_PREFIX + "{build_key}"
+
+#: The error for a retrieval this layer did not expect.
+RETRIEVAL_FAILED = RetrievalProblem(
+    reason=RetrievalReason.RETRIEVAL_FAILED,
+    message="the build could not be retrieved",
+)
 
 #: The error for a delivery failure this layer did not expect. Its own small
 #: shape, deliberately: a download is not a build, so it carries a delivery
@@ -143,6 +168,7 @@ def create_app(
     app.state.resolver = ArtifactResolver(
         getattr(getattr(service, "backend", None), "cache", None)
     )
+    app.state.retriever = BuildRetriever(service)
 
     @app.exception_handler(RequestValidationError)
     async def _malformed_request(
@@ -184,21 +210,33 @@ def create_app(
         # is not offered on this route (FastAPI adds no HEAD of its own, and
         # this stage adds no extra route), and saying so is more useful than
         # pretending the artifact is missing.
-        if exc.status_code == NOT_FOUND_STATUS and (
-            path.startswith(ARTIFACTS_PREFIX)
-            or path == ARTIFACTS_PREFIX.rstrip("/")
-        ):
-            return JSONResponse(
-                status_code=status_for_delivery(
-                    DeliveryReason.ARTIFACT_NOT_FOUND
-                ),
-                content={
-                    "error": {
-                        "reason": DeliveryReason.ARTIFACT_NOT_FOUND.value,
-                        "message": NOT_FOUND_MESSAGE,
-                    }
-                },
-            )
+        if exc.status_code == NOT_FOUND_STATUS:
+            if path.startswith(ARTIFACTS_PREFIX) or path == ARTIFACTS_PREFIX.rstrip(
+                "/"
+            ):
+                return JSONResponse(
+                    status_code=status_for_delivery(
+                        DeliveryReason.ARTIFACT_NOT_FOUND
+                    ),
+                    content={
+                        "error": {
+                            "reason": DeliveryReason.ARTIFACT_NOT_FOUND.value,
+                            "message": NOT_FOUND_MESSAGE,
+                        }
+                    },
+                )
+            if path.startswith(BUILDS_PREFIX) or path == BUILDS_PREFIX.rstrip("/"):
+                return JSONResponse(
+                    status_code=status_for_retrieval(
+                        RetrievalReason.BUILD_NOT_FOUND
+                    ),
+                    content={
+                        "error": {
+                            "reason": RetrievalReason.BUILD_NOT_FOUND.value,
+                            "message": BUILD_NOT_FOUND_MESSAGE,
+                        }
+                    },
+                )
         return await http_exception_handler(request, exc)
 
     @app.exception_handler(Exception)
@@ -238,6 +276,32 @@ def create_app(
         return JSONResponse(
             status_code=OK_STATUS,
             content=contract.validate_document_payload(body.to_payload()),
+        )
+
+    @app.get(BUILD_LOOKUP_PATH)
+    async def get_build(
+        build_key: str, retriever: BuildRetriever = Depends(_retriever)
+    ) -> JSONResponse:
+        """Retrieve a build that has already been published.
+
+        Read-only: **no geometry runs, no exporter runs, no child process
+        starts and nothing is written.** The response is the same
+        transport-contract build response ``POST /build`` returns for that
+        same build, with ``cache_hit`` true and ``execution_id`` null --
+        a retrieval is not an execution.
+
+        **200** with the result, **400** for a key that is not a build key,
+        **404** for a build that is not available, **500** if retrieval
+        itself failed.
+        """
+        outcome = retriever.retrieve(build_key)
+        if isinstance(outcome, RetrievalProblem):
+            return JSONResponse(
+                status_code=status_for_retrieval(outcome.reason),
+                content={"error": dict(outcome.to_payload())},
+            )
+        return JSONResponse(
+            status_code=OK_STATUS, content=build_response(outcome).to_payload()
         )
 
     @app.get(ARTIFACT_PATH)
@@ -303,6 +367,11 @@ async def _resolver(request: Request) -> ArtifactResolver:
     return request.app.state.resolver
 
 
+async def _retriever(request: Request) -> BuildRetriever:
+    """The application's one build retriever, built at startup."""
+    return request.app.state.retriever
+
+
 def _artifact_response(artifact: DeliveredArtifact) -> Response:
     """The bytes the resolver verified, with safe headers.
 
@@ -333,6 +402,8 @@ def _failure_body(request: Request, error: ErrorContract) -> Dict[str, Any]:
     path = request.scope.get("path", "")
     if path.startswith(ARTIFACTS_PREFIX):
         return {"error": dict(DELIVERY_FAILED.to_payload())}
+    if path.startswith(BUILDS_PREFIX):
+        return {"error": dict(RETRIEVAL_FAILED.to_payload())}
     if path == BUILD_PATH:
         return BuildDocumentResponse(
             status="failed", succeeded=False, error=error

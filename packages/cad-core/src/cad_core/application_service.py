@@ -87,12 +87,14 @@ from cad_core.build_job import (
     BuildRequestError,
     BuildStatus,
     build_key_for,
+    is_build_key,
 )
 from cad_core.isolated_execution import (
     DEFAULT_TIMEOUT_SECONDS,
     IsolatedExecution,
     IsolationOutcome,
     cached_execution,
+    cached_execution_for_key,
     get_or_build_isolated,
 )
 from cad_core.local_build_cache import CacheError, LocalBuildCache
@@ -426,10 +428,11 @@ class BuildOutcome:
 class LocalBuildBackend:
     """The one backend: the local cache over isolated local execution.
 
-    The minimum interface the service needs is two methods -- run a build, and
-    look one up -- so that is the whole interface. There is no plugin system,
-    no registry and no hypothetical second backend. A future remote or
-    Onshape backend would implement the same two methods and return the same
+    The minimum interface the service needs is three methods -- run a build,
+    look one up by request, and find one by build key -- so that is the whole
+    interface. There is no plugin system, no registry and no hypothetical
+    second backend. A future remote or Onshape backend would implement the
+    same three methods and return the same
     :class:`~cad_core.isolated_execution.IsolatedExecution` shape, whose
     fields (an outcome, a build key, a manifest, cache flags, a structured
     failure) are transport-neutral and whose outcomes -- a crash, a timeout, a
@@ -469,17 +472,31 @@ class LocalBuildBackend:
             request, self._cache, timeout_seconds=self._timeout_seconds
         )
 
+    def find(self, build_key: str) -> Optional[IsolatedExecution]:
+        """The published result for ``build_key``, or ``None``.
+
+        The read-only counterpart of :meth:`lookup`, for a caller that has a
+        build key and not the document it came from. The same cache, the same
+        validation, nothing launched and nothing written.
+        """
+        return cached_execution_for_key(
+            build_key, self._cache, timeout_seconds=self._timeout_seconds
+        )
+
 
 class CadApplicationService:
     """The application-level operations a transport layer calls.
 
     Two operations, plus one lookup:
 
-    ==========================  =============================================
-    :meth:`validate_document`   accept and validate a CAD document
-    :meth:`build_document`      build one, returning a structured outcome
-    :meth:`find_build`          is this build already available? (no build)
-    ==========================  =============================================
+    ==============================  =========================================
+    :meth:`validate_document`       accept and validate a CAD document
+    :meth:`build_document`          build one, returning a structured outcome
+    :meth:`find_build`              is this build already available, given the
+                                    document and outputs? (builds nothing)
+    :meth:`find_build_by_key`       retrieve a published build by its build
+                                    key alone (builds nothing)
+    ==============================  =========================================
 
     Deliberately not here: ``edit_document``, ``fork_document``,
     ``delete_document``, ``version_document`` and ``compare_documents``. Those
@@ -493,11 +510,12 @@ class CadApplicationService:
     """
 
     def __init__(self, backend: LocalBuildBackend) -> None:
-        if not hasattr(backend, "execute") or not hasattr(backend, "lookup"):
-            raise ApplicationServiceError(
-                "a backend must provide execute() and lookup(); got "
-                f"{type(backend).__name__}"
-            )
+        for required in ("execute", "lookup", "find"):
+            if not hasattr(backend, required):
+                raise ApplicationServiceError(
+                    "a backend must provide execute(), lookup() and find(); "
+                    f"got {type(backend).__name__}"
+                )
         self._backend = backend
 
     @classmethod
@@ -592,6 +610,41 @@ class CadApplicationService:
             return None
         return self._compose(execution)
 
+    def find_build_by_key(self, build_key: str) -> Optional[BuildOutcome]:
+        """The published result for ``build_key``, or ``None``.
+
+        Read-only retrieval by the build's own stable identity, for a caller
+        that has a build key and not the document behind it --
+        :meth:`find_build` cannot serve that, because it derives the key
+        *from* a document.
+
+        No new identity and no new store: the key is the Stage 16 build key
+        and the cache is the only place a completed build is looked up. This
+        **builds nothing**: no child process, no geometry, no export, and
+        nothing written -- an invalid entry is a ``None`` rather than a
+        repair.
+
+        ``None`` for a malformed key, for a key nothing was built under, and
+        for an entry that does not validate. The three are deliberately one
+        answer here: telling them apart would report on the cache's contents.
+        The syntax of a key is public, though, so a caller that wants to
+        distinguish a malformed one can ask
+        :func:`~cad_core.build_job.is_build_key` first.
+
+        The returned outcome describes a **published** build:
+        :attr:`~BuildOutcome.status` is ``SUCCEEDED`` -- the cache holds
+        nothing else -- :attr:`~BuildOutcome.cache_hit` is ``True`` because
+        the artifacts came from the cache, and
+        :attr:`~BuildOutcome.execution_id` is ``None`` because a retrieval is
+        not an execution and no execution is invented for it.
+        """
+        if not is_build_key(build_key):
+            return None
+        execution = self._run_find(build_key)
+        if execution is None:
+            return None
+        return self._compose(execution)
+
     # --- internals --------------------------------------------------------
 
     def _prepare(
@@ -641,6 +694,18 @@ class CadApplicationService:
                     stage="cache",
                 ),
             )
+
+    def _run_find(self, build_key: str) -> Optional[IsolatedExecution]:
+        """Ask the backend for a published build, tolerating its refusals.
+
+        A cache that cannot be used is not a build result, so it is a
+        ``None`` here rather than an error: a retrieval reports availability,
+        and nothing about why something is unavailable.
+        """
+        try:
+            return self._backend.find(build_key)
+        except CacheError:
+            return None
 
     def _compose(self, execution: Any) -> BuildOutcome:
         """Compose a backend execution into a :class:`BuildOutcome`."""

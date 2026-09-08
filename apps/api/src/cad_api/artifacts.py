@@ -75,6 +75,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Mapping, Optional, Tuple, Union
 
+from cad_core.build_job import BUILD_KEY_PATTERN
 from cad_core.artifact_registry import (
     CHECKSUM_ALGORITHM,
     FILE_KINDS,
@@ -86,10 +87,16 @@ from cad_core.artifact_registry import (
 )
 from cad_core.local_build_cache import CacheError, LocalBuildCache
 
-#: A logical artifact id: a 64-character lowercase build key, a colon, and an
-#: artifact kind. A whitelist, not a sanitiser -- nothing that is not exactly
-#: this shape gets any further.
-ARTIFACT_ID_PATTERN = re.compile(r"\A(?P<build_key>[0-9a-f]{64}):(?P<kind>[a-z_]{1,16})\Z")
+#: A logical artifact id: a build key, a colon, and an artifact kind. A
+#: whitelist, not a sanitiser -- nothing that is not exactly this shape gets
+#: any further.
+#:
+#: The build-key half is :data:`~cad_core.build_job.BUILD_KEY_PATTERN`, the
+#: public syntax defined where the key itself is, so the two cannot drift.
+ARTIFACT_ID_PATTERN = re.compile(
+    r"\A(?P<build_key>%s):(?P<kind>[a-z_]{1,16})\Z"
+    % BUILD_KEY_PATTERN.pattern.lstrip("\\A").rstrip("\\Z")
+)
 
 #: The kinds this endpoint can deliver: the file-backed ones, from the
 #: artifact registry itself rather than a list repeated here.

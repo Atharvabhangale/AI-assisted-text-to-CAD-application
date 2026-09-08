@@ -1077,6 +1077,9 @@ class TestResolverBoundary(DeliveryTestCase):
             def lookup(self, request: BuildRequest) -> Any:
                 return None
 
+            def find(self, build_key: str) -> Any:
+                return None
+
         app = create_app(service=CadApplicationService(CachelessBackend()))
         self.assertIsNone(app.state.resolver.cache)
         client = TestClient(app)
@@ -1279,17 +1282,18 @@ class TestDeliveryBoundary(unittest.TestCase):
                 self.assertNotIn(token, core)
 
     def test_only_the_one_artifact_route_exists(self) -> None:
+        """One artifact route, whatever else the application offers."""
         directory = tempfile.TemporaryDirectory()
         self.addCleanup(directory.cleanup)
         root = Path(directory.name) / "cache"
         root.mkdir()
         client = TestClient(create_app(ApiConfig.for_cache_root(root)))
         schema = client.get("/openapi.json").json()
-        self.assertEqual(
-            sorted(schema["paths"]),
-            sorted(["/build", "/health", "/validate", ARTIFACT_PATH]),
-        )
-        for absent in ("/files", "/download", "/cache", "/builds"):
+        artifact_routes = [
+            path for path in schema["paths"] if path.startswith(ARTIFACTS_PREFIX)
+        ]
+        self.assertEqual(artifact_routes, [ARTIFACT_PATH])
+        for absent in ("/files", "/download", "/cache", "/entries"):
             for path in schema["paths"]:
                 self.assertFalse(path.startswith(absent))
 

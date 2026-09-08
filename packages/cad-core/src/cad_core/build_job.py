@@ -117,6 +117,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import threading
 import traceback
 import uuid
@@ -163,6 +164,21 @@ PathLike = Union[str, "os.PathLike[str]"]
 #: Hash used for a build key, from :mod:`hashlib`. The same algorithm the
 #: canonical document uses, applied to a different structure.
 BUILD_KEY_ALGORITHM = "sha256"
+
+#: How many characters a build key has: the algorithm's digest, in hex.
+#: Derived from the algorithm rather than written down, so the two cannot
+#: drift apart.
+BUILD_KEY_LENGTH = hashlib.new(BUILD_KEY_ALGORITHM).digest_size * 2
+
+#: The **public syntax** of a build key: lowercase hexadecimal, exactly
+#: :data:`BUILD_KEY_LENGTH` characters, because that is what
+#: :meth:`hashlib.sha256.hexdigest` produces and :func:`build_key_for`
+#: returns.
+#:
+#: Defined here, beside the key itself, so that a caller taking a build key
+#: from outside -- a transport, a lookup, an artifact id -- can check the
+#: shape without restating it or recomputing a hash.
+BUILD_KEY_PATTERN = re.compile(r"\A[0-9a-f]{%d}\Z" % BUILD_KEY_LENGTH)
 
 
 #: The requestable outputs of a build.
@@ -368,6 +384,46 @@ def build_key_for(part: Part, options: BuildOptions) -> str:
     structures.
     """
     return BuildRequest(part=part, options=options).build_key
+
+
+def build_key_of(
+    document_hash: str, outputs: Iterable[BuildOutput]
+) -> str:
+    """The build key a document hash and an output selection would produce.
+
+    The same structure :attr:`BuildRequest.build_key` hashes, without needing
+    the part -- so a caller holding a build key and a *claim* about what it
+    was built from can check the claim against the key itself.
+
+    That is what makes a build key useful beyond naming: it is a
+    **commitment** to the document hash and the canonical output set, so an
+    entry that says it holds a different document than its key implies can be
+    caught. No second hashing scheme: this is
+    :func:`build_key_for`'s own computation with the part's hash supplied
+    directly.
+    """
+    return _hash_canonical(
+        {
+            "document_hash": document_hash,
+            "options": BuildOptions(outputs=tuple(outputs)).canonical(),
+        }
+    )
+
+
+def is_build_key(value: Any) -> bool:
+    """Whether ``value`` has the public syntax of a build key.
+
+    A **shape** check, not an existence check: it says the string could be a
+    build key, never that any build has that key. Cheap, total, and safe to
+    run on anything that arrives from outside -- which is the point, because a
+    caller can reject a malformed key before it reaches a cache or a
+    filesystem.
+
+    No hash is computed and no document is needed: the syntax is
+    :data:`BUILD_KEY_PATTERN`, and asking whether a key is *real* means
+    looking it up.
+    """
+    return isinstance(value, str) and BUILD_KEY_PATTERN.match(value) is not None
 
 
 def request_for_document(
@@ -1007,6 +1063,8 @@ def _hash_canonical(structure: Mapping[str, Any]) -> str:
 __all__ = [
     "ALLOWED_TRANSITIONS",
     "BUILD_KEY_ALGORITHM",
+    "BUILD_KEY_LENGTH",
+    "BUILD_KEY_PATTERN",
     "Artifact",
     "ArtifactKind",
     "ArtifactManifest",
@@ -1027,6 +1085,8 @@ __all__ = [
     "IN_MEMORY_OUTPUTS",
     "TERMINAL_STATUSES",
     "build_key_for",
+    "build_key_of",
+    "is_build_key",
     "execute_build",
     "execute_build_document",
     "request_for_document",

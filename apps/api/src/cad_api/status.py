@@ -17,6 +17,7 @@ from typing import Mapping, Tuple
 from cad_core.application_service import ServiceFailure
 
 from cad_api.artifacts import DeliveryReason
+from cad_api.builds import RetrievalReason
 
 #: 200. A successful operation, and also a *completed* validation whose answer
 #: happens to be "no" -- see :mod:`cad_api.app`.
@@ -72,6 +73,18 @@ DELIVERY_STATUS: Mapping[DeliveryReason, int] = {
     DeliveryReason.DELIVERY_FAILED: INTERNAL_STATUS,
 }
 
+#: One status per build-retrieval refusal. Complete by construction: a test
+#: asserts every :class:`RetrievalReason` member appears.
+#:
+#: A malformed key is separated from an unknown one because the syntax is
+#: public; an unknown key and an unavailable entry share one status *and* one
+#: reason, so a client cannot learn what the cache holds.
+RETRIEVAL_STATUS: Mapping[RetrievalReason, int] = {
+    RetrievalReason.BUILD_KEY_INVALID: BAD_REQUEST_STATUS,
+    RetrievalReason.BUILD_NOT_FOUND: NOT_FOUND_STATUS,
+    RetrievalReason.RETRIEVAL_FAILED: INTERNAL_STATUS,
+}
+
 #: Statuses this application can return, for documentation and tests.
 STATUSES: Tuple[int, ...] = (
     OK_STATUS,
@@ -81,6 +94,11 @@ STATUSES: Tuple[int, ...] = (
     INTERNAL_STATUS,
     UNAVAILABLE_STATUS,
 )
+
+
+def status_for_retrieval(reason: RetrievalReason) -> int:
+    """The HTTP status for a build-retrieval refusal."""
+    return RETRIEVAL_STATUS.get(reason, INTERNAL_STATUS)
 
 
 def status_for_delivery(reason: DeliveryReason) -> int:

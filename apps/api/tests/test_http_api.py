@@ -266,6 +266,9 @@ class StubBackend:
     def lookup(self, request: BuildRequest) -> Optional[Any]:
         return None
 
+    def find(self, build_key: str) -> Optional[Any]:
+        return None
+
 
 class ApiTestCase(unittest.TestCase):
     def setUp(self) -> None:
@@ -1395,24 +1398,43 @@ print("OK")
             Path(__file__).resolve().parents[3] / "docs" / "http-api.md"
         )
         text = documentation.read_text(encoding="utf-8")
+        # "GET /documents" is deliberately not forbidden here: the document
+        # states that no such endpoint exists, and a text scan cannot tell a
+        # mention from a specification. Its absence is asserted where it can
+        # be: the OpenAPI path list, and a live 404 in the retrieval tests.
         for absent in (
             "POST /documents",
             "DELETE /",
             "PUT /",
             "PATCH /",
-            "GET /build",
             "POST /artifacts",
             "POST /featurescript",
+            "GET /cache",
+            "GET /entries",
         ):
             self.assertNotIn(absent, text)
+        # /build is POST-only; "GET /builds/" is a different endpoint
+        import re as _re
+
+        self.assertIsNone(_re.search(r"GET /build(?![s/])", text))
 
 
 class TestOpenApi(ApiTestCase):
     def test_the_generated_schema_lists_only_the_declared_routes(self) -> None:
         schema = self.client().get("/openapi.json").json()
+        from cad_api.app import BUILD_LOOKUP_PATH
+
         self.assertEqual(
             sorted(schema["paths"]),
-            sorted([ARTIFACT_PATH, BUILD_PATH, HEALTH_PATH, VALIDATE_PATH]),
+            sorted(
+                [
+                    ARTIFACT_PATH,
+                    BUILD_LOOKUP_PATH,
+                    BUILD_PATH,
+                    HEALTH_PATH,
+                    VALIDATE_PATH,
+                ]
+            ),
         )
         for path, spec in schema["paths"].items():
             with self.subTest(path=path):

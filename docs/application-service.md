@@ -67,6 +67,7 @@ Three entries, deliberately. Two operations plus one lookup:
 | `validate_document(document)` | accept and validate a CAD document. Builds nothing, launches nothing. |
 | `build_document(request)` | build it, returning a structured outcome. |
 | `find_build(request)` | is the result already available? Answered from the cache; launches nothing. |
+| `find_build_by_key(build_key)` | retrieve a published build by its build key alone (Stage 24). Read-only; `find_build` cannot serve this because it derives the key *from* a document. See `docs/build-result-retrieval.md` |
 
 **Not** here: `edit_document`, `fork_document`, `delete_document`,
 `version_document`, `compare_documents`. Those need storage and history, and
@@ -348,11 +349,12 @@ never part of a request, never part of an identity, and never invented here.
 ## Backend independence
 
 One backend, `LocalBuildBackend`: the local cache over isolated local
-execution. The interface is the two methods the service actually needs —
+execution. The interface is the three methods the service actually needs —
 
 ```python
 execute(request: BuildRequest) -> IsolatedExecution
 lookup(request: BuildRequest)  -> IsolatedExecution | None
+find(build_key: str)           -> IsolatedExecution | None      # Stage 24
 ```
 
 — and no more. **No plugin system, no registry, no hypothetical second

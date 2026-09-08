@@ -1,8 +1,8 @@
 # HTTP API
 
 Status: **Stage 22 — the first HTTP transport, as a thin adapter over the
-transport-neutral contract. Stage 23 added artifact delivery. Local
-development only.**
+transport-neutral contract. Stage 23 added artifact delivery, Stage 24
+read-only build retrieval. Local development only.**
 
 > **HTTP API contains no CAD business logic.**
 
@@ -58,7 +58,7 @@ extra and imported by nothing.
 
 ## Endpoints
 
-Four, and only these four.
+Five, and only these five.
 
 ### `GET /health`
 
@@ -139,6 +139,42 @@ The repeat of an identical request is a **cache hit**: `200`,
 otherwise identical to the first. A test asserts the cached body equals the
 transport contract's own payload for that request, field for field.
 
+### `GET /builds/{build_key}`
+
+Retrieve a build that has already been published, by the build key `POST
+/build` returned. **Read-only**: no geometry runs, no exporter runs, no child
+process starts and nothing is written.
+
+```
+GET /builds/a6cd6fa1…
+200  {"status": "succeeded", "succeeded": true,
+      "document_hash": "2fd162f9…", "build_key": "a6cd6fa1…",
+      "execution_id": null, "cache_hit": true,
+      "outputs": ["geometry", "step", "iges", "stl", "render"],
+      "artifacts": [ … ], "error": null}
+```
+
+The body is the **same transport-contract build response** the build route
+returns for that build — same mapping, same artifact representation, no second
+schema — except that `cache_hit` is `true` (the artifacts came from the cache;
+this call built nothing) and `execution_id` is `null` (a retrieval is not an
+execution, and none is invented for it). `status` is always `succeeded`,
+because the cache holds nothing else and this stage has no persistent job
+store.
+
+| | |
+|---|---|
+| **build-key syntax** | 64 lowercase hexadecimal characters, from `cad_core.build_job.BUILD_KEY_PATTERN` |
+| **200** | the published build |
+| **400** | `build_key_invalid` — the parameter is not a build key |
+| **404** | `build_not_found` — no published build has that key, *or* its entry does not validate. Deliberately one answer |
+| **500** | `retrieval_failed` |
+
+It is **not a cache browser**: there is no listing, no enumeration, no
+manifest download and no `GET /documents/{hash}` (there is no document store).
+The full contract, the corruption behaviour and the security limits are in
+`docs/build-result-retrieval.md`.
+
 ### `GET /artifacts/{artifact_id}`
 
 Deliver a file-backed artifact's bytes. The path parameter is the
@@ -197,6 +233,9 @@ The line a status code draws here is **whose fault** the failure is.
 | export or publication failure | `output_failed` | **500** |
 | execution or cache failure (crash, timeout) | `execution_failed` | **503** |
 | unexpected internal error | `internal_error` | **500** |
+| build key that is not a build key | `build_key_invalid` | **400** |
+| build not available | `build_not_found` | **404** |
+| build retrieval failed unexpectedly | `retrieval_failed` | **500** |
 | artifact id that is not an identifier | `artifact_id_invalid` | **400** |
 | artifact unavailable, or with no bytes to deliver | `artifact_not_found` / `artifact_not_downloadable` | **404** |
 | artifact delivery failed unexpectedly | `delivery_failed` | **500** |
@@ -383,7 +422,12 @@ cache or a path.
   a logical id, never a path, and can reach nothing outside a validated cache
   entry;
 - `geometry` or `render` bytes, and any B-rep endpoint;
-- an artifact listing endpoint: a build response is the only source of ids;
+- an artifact listing endpoint: a build response and `GET /builds/{build_key}`
+  are the only sources of ids;
+- document retrieval by hash, or any document store — the system holds derived
+  build artifacts, not canonical documents;
+- cache or entry browsing, enumeration of build keys, and manifest download;
+- job state: a build in flight is not observable, because nothing records it;
 - job control, job listing or job cancellation;
 - anything Onshape or MCP;
 - WebSockets, GraphQL, server-sent events, streaming or background tasks —
@@ -402,7 +446,7 @@ semantics** — the transport-neutral contract is. Consequently no
 `response_model` is declared: mirroring the response DTOs in Pydantic would
 create a second definition of the contract, so the generated schema describes
 the two request envelopes (`ValidateBody`, `BuildBody`) and leaves responses
-generic. A test asserts the schema lists exactly the four routes and defines
+generic. A test asserts the schema lists exactly the five routes and defines
 no response, artifact, error or CAD model.
 
 ## Logging
@@ -427,7 +471,8 @@ The current API has:
   each miss runs a real CAD build;
 - **no user isolation** — one cache and one service are shared by every
   caller, and a build key is global: any client can observe another's cache
-  hit, and **can download another's artifacts** if it knows the build key;
+  hit, and **can retrieve another's build result and download its artifacts**
+  if it knows the build key;
 - **no production sandboxing** — Stage 19's process isolation is crash
   containment, not a security sandbox: the child runs as the same OS user with
   the same filesystem permissions, with no seccomp, container, network

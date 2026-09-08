@@ -45,11 +45,13 @@ from cad_core.application_service import (
 )
 from cad_core.artifact_registry import ArtifactKind, ArtifactManifest, ArtifactStorage
 from cad_core.build_job import (
+    BUILD_KEY_PATTERN,
     BuildFailure,
     BuildOptions,
     BuildRequest,
     BuildStatus,
     build_key_for,
+    is_build_key,
 )
 from cad_core.isolated_execution import (
     IsolatedExecution,
@@ -231,6 +233,9 @@ class StubBackend:
         return self.execution
 
     def lookup(self, request: BuildRequest) -> Optional[IsolatedExecution]:
+        return None
+
+    def find(self, build_key: str) -> Optional[IsolatedExecution]:
         return None
 
 
@@ -722,6 +727,248 @@ class TestIdentityAndIdempotency(ServiceTestCase):
         # the execution id is the child's, and is part of no identity
         self.assertNotIn(payload["execution_id"], payload["build_key"])
         self.assertNotIn(payload["execution_id"], payload["document_hash"])
+
+
+class TestFindBuildByKey(ServiceTestCase):
+    """Read-only retrieval by build key, at the service layer.
+
+    ``find_build(request)`` cannot serve this: it derives the key *from* a
+    document, and a caller doing a retrieval has only the key.
+    """
+
+    def built(self, *outputs: str) -> BuildOutcome:
+        service = self.service()
+        outcome = service.build_document(
+            BuildDocumentRequest(
+                document=section_d_document(),
+                outputs=outputs or ("geometry", "step", "stl"),
+            )
+        )
+        self.assertTrue(
+            outcome.succeeded, msg=outcome.error and outcome.error.message
+        )
+        return outcome
+
+    def test_a_known_build_is_retrieved_by_its_key(self) -> None:
+        built = self.built()
+        found = self.service().find_build_by_key(built.build_key)
+        self.assertIsNotNone(found)
+        self.assertIs(found.status, BuildStatus.SUCCEEDED)
+        self.assertEqual(found.build_key, built.build_key)
+        self.assertEqual(found.document_hash, built.document_hash)
+        self.assertEqual(
+            found.manifest.canonical_bytes(), built.manifest.canonical_bytes()
+        )
+        self.assertEqual(found.produced_outputs(), built.produced_outputs())
+
+    def test_a_retrieval_reports_the_cache_and_no_execution(self) -> None:
+        built = self.built()
+        found = self.service().find_build_by_key(built.build_key)
+        self.assertTrue(found.cache_hit)
+        self.assertFalse(found.cache_published)
+        self.assertIsNone(found.execution_id)
+        self.assertIsNotNone(built.execution_id)
+
+    def test_an_unknown_key_is_none(self) -> None:
+        self.built()
+        self.assertIsNone(self.service().find_build_by_key("f" * 64))
+
+    def test_a_malformed_key_is_none_and_never_reaches_the_cache(self) -> None:
+        service = self.service()
+        with mock.patch.object(
+            LocalBuildCache,
+            "lookup",
+            side_effect=AssertionError("the cache was consulted"),
+        ):
+            for key in (
+                "abc",
+                "",
+                "F" * 64,
+                "g" * 64,
+                "f" * 63,
+                "../../etc/passwd",
+                "f" * 64 + ":step",
+                None,
+                3,
+            ):
+                with self.subTest(key=repr(key)[:20]):
+                    self.assertIsNone(service.find_build_by_key(key))
+
+    def test_a_retrieval_builds_nothing(self) -> None:
+        built = self.built()
+        with mock.patch(
+            "cad_core.isolated_execution.subprocess.Popen",
+            side_effect=AssertionError("a child was launched"),
+        ), mock.patch(
+            "cad_core.local_cad.build_part",
+            side_effect=AssertionError("geometry was built"),
+        ):
+            found = self.service().find_build_by_key(built.build_key)
+        self.assertIsNotNone(found)
+
+    def test_a_retrieval_writes_nothing(self) -> None:
+        built = self.built()
+        entry = self.cache_root / ENTRIES_DIRNAME / built.build_key
+        before = sorted(
+            (str(path.relative_to(entry)), path.stat().st_size)
+            for path in entry.rglob("*")
+            if path.is_file()
+        )
+        with mock.patch.object(
+            LocalBuildCache,
+            "publish",
+            side_effect=AssertionError("the cache was written"),
+        ):
+            for _ in range(3):
+                self.assertIsNotNone(
+                    self.service().find_build_by_key(built.build_key)
+                )
+        after = sorted(
+            (str(path.relative_to(entry)), path.stat().st_size)
+            for path in entry.rglob("*")
+            if path.is_file()
+        )
+        self.assertEqual(after, before)
+
+    def test_a_corrupt_entry_is_none_and_is_not_repaired(self) -> None:
+        built = self.built()
+        entry = self.cache_root / ENTRIES_DIRNAME / built.build_key
+        payload = entry / "artifacts" / "step.step"
+        payload.write_bytes(b"garbage")
+        self.assertIsNone(self.service().find_build_by_key(built.build_key))
+        self.assertEqual(payload.read_bytes(), b"garbage")
+        # ... and a rebuild restores it
+        rebuilt = self.service().build_document(
+            BuildDocumentRequest(
+                document=section_d_document(),
+                outputs=("geometry", "step", "stl"),
+            )
+        )
+        self.assertTrue(rebuilt.succeeded)
+        self.assertFalse(rebuilt.cache_hit)
+        self.assertIsNotNone(self.service().find_build_by_key(built.build_key))
+
+    def test_a_missing_manifest_is_none(self) -> None:
+        built = self.built()
+        (
+            self.cache_root / ENTRIES_DIRNAME / built.build_key / "manifest.json"
+        ).unlink()
+        self.assertIsNone(self.service().find_build_by_key(built.build_key))
+
+    def test_relocating_the_cache_root_preserves_retrieval(self) -> None:
+        import shutil
+
+        built = self.built()
+        moved = self.tmp / "relocated"
+        shutil.move(str(self.cache_root), str(moved))
+        relocated = CadApplicationService.local(moved)
+        found = relocated.find_build_by_key(built.build_key)
+        self.assertIsNotNone(found)
+        self.assertEqual(found.build_key, built.build_key)
+        self.assertEqual(
+            found.manifest.canonical_bytes(), built.manifest.canonical_bytes()
+        )
+        for artifact in found.manifest.artifacts:
+            if artifact.path is not None:
+                Path(artifact.path).relative_to(moved)
+
+    def test_another_cache_root_does_not_know_the_build(self) -> None:
+        built = self.built()
+        other = self.subdirectory("other-cache")
+        self.assertIsNone(
+            CadApplicationService.local(other).find_build_by_key(
+                built.build_key
+            )
+        )
+
+    def test_find_build_by_request_still_needs_the_document(self) -> None:
+        """The two operations answer different questions."""
+        built = self.built()
+        service = self.service()
+        by_request = service.find_build(
+            BuildDocumentRequest(
+                document=section_d_document(),
+                outputs=("geometry", "step", "stl"),
+            )
+        )
+        self.assertIsNotNone(by_request)
+        self.assertEqual(by_request.build_key, built.build_key)
+        by_key = service.find_build_by_key(built.build_key)
+        self.assertEqual(
+            by_key.manifest.canonical_bytes(),
+            by_request.manifest.canonical_bytes(),
+        )
+
+    def test_the_backend_offers_the_read_only_operation(self) -> None:
+        service = self.service()
+        self.assertTrue(hasattr(service.backend, "find"))
+        built = self.built()
+        execution = service.backend.find(built.build_key)
+        self.assertIsNotNone(execution)
+        self.assertFalse(execution.child_launched)
+        self.assertIsNone(execution.exit_code)
+        self.assertIsNone(service.backend.find("f" * 64))
+
+    def test_a_backend_without_find_is_refused(self) -> None:
+        """Deliberately only the two Stage 20 methods, and no find()."""
+
+        class TwoMethodBackend:
+            def execute(self, request: BuildRequest) -> Any:  # pragma: no cover
+                raise AssertionError("not used")
+
+            def lookup(self, request: BuildRequest) -> Any:  # pragma: no cover
+                return None
+
+        self.assertFalse(hasattr(TwoMethodBackend(), "find"))
+        with self.assertRaises(ApplicationServiceError):
+            CadApplicationService(TwoMethodBackend())
+
+
+class TestBuildKeySyntax(unittest.TestCase):
+    """The public build-key syntax, defined where the key is."""
+
+    def test_the_length_derives_from_the_algorithm(self) -> None:
+        import hashlib
+
+        from cad_core.build_job import BUILD_KEY_ALGORITHM, BUILD_KEY_LENGTH
+
+        self.assertEqual(
+            BUILD_KEY_LENGTH,
+            hashlib.new(BUILD_KEY_ALGORITHM).digest_size * 2,
+        )
+        self.assertEqual(BUILD_KEY_LENGTH, 64)
+
+    def test_a_real_build_key_matches(self) -> None:
+        part = validate(section_d_document()).part
+        key = build_key_for(part, BuildOptions.for_outputs(*ArtifactKind))
+        self.assertTrue(is_build_key(key))
+        self.assertIsNotNone(BUILD_KEY_PATTERN.match(key))
+
+    def test_the_predicate_is_a_shape_check_only(self) -> None:
+        self.assertTrue(is_build_key("a" * 64))
+        for bad in (
+            "A" * 64,
+            "a" * 63,
+            "a" * 65,
+            "",
+            "g" * 64,
+            "../evil",
+            "a" * 64 + ":step",
+            " " + "a" * 63,
+            None,
+            3,
+            b"a" * 64,
+        ):
+            with self.subTest(value=repr(bad)[:18]):
+                self.assertFalse(is_build_key(bad))
+
+    def test_no_hash_is_computed_to_check_a_key(self) -> None:
+        with mock.patch(
+            "cad_core.build_job.hashlib.new",
+            side_effect=AssertionError("a hash was computed"),
+        ):
+            self.assertTrue(is_build_key("b" * 64))
+            self.assertFalse(is_build_key("nope"))
 
 
 class TestNoMutation(ServiceTestCase):
