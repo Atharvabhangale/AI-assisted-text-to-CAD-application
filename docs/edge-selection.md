@@ -1,7 +1,8 @@
 # Edge selection
 
 Status: **Stage 12 — deterministic edge selection. No geometry is modified.**
-Consumed since Stage 13 by the `fillet` modifier (`docs/local-cad-engine.md`).
+Consumed since Stage 13 by `fillet` and since Stage 14 by `chamfer`
+(`docs/local-cad-engine.md`).
 
 ## What this layer is for
 
@@ -21,7 +22,8 @@ that use it, so that "which edges?" is settled and measured separately from
 
 Nothing here builds, moves or changes geometry. Stage 13 added the first
 consumer — `fillet` calls `select_edges` and owns rules E4 and E5 itself — and
-that stage changed nothing in this layer. `chamfer` remains **unimplemented**.
+Stage 14 added `chamfer` on the same terms. Neither stage changed anything in
+this layer.
 
 ## API
 
@@ -265,9 +267,10 @@ that affects nothing is an error" is a fact about a fillet. `len()` of the
 result is all a modifier needs to enforce E4, and it should own that error so
 it can name its own feature id and field path the way Section E.3 requires.
 
-Stage 13 confirmed the split works: `_apply_fillet` checks `if not edges` and
-raises E4 naming its own feature, and the kernel is never called for an empty
-selection. A test asserts the selector still returns `()` rather than raising.
+Stages 13 and 14 confirmed the split works: `_apply_fillet` and
+`_apply_chamfer` each check `if not edges` and raise E4 naming their own
+feature, and the kernel is never called for an empty selection. Tests in both
+stages assert the selector still returns `()` rather than raising.
 
 ## What this layer does not do
 
@@ -287,10 +290,12 @@ selection. A test asserts the selector still returns `()` rather than raising.
   `docs/cad-specification.md` gain no CadQuery or OCP vocabulary, and this
   module is not re-exported from the package root, so importing `cad_core`
   still does not require CadQuery.
-- **Nothing about what happens to a selected edge.** Whether a radius fits, or
-  what a blend looks like, is the modifier's business — see
+- **Nothing about what happens to a selected edge.** Whether a radius or
+  distance fits, whether the kernel will process the edge at all, and what a
+  blend or bevel looks like are the modifier's business — see
   `docs/local-cad-engine.md`. This layer would return the same edges for a
-  radius of 0.5 mm and 500 mm.
+  radius of 0.5 mm and 500 mm, and the same edges whether the consumer is a
+  fillet, a chamfer, or nothing.
 
 ## Package boundary
 
@@ -306,9 +311,10 @@ do not import `cad_core.edge_selection`, and `edge_selection.py` imports none
 of them (it imports only `cad_core.model`, CadQuery and OCP).
 
 Since Stage 13 `local_cad.py` **does** import it, which is the one direction
-that was always intended. The exporters already depend on `local_cad`, so they
-now depend on this layer transitively; they still do not import it themselves,
-and nothing in this layer knows they exist.
+that was always intended, and Stage 14 added no further coupling. The
+exporters already depend on `local_cad`, so they depend on this layer
+transitively; they still do not import it themselves, and nothing in this
+layer knows they exist.
 
 ## The seam findings, and what Stage 13 measured
 
@@ -336,3 +342,26 @@ rather than reinterpreted. Neither case is a contradiction in the
 specification, so `docs/cad-specification.md` was not changed; if V1 ever wants
 seams excluded, that is a change to C.7 and a decision for the specification,
 not for this layer.
+
+### Stage 14 found the actual mechanism
+
+Chamfer's kernel-API verification exposed what was really happening in case 1.
+The fillet did **not** blend the seam to no effect: `BRepFilletAPI` accepts the
+edge and then builds **no contour** for it, silently ignoring it. Measured by
+comparing the selected edges against the builder's own contour tables, a
+drilled plate's `axis_parallel Z` selection of 5 edges yields 4 taken and 1
+dropped, and the dropped one is the seam. A Z-filleted box's `all` selection
+drops 8 of 24.
+
+That has consequences for the consumers, not for this layer:
+
+- `chamfer` (Stage 14) **refuses** any selection containing an edge the kernel
+  will not take, reporting E5 — so `axis_parallel Z` and `all` on a drilled
+  plate cannot be chamfered at all;
+- `fillet` (Stage 13) still proceeds, and therefore silently skips those
+  edges.
+
+The full measurement table and the open decision are in
+`docs/local-cad-engine.md`. The selector's own behaviour is unchanged by any of
+it: it reports the edges the contract names, and what a modifier can do with
+them is the modifier's problem.

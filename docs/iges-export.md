@@ -167,6 +167,14 @@ analytic value, matching what the engine itself reported. 28917 bytes. As with
 the drilled plate, IGES reproduces the engine's own volume more closely than
 STEP does; recorded, not explained.
 
+### A chamfered part round-trips exactly
+
+Measured for the same chamfered plate (2 mm on the four vertical edges), in
+BRep mode: `Solid`, 1 solid, **10 faces / 24 edges / 16 vertices** preserved,
+10 planar surfaces, bounds exact, volume `59920.0` with **delta 0.0**, and
+22761 bytes — the smallest file of any part in this project, because there is
+no curved surface to describe.
+
 ## Verifying the file is really IGES
 
 Extension is not evidence, and neither is a textual "looks like IGES" check.

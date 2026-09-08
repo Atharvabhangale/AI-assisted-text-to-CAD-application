@@ -237,6 +237,26 @@ to the faces they join. The corner rounding is therefore invisible in the
 bounds and visible only in the node positions and the triangle count, which is
 what the tests check.
 
+### A chamfered part: the smallest mesh in the project
+
+Stage 14 added `chamfer`. Measured for a 100 × 60 × 10 plate bevelled 2 mm on
+its four vertical edges:
+
+| Check | Result |
+|---|---|
+| triangles | **28** |
+| mesh nodes | 16 |
+| file size | 1484 bytes = 84 + 50 × 28 ✓ |
+| mesh bounds | (0, 0, 0) → (100, 60, 10) within tolerance |
+| bevel representation | nodes exactly at each setback point, (0, 2) and (2, 0) per corner |
+| old sharp corners | no node within tolerance of (0,0), (0,60), (100,0), (100,60) |
+
+The contrast with the same plate *filleted* 2 mm — **524** triangles, 26284
+bytes — is the whole story of what tessellation costs: a chamfer is planar, so
+the mesh is exact and tiny; a fillet is curved, so the mesh approximates it at
+the linear deflection and needs nearly twenty times the triangles. Neither is
+"better"; they are different geometry, and the mesh reports that faithfully.
+
 ### Tolerance
 
 Mesh coordinates are compared with **0.010001 mm** — the linear deflection

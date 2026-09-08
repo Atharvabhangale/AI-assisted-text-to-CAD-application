@@ -1016,7 +1016,12 @@ class TestFeatureHistory(FilletTestCase):
         self.assertIn("S6", message)
         self.assertIn("'absent'", message)
 
-    def test_chamfer_remains_unimplemented(self) -> None:
+    def test_a_chamfer_after_a_fillet_now_builds(self) -> None:
+        """Stage 14 implemented 'chamfer', completing the V1 feature set.
+
+        The two modifiers are applied to disjoint selections; the reverse
+        order (fillet Y then chamfer X) was measured to fail E5 on this body.
+        """
         part = Part(
             schema_version="1.0.0",
             units="mm",
@@ -1027,13 +1032,20 @@ class TestFeatureHistory(FilletTestCase):
                     id="bevel",
                     target="plate",
                     distance=1.0,
-                    edges=EdgeSelector(select="all"),
+                    edges=EdgeSelector(select="axis_parallel", axis="X"),
+                ),
+                Fillet(
+                    id="round",
+                    target="plate",
+                    radius=1.0,
+                    edges=EdgeSelector(select="axis_parallel", axis="Y"),
                 ),
             ),
         )
-        with self.assertRaises(UnsupportedGeometryError) as caught:
-            build_part(part)
-        self.assertIn("chamfer", str(caught.exception))
+        result = build_part(part)
+        self.assertTrue(result.is_solid())
+        self.assertEqual(result.solid_count(), 1)
+        self.assertEqual(result.feature_id, "plate")
 
     def test_a_raw_dictionary_cannot_invoke_the_build_api(self) -> None:
         with self.assertRaises(TypeError):

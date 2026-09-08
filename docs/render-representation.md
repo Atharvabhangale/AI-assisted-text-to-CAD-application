@@ -254,6 +254,29 @@ The blend is genuinely curved in the mesh: the blend-face vertices carry more
 than four distinct normals rather than one flat facet normal per corner, which
 a test asserts.
 
+### Planar bevels: a finite set of exact normals
+
+Stage 14 added `chamfer`, which is the simplest case the render model has —
+and a useful control for the two curved ones above. Measured on a
+100 × 60 × 10 plate bevelled 2 mm on its four vertical edges — **48 vertices /
+28 triangles**:
+
+- exactly **ten distinct vertex normals**: the six original face directions
+  plus four bevel directions at (±1, ±1, 0)/√2. Nothing is curved, so there is
+  nothing for the area-weighted averaging to smooth, and every normal is one
+  of ten exact values;
+- the rendered normals match the B-rep's own plane axes **up to sign** — a
+  plane's axis follows the surface parameterisation, which is reversed for a
+  `TopAbs_REVERSED` face, while a render normal always points out of the
+  material. The axis is the shared fact, the sign is not;
+- winding verified for every triangle with the kernel classifier, as for the
+  curved cases.
+
+So the three modifiers give three different normal patterns, all from the same
+rule: a hole wall's normals point at its axis (concave), a fillet's point away
+from its axis (convex), and a chamfer's are a fixed bisector direction per
+bevel. A consumer should not assume any of them.
+
 ## Bounds
 
 `bounds` is computed **from the render vertices**, not copied from the B-rep —

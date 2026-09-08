@@ -171,6 +171,25 @@ So STEP carries the blend as an analytic cylindrical face with its radius
 intact, not as an approximation. The Δ is of the same order as the drilled
 plate's, and both are far inside the 1e-6 mm³ tolerance.
 
+### A chamfered part round-trips exactly
+
+Stage 14 added `chamfer`, whose result is entirely planar. Measured for a
+100 × 60 × 10 plate bevelled 2 mm on its four vertical edges:
+
+| Check | Value |
+|---|---|
+| imported object is a valid solid | ✓, 1 solid |
+| topology | 10 faces, 24 edges, 16 vertices — unchanged |
+| surfaces | 10 planes, including the four bevels at (±1, ±1, 0)/√2 |
+| bounding box | (0, 0, 0) → (100, 60, 10) |
+| volume | `59920.0` — **delta 0.0** from the analytic `60000 − 4(d²/2)·10` |
+| file size | 29581 bytes |
+
+Delta 0.0, where the filleted plate came back 7.3e-11 off. The pattern across
+all four stages is consistent: purely planar solids round-trip exactly through
+STEP, and solids carrying analytic curved surfaces come back a few times
+1e-11 off. Recorded, not explained.
+
 ## Determinism is geometric, not byte-for-byte
 
 Two exports of the same solid are **not** byte-identical, and this is measured

@@ -1168,23 +1168,28 @@ class TestEvaluatorDefences(SubtractTestCase):
         self.assertEqual(result.solid_count(), 1)
         self.assertEqual(result.feature_id, "plate")
 
-    def test_chamfer_remains_unimplemented(self) -> None:
-        """Stage 13 implemented 'fillet'; 'chamfer' is still rejected."""
-        for feature in (
-            Chamfer(
-                id="c", target="plate", distance=1.0, edges=EdgeSelector(select="all")
+    def test_a_chamfer_after_a_subtract_now_builds(self) -> None:
+        """Stage 14 implemented 'chamfer', the last V1 feature."""
+        part = Part(
+            schema_version="1.0.0",
+            units="mm",
+            name="hand-built",
+            features=(
+                Box(id="plate", position=Position(0.0, 0.0, 0.0), size=Size(*PLATE_SIZE)),
+                self.tool(),
+                Subtract(id="cut", target="plate", tools=("tool",)),
+                Chamfer(
+                    id="bevel",
+                    target="plate",
+                    distance=2.0,
+                    edges=EdgeSelector(select="axis_parallel", axis="X"),
+                ),
             ),
-        ):
-            with self.subTest(feature=feature.TYPE):
-                part = Part(
-                    schema_version="1.0.0",
-                    units="mm",
-                    name="p",
-                    features=(Box(id="plate", size=Size(*PLATE_SIZE)), feature),
-                )
-                with self.assertRaises(UnsupportedGeometryError) as caught:
-                    build_part(part)
-                self.assertIn(feature.TYPE, str(caught.exception))
+        )
+        result = build_part(part)
+        self.assertTrue(result.is_solid())
+        self.assertEqual(result.solid_count(), 1)
+        self.assertEqual(result.feature_id, "plate")
 
 
 # --- STEP ------------------------------------------------------------------

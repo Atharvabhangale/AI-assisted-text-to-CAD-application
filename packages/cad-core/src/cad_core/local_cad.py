@@ -176,6 +176,7 @@ from typing import Any, Dict, Mapping, Tuple
 from cad_core.model import (
     AXIS_VALUES,
     Box,
+    Chamfer,
     Cylinder,
     Feature,
     Fillet,
@@ -195,7 +196,7 @@ except ImportError as exc:  # pragma: no cover - exercised only without the extr
         "`pip install cadquery`."
     ) from exc
 
-from OCP.BRepFilletAPI import BRepFilletAPI_MakeFillet
+from OCP.BRepFilletAPI import BRepFilletAPI_MakeChamfer, BRepFilletAPI_MakeFillet
 
 from cad_core.edge_selection import select_edges
 
@@ -369,6 +370,8 @@ def build_part(part: Part) -> LocalCadResult:
             solids[feature.target] = _apply_through_hole(feature, solids)
         elif isinstance(feature, Fillet):
             solids[feature.target] = _apply_fillet(feature, solids)
+        elif isinstance(feature, Chamfer):
+            solids[feature.target] = _apply_chamfer(feature, solids)
         else:
             # A subtract also replaces its target in place, and additionally
             # consumes each tool: _apply_subtract mutates ``solids``.
@@ -557,6 +560,170 @@ def _apply_fillet(fillet: Fillet, solids: "Dict[str, Any]") -> Any:
         )
 
     return _blend_edges(target, fillet.radius, edges, label=label)
+
+
+def _apply_chamfer(chamfer: Chamfer, solids: "Dict[str, Any]") -> Any:
+    """Apply Section C.6 and return the replacement solid.
+
+    Selects edges with the Stage 12 selector layer -- no selector logic is
+    duplicated here -- then bevels every matched edge with the one symmetric
+    setback distance. Rules E4 and E5 are enforced against the kernel, and
+    nothing is returned unless the whole operation produced a single valid,
+    non-empty solid.
+    """
+    label = f"chamfer {chamfer.id!r}"
+    target = solids.get(chamfer.target)
+    if target is None:
+        available = ", ".join(repr(name) for name in solids) or "nothing"
+        raise GeometryOperationError(
+            f"{label} targets {chamfer.target!r}, which is not a solid in the "
+            f"solid set (rule S6); available: {available}"
+        )
+
+    # Defensive: the validator enforces S17, so this cannot be reached from a
+    # validated part. A non-positive distance must not reach the kernel.
+    if not chamfer.distance > 0.0:
+        raise GeometryOperationError(
+            f"{label} has distance {chamfer.distance!r}, which must be greater "
+            "than zero (rule S17)"
+        )
+
+    edges = select_edges(target, chamfer.edges)
+
+    # E4: the selector must match at least one edge, and the kernel is not
+    # called otherwise.
+    if not edges:
+        raise GeometryOperationError(
+            f"{label}: its edge selector matched no edge of target "
+            f"{chamfer.target!r} (rule E4); a chamfer that affects nothing "
+            "indicates a misread request, so no geometry is produced"
+        )
+
+    return _bevel_edges(target, chamfer.distance, edges, label=label)
+
+
+def _bevel_edges(
+    target: Any, distance: float, edges: Tuple[Any, ...], *, label: str
+) -> Any:
+    """Bevel ``edges`` of ``target`` with one symmetric setback.
+
+    Drives OpenCascade's ``BRepFilletAPI_MakeChamfer`` directly, using the
+    **two-argument** ``Add(distance, edge)`` overload. That overload is the
+    kernel's own symmetric chamfer: it sets back the same distance on both
+    adjoining faces, which is exactly Section C.6, and it needs no reference
+    face -- so there is no "which side is d1 measured from?" choice to get
+    wrong. ``IsSymetric(i)`` is asserted for every contour rather than assumed.
+
+    CadQuery's ``Solid.chamfer`` is not used. It calls the four-argument
+    ``Add(d1, d2, edge, face)`` overload with a face picked from an
+    edge-to-face ancestor map, and it calls ``builder.Shape()`` without
+    checking ``IsDone()`` -- the same unchecked call that, for the fillet
+    builder, was measured to corrupt kernel state.
+
+    Every matched edge goes into one builder and is built once, so the bevel
+    is a single atomic kernel operation over the whole selection. No subset is
+    ever attempted.
+
+    Checks, in order, all from measured kernel behaviour:
+
+    1. **coverage** -- every selected edge must appear in one of the builder's
+       contours. ``Add`` silently ignores an edge the kernel considers
+       unsuitable (a parameterisation seam, or a tangent edge with no dihedral
+       angle), and then reports success for the rest. Refusing is what "do not
+       silently skip a selected edge" requires; it is classified as E5,
+       because an edge no distance can bevel is not one the distance is
+       admissible for.
+    2. **E5** -- ``Build()`` raising, or ``IsDone()`` false.
+    3. **E3** -- exactly one solid in the result, unwrapped out of the
+       compound the builder returns.
+    4. **E5 again** -- the result must pass the kernel's validity analysis and
+       have a positive volume. A status flag alone is not accepted as
+       success.
+    """
+    builder = BRepFilletAPI_MakeChamfer(target.wrapped)
+    for edge in edges:
+        # Two-argument overload: symmetric setback, no reference face.
+        builder.Add(distance, edge.wrapped)
+
+    uncovered = _uncovered_edges(builder, edges)
+    if uncovered:
+        raise GeometryOperationError(
+            f"{label}: the kernel will not bevel {uncovered} of the "
+            f"{len(edges)} selected edge(s) at all (rule E5) -- it treats them "
+            "as unsuitable for a chamfer, which is what a parameterisation "
+            "seam or a smooth tangent edge is. They are not skipped: the whole "
+            "feature fails and no geometry is produced."
+        )
+
+    try:
+        builder.Build()
+    except Exception as exc:
+        raise GeometryOperationError(
+            f"{label}: the kernel refused to bevel {len(edges)} edge(s) at "
+            f"distance {distance} (rule E5): {type(exc).__name__}"
+        ) from exc
+
+    if not builder.IsDone():
+        # Do NOT ask a not-done builder for its shape: it raises, and the same
+        # call on the fillet builder was measured to corrupt kernel state.
+        raise GeometryOperationError(
+            f"{label}: distance {distance} is not admissible for all "
+            f"{len(edges)} selected edge(s) (rule E5); the kernel built "
+            f"{builder.NbContours()} contour(s) and could not complete. No "
+            "partial bevel is applied."
+        )
+
+    result = _cq.Shape.cast(builder.Shape())
+    remaining = result.Solids()
+    if len(remaining) != 1:
+        raise GeometryOperationError(
+            f"{label}: bevelling {len(edges)} edge(s) at distance {distance} "
+            f"left {len(remaining)} solids (rule E3); V1 has no multi-body "
+            "parts"
+        )
+
+    solid = remaining[0]
+    if not (result.isValid() and solid.isValid()):
+        raise GeometryOperationError(
+            f"{label}: distance {distance} is not admissible for all "
+            f"{len(edges)} selected edge(s) (rule E5); the kernel completed "
+            "but its own validity analysis rejects the result. No partial "
+            "bevel is applied."
+        )
+    if not solid.Volume() > 0.0:
+        raise GeometryOperationError(
+            f"{label}: bevelling at distance {distance} left a solid of "
+            f"volume {solid.Volume()!r} (rule E5); an empty result is not a "
+            "success"
+        )
+    return solid
+
+
+def _uncovered_edges(builder: Any, edges: Tuple[Any, ...]) -> int:
+    """Count selected edges the builder did not take into any contour.
+
+    ``BRepFilletAPI_MakeChamfer.Add`` is documented to do nothing for an edge
+    that does not belong to the shape, and was measured to do nothing for an
+    edge the kernel considers unsuitable. The builder's own contour tables
+    (``NbContours``, ``NbEdges``, ``Edge``) say which edges it actually took,
+    and membership is decided by topological identity (``IsSame``), never by
+    coordinates.
+
+    Note the reverse can also happen and is *not* an error: contour
+    propagation follows tangency, so a contour may contain more edges than
+    were selected. The kernel then modifies those neighbours too -- see
+    ``docs/local-cad-engine.md``.
+    """
+    taken = [
+        builder.Edge(contour, position)
+        for contour in range(1, builder.NbContours() + 1)
+        for position in range(1, builder.NbEdges(contour) + 1)
+    ]
+    return sum(
+        1
+        for edge in edges
+        if not any(edge.wrapped.IsSame(other) for other in taken)
+    )
 
 
 def _blend_edges(
@@ -793,13 +960,14 @@ def _require_supported_part(part: Any) -> None:
             "this engine needs at least one feature to build; the history is empty"
         )
 
+    supported = (Box, Cylinder, ThroughHole, Subtract, Fillet, Chamfer)
     for position, feature in enumerate(part.features):
-        if not isinstance(feature, (Box, Cylinder, ThroughHole, Subtract, Fillet)):
+        if not isinstance(feature, supported):
             raise UnsupportedGeometryError(
                 f"unsupported feature type {feature.TYPE!r} at features[{position}]; "
                 "this engine builds 'box' and 'cylinder' and applies "
-                "'through_hole', 'subtract' and 'fillet'. Chamfers are not "
-                "implemented."
+                "'through_hole', 'subtract', 'fillet' and 'chamfer' -- the "
+                "whole V1 feature set"
             )
 
     first = part.features[0]

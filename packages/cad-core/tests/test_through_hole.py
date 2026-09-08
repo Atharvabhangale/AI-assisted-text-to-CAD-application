@@ -668,11 +668,26 @@ class TestBoundaries(ThroughHoleTestCase):
                 with self.assertRaises(UnsupportedGeometryError):
                     build_part(part)
 
-    def test_still_unimplemented_features_remain_rejected(self) -> None:
-        """Chamfer only: Stage 11 implemented 'subtract', Stage 13 'fillet'."""
+    def test_every_v1_feature_type_is_now_accepted(self) -> None:
+        """Stage 14 implemented 'chamfer': nothing in V1 is rejected as
+        unsupported any more.
+
+        An unknown *type* cannot be constructed -- the validator's rule S3 and
+        the typed model both forbid it -- so what is asserted here is that
+        each V1 modifier is accepted rather than refused as unimplemented.
+        """
         for feature in (
             Chamfer(
-                id="c", target="plate", distance=1.0, edges=EdgeSelector(select="all")
+                id="bevel",
+                target="plate",
+                distance=1.0,
+                edges=EdgeSelector(select="axis_parallel", axis="X"),
+            ),
+            Fillet(
+                id="round",
+                target="plate",
+                radius=1.0,
+                edges=EdgeSelector(select="axis_parallel", axis="X"),
             ),
         ):
             with self.subTest(feature=feature.TYPE):
@@ -682,9 +697,9 @@ class TestBoundaries(ThroughHoleTestCase):
                     name="p",
                     features=(Box(id="plate", size=Size(*PLATE_SIZE)), feature),
                 )
-                with self.assertRaises(UnsupportedGeometryError) as caught:
-                    build_part(part)
-                self.assertIn(feature.TYPE, str(caught.exception))
+                result = build_part(part)
+                self.assertTrue(result.is_solid())
+                self.assertEqual(result.feature_id, "plate")
 
     def test_a_fillet_after_a_through_hole_now_builds(self) -> None:
         """Stage 13 added 'fillet', applied to the drilled solid."""
