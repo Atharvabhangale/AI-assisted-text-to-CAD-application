@@ -154,6 +154,12 @@ and never holds its bytes.
 | `storage` | `file` or `in_memory` |
 | `details` | neutral measurements — plain JSON data |
 
+`BuildResult` also carries `cache_hit` (Stage 18): `True` when the artifacts
+came from the local build cache instead of this execution. It is reporting
+metadata, deliberately separate from `status` — a cache hit is a successful
+build, not a status of its own, and no new `BuildStatus` was added. It is
+`False` for every build that ran the engine.
+
 **Logical identity is separated from the physical path.** The identity is
 `logical_id` = `<build key>:<output>`, which is reproducible on any machine;
 `path` is machine-specific and is never identity. Tests assert the logical id
@@ -295,8 +301,10 @@ Python object that lives as long as the caller holds it.
 
 What this stage explicitly **does not** contain, and does not imply:
 
-- no database, no file-backed job store, no index, no artifact store or
-  cache — an artifact lives only as long as the process and its file do;
+- no database, no file-backed job store and no index — a job lives only as
+  long as the caller holds it. Stage 18 added a **separate**, downstream
+  artifact cache (`docs/local-build-cache.md`); this layer neither imports it
+  nor knows about it, and an ordinary `execute_build` still caches nothing;
 - no queue, broker, Redis, Celery or scheduler;
 - no worker pool, thread pool, process pool or async execution;
 - no HTTP API, no frontend, no LLM, no MCP;

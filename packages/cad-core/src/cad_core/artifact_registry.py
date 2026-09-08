@@ -105,7 +105,12 @@ from typing import Any, Dict, Iterable, Mapping, Optional, Tuple, Union
 
 from cad_core.iges_export import IGES_EXTENSIONS
 from cad_core.local_cad import LocalCadResult
-from cad_core.render_model import RenderModel
+from cad_core.render_model import (
+    RENDER_FORMAT_VERSION,
+    RenderBounds,
+    RenderModel,
+    TessellationSettings,
+)
 from cad_core.serialization import CANONICAL_ENCODING, CANONICAL_SEPARATORS
 from cad_core.step_export import STEP_EXTENSIONS
 from cad_core.stl_export import STL_EXTENSIONS, binary_stl_facts
@@ -433,6 +438,93 @@ def render_checksum(model: RenderModel) -> str:
     return hashlib.new(CHECKSUM_ALGORITHM, canonical_render_bytes(model)).hexdigest()
 
 
+def render_model_from_canonical_bytes(payload: bytes) -> RenderModel:
+    """Rebuild a :class:`RenderModel` from :func:`canonical_render_bytes`.
+
+    The exact inverse of :func:`canonical_render_bytes`, and deliberately
+    defined beside it so the two directions of the render model's byte form
+    cannot drift. **No new serialization format is introduced**: this reads
+    the render model's own existing ``to_dict()`` structure (Stage 8), and a
+    round trip is byte-identical.
+
+    Strict, in the way :func:`cad_core.serialization.deserialize_part` is
+    strict: an unknown or missing field is an error rather than something
+    silently dropped, so a future field added to
+    :meth:`~cad_core.render_model.RenderModel.to_dict` fails loudly here
+    instead of being lost. ``format_version`` must be the one this build of
+    the project produces -- an older payload is refused, not guessed at.
+
+    Raises:
+        ArtifactError: if the bytes are not the canonical JSON of a render
+            model of the current format version.
+    """
+    try:
+        raw = json.loads(bytes(payload).decode(CANONICAL_ENCODING))
+    except (UnicodeDecodeError, ValueError) as exc:
+        raise ArtifactError(
+            f"the render payload is not canonical render JSON ({exc})"
+        ) from exc
+    if not isinstance(raw, dict):
+        raise ArtifactError("the render payload is not a JSON object")
+    if set(raw) != set(_RENDER_FIELDS):
+        missing = sorted(set(_RENDER_FIELDS) - set(raw))
+        unknown = sorted(set(raw) - set(_RENDER_FIELDS))
+        raise ArtifactError(
+            "the render payload's fields are not a render model's: "
+            f"missing {missing}, unknown {unknown}"
+        )
+    if raw["format_version"] != RENDER_FORMAT_VERSION:
+        raise ArtifactError(
+            f"the render payload is format version {raw['format_version']!r}; "
+            f"this build produces {RENDER_FORMAT_VERSION!r}"
+        )
+    bounds = raw["bounds"]
+    tessellation = raw["tessellation"]
+    if not isinstance(bounds, dict) or set(bounds) != {"minimum", "maximum", "size"}:
+        raise ArtifactError("the render payload's bounds are malformed")
+    if not isinstance(tessellation, dict) or set(tessellation) != {
+        "linear_deflection_mm",
+        "angular_deflection_rad",
+    }:
+        raise ArtifactError("the render payload's tessellation is malformed")
+    minimum = _triple(bounds["minimum"], "bounds.minimum")
+    maximum = _triple(bounds["maximum"], "bounds.maximum")
+    recorded_size = _triple(bounds["size"], "bounds.size")
+    derived = tuple(high - low for low, high in zip(minimum, maximum))
+    if recorded_size != derived:
+        # ``size`` is derived from the corners, so a payload where they
+        # disagree is not a render model this project wrote.
+        raise ArtifactError("the render payload's bounds are inconsistent")
+    model = RenderModel(
+        format_version=raw["format_version"],
+        part_name=_text(raw["part_name"], "part_name"),
+        feature_id=_text(raw["feature_id"], "feature_id"),
+        units=_text(raw["units"], "units"),
+        coordinate_system=_text(raw["coordinate_system"], "coordinate_system"),
+        winding=_text(raw["winding"], "winding"),
+        normal_binding=_text(raw["normal_binding"], "normal_binding"),
+        vertices=tuple(
+            _triple(vertex, "vertices") for vertex in _sequence(raw["vertices"])
+        ),
+        triangles=tuple(
+            _indices(triangle) for triangle in _sequence(raw["triangles"])
+        ),
+        normals=tuple(
+            _triple(normal, "normals") for normal in _sequence(raw["normals"])
+        ),
+        bounds=RenderBounds(minimum=minimum, maximum=maximum),
+        tessellation=TessellationSettings(
+            linear_deflection_mm=_number(
+                tessellation["linear_deflection_mm"], "linear_deflection_mm"
+            ),
+            angular_deflection_rad=_number(
+                tessellation["angular_deflection_rad"], "angular_deflection_rad"
+            ),
+        ),
+    )
+    return model
+
+
 # --- publication ------------------------------------------------------------
 
 
@@ -617,6 +709,57 @@ def _vector(value: Any) -> Dict[str, float]:
     return {"x": value.x, "y": value.y, "z": value.z}
 
 
+#: The keys :meth:`RenderModel.to_dict` writes. Read back strictly, so a new
+#: field cannot be silently dropped by the reader.
+_RENDER_FIELDS: Tuple[str, ...] = (
+    "format_version",
+    "part_name",
+    "feature_id",
+    "units",
+    "coordinate_system",
+    "winding",
+    "normal_binding",
+    "vertices",
+    "triangles",
+    "normals",
+    "bounds",
+    "tessellation",
+)
+
+
+def _sequence(value: Any) -> Tuple[Any, ...]:
+    if not isinstance(value, list):
+        raise ArtifactError("the render payload holds a malformed list")
+    return tuple(value)
+
+
+def _triple(value: Any, field_name: str) -> Tuple[float, float, float]:
+    if not isinstance(value, list) or len(value) != 3:
+        raise ArtifactError(f"the render payload's {field_name} is malformed")
+    return tuple(_number(item, field_name) for item in value)  # type: ignore[return-value]
+
+
+def _indices(value: Any) -> Tuple[int, int, int]:
+    if not isinstance(value, list) or len(value) != 3:
+        raise ArtifactError("the render payload holds a malformed triangle")
+    for item in value:
+        if not isinstance(item, int) or isinstance(item, bool):
+            raise ArtifactError("a render triangle index is not an integer")
+    return (value[0], value[1], value[2])
+
+
+def _number(value: Any, field_name: str) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ArtifactError(f"the render payload's {field_name} is not a number")
+    return value
+
+
+def _text(value: Any, field_name: str) -> str:
+    if not isinstance(value, str):
+        raise ArtifactError(f"the render payload's {field_name} is not a string")
+    return value
+
+
 __all__ = [
     "CHECKSUM_ALGORITHM",
     "FILE_KINDS",
@@ -639,4 +782,5 @@ __all__ = [
     "publish_geometry_artifact",
     "publish_render_artifact",
     "render_checksum",
+    "render_model_from_canonical_bytes",
 ]

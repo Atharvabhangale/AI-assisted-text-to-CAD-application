@@ -486,6 +486,14 @@ class BuildResult:
     #: data (Stage 8), kept as a reference rather than duplicated as JSON.
     render_model: Optional[RenderModel] = None
 
+    #: Whether these artifacts came from the local build cache
+    #: (``docs/local-build-cache.md``) instead of being produced by this
+    #: execution. Reporting metadata, deliberately **separate** from
+    #: :attr:`status`: a cache hit is a successful build, not a status of its
+    #: own, and it is never part of any identity. ``False`` for every build
+    #: that ran the engine.
+    cache_hit: bool = False
+
     @property
     def succeeded(self) -> bool:
         return self.status is BuildStatus.SUCCEEDED
@@ -524,6 +532,7 @@ class BuildResult:
             "document_hash": self.document_hash,
             "execution_id": self.execution_id,
             "status": self.status.value,
+            "cache_hit": self.cache_hit,
             "artifacts": [artifact.to_dict() for artifact in self.artifacts],
             "manifest": self.manifest.to_dict(),
             "error": self.error.to_dict() if self.error is not None else None,

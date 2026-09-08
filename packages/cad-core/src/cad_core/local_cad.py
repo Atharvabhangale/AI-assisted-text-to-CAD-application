@@ -1,4 +1,4 @@
-"""Local deterministic CAD engine: builds real B-rep geometry from a V1 part.
+r"""Local deterministic CAD engine: builds real B-rep geometry from a V1 part.
 
 This is an **execution backend**, not a replacement for the specification. The
 neutral CAD specification stays the source of truth, and two backends consume

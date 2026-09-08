@@ -121,6 +121,15 @@ equal that expression and that they parse back to `to_dict()`. Because the
 render model was measured deterministic, the render checksum is stable across
 builds — also tested.
 
+`render_model_from_canonical_bytes` (added in Stage 18) is the exact inverse,
+defined beside `canonical_render_bytes` so the two directions of the render
+model's byte form cannot drift. It reads the render model's own existing
+`to_dict()` structure — again no new format — and is strict in the way Stage
+15's document reader is strict: a missing or unknown field, a `format_version`
+other than the current one, or bounds whose `size` disagrees with its corners
+is an error rather than something silently accepted. The local build cache
+uses it to restore a render model without re-tessellating.
+
 ### Geometry has no fabricated checksum
 
 A B-rep has no canonical byte representation here, so none is invented:
@@ -256,17 +265,20 @@ Reproducible across builds and machines:
   captured once, so repeated exports match — Stage 9's measurement);
 - physical paths.
 
-## No persistent storage exists
+## No persistent storage in this layer
 
-There is **no** object store, database, cache, cloud backend, remote storage,
-message broker or storage-service interface, and none is implied. Artifacts
-live for as long as the process holds them and for as long as their files
-happen to exist on disk. Nothing is registered anywhere, nothing is looked up
-by identity, and nothing is reused between builds.
+There is **no** object store, database, cloud backend, remote storage, message
+broker or storage-service interface here, and none is implied. This layer
+models artifacts; it does not keep them. An artifact lives for as long as the
+process holds it and for as long as its file happens to exist on disk.
 
-The identity/content split exists so that a *future* cache could use both
-concepts — identity to look an artifact up, checksum to know whether the bytes
-it holds are the ones it recorded. **No caching was added.**
+The identity/content split exists so that a cache can use both concepts —
+identity to look an artifact up, checksum to know whether the bytes it holds
+are the ones it recorded. Stage 18 added exactly that as a separate layer
+(`docs/local-build-cache.md`): a local filesystem cache keyed on the build
+key, which *consumes* this model and applies its publication rules to cached
+bytes. It is a downstream module — this layer does not import it, know about
+it, or change because of it.
 
 ## Package boundary
 
