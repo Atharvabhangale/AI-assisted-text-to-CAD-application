@@ -499,23 +499,9 @@ def get_or_build_isolated(
     build_key = request.build_key
     document_hash = request.document_hash
     required = request.options.requested
-    hit = cache.lookup(
-        build_key, document_hash=document_hash, required_kinds=required
-    )
-    if hit.hit and hit.entry is not None:
-        return IsolatedExecution(
-            outcome=IsolationOutcome.SUCCEEDED,
-            build_key=build_key,
-            document_hash=document_hash,
-            manifest=hit.entry.manifest,
-            render_model=hit.entry.render_model,
-            worker_status=None,
-            exit_code=None,
-            child_launched=False,
-            cache_hit=True,
-            cache_published=False,
-            timeout_seconds=timeout_seconds,
-        )
+    cached = cached_execution(request, cache, timeout_seconds=timeout_seconds)
+    if cached is not None:
+        return cached
 
     workspace = _make_workspace(workspace_root)
     outputs = workspace / "outputs"
@@ -551,6 +537,53 @@ def get_or_build_isolated(
         )
     finally:
         _remove_tree(workspace)
+
+
+def cached_execution(
+    request: BuildRequest,
+    cache: LocalBuildCache,
+    *,
+    timeout_seconds: Optional[float] = None,
+) -> Optional[IsolatedExecution]:
+    """The cached result for ``request``, or ``None`` on a miss.
+
+    A lookup and nothing more: **no child process is launched**, and no build
+    is run. The Stage 18 cache re-verifies the entry -- recomputing every
+    checksum from the cached bytes -- so a hit is a validated entry, never a
+    transcription of a stored manifest.
+
+    This is the first step of :func:`get_or_build_isolated`, available on its
+    own so a caller can ask whether a build is already available without
+    building it.
+    """
+    if not isinstance(request, BuildRequest):
+        raise IsolationError(
+            f"expected a BuildRequest; got {type(request).__name__}"
+        )
+    if not isinstance(cache, LocalBuildCache):
+        raise IsolationError(
+            f"expected a LocalBuildCache; got {type(cache).__name__}"
+        )
+    lookup = cache.lookup(
+        request.build_key,
+        document_hash=request.document_hash,
+        required_kinds=request.options.requested,
+    )
+    if not lookup.hit or lookup.entry is None:
+        return None
+    return IsolatedExecution(
+        outcome=IsolationOutcome.SUCCEEDED,
+        build_key=request.build_key,
+        document_hash=request.document_hash,
+        manifest=lookup.entry.manifest,
+        render_model=lookup.entry.render_model,
+        worker_status=None,
+        exit_code=None,
+        child_launched=False,
+        cache_hit=True,
+        cache_published=False,
+        timeout_seconds=timeout_seconds,
+    )
 
 
 def invoke_worker(
@@ -1094,6 +1127,7 @@ __all__ = [
     "IsolatedFailure",
     "IsolationError",
     "IsolationOutcome",
+    "cached_execution",
     "child_environment",
     "execute_isolated",
     "execute_isolated_document",
