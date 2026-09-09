@@ -22,6 +22,10 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# Evaluation runs: local measurement output, not source. They are also never
+# CAD artifacts -- see docs/ai-evaluation.md.
+evaluation-results/
+
 # Caches / coverage
 .cache/
 .turbo/

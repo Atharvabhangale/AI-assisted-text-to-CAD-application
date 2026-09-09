@@ -59,6 +59,22 @@ executed. One provider (Anthropic), imported lazily and declared as the
 optional `ai` extra, so neither `cad-core` nor the HTTP transport depends on
 an LLM SDK. No HTTP endpoint yet — see `docs/text-to-cad-ai.md`.
 
+`cad_ai.evaluation` — the measurement harness for that layer: 35 hand-written
+benchmark cases, an expected CAD document per case, and a runner that reports
+parseability, validation, outcome match, exact document match and field-level
+correctness **separately**. No repair loop and no prompt variation: it
+measures, it does not improve.
+
+```sh
+export PYTHONPATH=packages/cad-core/src:apps/api/src
+python -m cad_ai.evaluation --check       # validate the corpus; calls no model
+python -m cad_ai.evaluation --self-check  # exercise the harness against a stub
+python -m cad_ai.evaluation --build       # the live benchmark, if a key is set
+```
+
+Without `ANTHROPIC_API_KEY` the live benchmark reports `NOT_RUN` and invents
+nothing. See `docs/ai-evaluation.md`.
+
 ### packages/cad-core
 
 The deterministic CAD generation engine: given a structured description of a
@@ -96,4 +112,7 @@ limitations in `docs/http-api.md`, `docs/artifact-delivery.md`,
 `docs/isolated-cad-execution.md` and `docs/text-to-cad-ai.md`.
 
 Text-to-CAD is **not production-ready**. Stage 26 proves one controlled
-natural-language → CAD-specification path for a deliberately tiny subset.
+natural-language → CAD-specification path for a deliberately tiny subset, and
+Stage 27 adds the harness that can measure it (`docs/ai-evaluation.md`). The
+harness is not itself evidence of model quality: it is the instrument, and a
+live run needs a provider credential this repository does not carry.

@@ -156,6 +156,44 @@ class AnthropicTextToCadModel:
         )
 
 
+def decoding_capabilities() -> Dict[str, str]:
+    """Which decoding controls the installed SDK actually exposes.
+
+    Read from the live ``messages.create`` signature, not from memory, so a
+    caller recording what a generation was configured with records what is
+    true today rather than what was true when this was written. Lives here
+    because the provider owns knowledge of its SDK: nothing else in the
+    repository imports ``anthropic``, and a test asserts that.
+    """
+    capabilities: Dict[str, str] = {
+        name: "not settable"
+        for name in ("temperature", "top_p", "top_k", "seed")
+    }
+    capabilities["deterministic_decoding"] = "unavailable"
+    capabilities["sdk_version"] = "not installed"
+    try:
+        sdk = _import_sdk()
+    except ProviderNotConfigured:
+        return capabilities
+    capabilities["sdk_version"] = str(getattr(sdk, "__version__", "unknown"))
+    try:
+        import inspect  # noqa: PLC0415 - only needed for this probe
+
+        parameters = inspect.signature(
+            sdk.Anthropic(api_key="unused-placeholder").messages.create
+        ).parameters
+    except Exception:  # pragma: no cover - an SDK we cannot introspect
+        return capabilities
+    for name in ("temperature", "top_p", "top_k", "seed"):
+        capabilities[name] = "settable" if name in parameters else "not settable"
+    capabilities["deterministic_decoding"] = (
+        "available"
+        if any(name in parameters for name in ("temperature", "seed"))
+        else "unavailable"
+    )
+    return capabilities
+
+
 def _text_of(message: Any) -> str:
     """Concatenate the response's text blocks, ignoring every other block.
 
@@ -192,4 +230,5 @@ __all__ = [
     "JSON_SCHEMA_FORMAT",
     "SDK_PACKAGE",
     "AnthropicTextToCadModel",
+    "decoding_capabilities",
 ]

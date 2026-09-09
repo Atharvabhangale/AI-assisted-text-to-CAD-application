@@ -92,6 +92,35 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 AI_SOURCE = REPO_ROOT / "apps" / "api" / "src" / "cad_ai"
 CAD_CORE_SOURCE = REPO_ROOT / "packages" / "cad-core" / "src" / "cad_core"
 
+#: The **generation path**: the modules that talk to the model and turn its
+#: answer into a validated document. Stage 26's invariants are about these,
+#: and every one of them still holds at full strength.
+#:
+#: Stage 27 added an evaluation layer beside them (``evaluation.py``,
+#: ``comparison.py``, ``corpus.py``) which legitimately does things the
+#: generation path must never do: it prints a report, writes a result file,
+#: uses a temporary directory, reads the serializer and the validator, and its
+#: benchmark prompts contain the word "CadQuery" because that is what an
+#: adversarial prompt says. Naming the scope keeps these checks honest instead
+#: of quietly widening them -- ``test_ai_evaluation.py`` asserts the matching
+#: invariants for the evaluation modules, shaped for what that layer is.
+GENERATION_MODULES: Tuple[str, ...] = (
+    "__init__.py",
+    "anthropic_provider.py",
+    "config.py",
+    "generation.py",
+    "prompt.py",
+    "provider.py",
+    "specification.py",
+)
+
+
+def generation_sources() -> Tuple[Path, ...]:
+    paths = tuple(AI_SOURCE / name for name in GENERATION_MODULES)
+    for path in paths:
+        assert path.is_file(), f"{path} is missing"
+    return paths
+
 #: The plate every dimensional test uses, in millimetres.
 PLATE_SIZE = (100.0, 60.0, 10.0)
 
@@ -1260,7 +1289,7 @@ class TestModelOutputIsNeverExecuted(AiTestCase):
             self.assertNotIn(forbidden, fields)
 
     def test_the_ai_source_contains_no_interpreter_or_shell_call(self) -> None:
-        for path in sorted(AI_SOURCE.glob("*.py")):
+        for path in generation_sources():
             tree = ast.parse(path.read_text(encoding="utf-8"))
             called: List[str] = []
             for node in ast.walk(tree):
@@ -1317,7 +1346,7 @@ class TestModelOutputIsNeverExecuted(AiTestCase):
                 )
 
     def test_the_ai_source_writes_no_file(self) -> None:
-        for path in sorted(AI_SOURCE.glob("*.py")):
+        for path in generation_sources():
             source = path.read_text(encoding="utf-8")
             for forbidden in (
                 "write_text",
@@ -1558,7 +1587,7 @@ print("OK")
             "cad_core.application_service",
             "cad_core.model",
         }
-        for path in sorted(AI_SOURCE.glob("*.py")):
+        for path in generation_sources():
             for name in _module_imports(path):
                 if name.startswith("cad_core"):
                     self.assertIn(
@@ -1566,7 +1595,7 @@ print("OK")
                     )
 
     def test_the_ai_layer_implements_no_geometry_or_exporter(self) -> None:
-        for path in sorted(AI_SOURCE.glob("*.py")):
+        for path in generation_sources():
             code = _code_tokens(path)
             for forbidden in (
                 "local_cad",
@@ -1589,7 +1618,7 @@ print("OK")
                 )
 
     def test_the_ai_layer_reimplements_no_validation(self) -> None:
-        for path in sorted(AI_SOURCE.glob("*.py")):
+        for path in generation_sources():
             source = path.read_text(encoding="utf-8")
             # No rule code literal, and no second validate().
             self.assertIsNone(
@@ -1608,6 +1637,9 @@ print("OK")
             if "anthropic" in _module_imports(path)
             or "import anthropic" in path.read_text(encoding="utf-8")
         ]
+        # Every module in the package: the claim is that exactly one module
+        # in the repository imports the SDK, and Stage 27's evaluation layer
+        # asks the provider for its capabilities rather than importing it.
         self.assertEqual(importers, ["anthropic_provider.py"])
         source = (AI_SOURCE / "anthropic_provider.py").read_text(encoding="utf-8")
         # Not at module level: the import sits inside a function.
@@ -2256,7 +2288,7 @@ class TestInputIsNotRewritten(AiTestCase):
 
     def test_no_unit_conversion_happens_in_this_layer(self) -> None:
         source = "\n".join(
-            path.read_text(encoding="utf-8") for path in sorted(AI_SOURCE.glob("*.py"))
+            path.read_text(encoding="utf-8") for path in generation_sources()
         )
         for forbidden in ("25.4", "inch_to", "to_mm", "convert_units", "* 25.4",
                           "/ 25.4", "304.8", "0.0393"):
@@ -2331,7 +2363,7 @@ class TestMetadata(AiTestCase):
                 self.assertEqual(result.to_dict()["outcome"], expected.value)
 
     def test_no_telemetry_client_or_logger_of_user_content_exists(self) -> None:
-        for path in sorted(AI_SOURCE.glob("*.py")):
+        for path in generation_sources():
             imports = _module_imports(path)
             for forbidden in (
                 "opentelemetry",
