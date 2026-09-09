@@ -131,8 +131,18 @@ PLATE_SIZE = (100.0, 60.0, 10.0)
 #: 26's value was 2b3e3395ec6efee0...; the
 #: prompt version moved with it, so a run's recorded identity still says
 #: exactly which instructions produced it.
+#:
+#: Re-pinned again for ``PROMPT_VERSION`` **2026-09-09.2**, whose two changes
+#: are recorded in :mod:`cad_ai.prompt`: the vocabulary cannot join solids,
+#: and words that locate a feature ("on the top", "centred") supply a required
+#: position rather than being a gap to ask about. The 2026-09-09.1 value was
+#: ``fe62c9759a08d45ca372672479631863b25876cc52aca999da7edb1e8cde979a``.
+#:
+#: This is a change *detector*, not a claim that the prompt is correct.
+#: Updating it is the maintenance step the pinning test itself prescribes, and
+#: it retires every earlier measurement of model behaviour.
 PROMPT_FINGERPRINT = (
-    "fe62c9759a08d45ca372672479631863b25876cc52aca999da7edb1e8cde979a"
+    "f9efe19ac33281ff14ab0efe665dc01971d458ea5d90e8114f6dabba0ca0874e"
 )
 
 #: Tolerance for a kernel-reported length. Never exact float equality.
@@ -1815,7 +1825,7 @@ class TestPromptAndSchema(unittest.TestCase):
         # update PROMPT_VERSION and this value together, and do not assume any
         # earlier claim about model behaviour still holds.
         self.assertEqual(prompt_fingerprint(), PROMPT_FINGERPRINT)
-        self.assertEqual(PROMPT_VERSION, "2026-09-09.1")
+        self.assertEqual(PROMPT_VERSION, "2026-09-09.2")
 
     def test_the_prompt_states_the_seven_required_things(self) -> None:
         text = system_prompt()
@@ -2632,7 +2642,9 @@ class TestProviderParity(unittest.TestCase):
         # nothing above the boundary changes.
         from cad_ai.prompt import system_prompt
 
-        self.assertEqual(len(system_prompt()), 21938)
+        # 21938 for prompt 2026-09-09.1; 25237 for 2026-09-09.2, which added
+        # the no-joining rule and the locative-resolution rule.
+        self.assertEqual(len(system_prompt()), 25237)
         self.assertEqual(prompt_fingerprint(), PROMPT_FINGERPRINT)
 
 

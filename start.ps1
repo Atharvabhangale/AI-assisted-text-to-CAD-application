@@ -49,7 +49,16 @@ param(
     [int] $BackendPort = 8000,
     [int] $FrontendPort = 5173,
     [switch] $NoBrowser,
-    [int] $TimeoutSeconds = 90
+    [int] $TimeoutSeconds = 90,
+
+    # Where to read the credential from, when it is not in this checkout.
+    # Exists for the git-worktree case: an experiment branch checked out
+    # beside the main tree has no `.env` of its own, because `.env` is
+    # gitignored and must not be copied -- one credential, in one place. This
+    # lets the experiment *read* the main tree's file without a second copy
+    # existing anywhere on disk. The value still goes only into the backend
+    # process's environment, and is still never printed.
+    [string] $DotEnvPath
 )
 
 $ErrorActionPreference = 'Stop'
@@ -153,7 +162,12 @@ Write-Good "interpreter: $python"
 
 Write-Heading "Environment"
 
-$dotEnvPath = Join-Path $repoRoot 'apps\api\.env'
+if ([string]::IsNullOrWhiteSpace($DotEnvPath)) {
+    $dotEnvPath = Join-Path $repoRoot 'apps\api\.env'
+} else {
+    $dotEnvPath = $DotEnvPath
+    Write-Step "reading credentials from: $dotEnvPath (-DotEnvPath)"
+}
 $dotEnv = Read-DotEnvFile -Path $dotEnvPath
 
 if (-not (Test-Path -LiteralPath $dotEnvPath -PathType Leaf)) {

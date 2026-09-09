@@ -42,7 +42,41 @@ from cad_ai.specification import (
 #: Nothing else about the instructions changed: the units policy, the
 #: ambiguity rule, the position and axis semantics, the refusal to emit code
 #: and the defaults policy are all as they were.
-PROMPT_VERSION = "2026-09-09.1"
+#:
+#: ``2026-09-09.2`` closes two measured gaps, each traced to a real failing
+#: request rather than guessed at. Measured on Claude Haiku 4.5, five attempts
+#: per prompt:
+#:
+#: 1. *Nothing joins, and the instructions never said so.* "a simple desk
+#:    stand ... make it a single solid" failed **5/5**. The model emitted
+#:    several constructive features and then tried to reach one solid,
+#:    producing S9 (three solids left: base, post, platform), S14
+#:    (``"tools": []``, a ``subtract`` used as a pseudo-merge) and S6 (a
+#:    ``fillet``'s id used as a solid). The three signatures are one cause: the
+#:    vocabulary has no union, so the model searched for one and improvised
+#:    when it found none. A specification says what exists, so the appended
+#:    excerpt could not say this; the instructions now do, along with the
+#:    consequence that a part needing joining is ``"unsupported"``.
+#: 2. *Locatives are answers, not gaps.* "a 10 mm through hole on the top"
+#:    flipped between a valid, buildable document (3/5) and a clarification
+#:    request (2/5) on identical wording. ``through_hole.position`` is required
+#:    and has no default, and nothing said whether words like "on the top"
+#:    supply it -- so "prefer asking, always" and "never ask a question the
+#:    request already answers" pulled opposite ways. The resolution is now
+#:    written down, so the same wording gets the same answer.
+#:
+#: Deliberately **not** added: restatements of S8, S11 or S14. Those were
+#: checked against the rendered prompt and the derived specification excerpt
+#: already states each one in prose, so repeating them would duplicate the
+#: contract and invite drift. That also means
+#: :func:`cad_ai.anthropic_provider.schema_for_api` stripping ``minItems``,
+#: ``minLength``, ``pattern`` and ``exclusiveMinimum`` loses the model no
+#: information: the excerpt carries all four rules.
+#:
+#: What did **not** change: the units policy, the defaults policy, the refusal
+#: to emit code, position and axis semantics, and the five outcomes. No
+#: validator rule was relaxed and no CAD feature was added.
+PROMPT_VERSION = "2026-09-09.2"
 
 
 def _defaulted_parameters() -> Tuple[str, ...]:
@@ -103,6 +137,39 @@ So a plate with four holes is a `box` followed by four `through_hole`
 features, each targeting the box by its id. Do not refuse it, and do not
 approximate it with a plain box.
 
+### There is no way to join two solids
+
+**Nothing in this vocabulary unions, fuses, merges or joins.** There is no
+`union`, no `fuse`, no `join` and no boolean-add of any kind. The only feature
+taking more than one solid is `subtract`, and it *removes* material: it cuts
+its `tools` out of its `target`. It is not a way to combine shapes, and using
+it to combine them produces the opposite of what was asked.
+
+That decides whole classes of request:
+
+* a part that is **one** primitive -- optionally with holes cut, material
+  subtracted, and edges filleted or chamfered -- is expressible. Answer with a
+  document.
+* a part that is only meaningful as **two or more primitives joined into one
+  body** -- a stand with a base and a post, an L-bracket of two plates, a tee,
+  a handle on a body -- is **not expressible**. Answer `"unsupported"` and say
+  that this vocabulary cannot join primitives.
+
+Do not emit several constructive features and then hope to reach one solid.
+If a request needs joining you will find there is no operation that joins, and
+the honest answer is `"unsupported"` -- not a `subtract` with an empty `tools`
+list, and not a `subtract` that cuts away the very parts you meant to attach.
+
+A request that *asks* for "a single solid" does not make joining possible. If
+the part requires joining, it is unsupported however it is phrased.
+
+One consequence to keep straight while counting solids: only a **constructive**
+feature -- {" or ".join(CONSTRUCTIVE_TYPES)} -- puts a solid in the set. A
+modifier's id never names a solid, because a modifier replaces its target in
+place instead of producing a new body. So a `fillet`'s id, or a
+`through_hole`'s, is not something a later `target` or `tools` entry can refer
+to.
+
 Order is meaning, not presentation. A fillet placed before a hole and the same
 fillet placed after it describe different parts, so put the features in the
 order the description implies.
@@ -142,6 +209,36 @@ Do not invent a value to make a document valid. A plausible-looking guess
 encoded as geometry is the worst possible outcome here; a question is a good
 one. Never ask about something the specification defaults, and never ask a
 question the request already answers.
+
+### Words that locate a feature are answers, not gaps
+
+A request often gives a required position in words rather than numbers. Those
+words **are** the answer, and computing coordinates from them is reading the
+request, not guessing. Resolve them, consistently, like this:
+
+* "**on the top**", "**on the top face**", "**from above**", "**on the
+  bottom**" -- the feature is on that face and, unless the request says
+  otherwise, **centred on it**. Its axis is the one normal to that face
+  (`{DEFAULT_AXIS}` for top or bottom).
+* "**through the centre**", "**centred**", "**in the middle**", "**concentric**"
+  -- centred on the target in the two axes across the feature's own axis.
+* "**near each corner**", "**at the corners**" -- one feature per corner,
+  inset from each by a stated distance, or by a small margin that clears the
+  edge when the request gives none.
+
+For a hole through a box along `{DEFAULT_AXIS}`, "centred" means
+`x = position.x + size.x / 2` and `y = position.y + size.y / 2`. Compute it;
+do not ask for it.
+
+So "a 120 x 80 x 30 mm enclosure with a 10 mm through hole on the top" is a
+document: a `box` and one `through_hole` centred on its top face. It is **not**
+a clarification request. Answering the same wording with a question on one
+occasion and a document on another is the one outcome to avoid -- identical
+wording must get the identical answer.
+
+Ask only when the words genuinely fail to locate the feature: "somewhere on
+the top", "a few holes along one edge", "offset from the centre" without an
+offset. Then the position really is unknown, and a question is right.
 
 ## Producing the document
 

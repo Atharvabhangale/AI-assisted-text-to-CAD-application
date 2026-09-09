@@ -270,6 +270,58 @@ fail. When it does, the honest response is to bump the version and re-measure
 model behaviour — not to assume old assumptions still hold. There is no prompt
 version *system*: no registry, no migration, no stored history.
 
+### Prompt 2026-09-09.2 — two gaps, measured on Claude Haiku 4.5
+
+Both changes came from reproducing a real failing request five times against
+the live provider, not from reading the prompt and guessing.
+
+**No joining.** *"Create a simple desk stand using basic geometric primitives.
+Use millimeters and make it a single solid. Choose reasonable dimensions
+yourself."* produced `INVALID_MODEL_OUTPUT` **5/5**, in three shapes that look
+like three bugs and are one:
+
+| Rule | What the model did |
+|---|---|
+| **S9** ×2 | left three solids — `base`, `post`, `top-platform` — never joined |
+| **S14** ×2 | emitted `"tools": []`, a `subtract` used as a pseudo-merge |
+| **S6** ×1 | referenced a `fillet`'s id as though it named a solid |
+
+The cause is that V1 has no union, fuse or join, and the instructions never
+said so. The model assumed a join existed, could not find one, and improvised.
+A specification describes what exists, so the appended excerpt could not state
+the absence; the instructions now do, with the consequence: a part only
+meaningful as two or more primitives joined into one body is `unsupported`.
+Measured after: **`UNSUPPORTED` 5/5**, the model naming the missing operation
+in its own words.
+
+Note what was *not* wrong. "Choose reasonable dimensions yourself" was never
+the problem — the model chose dimensions happily. The failure was topology,
+not ambiguity.
+
+**Locatives are answers, not gaps.** *"…with a 10 mm through hole on the top."*
+returned a valid, buildable document **3/5** and a clarification request
+**2/5** for byte-identical input. `through_hole.position` is required and has
+no default, and nothing said whether "on the top" supplies it, so two existing
+rules pulled opposite ways: *prefer asking over guessing, always* against
+*never ask a question the request already answers*. The resolution is now
+written down ("on the top" ⇒ centred on that face, with the arithmetic given),
+so identical wording gets an identical answer. Measured after: **`GENERATED`
+5/5**, every document valid, building to one solid of 285 643.805 mm³ at
+120 × 80 × 30 mm.
+
+**What was deliberately not added.** Restatements of S8, S11 or S14. The
+rendered prompt was checked, and the derived specification excerpt already
+states each in prose — `tools` MUST be a non-empty array (S14), the id pattern
+(S8), positive sizes (S11). Repeating them would duplicate the contract and
+invite drift. That also settles a question about
+`anthropic_provider.schema_for_api`, which strips `minItems`, `minLength`,
+`pattern` and `exclusiveMinimum` because the API rejects them: **the model
+loses no information**, because the excerpt carries all four rules.
+
+No validator rule was relaxed, no CAD feature added, and no repair loop
+introduced. The correct answer to an unrepresentable request is still a
+refusal.
+
 ## The output contract
 
 The model answers with one JSON object, constrained by a derived schema:
