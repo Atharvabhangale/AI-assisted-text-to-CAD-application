@@ -41,6 +41,7 @@ from cad_ai import specification as ai_specification
 from cad_ai.config import (
     API_KEY_VARIABLE,
     DEFAULT_MODEL,
+    PROVIDER_NAME,
     AiConfig,
     AiConfigurationError,
     config_from_environment,
@@ -2792,8 +2793,20 @@ class TestLiveProvider(unittest.TestCase):
     fabricated result. No credential is written by this file or by the suite.
     """
 
+    #: Set this to run the live test. A credential being present is
+    #: deliberately NOT enough: the ordinary suite must never contact a
+    #: provider or spend money, however the environment is configured.
+    OPT_IN_VARIABLE = "CAD_AI_LIVE_TESTS"
+
     def setUp(self) -> None:
-        if not credential_available():
+        if not os.environ.get(self.OPT_IN_VARIABLE, "").strip():
+            self.skipTest(
+                f"{self.OPT_IN_VARIABLE} is not set: no live provider test "
+                "was run and no result was invented"
+            )
+        # Provider-specific: this test drives the Anthropic provider, so
+        # another provider's credential must not un-skip it.
+        if not credential_available(provider=PROVIDER_NAME):
             self.skipTest(
                 f"{API_KEY_VARIABLE} is not set: no live provider test was run"
             )

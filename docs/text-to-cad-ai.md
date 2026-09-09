@@ -52,14 +52,24 @@ LLM -> arbitrary code -> CAD kernel
 Nothing else was added: no agent framework, no orchestration library, no
 vector store, no RAG, no tokenizer.
 
-**Stage 26 shipped one provider; a second was added in Stage 28** so the
-benchmark could run where a Gemini credential was available. That is a
-deliberate, named exception to Stage 26's "exactly one provider" rule, not a
-drift into pluggability: `PROVIDER_NAMES` lists both, `_live_model` branches
-on the configured name, and a third would mean writing a third class and
-naming it there. Nothing above `TextToCadModel` changed — the prompt, the
-schema, the outcome taxonomy and the validation flow are shared, so a run
-against either provider is comparable with a run against the other.
+**Stage 26 shipped one provider; a Gemini adapter was added in Stage 28A.**
+That is a deliberate, named exception to Stage 26's "exactly one provider"
+rule, not a drift into pluggability: `PROVIDER_NAMES` lists both,
+`_live_model` branches on the configured name, and a third would mean writing
+a third class and naming it there. Nothing above `TextToCadModel` changed —
+the prompt, the schema, the outcome taxonomy and the validation flow are
+shared, so a run against either provider is comparable with a run against the
+other. `docs/ai-provider-comparison.md` sets the two side by side.
+
+**Live Gemini benchmarking is deferred.** The adapter is complete and fully
+tested against a mocked SDK and deterministic stubs, but no live run has been
+made against either provider and no model-quality claim is made for either.
+Selecting a provider does not contact it, and a credential being present is
+deliberately not enough to start a run — `--live` is required, because a
+benchmark spends money and must be started on purpose. Credentials are read
+from the environment, handed to the SDK and stored nowhere: no serialized
+config, evaluation result, log line or error message can carry one, and tests
+assert that with a synthetic key.
 
 ### What the real SDK actually offers, measured
 

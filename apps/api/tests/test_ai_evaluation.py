@@ -1641,7 +1641,10 @@ class TestCommand(EvaluationTestCase):
         ), mock.patch(
             "builtins.print"
         ) as printed:
-            code = main(["--out", str(self.results_dir)])
+            # --live, so the credential check is actually reached: without it
+            # the run stops at the explicit-opt-in gate instead.
+            code = main(["--live", "--provider", "anthropic",
+                         "--out", str(self.results_dir)])
         self.assertEqual(code, 0)
         printed_text = "\n".join(
             str(call.args[0]) for call in printed.call_args_list if call.args
@@ -1655,12 +1658,29 @@ class TestCommand(EvaluationTestCase):
         with mock.patch(
             "cad_ai.evaluation.credential_available", return_value=False
         ), mock.patch("builtins.print") as printed:
-            main([])
+            main(["--live", "--provider", "anthropic"])
         text = "\n".join(
             str(call.args[0]) for call in printed.call_args_list if call.args
         )
         self.assertIn("This is not a model failure", text)
         self.assertNotIn("FAILED", text)
+
+    def test_the_default_path_reports_not_run_without_calling_anything(
+        self,
+    ) -> None:
+        """A credential is deliberately not enough to start a run."""
+        with mock.patch(
+            "cad_ai.evaluation._live_model",
+            side_effect=AssertionError("a provider was constructed"),
+        ), mock.patch("builtins.print") as printed:
+            code = main(["--out", str(self.results_dir)])
+        self.assertEqual(code, 0)
+        text = "\n".join(
+            str(call.args[0]) for call in printed.call_args_list if call.args
+        )
+        self.assertIn("NOT_RUN", text)
+        self.assertIn("requires --live", text)
+        self.assertFalse(self.results_dir.exists())
 
     def test_the_self_check_runs_the_harness_without_a_credential(self) -> None:
         with mock.patch(
@@ -1898,9 +1918,20 @@ class TestLiveBenchmark(unittest.TestCase):
         "F1-ignore-instructions-python",
     )
 
+    #: Set this to run the live benchmark. A credential being present is
+    #: deliberately NOT enough: the ordinary suite must never spend money or
+    #: contact a provider, however the environment happens to be configured.
+    OPT_IN_VARIABLE = "CAD_AI_LIVE_TESTS"
+
     def setUp(self) -> None:
         from cad_ai.config import API_KEY_VARIABLES, PROVIDER_NAMES
 
+        if not os.environ.get(self.OPT_IN_VARIABLE, "").strip():
+            self.skipTest(
+                f"{self.OPT_IN_VARIABLE} is not set: the live benchmark was "
+                "not run and no result was invented. A credential alone does "
+                "not start a live run."
+            )
         if not credential_available():
             expected = " or ".join(
                 API_KEY_VARIABLES[name] for name in PROVIDER_NAMES

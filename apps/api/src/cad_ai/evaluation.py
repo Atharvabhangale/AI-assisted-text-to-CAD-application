@@ -77,7 +77,9 @@ from cad_ai.comparison import (
 )
 from cad_ai.config import (
     API_KEY_VARIABLES,
+    DEFAULT_MODELS,
     GEMINI_PROVIDER_NAME,
+    MODEL_VARIABLE,
     PROVIDER_NAMES,
     AiConfig,
     config_from_environment,
@@ -1503,6 +1505,25 @@ def _parse_arguments(argv: Optional[Sequence[str]]) -> argparse.Namespace:
             "Proves the plumbing; says NOTHING about model quality."
         ),
     )
+    parser.add_argument(
+        "--live",
+        action="store_true",
+        help=(
+            "actually call the provider. REQUIRED for any live run: a "
+            "credential being present is deliberately not enough, because a "
+            "benchmark that spends money must never start by accident."
+        ),
+    )
+    parser.add_argument(
+        "--provider",
+        default=None,
+        choices=list(PROVIDER_NAMES),
+        help=(
+            "which provider to benchmark. Overrides CAD_AI_PROVIDER. "
+            "Selecting one does NOT contact it: without that provider's "
+            "credential the run reports NOT_RUN."
+        ),
+    )
     parser.add_argument("--case", action="append", default=[], help="case id")
     parser.add_argument("--category", action="append", default=[], help="category")
     parser.add_argument(
@@ -1576,7 +1597,59 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         return 2
 
     config = config_from_environment()
-    live = not arguments.self_check
+    if arguments.provider:
+        # A pure configuration change: no client is built and no request is
+        # made until the credential check below has passed.
+        config = AiConfig(
+            model=(
+                os.environ.get(MODEL_VARIABLE, "").strip()
+                or DEFAULT_MODELS[arguments.provider]
+            ),
+            timeout_seconds=config.timeout_seconds,
+            provider=arguments.provider,
+        )
+    live = arguments.live and not arguments.self_check
+    if arguments.live and arguments.self_check:
+        print(
+            "--live and --self-check are mutually exclusive", file=sys.stderr
+        )
+        return 2
+    if not arguments.live and not arguments.self_check:
+        # The credential may well be present. That is deliberately not
+        # sufficient: a live run is an explicit act, so this path never
+        # contacts a provider and never builds a client.
+        print(
+            "\n".join(
+                (
+                    "=" * 74,
+                    f"{config.provider.upper()} BENCHMARK: NOT_RUN",
+                    "=" * 74,
+                    "No model was called: a live run requires --live.",
+                    "",
+                    f"configured provider : {config.provider}",
+                    f"configured model    : {config.model}",
+                    "credential present  : "
+                    + (
+                        "yes"
+                        if credential_available(provider=config.provider)
+                        else "no"
+                    ),
+                    "",
+                    "A credential being present is not sufficient. Benchmark",
+                    "runs cost money and must be started deliberately:",
+                    "",
+                    f"  python -m cad_ai.evaluation --live "
+                    f"--provider {config.provider}",
+                    "",
+                    "Or exercise the harness against a stub, which contacts",
+                    "nothing and says nothing about model quality:",
+                    "",
+                    "  python -m cad_ai.evaluation --self-check",
+                    "=" * 74,
+                )
+            )
+        )
+        return 0
     if live and not credential_available(provider=config.provider):
         expected = API_KEY_VARIABLES[config.provider]
         others = ", ".join(
@@ -1588,7 +1661,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             "\n".join(
                 (
                     "=" * 74,
-                    "LIVE BENCHMARK: NOT_RUN",
+                    f"{config.provider.upper()} BENCHMARK: NOT_RUN",
                     "=" * 74,
                     f"{expected} is not set, so no model was called.",
                     f"(configured provider: {config.provider}; "

@@ -375,9 +375,12 @@ export PYTHONPATH=packages/cad-core/src:apps/api/src
 python -m cad_ai.evaluation --list        # the corpus
 python -m cad_ai.evaluation --check       # validate the corpus; calls no model
 python -m cad_ai.evaluation --self-check  # exercise the harness against a stub
-python -m cad_ai.evaluation               # the live benchmark
-python -m cad_ai.evaluation --build --repeat 5 --verbose
+python -m cad_ai.evaluation               # reports NOT_RUN: --live is required
+python -m cad_ai.evaluation --live --provider gemini --build
 ```
+
+`--provider` picks the adapter for one run and overrides `CAD_AI_PROVIDER`.
+Selecting a provider **does not contact it**.
 
 No application server is needed, and no HTTP endpoint was added — evaluation
 is not a production capability.
@@ -391,6 +394,22 @@ reads its own conventional variable — `ANTHROPIC_API_KEY` or
 `GEMINI_API_KEY` — and `CAD_AI_MODEL` / `CAD_AI_TIMEOUT_SECONDS` apply to
 whichever is chosen. Only *presence* of a credential is ever read; no value is
 returned, stored, compared or printed.
+
+A live run additionally requires `--live`. A credential being present is
+deliberately **not** sufficient — a benchmark spends money and must be started
+deliberately — so the default path reports `NOT_RUN`, builds no client and
+opens no socket even with a key configured:
+
+```
+==========================================================================
+GEMINI BENCHMARK: NOT_RUN
+==========================================================================
+No model was called: a live run requires --live.
+
+configured provider : gemini
+configured model    : gemini-2.5-pro
+credential present  : yes
+```
 
 Without a credential the command prints:
 
