@@ -16,17 +16,21 @@ because it needs a vendor SDK, and ``cad_core`` has none: no module in
 ``cad_core`` imports this package, this package's provider, or the SDK, and a
 test asserts it.
 
-The SDK import is lazy, inside :mod:`cad_ai.anthropic_provider`, so importing
-this package needs no provider installed.
+Each provider's SDK import is lazy -- inside
+:mod:`cad_ai.anthropic_provider` and :mod:`cad_ai.gemini_provider`
+respectively -- so importing this package needs no provider SDK installed, and
+no module outside a provider imports one.
 """
 
 from __future__ import annotations
 
 from cad_ai.config import (
+    PROVIDER_NAMES,
     AiConfig,
     AiConfigurationError,
     config_from_environment,
     credential_available,
+    resolve_provider,
 )
 from cad_ai.generation import (
     AiGenerationResult,
@@ -46,6 +50,7 @@ from cad_ai.specification import document_schema, response_schema
 
 __all__ = [
     "PROMPT_VERSION",
+    "PROVIDER_NAMES",
     "AiConfig",
     "AiConfigurationError",
     "AiGenerationResult",
@@ -59,6 +64,7 @@ __all__ = [
     "TextToCadService",
     "config_from_environment",
     "credential_available",
+    "resolve_provider",
     "document_schema",
     "prompt_fingerprint",
     "response_schema",

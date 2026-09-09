@@ -4,9 +4,13 @@ Status: **Stage 27 — a repeatable measurement harness for the configured
 LLM. Not a proof of general CAD competence.**
 
 > **This is an evaluation harness, not evidence of model quality.** It
-> measures one prompt, one provider and 35 hand-written cases. A good score
-> here would mean the model handles *these* prompts; it would say nothing
-> about arbitrary mechanical language, and this stage makes no such claim.
+> measures one prompt, one model and 35 hand-written cases per run. A good
+> score would mean that model handles *these* prompts; it would say nothing
+> about arbitrary mechanical language, and no such claim is made here.
+
+Two providers are implemented (Anthropic and Gemini). A run measures
+**whichever one it was pointed at** and records which; a result from one is
+never evidence about the other.
 
 ## Purpose
 
@@ -380,9 +384,13 @@ is not a production capability.
 
 ### Live-provider handling
 
-The live run uses the **existing** provider configuration
-(`ANTHROPIC_API_KEY`, `CAD_AI_MODEL`, `CAD_AI_TIMEOUT_SECONDS`). No second
-credential mechanism was invented, and the key is never printed.
+The live run uses the existing provider configuration. `CAD_AI_PROVIDER`
+picks the provider explicitly; with it unset, the first provider whose
+credential is present wins, in the order `anthropic`, `gemini`. Each provider
+reads its own conventional variable — `ANTHROPIC_API_KEY` or
+`GEMINI_API_KEY` — and `CAD_AI_MODEL` / `CAD_AI_TIMEOUT_SECONDS` apply to
+whichever is chosen. Only *presence* of a credential is ever read; no value is
+returned, stored, compared or printed.
 
 Without a credential the command prints:
 
@@ -473,7 +481,14 @@ Source-level: no evaluation module imports a CAD kernel, `pickle`, `marshal`,
 ## Limitations
 
 * **This is not a proof of general CAD competence.** 35 hand-written prompts,
-  one prompt version, one provider, one model. It measures what it measures.
+  one prompt version, one provider and one model **per run**. It measures what
+  it measures, for the provider it was pointed at.
+* **A cross-provider comparison needs care.** The prompt, schema and scoring
+  are identical across providers, which makes runs comparable — but the two
+  SDKs differ in what they expose. Gemini's offers `temperature` and `seed`
+  and Anthropic's offers neither; the harness sets none on either, and records
+  the difference, so a gap between two runs is not automatically a gap between
+  two models.
 * **The corpus encodes one reading of each prompt.** Where natural language
   is genuinely ambiguous, the corpus picks the specification-grounded reading
   and scores the model against it. A defensible alternative reading is

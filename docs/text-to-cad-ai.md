@@ -43,14 +43,23 @@ LLM -> arbitrary code -> CAD kernel
 
 | | |
 |---|---|
-| **provider** | Anthropic Messages API — exactly one, no registry, no plugin system |
+| **providers** | Anthropic Messages API (default) and Google Gemini. Two named implementations chosen by configuration — no registry, no discovery, no plugin system |
 | **SDK** | `anthropic` **1.4.0**, installed and inspected in this environment |
 | **default model** | `claude-sonnet-5`, overridable with `CAD_AI_MODEL`. A test asserts the default is a name the installed SDK's own `Model` literal lists, so no model identifier was invented |
-| **credential** | `ANTHROPIC_API_KEY`, read by the provider only |
-| **dependency** | declared as the optional `ai` extra of `cad-api`, and **imported lazily** inside `cad_ai.anthropic_provider` |
+| **credential** | `ANTHROPIC_API_KEY` / `GEMINI_API_KEY`, each read by its own provider only |
+| **dependency** | the optional `ai` (`anthropic>=1.4`) and `ai-gemini` (`google-genai>=2.22`) extras of `cad-api`, each **imported lazily** inside its own provider module |
 
 Nothing else was added: no agent framework, no orchestration library, no
-vector store, no RAG, no tokenizer, no second provider.
+vector store, no RAG, no tokenizer.
+
+**Stage 26 shipped one provider; a second was added in Stage 28** so the
+benchmark could run where a Gemini credential was available. That is a
+deliberate, named exception to Stage 26's "exactly one provider" rule, not a
+drift into pluggability: `PROVIDER_NAMES` lists both, `_live_model` branches
+on the configured name, and a third would mean writing a third class and
+naming it there. Nothing above `TextToCadModel` changed — the prompt, the
+schema, the outcome taxonomy and the validation flow are shared, so a run
+against either provider is comparable with a run against the other.
 
 ### What the real SDK actually offers, measured
 
@@ -62,6 +71,8 @@ messages.create parameters:
   metadata, output_config, service_tier, stop_sequences, stream, system,
   thinking, tool_choice, tools, user_profile_id, workspace_id, ...
 ```
+
+#### Anthropic
 
 * **structured output is genuine here.** `output_config` accepts
   `{"format": {"type": "json_schema", "schema": {...}}}` —
@@ -77,6 +88,33 @@ messages.create parameters:
   call this provider makes carries exactly
   `max_tokens, messages, model, output_config, system` and nothing else.
 
+#### Gemini
+
+Measured against the installed `google-genai` **2.22.0**:
+
+* `client.models.generate_content` takes exactly `model`, `contents` and
+  `config`.
+* `GenerateContentConfig` carries `system_instruction`, `response_mime_type`
+  and `response_json_schema` — the last takes a **raw JSON Schema**, which is
+  what this application already has, so the same `response_schema()` object
+  goes to both providers unchanged.
+* **It also carries `temperature`, `top_p`, `top_k` and `seed`, which the
+  Anthropic SDK does not.** None is set. Leaving the SDK's own defaults is
+  what keeps a Gemini run comparable to an Anthropic one; a run records both
+  that the controls exist (`deterministic_decoding: available`) and that none
+  was used (`decoding_controls_used: none`), so "could not be set" and "could
+  have been, was not" never read the same.
+* `tools`, `tool_config` and `automatic_function_calling` are **never sent**,
+  asserted the same way.
+* Usage is mapped onto the same `input_tokens` / `output_tokens` names the
+  other provider reports, so the harness aggregates one vocabulary.
+
+**The default model `gemini-2.5-pro` could not be verified offline.** The
+Anthropic SDK ships a `Model` literal that a test checks its default against;
+the Gemini SDK ships no equivalent, and `models.list()` needs a credential.
+It is overridable with `CAD_AI_MODEL` and is verified at run time by the API
+itself — an unknown name is a provider error, not a silent fallback.
+
 ## The AI boundary, exactly
 
 `apps/api/src/cad_ai/` — beside the HTTP transport, **outside `cad_core`**,
@@ -85,7 +123,8 @@ because it needs a vendor SDK and `cad_core` has none.
 | Module | Responsibility |
 |---|---|
 | `provider.py` | `TextToCadModel`, `ModelRequest`, `ModelResponse`, `ProviderError`. No vendor type crosses this line |
-| `anthropic_provider.py` | the one provider. **The only module in the repository that imports the SDK**, lazily |
+| `anthropic_provider.py` | the default provider. **The only module that imports `anthropic`**, lazily |
+| `gemini_provider.py` | the second provider. **The only module that imports `google.genai`**, lazily |
 | `specification.py` | the model-facing view of the contract, derived from `docs/cad-specification.md` and `cad_core.model`'s constants |
 | `prompt.py` | the one system prompt and its version |
 | `generation.py` | `TextToCadService.generate_cad_from_text`, `AiGenerationResult`, `GenerationOutcome` |

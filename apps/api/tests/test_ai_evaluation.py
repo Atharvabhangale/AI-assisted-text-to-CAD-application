@@ -44,7 +44,11 @@ from cad_ai.comparison import (
     compare_documents,
     describe,
 )
-from cad_ai.config import API_KEY_VARIABLE, credential_available
+from cad_ai.config import (
+    API_KEY_VARIABLE,
+    config_from_environment,
+    credential_available,
+)
 from cad_ai.evaluation import (
     CODE_MARKERS,
     RESULTS_DIRNAME,
@@ -1895,15 +1899,17 @@ class TestLiveBenchmark(unittest.TestCase):
     )
 
     def setUp(self) -> None:
+        from cad_ai.config import API_KEY_VARIABLES, PROVIDER_NAMES
+
         if not credential_available():
+            expected = " or ".join(
+                API_KEY_VARIABLES[name] for name in PROVIDER_NAMES
+            )
             self.skipTest(
-                f"{API_KEY_VARIABLE} is not set: the live benchmark was not run "
+                f"{expected} is not set: the live benchmark was not run "
                 "and no result was invented"
             )
-        try:
-            import anthropic  # noqa: F401
-        except ImportError:  # pragma: no cover
-            self.skipTest("the anthropic SDK is not installed")
+        self.config = config_from_environment()
         directory = tempfile.TemporaryDirectory()
         self.addCleanup(directory.cleanup)
         self.root = Path(directory.name)
@@ -1912,21 +1918,19 @@ class TestLiveBenchmark(unittest.TestCase):
         self.service = CadApplicationService.local(cache)
 
     def test_the_smoke_cases_run_against_the_real_model(self) -> None:
-        from cad_ai.anthropic_provider import AnthropicTextToCadModel
+        from cad_ai.evaluation import _live_model
 
         cases = {case.case_id: case for case in load_corpus()}
         selected = [cases[case_id] for case_id in self.SMOKE_CASE_IDS]
         evaluator = Evaluator(
-            TextToCadService(
-                AnthropicTextToCadModel.from_environment(), self.service
-            ),
+            TextToCadService(_live_model(self.config), self.service),
             build_service=self.service,
         )
         run = build_run(
             evaluator,
             selected,
-            provider="anthropic",
-            model=evaluator.service.model.inner.config.model,
+            provider=self.config.provider,
+            model=self.config.model,
             live=True,
         )
         # The harness ran; what the model scored is data, not a pass condition.

@@ -21,12 +21,13 @@ test = ["httpx2>=2.12"]
 # Serving is not part of this stage; one ASGI server, declared and not used by
 # any import in this package.
 serve = ["uvicorn>=0.30"]
-# The natural-language interpretation layer (cad_ai). One provider SDK, and
-# nothing else: no agent framework, no vector store, no orchestration library.
-# Optional so that the HTTP transport and cad-core install without it, and so
-# that importing cad_ai needs no SDK -- the import is lazy, inside
-# cad_ai.anthropic_provider.
+# The natural-language interpretation layer (cad_ai). Provider SDKs only: no
+# agent framework, no vector store, no orchestration library. Each is optional
+# and each is imported lazily by its own provider module, so the HTTP
+# transport and cad-core install without either, and importing cad_ai needs
+# neither.
 ai = ["anthropic>=1.4"]
+ai-gemini = ["google-genai>=2.22"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

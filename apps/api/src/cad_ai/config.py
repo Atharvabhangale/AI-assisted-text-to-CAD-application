@@ -16,14 +16,36 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Mapping, Optional, Tuple
 
-#: The provider this stage implements. One, deliberately.
+#: The default provider, and the one Stages 26-28 were written against.
 PROVIDER_NAME = "anthropic"
+
+#: The second provider. Two named implementations, chosen by configuration --
+#: **not** a plugin registry: there is no discovery, no entry point and no
+#: dynamic loading, and adding a third would mean writing a third class and
+#: naming it here.
+GEMINI_PROVIDER_NAME = "gemini"
+
+#: Every provider this application implements, in preference order.
+PROVIDER_NAMES: Tuple[str, ...] = (PROVIDER_NAME, GEMINI_PROVIDER_NAME)
 
 #: The credential variable, which is the Anthropic SDK's own conventional
 #: name. Read by the provider only, and never by anything else.
 API_KEY_VARIABLE = "ANTHROPIC_API_KEY"
+
+#: Gemini's conventional credential variable. Read by its provider only.
+GEMINI_API_KEY_VARIABLE = "GEMINI_API_KEY"
+
+#: The credential each provider expects.
+API_KEY_VARIABLES: Mapping[str, str] = {
+    PROVIDER_NAME: API_KEY_VARIABLE,
+    GEMINI_PROVIDER_NAME: GEMINI_API_KEY_VARIABLE,
+}
+
+#: Which provider to use. Unset means "whichever has a credential", resolved
+#: by :func:`resolve_provider` in the order of :data:`PROVIDER_NAMES`.
+PROVIDER_VARIABLE = "CAD_AI_PROVIDER"
 
 #: Which model to use. Overridable so a deployment is not pinned to this file.
 MODEL_VARIABLE = "CAD_AI_MODEL"
@@ -31,9 +53,16 @@ MODEL_VARIABLE = "CAD_AI_MODEL"
 #: The request timeout, in seconds.
 TIMEOUT_VARIABLE = "CAD_AI_TIMEOUT_SECONDS"
 
-#: The default model. A name the installed SDK itself lists as valid (see
-#: ``docs/text-to-cad-ai.md``); no model identifier was invented here.
-DEFAULT_MODEL = "claude-sonnet-5"
+#: The default model per provider. Each is a name the installed SDK itself
+#: lists as valid; no model identifier was invented here.
+DEFAULT_MODELS: Mapping[str, str] = {
+    PROVIDER_NAME: "claude-sonnet-5",
+    GEMINI_PROVIDER_NAME: "gemini-2.5-pro",
+}
+
+#: The default model for the default provider. Kept as its own name because
+#: Stage 26 pinned it and a test asserts the installed SDK knows it.
+DEFAULT_MODEL = DEFAULT_MODELS[PROVIDER_NAME]
 
 #: Seconds. One interpretation call, so a generous but finite bound.
 DEFAULT_TIMEOUT_SECONDS = 60.0
@@ -52,6 +81,11 @@ class AiConfig:
     provider: str = PROVIDER_NAME
 
     def __post_init__(self) -> None:
+        if self.provider not in PROVIDER_NAMES:
+            raise AiConfigurationError(
+                f"unknown provider {self.provider!r}; this application "
+                f"implements {', '.join(PROVIDER_NAMES)}"
+            )
         if not isinstance(self.model, str) or not self.model.strip():
             raise AiConfigurationError("a model name is required")
         if not isinstance(self.timeout_seconds, (int, float)) or isinstance(
@@ -72,12 +106,40 @@ class AiConfig:
         }
 
 
+def resolve_provider(environ: Optional[Dict[str, str]] = None) -> str:
+    """Which provider to use.
+
+    ``CAD_AI_PROVIDER`` decides when it is set. Otherwise the first provider
+    in :data:`PROVIDER_NAMES` whose credential is present wins, and the
+    default is returned when neither has one -- so an unconfigured
+    application still reports a provider rather than failing here, and the
+    provider itself refuses at construction.
+
+    Presence is all that is read. No credential value is returned, stored or
+    compared.
+    """
+    source = os.environ if environ is None else environ
+    chosen = source.get(PROVIDER_VARIABLE, "").strip().lower()
+    if chosen:
+        if chosen not in PROVIDER_NAMES:
+            raise AiConfigurationError(
+                f"{PROVIDER_VARIABLE} must be one of "
+                f"{', '.join(PROVIDER_NAMES)}; got {chosen!r}"
+            )
+        return chosen
+    for name in PROVIDER_NAMES:
+        if source.get(API_KEY_VARIABLES[name], "").strip():
+            return name
+    return PROVIDER_NAME
+
+
 def config_from_environment(
     environ: Optional[Dict[str, str]] = None,
 ) -> AiConfig:
     """Read :class:`AiConfig` from the environment. Never reads a credential."""
     source = os.environ if environ is None else environ
-    model = source.get(MODEL_VARIABLE, "").strip() or DEFAULT_MODEL
+    provider = resolve_provider(source)
+    model = source.get(MODEL_VARIABLE, "").strip() or DEFAULT_MODELS[provider]
     raw_timeout = source.get(TIMEOUT_VARIABLE, "").strip()
     if not raw_timeout:
         timeout = DEFAULT_TIMEOUT_SECONDS
@@ -89,28 +151,47 @@ def config_from_environment(
                 f"{TIMEOUT_VARIABLE} must be a number of seconds; "
                 f"got {raw_timeout!r}"
             ) from exc
-    return AiConfig(model=model, timeout_seconds=timeout)
+    return AiConfig(model=model, timeout_seconds=timeout, provider=provider)
 
 
-def credential_available(environ: Optional[Dict[str, str]] = None) -> bool:
+def credential_available(
+    environ: Optional[Dict[str, str]] = None,
+    provider: Optional[str] = None,
+) -> bool:
     """Whether a credential is present, without reading its value.
 
     Returns a boolean and nothing else. Used to decide whether a live
-    provider test runs or reports itself skipped.
+    provider test runs or reports itself skipped. With no ``provider`` it
+    answers for **any** implemented provider, so a live run is possible
+    whenever either credential exists.
     """
     source = os.environ if environ is None else environ
-    return bool(source.get(API_KEY_VARIABLE, "").strip())
+    names = (
+        PROVIDER_NAMES if provider is None else (provider,)
+    )
+    for name in names:
+        variable = API_KEY_VARIABLES.get(name)
+        if variable and source.get(variable, "").strip():
+            return True
+    return False
 
 
 __all__ = [
     "API_KEY_VARIABLE",
+    "API_KEY_VARIABLES",
     "DEFAULT_MODEL",
+    "DEFAULT_MODELS",
     "DEFAULT_TIMEOUT_SECONDS",
+    "GEMINI_API_KEY_VARIABLE",
+    "GEMINI_PROVIDER_NAME",
     "MODEL_VARIABLE",
     "PROVIDER_NAME",
+    "PROVIDER_NAMES",
+    "PROVIDER_VARIABLE",
     "TIMEOUT_VARIABLE",
     "AiConfig",
     "AiConfigurationError",
     "config_from_environment",
     "credential_available",
+    "resolve_provider",
 ]

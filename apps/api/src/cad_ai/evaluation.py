@@ -76,7 +76,9 @@ from cad_ai.comparison import (
     describe,
 )
 from cad_ai.config import (
-    API_KEY_VARIABLE,
+    API_KEY_VARIABLES,
+    GEMINI_PROVIDER_NAME,
+    PROVIDER_NAMES,
     AiConfig,
     config_from_environment,
     credential_available,
@@ -1389,6 +1391,11 @@ class OracleStub:
 
 
 def _live_model(config: AiConfig) -> TextToCadModel:
+    """The configured provider. Two named implementations, no registry."""
+    if config.provider == GEMINI_PROVIDER_NAME:
+        from cad_ai.gemini_provider import GeminiTextToCadModel
+
+        return GeminiTextToCadModel.from_environment(config)
     from cad_ai.anthropic_provider import AnthropicTextToCadModel
 
     return AnthropicTextToCadModel.from_environment(config)
@@ -1444,13 +1451,15 @@ def build_run(
     )
 
 
-def _decoding_settings() -> Dict[str, Any]:
-    """What the provider was actually asked for, recorded with the run.
+def _decoding_settings(provider: str = "") -> Dict[str, Any]:
+    """What the configured provider was actually asked for.
 
-    Stage 26 measured that the installed SDK's ``messages.create`` exposes no
-    ``temperature``, ``top_p``, ``top_k`` or ``seed``. That is re-checked at
-    run time rather than asserted from memory -- by the **provider**, which is
-    the only module in the repository that imports the SDK.
+    Probed at run time rather than asserted from memory, and probed **by the
+    provider**, since each owns knowledge of its own SDK. The two differ and
+    the difference matters: Anthropic's SDK exposes no decoding controls at
+    all, while Gemini's exposes ``temperature`` and ``seed``. Neither provider
+    sets any of them, and ``decoding_controls_used`` records that, so a run's
+    metadata distinguishes "could not be set" from "could have been, was not".
     """
     settings: Dict[str, Any] = {
         name: "not settable"
@@ -1458,9 +1467,13 @@ def _decoding_settings() -> Dict[str, Any]:
     }
     settings["deterministic_decoding"] = "unavailable"
     settings["sdk_version"] = "not installed"
+    settings["decoding_controls_used"] = "none"
     try:
-        from cad_ai.anthropic_provider import decoding_capabilities
-    except ImportError:  # pragma: no cover - the provider module is present
+        if provider == GEMINI_PROVIDER_NAME:
+            from cad_ai.gemini_provider import decoding_capabilities
+        else:
+            from cad_ai.anthropic_provider import decoding_capabilities
+    except ImportError:  # pragma: no cover - the provider modules are present
         return settings
     settings.update(decoding_capabilities())
     return settings
@@ -1564,14 +1577,22 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     config = config_from_environment()
     live = not arguments.self_check
-    if live and not credential_available():
+    if live and not credential_available(provider=config.provider):
+        expected = API_KEY_VARIABLES[config.provider]
+        others = ", ".join(
+            API_KEY_VARIABLES[name]
+            for name in PROVIDER_NAMES
+            if name != config.provider
+        )
         print(
             "\n".join(
                 (
                     "=" * 74,
                     "LIVE BENCHMARK: NOT_RUN",
                     "=" * 74,
-                    f"{API_KEY_VARIABLE} is not set, so no model was called.",
+                    f"{expected} is not set, so no model was called.",
+                    f"(configured provider: {config.provider}; "
+                    f"other implemented provider reads {others})",
                     "",
                     "No result was produced and none was invented.",
                     "This is not a model failure: nothing was measured.",
@@ -1620,7 +1641,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         )
         evaluator = Evaluator(service, build_service=build_service)
 
-        settings = _decoding_settings()
+        settings = _decoding_settings(provider_name)
         settings["build_cross_check"] = bool(arguments.build)
         settings["repeat_runs"] = arguments.repeat
 

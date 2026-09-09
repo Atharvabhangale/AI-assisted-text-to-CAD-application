@@ -109,6 +109,7 @@ GENERATION_MODULES: Tuple[str, ...] = (
     "anthropic_provider.py",
     "config.py",
     "generation.py",
+    "gemini_provider.py",
     "prompt.py",
     "provider.py",
     "specification.py",
@@ -123,6 +124,11 @@ def generation_sources() -> Tuple[Path, ...]:
 
 #: The plate every dimensional test uses, in millimetres.
 PLATE_SIZE = (100.0, 60.0, 10.0)
+
+#: The prompt fingerprint Stage 26 pinned. Unchanged by adding a provider.
+PROMPT_FINGERPRINT = (
+    "2b3e3395ec6efee0fe252cf88207e981dcdecfdb88ea847f075ce20a5ad9ba52"
+)
 
 #: Tolerance for a kernel-reported length. Never exact float equality.
 LENGTH_TOLERANCE_MM = 1e-9
@@ -1630,6 +1636,27 @@ print("OK")
         generation = (AI_SOURCE / "generation.py").read_text(encoding="utf-8")
         self.assertIn("self._service.validate_document(", generation)
 
+    def test_each_provider_sdk_is_imported_by_exactly_one_module(self) -> None:
+        """One SDK, one module -- for each provider, and lazily in both."""
+        for package, expected in (
+            ("anthropic", "anthropic_provider.py"),
+            ("google.genai", "gemini_provider.py"),
+        ):
+            with self.subTest(package=package):
+                importers = sorted(
+                    path.name
+                    for path in AI_SOURCE.glob("*.py")
+                    if any(
+                        name == package or name.startswith(package + ".")
+                        for name in _module_imports(path)
+                    )
+                )
+                self.assertEqual(importers, [expected])
+                source = (AI_SOURCE / expected).read_text(encoding="utf-8")
+                # Inside a function, never at module level.
+                head = source.split("def ", 1)[0]
+                self.assertNotIn(f"import {package.split('.')[0]}", head)
+
     def test_the_sdk_is_imported_by_exactly_one_module_and_lazily(self) -> None:
         importers = [
             path.name
@@ -2134,6 +2161,305 @@ class TestAnthropicProvider(unittest.TestCase):
         rendered = repr(vars(model)) + repr(model.config.to_dict())
         self.assertNotIn(secret, rendered)
         self.assertNotIn("api_key", model.config.to_dict())
+
+
+# --- the second provider, against a fake SDK client -------------------------
+
+
+class FakeGeminiModels:
+    """Records the call and returns a canned response."""
+
+    def __init__(self, response: Any = None, error: Optional[Exception] = None):
+        self.response = response
+        self.error = error
+        self.calls: List[Dict[str, Any]] = []
+
+    def generate_content(self, **parameters: Any) -> Any:
+        self.calls.append(parameters)
+        if self.error is not None:
+            raise self.error
+        return self.response
+
+
+class FakeGeminiClient:
+    def __init__(self, models: FakeGeminiModels) -> None:
+        self.models = models
+
+
+class FakeFinishReason:
+    def __init__(self, name: str = "STOP") -> None:
+        self.name = name
+
+
+class FakeGeminiUsage:
+    def __init__(self, prompt: int = 3800, candidates: int = 140) -> None:
+        self.prompt_token_count = prompt
+        self.candidates_token_count = candidates
+
+
+class FakeGeminiResponse:
+    def __init__(
+        self,
+        text: Optional[str] = "{}",
+        *,
+        model_version: str = "gemini-fake-001",
+        finish_reason: str = "STOP",
+    ) -> None:
+        self.text = text
+        self.model_version = model_version
+        self.usage_metadata = FakeGeminiUsage()
+        self.candidates = [type("C", (), {"finish_reason": FakeFinishReason(finish_reason)})()]
+
+
+class TestGeminiProvider(unittest.TestCase):
+    """The second provider, exercised without a network and without a key.
+
+    Every assertion here mirrors one made of the Anthropic provider, because
+    the point of the boundary is that both satisfy the same contract.
+    """
+
+    def setUp(self) -> None:
+        try:
+            from google import genai  # noqa: F401
+        except ImportError:  # pragma: no cover - reported, not failed
+            self.skipTest("the google-genai SDK is not installed")
+        from cad_ai.gemini_provider import (
+            JSON_MIME_TYPE,
+            GeminiTextToCadModel,
+        )
+
+        self.provider_class = GeminiTextToCadModel
+        self.json_mime = JSON_MIME_TYPE
+        self.config = AiConfig(
+            model="gemini-fake", timeout_seconds=5.0, provider="gemini"
+        )
+
+    def model(self, models: FakeGeminiModels) -> Any:
+        return self.provider_class(FakeGeminiClient(models), self.config)
+
+    def request(self, **overrides: Any) -> ModelRequest:
+        fields: Dict[str, Any] = {
+            "system": "instructions",
+            "user_text": "a 100 x 60 x 10 mm plate",
+            "output_schema": response_schema(),
+        }
+        fields.update(overrides)
+        return ModelRequest(**fields)
+
+    def test_the_provider_satisfies_the_neutral_interface(self) -> None:
+        model = self.model(FakeGeminiModels(FakeGeminiResponse()))
+        self.assertIsInstance(model, TextToCadModel)
+        self.assertEqual(model.name, "gemini")
+
+    def test_one_call_is_made_with_the_prompt_and_the_user_text(self) -> None:
+        models = FakeGeminiModels(FakeGeminiResponse('{"status":"unsupported"}'))
+        self.model(models).generate(self.request())
+        self.assertEqual(len(models.calls), 1)
+        call = models.calls[0]
+        self.assertEqual(sorted(call), ["config", "contents", "model"])
+        self.assertEqual(call["model"], "gemini-fake")
+        self.assertEqual(call["contents"], "a 100 x 60 x 10 mm plate")
+        self.assertEqual(call["config"].system_instruction, "instructions")
+        self.assertEqual(call["config"].max_output_tokens, 4096)
+
+    def test_structured_output_uses_the_sdks_real_parameters(self) -> None:
+        models = FakeGeminiModels(FakeGeminiResponse())
+        response = self.model(models).generate(self.request())
+        config = models.calls[0]["config"]
+        self.assertEqual(config.response_mime_type, self.json_mime)
+        self.assertEqual(config.response_json_schema, response_schema())
+        self.assertTrue(response.structured_output)
+        # The field names are the installed SDK's, not invented ones.
+        from google.genai import types
+
+        fields = types.GenerateContentConfig.model_fields
+        for name in ("system_instruction", "response_mime_type",
+                     "response_json_schema", "max_output_tokens"):
+            self.assertIn(name, fields, msg=name)
+
+    def test_no_decoding_control_is_set_even_though_this_sdk_offers_them(
+        self,
+    ) -> None:
+        # The measured difference from Anthropic: these exist here. None is
+        # set, so a Gemini baseline stays comparable and this stage stays a
+        # measurement rather than a tuning exercise.
+        from google.genai import types
+
+        from cad_ai.gemini_provider import decoding_capabilities
+
+        fields = types.GenerateContentConfig.model_fields
+        for name in ("temperature", "top_p", "top_k", "seed"):
+            self.assertIn(name, fields, msg=f"{name} should exist in this SDK")
+        models = FakeGeminiModels(FakeGeminiResponse())
+        self.model(models).generate(self.request())
+        config = models.calls[0]["config"]
+        for name in ("temperature", "top_p", "top_k", "seed"):
+            self.assertIsNone(getattr(config, name), msg=name)
+        capabilities = decoding_capabilities()
+        self.assertEqual(capabilities["temperature"], "settable")
+        self.assertEqual(capabilities["deterministic_decoding"], "available")
+        self.assertEqual(capabilities["decoding_controls_used"], "none")
+
+    def test_no_tools_are_ever_sent(self) -> None:
+        models = FakeGeminiModels(FakeGeminiResponse())
+        self.model(models).generate(self.request())
+        config = models.calls[0]["config"]
+        for name in ("tools", "tool_config", "automatic_function_calling"):
+            self.assertIsNone(getattr(config, name, None), msg=name)
+
+    def test_a_request_without_a_schema_asks_for_no_json_format(self) -> None:
+        models = FakeGeminiModels(FakeGeminiResponse())
+        response = self.model(models).generate(self.request(output_schema=None))
+        config = models.calls[0]["config"]
+        self.assertIsNone(config.response_mime_type)
+        self.assertIsNone(config.response_json_schema)
+        self.assertFalse(response.structured_output)
+
+    def test_metadata_is_reported_without_the_prompt_or_a_credential(self) -> None:
+        response = self.model(FakeGeminiModels(FakeGeminiResponse())).generate(
+            self.request()
+        )
+        self.assertEqual(response.provider, "gemini")
+        self.assertEqual(response.model, "gemini-fake-001")
+        self.assertEqual(response.stop_reason, "STOP")
+        # Mapped onto the same vocabulary the other provider reports, so the
+        # harness aggregates one set of names.
+        self.assertEqual(
+            response.usage, {"input_tokens": 3800, "output_tokens": 140}
+        )
+
+    def test_an_empty_answer_is_a_provider_error(self) -> None:
+        for text in (None, "", "   "):
+            with self.subTest(text=text):
+                model = self.model(FakeGeminiModels(FakeGeminiResponse(text)))
+                with self.assertRaises(ProviderError):
+                    model.generate(self.request())
+
+    def test_an_sdk_error_becomes_a_provider_error_with_a_safe_message(self) -> None:
+        from google.genai import errors
+
+        failures = (
+            errors.APIError(429, {"message": "quota exceeded"}),
+            RuntimeError("transport failed for x-goog-api-key=secret-value"),
+        )
+        for failure in failures:
+            with self.subTest(failure=type(failure).__name__):
+                model = self.model(FakeGeminiModels(error=failure))
+                with self.assertRaises(ProviderError) as caught:
+                    model.generate(self.request())
+                self.assertEqual(
+                    caught.exception.message,
+                    "the interpretation service is unavailable",
+                )
+                self.assertNotIn("secret-value", caught.exception.message)
+                self.assertIn(
+                    type(failure).__name__, caught.exception.detail or ""
+                )
+
+    def test_no_vendor_exception_escapes_the_boundary(self) -> None:
+        from google.genai import errors
+
+        model = self.model(
+            FakeGeminiModels(error=errors.APIError(500, {"message": "boom"}))
+        )
+        try:
+            model.generate(self.request())
+        except ProviderError:
+            pass
+        except errors.APIError:  # pragma: no cover
+            self.fail("a vendor exception crossed the provider boundary")
+
+    def test_construction_without_a_credential_is_refused(self) -> None:
+        from cad_ai.config import GEMINI_API_KEY_VARIABLE
+
+        with mock.patch.dict(
+            os.environ, {GEMINI_API_KEY_VARIABLE: ""}, clear=False
+        ):
+            with self.assertRaises(ProviderNotConfigured):
+                self.provider_class.from_environment(self.config)
+
+    def test_the_credential_is_handed_to_the_sdk_and_not_retained(self) -> None:
+        from google import genai
+
+        from cad_ai.config import GEMINI_API_KEY_VARIABLE
+
+        secret = "AIza-not-a-real-key-0123456789"
+        with mock.patch.dict(
+            os.environ, {GEMINI_API_KEY_VARIABLE: secret}, clear=False
+        ):
+            with mock.patch.object(genai, "Client") as constructor:
+                constructor.return_value = FakeGeminiClient(FakeGeminiModels())
+                model = self.provider_class.from_environment(self.config)
+        self.assertEqual(constructor.call_args.kwargs["api_key"], secret)
+        rendered = repr(vars(model)) + repr(model.config.to_dict())
+        self.assertNotIn(secret, rendered)
+        self.assertNotIn("api_key", model.config.to_dict())
+
+    def test_the_timeout_reaches_the_sdk(self) -> None:
+        from google import genai
+
+        from cad_ai.config import GEMINI_API_KEY_VARIABLE
+
+        with mock.patch.dict(
+            os.environ, {GEMINI_API_KEY_VARIABLE: "AIza-placeholder"}, clear=False
+        ):
+            with mock.patch.object(genai, "Client") as constructor:
+                constructor.return_value = FakeGeminiClient(FakeGeminiModels())
+                self.provider_class.from_environment(self.config)
+        options = constructor.call_args.kwargs["http_options"]
+        # The SDK takes milliseconds; the application configures seconds.
+        self.assertEqual(options["timeout"], 5000)
+
+
+class TestProviderParity(unittest.TestCase):
+    """Both providers answer the same contract, so callers cannot tell."""
+
+    def test_both_providers_expose_the_same_surface(self) -> None:
+        from cad_ai.anthropic_provider import AnthropicTextToCadModel
+        from cad_ai.gemini_provider import GeminiTextToCadModel
+
+        for provider in (AnthropicTextToCadModel, GeminiTextToCadModel):
+            with self.subTest(provider=provider.__name__):
+                self.assertTrue(hasattr(provider, "name"))
+                self.assertTrue(callable(provider.generate))
+                self.assertTrue(callable(provider.from_environment))
+                self.assertTrue(callable(getattr(provider, "config").fget))
+
+    def test_both_providers_declare_decoding_capabilities(self) -> None:
+        from cad_ai.anthropic_provider import (
+            decoding_capabilities as anthropic_capabilities,
+        )
+        from cad_ai.gemini_provider import (
+            decoding_capabilities as gemini_capabilities,
+        )
+
+        for capabilities in (anthropic_capabilities(), gemini_capabilities()):
+            for key in ("temperature", "seed", "deterministic_decoding",
+                        "sdk_version"):
+                self.assertIn(key, capabilities, msg=key)
+        # The measured difference, asserted so it cannot be forgotten.
+        self.assertEqual(
+            anthropic_capabilities()["deterministic_decoding"], "unavailable"
+        )
+        self.assertEqual(
+            gemini_capabilities()["deterministic_decoding"], "available"
+        )
+
+    def test_neither_provider_is_named_outside_its_own_module(self) -> None:
+        for module, vendor in (
+            ("anthropic_provider.py", "google"),
+            ("gemini_provider.py", "anthropic"),
+        ):
+            code = _code_tokens(AI_SOURCE / module)
+            self.assertNotIn(vendor, code, msg=f"{module} names {vendor}")
+
+    def test_the_same_prompt_and_schema_go_to_both(self) -> None:
+        # A run against either provider is comparable to the other, because
+        # nothing above the boundary changes.
+        from cad_ai.prompt import system_prompt
+
+        self.assertEqual(len(system_prompt()), 14943)
+        self.assertEqual(prompt_fingerprint(), PROMPT_FINGERPRINT)
 
 
 # --- configuration ---------------------------------------------------------
