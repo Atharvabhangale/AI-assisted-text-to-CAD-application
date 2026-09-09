@@ -22,7 +22,56 @@ What a model is allowed to do here is the whole point:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Mapping, Optional, Protocol, runtime_checkable
+from enum import Enum
+from typing import Any, Mapping, Optional, Protocol, Tuple, runtime_checkable
+
+
+class ProviderErrorKind(Enum):
+    """Why a provider call produced no answer. Vendor-neutral.
+
+    A benchmark has to tell "the model answered badly" from "the model never
+    answered", and among the latter it has to tell a rate limit from a
+    capacity shortage from a broken configuration -- because those say
+    completely different things about a run. This is that classification, and
+    it is deliberately coarse: each provider maps its own error space onto it,
+    and no vendor status code crosses the boundary.
+    """
+
+    #: The request was refused for exceeding a quota or request rate (429).
+    RATE_LIMITED = "rate_limited"
+
+    #: The model or service was temporarily unable to serve (503, overload).
+    CAPACITY = "capacity"
+
+    #: The request exceeded the configured timeout, or the transport failed.
+    TIMEOUT = "timeout"
+
+    #: The credential was rejected (401/403).
+    AUTHENTICATION = "authentication"
+
+    #: The request or the configuration was rejected (400, 404, unknown
+    #: model). A caller's fault, not a transient one.
+    INVALID_REQUEST = "invalid_request"
+
+    #: The provider answered, but with nothing usable in it.
+    EMPTY_RESPONSE = "empty_response"
+
+    #: Nothing was attempted: no SDK or no credential.
+    NOT_CONFIGURED = "not_configured"
+
+    #: Anything else. Recorded rather than forced into a bucket that would
+    #: misdescribe it.
+    OTHER = "other"
+
+
+#: The kinds that mean "try later, the request itself was fine". Separated
+#: because a run full of these has measured nothing about the model, while a
+#: run full of INVALID_REQUEST has measured a broken configuration.
+TRANSIENT_KINDS: Tuple[ProviderErrorKind, ...] = (
+    ProviderErrorKind.RATE_LIMITED,
+    ProviderErrorKind.CAPACITY,
+    ProviderErrorKind.TIMEOUT,
+)
 
 
 class ProviderError(Exception):
@@ -35,12 +84,27 @@ class ProviderError(Exception):
     :attr:`message` is safe to show a caller. :attr:`detail` is for
     development only and is **never** part of a public message: it may name
     the provider's own exception class, which is internal information.
+
+    :attr:`kind` is a vendor-neutral classification, safe to publish: it names
+    a category, never a provider's own status text.
     """
 
-    def __init__(self, message: str, *, detail: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        message: str,
+        *,
+        detail: Optional[str] = None,
+        kind: "ProviderErrorKind" = None,  # type: ignore[assignment]
+    ) -> None:
         super().__init__(message)
         self.message = message
         self.detail = detail
+        self.kind = kind if kind is not None else ProviderErrorKind.OTHER
+
+    @property
+    def transient(self) -> bool:
+        """Whether retrying later could plausibly succeed. Nothing retries."""
+        return self.kind in TRANSIENT_KINDS
 
 
 class ProviderNotConfigured(ProviderError):
@@ -49,6 +113,19 @@ class ProviderNotConfigured(ProviderError):
     Distinguished from a call that failed, because nothing was attempted. The
     tests use it to prove that no network call happens without configuration.
     """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        detail: Optional[str] = None,
+        kind: "ProviderErrorKind" = None,  # type: ignore[assignment]
+    ) -> None:
+        super().__init__(
+            message,
+            detail=detail,
+            kind=kind or ProviderErrorKind.NOT_CONFIGURED,
+        )
 
 
 @dataclass(frozen=True)
@@ -130,9 +207,11 @@ class TextToCadModel(Protocol):
 
 
 __all__ = [
+    "TRANSIENT_KINDS",
     "ModelRequest",
     "ModelResponse",
     "ProviderError",
+    "ProviderErrorKind",
     "ProviderNotConfigured",
     "TextToCadModel",
 ]

@@ -41,6 +41,7 @@ from cad_ai.provider import (
     ModelRequest,
     ModelResponse,
     ProviderError,
+    ProviderErrorKind,
     ProviderNotConfigured,
 )
 
@@ -124,17 +125,48 @@ class AnthropicTextToCadModel:
             message = self._client.messages.create(**parameters)
         except self._sdk.AnthropicError as exc:
             # The provider's own message may name hosts, headers or request
-            # ids. It stays in `detail`, which never reaches a public payload.
+            # ids. It stays in `detail`, which never reaches a public payload;
+            # only the vendor-neutral `kind` is published.
             raise ProviderError(
                 "the interpretation service is unavailable",
                 detail=f"{type(exc).__name__}: {exc}",
+                kind=self._classify(exc),
             ) from exc
         except Exception as exc:  # a transport or SDK fault, not an API error
             raise ProviderError(
                 "the interpretation service is unavailable",
                 detail=f"{type(exc).__name__}: {exc}",
+                kind=self._classify(exc),
             ) from exc
         return self._response(message, structured=structured)
+
+    def _classify(self, exc: BaseException) -> ProviderErrorKind:
+        """Map one SDK exception onto the neutral classification.
+
+        Uses the SDK's own exception classes, which are its stable contract,
+        rather than parsing status text.
+        """
+        sdk = self._sdk
+        pairs = (
+            ("RateLimitError", ProviderErrorKind.RATE_LIMITED),
+            ("OverloadedError", ProviderErrorKind.CAPACITY),
+            ("ServiceUnavailableError", ProviderErrorKind.CAPACITY),
+            ("APITimeoutError", ProviderErrorKind.TIMEOUT),
+            ("DeadlineExceededError", ProviderErrorKind.TIMEOUT),
+            ("AuthenticationError", ProviderErrorKind.AUTHENTICATION),
+            ("PermissionDeniedError", ProviderErrorKind.AUTHENTICATION),
+            ("NotFoundError", ProviderErrorKind.INVALID_REQUEST),
+            ("BadRequestError", ProviderErrorKind.INVALID_REQUEST),
+            ("UnprocessableEntityError", ProviderErrorKind.INVALID_REQUEST),
+            ("APIConnectionError", ProviderErrorKind.TIMEOUT),
+        )
+        for name, kind in pairs:
+            candidate = getattr(sdk, name, None)
+            if isinstance(candidate, type) and isinstance(exc, candidate):
+                return kind
+        if isinstance(exc, TimeoutError):
+            return ProviderErrorKind.TIMEOUT
+        return ProviderErrorKind.OTHER
 
     def _response(self, message: Any, *, structured: bool) -> ModelResponse:
         text = _text_of(message)
@@ -145,6 +177,7 @@ class AnthropicTextToCadModel:
                     "no text content in the response; stop_reason="
                     f"{getattr(message, 'stop_reason', None)!r}"
                 ),
+                kind=ProviderErrorKind.EMPTY_RESPONSE,
             )
         return ModelResponse(
             text=text,

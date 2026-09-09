@@ -46,6 +46,7 @@ from cad_ai.provider import (
     ModelRequest,
     ModelResponse,
     ProviderError,
+    ProviderErrorKind,
     ProviderNotConfigured,
 )
 
@@ -136,15 +137,18 @@ class GeminiTextToCadModel:
             )
         except self._errors.APIError as exc:
             # The provider's own message may name hosts, headers or request
-            # ids. It stays in `detail`, which never reaches a public payload.
+            # ids. It stays in `detail`, which never reaches a public payload;
+            # only the vendor-neutral `kind` is published.
             raise ProviderError(
                 "the interpretation service is unavailable",
                 detail=f"{type(exc).__name__}: {exc}",
+                kind=_classify(exc),
             ) from exc
         except Exception as exc:  # a transport or SDK fault, not an API error
             raise ProviderError(
                 "the interpretation service is unavailable",
                 detail=f"{type(exc).__name__}: {exc}",
+                kind=_classify(exc),
             ) from exc
         return self._response(response, structured=structured)
 
@@ -157,6 +161,7 @@ class GeminiTextToCadModel:
                     "no text content in the response; finish_reason="
                     f"{_finish_reason(response)!r}"
                 ),
+                kind=ProviderErrorKind.EMPTY_RESPONSE,
             )
         return ModelResponse(
             text=text,
@@ -166,6 +171,41 @@ class GeminiTextToCadModel:
             stop_reason=_finish_reason(response),
             usage=_usage_of(response),
         )
+
+
+#: HTTP status -> the neutral classification. Read from the SDK error's own
+#: ``code`` attribute where it has one, so no status text is parsed.
+_STATUS_KINDS = {
+    400: ProviderErrorKind.INVALID_REQUEST,
+    401: ProviderErrorKind.AUTHENTICATION,
+    403: ProviderErrorKind.AUTHENTICATION,
+    404: ProviderErrorKind.INVALID_REQUEST,
+    408: ProviderErrorKind.TIMEOUT,
+    429: ProviderErrorKind.RATE_LIMITED,
+    500: ProviderErrorKind.OTHER,
+    503: ProviderErrorKind.CAPACITY,
+    504: ProviderErrorKind.TIMEOUT,
+}
+
+
+def _classify(exc: BaseException) -> ProviderErrorKind:
+    """Map one SDK exception onto the neutral classification.
+
+    Prefers the error's own numeric ``code``; falls back to the exception
+    type for transport faults. Nothing here parses a provider's prose, so a
+    reworded message cannot silently change a benchmark's error counts.
+    """
+    code = getattr(exc, "code", None)
+    if isinstance(code, int) and code in _STATUS_KINDS:
+        return _STATUS_KINDS[code]
+    if isinstance(exc, TimeoutError):
+        return ProviderErrorKind.TIMEOUT
+    name = type(exc).__name__
+    if name in ("ServerError",):
+        return ProviderErrorKind.CAPACITY
+    if name in ("ClientError",):
+        return ProviderErrorKind.INVALID_REQUEST
+    return ProviderErrorKind.OTHER
 
 
 def _text_of(response: Any) -> str:

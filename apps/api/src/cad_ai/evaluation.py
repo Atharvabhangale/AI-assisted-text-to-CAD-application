@@ -92,9 +92,11 @@ from cad_ai.generation import (
 )
 from cad_ai.prompt import PROMPT_VERSION, prompt_fingerprint
 from cad_ai.provider import (
+    TRANSIENT_KINDS,
     ModelRequest,
     ModelResponse,
     ProviderError,
+    ProviderErrorKind,
     TextToCadModel,
 )
 from cad_ai.specification import SUPPORTED_FEATURE_TYPES, UNSUPPORTED_FEATURE_TYPES
@@ -105,6 +107,13 @@ RESULTS_DIRNAME = "evaluation-results"
 
 #: Overrides the results directory.
 RESULTS_VARIABLE = "CAD_AI_EVAL_RESULTS_DIR"
+
+#: Seconds to wait between provider calls by default. Free-tier Gemini
+#: returns 503 "high demand" when a 35-case corpus is sent back to back, so
+#: the harness paces itself rather than retrying -- which it must never do.
+#: **No interval guarantees anything**: this only reduces how hard a free tier
+#: is pushed, and the run records what was actually observed.
+DEFAULT_PACE_SECONDS = 12.0
 
 #: The outputs a build cross-check asks for. Geometry and render only: the
 #: question is "does this document execute", not "can we export it".
@@ -462,6 +471,10 @@ class EvaluationResult:
     #: The provider's **public** message only. Never its diagnostics.
     provider_error: Optional[str] = None
 
+    #: Why the provider produced nothing, vendor-neutral. ``None`` when the
+    #: model answered.
+    provider_error_kind: Optional[ProviderErrorKind] = None
+
     #: Defaulted parameters the model omitted, from its raw answer.
     omitted_defaults: Tuple[str, ...] = ()
 
@@ -480,6 +493,33 @@ class EvaluationResult:
     detail: Optional[str] = None
 
     @property
+    def measured(self) -> bool:
+        """Whether the model actually answered this case.
+
+        A case the provider never served has measured **nothing** about the
+        model. It is neither correct nor incorrect, and every quality rate
+        excludes it -- otherwise a capacity outage would read as a model
+        failing 35 cases.
+        """
+        return self.model_outcome is not GenerationOutcome.MODEL_ERROR
+
+    @property
+    def geometry_correct(self) -> Optional[bool]:
+        """Whether every *geometric* field matches. Labels are ignored.
+
+        ``None`` when there was nothing to compare. This is the number that
+        answers "did the model build the requested part", as distinct from
+        :attr:`exact_match`, which also fails on a renamed feature.
+        """
+        if self.exact_match is None or not self.measured:
+            return None
+        if self.candidate_document is None:
+            return False
+        return not any(
+            difference.geometric for difference in self.differences
+        )
+
+    @property
     def correct(self) -> bool:
         """The case's own definition of success. Deliberately strict.
 
@@ -487,6 +527,9 @@ class EvaluationResult:
         expected one (labels aside). For a clarification or a refusal: the
         outcome matched. For an adversarial case: the boundary held.
         """
+        if not self.measured:
+            # Nothing was measured, so nothing can be correct.
+            return False
         if self.expected_outcome is ExpectedOutcome.EXPECTED_BOUNDARY_HELD:
             return bool(self.boundary_held)
         if not self.outcome_match:
@@ -504,7 +547,9 @@ class EvaluationResult:
             "category": self.category,
             "expected_outcome": self.expected_outcome.value,
             "model_outcome": self.model_outcome.value,
+            "measured": self.measured,
             "correct": self.correct,
+            "geometry_correct": self.geometry_correct,
             "parsed": self.parsed,
             "validated": self.validated,
             "outcome_match": self.outcome_match,
@@ -525,6 +570,11 @@ class EvaluationResult:
             "issues": list(self.issues),
             "rule_codes": list(self.rule_codes),
             "provider_error": self.provider_error,
+            "provider_error_kind": (
+                self.provider_error_kind.value
+                if self.provider_error_kind is not None
+                else None
+            ),
             "omitted_defaults": list(self.omitted_defaults),
             "boundary_held": self.boundary_held,
             "boundary_findings": list(self.boundary_findings),
@@ -569,6 +619,12 @@ class GroupMetrics:
     """
 
     total: int = 0
+
+    #: Cases in this group the model actually answered. **Every quality rate
+    #: below divides by this, not by `total`** -- a case the provider never
+    #: served measured nothing and must not read as a model failure.
+    measured: int = 0
+
     outcome_matched: int = 0
 
     #: Cases in this group that offered a candidate document at all.
@@ -579,6 +635,7 @@ class GroupMetrics:
 
     exact_matches: int = 0
     semantic_matches: int = 0
+    geometry_correct: int = 0
     validated: int = 0
     false_generations: int = 0
     fields_compared: int = 0
@@ -587,8 +644,11 @@ class GroupMetrics:
     def to_dict(self) -> Dict[str, Any]:
         return {
             "total": self.total,
+            "measured": self.measured,
+            "unmeasured": self.total - self.measured,
+            "coverage_rate": _rate(self.measured, self.total),
             "outcome_matched": self.outcome_matched,
-            "outcome_match_rate": _rate(self.outcome_matched, self.total),
+            "outcome_match_rate": _rate(self.outcome_matched, self.measured),
             "documents_offered": self.documents_offered,
             "validated": self.validated,
             "valid_document_rate": _rate(self.validated, self.documents_offered),
@@ -597,8 +657,10 @@ class GroupMetrics:
             "exact_document_match_rate": _rate(self.exact_matches, self.comparable),
             "semantic_matches": self.semantic_matches,
             "semantic_match_rate": _rate(self.semantic_matches, self.comparable),
+            "geometry_correct": self.geometry_correct,
+            "geometry_correct_rate": _rate(self.geometry_correct, self.comparable),
             "false_generations": self.false_generations,
-            "false_generation_rate": _rate(self.false_generations, self.total),
+            "false_generation_rate": _rate(self.false_generations, self.measured),
             "fields_compared": self.fields_compared,
             "fields_matching": self.fields_matching,
             "field_correctness_rate": _rate(
@@ -614,7 +676,17 @@ class EvaluationMetrics:
     total_cases: int = 0
     completed: int = 0
     skipped: int = 0
+
+    #: Cases the model actually answered. The denominator of every quality
+    #: figure in this run.
+    measured: int = 0
+
     provider_errors: int = 0
+
+    #: Provider failures by vendor-neutral kind, so a rate limit, a capacity
+    #: shortage and a bad configuration are never one number.
+    provider_error_kinds: Mapping[str, int] = field(default_factory=dict)
+
     invalid_outputs: int = 0
     unparseable_outputs: int = 0
     correct: int = 0
@@ -629,18 +701,32 @@ class EvaluationMetrics:
 
     def to_dict(self) -> Dict[str, Any]:
         return {
+            # Provider reliability. Nothing here is a statement about the
+            # model: these are the cases where no model output exists.
+            "provider_reliability": {
+                "cases_attempted": self.total_cases,
+                "genuine_responses": self.measured,
+                "provider_failures": self.provider_errors,
+                "coverage_rate": _rate(self.measured, self.total_cases),
+                "by_kind": dict(self.provider_error_kinds),
+                "fully_measured": self.measured == self.total_cases,
+            },
+            # Model quality. Every rate divides by `measured`, never by the
+            # case count, so a capacity outage cannot read as model failure.
             "totals": {
                 "total_cases": self.total_cases,
                 "completed": self.completed,
+                "measured": self.measured,
+                "unmeasured": self.total_cases - self.measured,
                 "skipped": self.skipped,
                 "provider_errors": self.provider_errors,
                 "invalid_outputs": self.invalid_outputs,
                 "unparseable_outputs": self.unparseable_outputs,
                 "correct": self.correct,
                 # Deliberately not called "accuracy": it is the fraction of
-                # cases whose own success criterion was met, and each group's
-                # criterion differs. The per-group table below is the answer.
-                "correct_rate": _rate(self.correct, self.completed),
+                # MEASURED cases whose own success criterion was met, and each
+                # group's criterion differs. The per-group table is the answer.
+                "correct_rate": _rate(self.correct, self.measured),
             },
             "groups": {
                 name: group.to_dict() for name, group in self.groups.items()
@@ -672,7 +758,8 @@ def summarise(results: Sequence[EvaluationResult]) -> EvaluationMetrics:
     groups: Dict[str, Dict[str, int]] = {}
     categories: Dict[str, int] = {}
     provider_errors = invalid = unparseable = correct = 0
-    violations = 0
+    measured = violations = 0
+    error_kinds: Dict[str, int] = {}
     model_seconds = build_seconds = 0.0
     usage: Dict[str, int] = {}
     usage_available = False
@@ -683,11 +770,13 @@ def summarise(results: Sequence[EvaluationResult]) -> EvaluationMetrics:
             key,
             {
                 "total": 0,
+                "measured": 0,
                 "outcome_matched": 0,
                 "documents_offered": 0,
                 "comparable": 0,
                 "exact_matches": 0,
                 "semantic_matches": 0,
+                "geometry_correct": 0,
                 "validated": 0,
                 "false_generations": 0,
                 "fields_compared": 0,
@@ -695,13 +784,17 @@ def summarise(results: Sequence[EvaluationResult]) -> EvaluationMetrics:
             },
         )
         bucket["total"] += 1
+        if result.measured:
+            bucket["measured"] += 1
+        if result.geometry_correct:
+            bucket["geometry_correct"] += 1
         if result.outcome_match:
             bucket["outcome_matched"] += 1
-        if result.validated is not None:
+        if result.measured and result.validated is not None:
             bucket["documents_offered"] += 1
         if result.validated:
             bucket["validated"] += 1
-        if result.exact_match is not None:
+        if result.measured and result.exact_match is not None:
             bucket["comparable"] += 1
         if result.exact_match:
             bucket["exact_matches"] += 1
@@ -727,8 +820,16 @@ def summarise(results: Sequence[EvaluationResult]) -> EvaluationMetrics:
 
         for category in result.categories:
             categories[category.value] = categories.get(category.value, 0) + 1
+        if result.measured:
+            measured += 1
         if result.model_outcome is GenerationOutcome.MODEL_ERROR:
             provider_errors += 1
+            kind = (
+                result.provider_error_kind.value
+                if result.provider_error_kind is not None
+                else ProviderErrorKind.OTHER.value
+            )
+            error_kinds[kind] = error_kinds.get(kind, 0) + 1
         if result.model_outcome is GenerationOutcome.INVALID_MODEL_OUTPUT:
             invalid += 1
         if not result.parsed and result.model_outcome is not (
@@ -750,7 +851,9 @@ def summarise(results: Sequence[EvaluationResult]) -> EvaluationMetrics:
         total_cases=len(results),
         completed=len(results),
         skipped=0,
+        measured=measured,
         provider_errors=provider_errors,
+        provider_error_kinds=dict(sorted(error_kinds.items())),
         invalid_outputs=invalid,
         unparseable_outputs=unparseable,
         correct=correct,
@@ -847,6 +950,13 @@ class RunMetadata:
     settings: Mapping[str, Any] = field(default_factory=dict)
     store_prompts: bool = True
 
+    #: Seconds waited between provider calls. 0 means back to back.
+    pace_seconds: float = 0.0
+
+    #: The corpus's own version, so a result can never be read against a
+    #: different set of cases than the one it ran.
+    corpus_version: str = ""
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "run_id": self.run_id,
@@ -856,7 +966,9 @@ class RunMetadata:
             "prompt_version": self.prompt_version,
             "prompt_fingerprint": self.prompt_fingerprint,
             "live": self.live,
+            "corpus_version": self.corpus_version,
             "corpus_size": self.corpus_size,
+            "pace_seconds": self.pace_seconds,
             "settings": dict(self.settings),
             "store_prompts": self.store_prompts,
         }
@@ -981,7 +1093,13 @@ class Evaluator:
 
         boundary_held: Optional[bool] = None
         findings: Tuple[str, ...] = ()
-        if case.expected_outcome is ExpectedOutcome.EXPECTED_BOUNDARY_HELD:
+        if (
+            case.expected_outcome is ExpectedOutcome.EXPECTED_BOUNDARY_HELD
+            and outcome is not GenerationOutcome.MODEL_ERROR
+        ):
+            # Only judged when the model actually answered. A provider outage
+            # says nothing about whether the boundary held, and counting it as
+            # a violation would turn a capacity failure into a safety finding.
             findings = self._boundary_findings(generation, outcome_match)
             boundary_held = not findings
 
@@ -996,8 +1114,11 @@ class Evaluator:
             validated=validated,
             outcome_match=outcome_match,
             exact_match=(
+                # `None` means "not comparable", and an unanswered case is
+                # exactly that: a provider outage is not a wrong document.
                 None
                 if case.expected_document is None
+                or outcome is GenerationOutcome.MODEL_ERROR
                 else comparison.status is SemanticStatus.MATCH
             ),
             semantic_status=comparison.status,
@@ -1016,6 +1137,7 @@ class Evaluator:
                 if outcome is GenerationOutcome.MODEL_ERROR
                 else None
             ),
+            provider_error_kind=generation.error_kind,
             omitted_defaults=_omitted_defaults(payload),
             boundary_held=boundary_held,
             boundary_findings=findings,
@@ -1030,10 +1152,20 @@ class Evaluator:
         self,
         cases: Sequence[EvaluationCase],
         *,
+        pace_seconds: float = 0.0,
         progress: Optional[Callable[[EvaluationCase, EvaluationResult], None]] = None,
     ) -> Tuple[EvaluationResult, ...]:
+        """Every case, **strictly one at a time**, optionally paced.
+
+        Never concurrent and never bursty: the cases run in order, and
+        ``pace_seconds`` is waited *between* them. Pacing is not a retry --
+        each case still gets exactly one generation attempt, and a failure
+        stays a failure.
+        """
         results: List[EvaluationResult] = []
-        for case in cases:
+        for index, case in enumerate(cases):
+            if index and pace_seconds > 0:
+                time.sleep(pace_seconds)
             result = self.evaluate(case)
             results.append(result)
             if progress is not None:
@@ -1225,6 +1357,8 @@ def format_report(run: EvaluationRun, *, verbose: bool = False) -> str:
     lines.append(f"started           {meta.started_at}")
     lines.append(f"provider / model  {meta.provider} / {meta.model}")
     lines.append(f"prompt            {meta.prompt_version}  {meta.prompt_fingerprint}")
+    lines.append(f"corpus            v{meta.corpus_version}, {meta.corpus_size} cases")
+    lines.append(f"pacing            {meta.pace_seconds:g}s between calls, 1 at a time")
     lines.append(f"live provider     {'yes' if meta.live else 'NO -- stub provider'}")
     for key, value in sorted(meta.settings.items()):
         lines.append(f"  {key:<16}{value}")
@@ -1235,14 +1369,26 @@ def format_report(run: EvaluationRun, *, verbose: bool = False) -> str:
     lines.append("-" * 74)
     for result in run.results:
         expected = result.expected_outcome.value.replace("expected_", "")
-        verdict = "ok" if result.correct else "MISS"
-        if result.exact_match is False and result.outcome_match:
+        if not result.measured:
+            kind = (
+                result.provider_error_kind.value
+                if result.provider_error_kind is not None
+                else "unknown"
+            )
+            verdict = f"NO DATA ({kind})"
+        elif result.correct:
+            verdict = "ok"
+        elif result.geometry_correct is False:
+            verdict = "MISS (geometry)"
+        elif result.exact_match is False and result.outcome_match:
             verdict = "MISS (document)"
+        else:
+            verdict = "MISS"
         lines.append(
             f"{result.case_id:<34}{expected:<12}{result.model_outcome.value:<20}"
             f"{verdict}"
         )
-        if verbose or not result.correct:
+        if verbose or (not result.correct and result.measured):
             for difference in result.differences[:6]:
                 lines.append(
                     f"    {difference.field_path}: expected "
@@ -1260,15 +1406,44 @@ def format_report(run: EvaluationRun, *, verbose: bool = False) -> str:
     lines.append("")
 
     metrics = run.metrics.to_dict()
+
+    reliability = metrics["provider_reliability"]
+    lines.append("-" * 74)
+    lines.append("PROVIDER RELIABILITY  (not a statement about the model)")
+    lines.append("-" * 74)
+    lines.append(f"  {'cases attempted':<28}{reliability['cases_attempted']}")
+    lines.append(f"  {'genuine model responses':<28}{reliability['genuine_responses']}")
+    lines.append(f"  {'provider failures':<28}{reliability['provider_failures']}")
+    lines.append(f"  {'coverage':<28}{reliability['coverage_rate']}")
+    for kind, count in reliability["by_kind"].items():
+        lines.append(f"      {kind:<24}{count}")
+    lines.append(
+        f"  {'FULLY MEASURED':<28}"
+        f"{'yes' if reliability['fully_measured'] else 'NO'}"
+    )
+    lines.append("")
+
+    lines.append("-" * 74)
+    lines.append("CATEGORY COVERAGE  (a case with no response measures nothing)")
+    lines.append("-" * 74)
+    by_category: Dict[str, List[EvaluationResult]] = {}
+    for result in run.results:
+        by_category.setdefault(result.category, []).append(result)
+    for name in sorted(by_category):
+        group = by_category[name]
+        answered = sum(1 for item in group if item.measured)
+        note = "" if answered else "   <-- NO DATA"
+        lines.append(f"  {name:<20}{answered}/{len(group)} answered{note}")
+    lines.append("")
+
     totals = metrics["totals"]
     lines.append("-" * 74)
-    lines.append("TOTALS")
+    lines.append("MODEL QUALITY  (over measured cases only)")
     lines.append("-" * 74)
     for key in (
         "total_cases",
-        "completed",
-        "skipped",
-        "provider_errors",
+        "measured",
+        "unmeasured",
         "invalid_outputs",
         "unparseable_outputs",
         "correct",
@@ -1276,7 +1451,7 @@ def format_report(run: EvaluationRun, *, verbose: bool = False) -> str:
         lines.append(f"  {key:<24}{totals[key]}")
     lines.append(
         f"  {'correct_rate':<24}{totals['correct_rate']}"
-        "   (per-case criterion; see the group table)"
+        "   (of MEASURED cases; per-case criterion, see the group table)"
     )
     lines.append("")
 
@@ -1285,11 +1460,15 @@ def format_report(run: EvaluationRun, *, verbose: bool = False) -> str:
     lines.append("-" * 74)
     for name, group in metrics["groups"].items():
         lines.append(f"  {name}  (n={group['total']})")
+        lines.append(
+            f"      {'measured':<28}{group['measured']}/{group['total']}"
+        )
         for key in (
             "outcome_match_rate",
             "valid_document_rate",
             "exact_document_match_rate",
             "semantic_match_rate",
+            "geometry_correct_rate",
             "false_generation_rate",
             "field_correctness_rate",
         ):
@@ -1417,11 +1596,14 @@ def build_run(
     repeats: int = 0,
     store_prompts: bool = True,
     settings: Optional[Mapping[str, Any]] = None,
+    pace_seconds: float = 0.0,
     progress: Optional[Callable[[EvaluationCase, EvaluationResult], None]] = None,
 ) -> EvaluationRun:
     """Run every case, then the repeat study, then aggregate."""
     started = datetime.now(timezone.utc)
-    results = evaluator.evaluate_many(cases, progress=progress)
+    results = evaluator.evaluate_many(
+        cases, pace_seconds=pace_seconds, progress=progress
+    )
     summaries: List[RepeatSummary] = []
     if repeats > 1:
         by_id = {case.case_id: case for case in cases}
@@ -1443,6 +1625,8 @@ def build_run(
         corpus_size=len(cases),
         settings=dict(settings or {}),
         store_prompts=store_prompts,
+        pace_seconds=pace_seconds,
+        corpus_version=corpus_data.CORPUS_VERSION,
     )
     return EvaluationRun(
         metadata=metadata,
@@ -1512,6 +1696,16 @@ def _parse_arguments(argv: Optional[Sequence[str]]) -> argparse.Namespace:
             "actually call the provider. REQUIRED for any live run: a "
             "credential being present is deliberately not enough, because a "
             "benchmark that spends money must never start by accident."
+        ),
+    )
+    parser.add_argument(
+        "--pace",
+        type=float,
+        default=DEFAULT_PACE_SECONDS,
+        help=(
+            f"seconds between provider calls (default {DEFAULT_PACE_SECONDS}). "
+            "Requests are never concurrent and never burst. Pacing is not a "
+            "retry: each case still gets exactly one attempt."
         ),
     )
     parser.add_argument(
@@ -1717,6 +1911,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         settings = _decoding_settings(provider_name)
         settings["build_cross_check"] = bool(arguments.build)
         settings["repeat_runs"] = arguments.repeat
+        settings["pace_seconds"] = arguments.pace
+        settings["concurrent_requests"] = 1
+        settings["retries_added"] = "none"
 
         def report_progress(
             case: EvaluationCase, result: EvaluationResult
@@ -1724,7 +1921,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             mark = "ok  " if result.correct else "MISS"
             print(f"  {mark} {case.case_id}", flush=True)
 
-        print(f"running {len(selected)} case(s) against {provider_name}/{model_name}")
+        print(
+            f"running {len(selected)} case(s) against "
+            f"{provider_name}/{model_name}, one at a time, "
+            f"{arguments.pace:g}s apart"
+        )
         run = build_run(
             evaluator,
             selected,
@@ -1735,6 +1936,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             repeats=arguments.repeat,
             store_prompts=not arguments.no_prompts,
             settings=settings,
+            pace_seconds=arguments.pace,
             progress=report_progress,
         )
         print()

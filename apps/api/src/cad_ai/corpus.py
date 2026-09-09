@@ -535,6 +535,11 @@ CORPUS: Tuple[Mapping[str, Any], ...] = (
     },
 )
 
+#: The corpus's identity. Bumped by hand only when a case actually changes,
+#: so a saved result can never be read against a different set of cases than
+#: the one it ran against. Stage 27's 35 cases, unchanged since.
+CORPUS_VERSION = "1.0.0"
+
 #: The categories, in report order.
 CATEGORIES: Tuple[str, ...] = (
     "A-box",
@@ -576,6 +581,7 @@ def by_category() -> Dict[str, List[str]]:
 
 __all__ = [
     "CATEGORIES",
+    "CORPUS_VERSION",
     "CORPUS",
     "REPEAT_CASE_IDS",
     "UNITS",

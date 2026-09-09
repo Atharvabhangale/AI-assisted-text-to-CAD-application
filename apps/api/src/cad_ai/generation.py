@@ -43,6 +43,7 @@ from cad_ai.provider import (
     ModelRequest,
     ModelResponse,
     ProviderError,
+    ProviderErrorKind,
     TextToCadModel,
 )
 from cad_ai.specification import response_schema
@@ -169,6 +170,11 @@ class AiGenerationResult:
     #: Specification rule codes, when the validator rejected the candidate.
     rule_codes: Tuple[str, ...] = ()
 
+    #: Why the provider produced nothing, for ``MODEL_ERROR``. A
+    #: vendor-neutral category, safe to publish -- it names a class of
+    #: failure, never a provider's own status text. ``None`` otherwise.
+    error_kind: Optional[ProviderErrorKind] = None
+
     metadata: GenerationMetadata = field(default_factory=GenerationMetadata)
 
     #: Development-only diagnostic. **Never** part of a public payload:
@@ -195,6 +201,9 @@ class AiGenerationResult:
             "questions": list(self.questions),
             "issues": list(self.issues),
             "rule_codes": list(self.rule_codes),
+            "error_kind": (
+                self.error_kind.value if self.error_kind is not None else None
+            ),
             "metadata": self.metadata.to_dict(),
         }
 
@@ -282,6 +291,7 @@ class TextToCadService:
                 outcome=GenerationOutcome.MODEL_ERROR,
                 message=PUBLIC_MESSAGES[GenerationOutcome.MODEL_ERROR],
                 metadata=metadata,
+                error_kind=exc.kind,
                 detail=exc.detail or exc.message,
             )
         return self._interpret(response, metadata)
