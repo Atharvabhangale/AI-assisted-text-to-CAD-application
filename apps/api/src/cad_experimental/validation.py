@@ -27,8 +27,11 @@ from .plan import (
     AXES,
     BOX,
     CONSTRUCTIVE_TYPES,
+    CHAMFER,
     CONSUMING_TYPES,
     CYLINDER,
+    EDGE_MODIFIER_LENGTH,
+    EDGE_MODIFIER_TYPES,
     FILLET,
     MODIFIER_TYPES,
     SELECT_AXIS_PARALLEL,
@@ -203,10 +206,15 @@ def validate_plan(plan: OperationPlan) -> PlanValidation:
             _subtract(
                 operation, index, where, declared, live, consumed, problems
             )
-        elif kind == FILLET:
-            # S16 is decidable from the document; E4 and E5 are not, and are
-            # left to the engine.
-            _positive(operation.radius, f"{where}.radius", problems)
+        elif kind in EDGE_MODIFIER_TYPES:
+            # One branch for both edge modifiers: they differ only in the
+            # name of their length. S16/S17 are decidable from the document;
+            # E4 and E5 are not, and are left to the engine.
+            length_name = EDGE_MODIFIER_LENGTH[kind]
+            length = (
+                operation.radius if kind == FILLET else operation.distance
+            )
+            _positive(length, f"{where}.{length_name}", problems)
             _selector(operation.edges, f"{where}.edges", problems)
             _reference(
                 operation.target, f"{where}.target", operation.id, index,
@@ -239,7 +247,9 @@ def validate_plan(plan: OperationPlan) -> PlanValidation:
         # type rather than a defaulted `getattr`, so nothing in this package
         # looks an attribute up by a computed name.
         position = (
-            None if kind in (SUBTRACT, FILLET) else operation.position
+            None
+            if kind in (SUBTRACT, FILLET, CHAMFER)
+            else operation.position
         )
         if position is not None:
             for name, value in (

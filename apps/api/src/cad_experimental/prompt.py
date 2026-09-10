@@ -18,7 +18,7 @@ from .plan import AXES, OPERATION_TYPES, PlanStatus
 
 #: Bumped on any change to the text below. A measurement without this is not
 #: reproducible.
-PROMPT_VERSION = "2026-09-10.4"
+PROMPT_VERSION = "2026-09-10.5"
 
 SYSTEM_PROMPT = f"""\
 You turn a description of a mechanical part into a CAD operation plan.
@@ -143,6 +143,20 @@ So choose the selector the description asks for and let the engine judge it.
 Do not try to avoid a failure by narrowing a selection, and do not invent a
 way to name individual edges -- there isn't one.
 
+## chamfer
+Bevels selected edges of an existing solid by an equal setback.
+
+Identical in shape to `fillet`, with one difference: the length is called
+`distance`, not `radius`.
+
+  target    the id of an earlier solid.
+  distance  required, number > 0. The setback, the SAME on both faces meeting
+            at the edge. There is no angle and no asymmetric chamfer.
+  edges     required. The same selector object as a fillet.
+
+Everything a fillet says about the selector, about being a modifier, and about
+the engine deciding feasibility applies here unchanged.
+
 There are no other operations. Nothing else exists in this language.
 
 # Units
@@ -191,6 +205,11 @@ and a fillet carries `target`, a radius and an edge selector:
     "parameters": {{"radius": 2,
                   "edges": {{"select": "axis_parallel", "axis": "Z"}}}}}}
 
+and a chamfer is the same with `distance`:
+
+  {{"id": "bevel", "type": "chamfer", "target": "plate",
+    "parameters": {{"distance": 2, "edges": {{"select": "all"}}}}}}
+
 An id starts with a letter or underscore and contains only letters, digits,
 underscores and hyphens. Ids are unique within a plan.
 
@@ -204,9 +223,9 @@ the request needs anything this language does not have. That includes, and is
 not limited to: spheres, cones, tori, pyramids, prisms and every other shape
 that is not a box or a cylinder; blind or partial holes, counterbores,
 countersinks and threads (only a plain hole all the way through exists);
-union; intersection; joining, merging or combining two solids; chamfers and
-bevels; variable or per-edge fillet radii; naming an individual edge; shells;
-ribs; sketches;
+union; intersection; joining, merging or combining two solids; variable or
+per-edge fillet radii; angled or asymmetric chamfers; naming an individual
+edge; shells; ribs; sketches;
 extrusions; revolves; sweeps; lofts; patterns; mirrors; assemblies;
 tolerances; materials; surface finish; and any dimension given as a formula, a
 range or a tolerance.

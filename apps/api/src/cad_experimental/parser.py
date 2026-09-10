@@ -46,8 +46,10 @@ from .plan import (
     SELECTOR_FIELDS,
     SUBTRACT,
     THROUGH_HOLE,
+    CHAMFER,
     FILLET,
     BoxOperation,
+    ChamferOperation,
     CylinderOperation,
     EdgeSelector,
     FilletOperation,
@@ -232,6 +234,15 @@ def _operation(entry: Any, index: int) -> Operation:
             id=identifier,
             target=target,
             radius=_number(parameters["radius"], f"{where}.radius"),
+            edges=_selector(parameters["edges"], where),
+        )
+
+    if kind == CHAMFER:
+        assert target is not None
+        return ChamferOperation(
+            id=identifier,
+            target=target,
+            distance=_number(parameters["distance"], f"{where}.distance"),
             edges=_selector(parameters["edges"], where),
         )
 

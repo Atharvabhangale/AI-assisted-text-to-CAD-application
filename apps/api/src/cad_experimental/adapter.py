@@ -32,6 +32,8 @@ plan             V1 document
                  references pass through unchanged, and **``tools`` keeps its
                  order**, because Section C.4 removes the tools in list order
                  and reordering them would change the geometry
+``chamfer``      ``{"type": "chamfer", "target", "distance", "edges"}`` --
+                 identical to ``fillet`` with the contract's own field name
 ``fillet``       ``{"type": "fillet", "target", "radius", "edges"}`` -- the
                  selector object passes through **as it is**. There is no
                  selector logic here: ``cad_core.edge_selection`` owns that,
@@ -58,6 +60,7 @@ from typing import Any, Dict, List
 
 from .plan import (
     BOX,
+    CHAMFER,
     CYLINDER,
     FILLET,
     SUBTRACT,
@@ -156,6 +159,16 @@ def _feature(operation: Any) -> Dict[str, Any]:
             "type": FILLET,
             "target": operation.target,
             "radius": operation.radius,
+            "edges": operation.edges.to_dict(),
+        }
+    elif kind == CHAMFER:
+        # The same pass-through as a fillet, with the contract's own field
+        # name. No selector logic here either.
+        return {
+            "id": operation.id,
+            "type": CHAMFER,
+            "target": operation.target,
+            "distance": operation.distance,
             "edges": operation.edges.to_dict(),
         }
     elif kind == SUBTRACT:

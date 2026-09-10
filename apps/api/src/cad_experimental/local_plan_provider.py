@@ -94,6 +94,18 @@ def _fillet(
     }
 
 
+def _chamfer(
+    identifier: str, target: str, distance: float, edges: Dict[str, Any]
+) -> Dict[str, Any]:
+    """A chamfer: the same shape as a fillet, with `distance`."""
+    return {
+        "id": identifier,
+        "type": "chamfer",
+        "target": target,
+        "parameters": {"distance": distance, "edges": dict(edges)},
+    }
+
+
 def _through_hole(
     identifier: str,
     target: str,
@@ -159,6 +171,14 @@ _PLATE_FILLET_X = _PLATE - 4.0 * 100.0 * _CORNER
 _DRILLED = _PLATE - math.pi * 10.0**2 * 10.0
 _DRILLED_FILLET_X = _DRILLED - 4.0 * 100.0 * _CORNER
 _DRILLED_FILLET_Y = _DRILLED - 4.0 * 60.0 * _CORNER
+
+#: Stage 36 expectations. A chamfer at distance d removes a right triangle
+#: of area d^2/2 per unit of edge length -- an exact decimal, unlike a
+#: fillet's quarter-circle.
+_BEVEL = 2.0**2 / 2.0
+_PLATE_CHAMFER_Z = _PLATE - 4.0 * 10.0 * _BEVEL
+_PLATE_CHAMFER_X = _PLATE - 4.0 * 100.0 * _BEVEL
+_DRILLED_CHAMFER_X = _DRILLED - 4.0 * 100.0 * _BEVEL
 
 #: The two selectors, spelled once.
 _ALL = {"select": "all"}
@@ -672,6 +692,144 @@ FIXTURES: Mapping[str, Dict[str, Any]] = {
                 ),
                 _subtract("bore", "plate", ["tool"]),
                 _fillet("round", "tool", 2, _axis_parallel("Z")),
+            ],
+        },
+    },
+    # --- Stage 36: chamfer --------------------------------------------
+    "chamfer-box-z": {
+        "description": "the plate's four vertical corners bevelled, d2",
+        "expected_bounding_box": {"x": 100.0, "y": 60.0, "z": 10.0},
+        "expected_volume_mm3": _PLATE_CHAMFER_Z,
+        "expected_face_count": 10,
+        "expected_hole_count": 0,
+        "plan": {
+            "status": "generated",
+            "summary": "a plate with bevelled vertical corners",
+            "operations": [
+                _box("plate", 100, 60, 10),
+                _chamfer("bevel", "plate", 2, _axis_parallel("Z")),
+            ],
+        },
+    },
+    "chamfer-box-x": {
+        "description": "the plate's four X-parallel edges bevelled, d2",
+        "expected_bounding_box": {"x": 100.0, "y": 60.0, "z": 10.0},
+        "expected_volume_mm3": _PLATE_CHAMFER_X,
+        "expected_face_count": 10,
+        "expected_hole_count": 0,
+        "plan": {
+            "status": "generated",
+            "summary": "a plate with bevelled long edges",
+            "operations": [
+                _box("plate", 100, 60, 10),
+                _chamfer("bevel", "plate", 2, _axis_parallel("X")),
+            ],
+        },
+    },
+    "chamfer-box-all": {
+        "description": (
+            "every edge of the plate bevelled -- cross-checked against "
+            "cad-core rather than a number"
+        ),
+        "expected_bounding_box": {"x": 100.0, "y": 60.0, "z": 10.0},
+        "expected_volume_mm3": CROSS_CHECKED,
+        "expected_face_count": 26,
+        "expected_hole_count": 0,
+        "plan": {
+            "status": "generated",
+            "summary": "a plate with every edge bevelled",
+            "operations": [
+                _box("plate", 100, 60, 10),
+                _chamfer("bevel", "plate", 2, _ALL),
+            ],
+        },
+    },
+    "chamfer-after-through-hole": {
+        "description": (
+            "a drilled plate, then its X-parallel corners bevelled. Z would "
+            "select the cavity seam and fail E5"
+        ),
+        "expected_bounding_box": {"x": 100.0, "y": 60.0, "z": 10.0},
+        "expected_volume_mm3": _DRILLED_CHAMFER_X,
+        "expected_face_count": 11,
+        "expected_hole_count": 1,
+        "plan": {
+            "status": "generated",
+            "summary": "a drilled plate with bevelled long edges",
+            "operations": [
+                _box("plate", 100, 60, 10),
+                _through_hole("hole1", "plate", 20, 50, 30),
+                _chamfer("bevel", "plate", 2, _axis_parallel("X")),
+            ],
+        },
+    },
+    "reject-chamfer-no-edges": {
+        "description": "a chamfer selector that matches nothing -- rule E4",
+        "expects": BUILD_REJECTED,
+        "expected_codes": ("E4",),
+        "plan": {
+            "status": "generated",
+            "summary": "a chamfer that would affect nothing",
+            "operations": [
+                _cylinder("rod", 20, 50, axis="+Z"),
+                _chamfer("bevel", "rod", 2, _axis_parallel("X")),
+            ],
+        },
+    },
+    "reject-chamfer-seam": {
+        "description": (
+            "a chamfer on a cylinder's parameterisation seam -- rule E5, and "
+            "the whole feature fails rather than bevelling a subset"
+        ),
+        "expects": BUILD_REJECTED,
+        "expected_codes": ("E5",),
+        "plan": {
+            "status": "generated",
+            "summary": "a chamfer on a seam",
+            "operations": [
+                _cylinder("rod", 20, 50, axis="+Z"),
+                _chamfer("bevel", "rod", 2, _axis_parallel("Z")),
+            ],
+        },
+    },
+    "reject-chamfer-zero-distance": {
+        "description": "a chamfer of distance zero (rule S17)",
+        "expects": PLAN_REJECTED,
+        "expected_codes": ("P4",),
+        "plan": {
+            "status": "generated",
+            "summary": "a chamfer with no setback",
+            "operations": [
+                _box("plate", 100, 60, 10),
+                _chamfer("bevel", "plate", 0, _axis_parallel("Z")),
+            ],
+        },
+    },
+    "reject-chamfer-signed-axis": {
+        "description": "a signed selector axis on a chamfer",
+        "expects": PLAN_REJECTED,
+        "expected_codes": ("parse",),
+        "plan": {
+            "status": "generated",
+            "summary": "a signed selector axis",
+            "operations": [
+                _box("plate", 100, 60, 10),
+                _chamfer("bevel", "plate", 2,
+                         {"select": "axis_parallel", "axis": "+Z"}),
+            ],
+        },
+    },
+    "reject-chamfer-modifier-target": {
+        "description": "a chamfer targeting a fillet's id",
+        "expects": PLAN_REJECTED,
+        "expected_codes": ("P11",),
+        "plan": {
+            "status": "generated",
+            "summary": "a modifier id used as a solid",
+            "operations": [
+                _box("plate", 100, 60, 10),
+                _fillet("round", "plate", 2, _axis_parallel("Z")),
+                _chamfer("bevel", "round", 2, _axis_parallel("X")),
             ],
         },
     },

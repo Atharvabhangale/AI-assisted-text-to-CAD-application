@@ -23,9 +23,15 @@ CYLINDER = "cylinder"
 THROUGH_HOLE = "through_hole"
 SUBTRACT = "subtract"
 FILLET = "fillet"
+CHAMFER = "chamfer"
 OPERATION_TYPES: Tuple[str, ...] = (
-    BOX, CYLINDER, THROUGH_HOLE, SUBTRACT, FILLET,
+    BOX, CYLINDER, THROUGH_HOLE, SUBTRACT, FILLET, CHAMFER,
 )
+
+#: The two edge-selecting modifiers. They differ only in the name and
+#: meaning of their one length: a fillet's ``radius`` rounds, a chamfer's
+#: ``distance`` sets back on both adjoining faces.
+EDGE_MODIFIER_TYPES: Tuple[str, ...] = (FILLET, CHAMFER)
 
 #: Operations that add a solid to the solid set, named by their own id
 #: (specification Section B.4).
@@ -35,7 +41,9 @@ CONSTRUCTIVE_TYPES: Tuple[str, ...] = (BOX, CYLINDER)
 #: modifier replaces its target **in place** and the result keeps the
 #: **target's** id -- the modifier's own id never names a solid. So four
 #: holes in a plate all target the plate, and never each other.
-MODIFIER_TYPES: Tuple[str, ...] = (THROUGH_HOLE, SUBTRACT, FILLET)
+MODIFIER_TYPES: Tuple[str, ...] = (
+    THROUGH_HOLE, SUBTRACT, FILLET, CHAMFER,
+)
 
 #: Modifiers that additionally **consume** solids: each id in ``tools`` is
 #: removed from the solid set and can never be referenced again (Section
@@ -83,6 +91,15 @@ THROUGH_HOLE_OPTIONAL: Tuple[str, ...] = ("axis",)
 FILLET_REQUIRED: Tuple[str, ...] = ("radius", "edges")
 FILLET_OPTIONAL: Tuple[str, ...] = ()
 
+#: A chamfer is the same shape with a `distance` instead of a `radius`. V1
+#: has only the symmetric, equal-distance chamfer: no angle, no asymmetry.
+CHAMFER_REQUIRED: Tuple[str, ...] = ("distance", "edges")
+CHAMFER_OPTIONAL: Tuple[str, ...] = ()
+
+#: Which length each edge modifier carries. One place, so the parser, the
+#: validator and the adapter cannot disagree about it.
+EDGE_MODIFIER_LENGTH: Dict[str, str] = {FILLET: "radius", CHAMFER: "distance"}
+
 PARAMETERS: Dict[str, Tuple[Tuple[str, ...], Tuple[str, ...]]] = {
     BOX: (BOX_REQUIRED, BOX_OPTIONAL),
     CYLINDER: (CYLINDER_REQUIRED, CYLINDER_OPTIONAL),
@@ -92,6 +109,7 @@ PARAMETERS: Dict[str, Tuple[Tuple[str, ...], Tuple[str, ...]]] = {
     # V1 feature carries no parameter fields -- see OPERATION_FIELDS.
     SUBTRACT: ((), ()),
     FILLET: (FILLET_REQUIRED, FILLET_OPTIONAL),
+    CHAMFER: (CHAMFER_REQUIRED, CHAMFER_OPTIONAL),
 }
 
 #: The keys an edge selector may carry. ``axis`` is present exactly when
@@ -112,6 +130,7 @@ OPERATION_FIELDS: Dict[str, Tuple[str, ...]] = {
     # shape for a subtract rather than two.
     SUBTRACT: ("id", "type", "target", "tools"),
     FILLET: ("id", "type", "target", "parameters"),
+    CHAMFER: ("id", "type", "target", "parameters"),
 }
 
 #: The most tools one subtract may list. A part is not built from hundreds of
@@ -296,6 +315,30 @@ class FilletOperation:
 
 
 @dataclass(frozen=True)
+class ChamferOperation:
+    """Bevels selected edges of ``target`` by an equal setback.
+
+    Section C.6 exactly: the setback is the same on **both** adjoining faces,
+    so there is no angle parameter and no asymmetric form in V1.
+
+    Structurally identical to :class:`FilletOperation` apart from the name of
+    its length, and it shares the same selector, the same reference rules and
+    the same division of labour: ``distance > 0`` (rule S17) is decidable
+    here, while E4 and E5 belong to the engine.
+    """
+
+    TYPE = CHAMFER
+
+    id: str
+    target: str
+    distance: float
+    edges: EdgeSelector
+
+    def parameters(self) -> Dict[str, Any]:
+        return {"distance": self.distance, "edges": self.edges.to_dict()}
+
+
+@dataclass(frozen=True)
 class SubtractOperation:
     """Boolean subtraction: each solid in ``tools`` is removed from ``target``.
 
@@ -461,6 +504,7 @@ def plan_schema() -> Dict[str, Any]:
                                 "axis": {"type": "string", "enum": list(AXES)},
                                 "position": point,
                                 "radius": {"type": "number"},
+                                "distance": {"type": "number"},
                                 "edges": {
                                     "type": "object",
                                     "properties": {
@@ -505,6 +549,10 @@ __all__ = [
     "SELECT_ALL",
     "SELECT_AXIS_PARALLEL",
     "SELECT_MODES",
+    "CHAMFER",
+    "EDGE_MODIFIER_LENGTH",
+    "EDGE_MODIFIER_TYPES",
+    "ChamferOperation",
     "EdgeSelector",
     "FilletOperation",
     "SUBTRACT",
