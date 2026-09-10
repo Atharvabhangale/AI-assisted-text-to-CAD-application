@@ -100,8 +100,17 @@ function showOperations(operations: readonly PlanOperation[]): void {
     }
     item.append(heading);
 
+    if (operation.tools !== undefined && operation.tools.length > 0) {
+      // A subtract's tools are consumed, so naming them is the difference
+      // between a readable history and a list of ids.
+      const tools = document.createElement("div");
+      tools.className = "op-tools";
+      tools.textContent = `tools: [${operation.tools.join(", ")}] · consumed`;
+      item.append(tools);
+    }
+
     const list = document.createElement("dl");
-    for (const [name, value] of Object.entries(operation.parameters)) {
+    for (const [name, value] of Object.entries(operation.parameters ?? {})) {
       const term = document.createElement("dt");
       term.textContent = name;
       const definition = document.createElement("dd");

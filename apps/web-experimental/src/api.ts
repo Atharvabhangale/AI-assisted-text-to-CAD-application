@@ -14,9 +14,12 @@ export const API_BASE: string =
 export interface PlanOperation {
   readonly id: string;
   readonly type: string;
-  /** Present on a modifier (through_hole): the solid it acts on. */
+  /** Present on a modifier (through_hole, subtract): the solid it acts on. */
   readonly target?: string;
-  readonly parameters: Readonly<Record<string, unknown>>;
+  /** Present on a subtract: the solids it removes, and consumes, in order. */
+  readonly tools?: readonly string[];
+  /** Absent on a subtract, which has no parameters. */
+  readonly parameters?: Readonly<Record<string, unknown>>;
 }
 
 export interface PlanResponse {

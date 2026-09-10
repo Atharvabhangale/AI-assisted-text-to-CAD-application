@@ -32,14 +32,39 @@ class FixtureTests(unittest.TestCase):
         ):
             self.assertIn(name, lpp.FIXTURES)
 
-    def test_every_fixture_is_a_parseable_valid_plan(self):
+    def test_every_building_fixture_is_a_parseable_valid_plan(self):
         from cad_experimental.parser import parse_plan
         from cad_experimental.validation import validate_plan
 
-        for name in lpp.FIXTURE_NAMES:
+        for name in lpp.building_fixtures():
             with self.subTest(fixture=name):
                 plan = parse_plan(lpp.fixture_plan(name))
                 self.assertTrue(validate_plan(plan).valid)
+
+    def test_every_rejecting_fixture_really_is_invalid(self):
+        """Stage 34 added fixtures whose purpose is to be refused.
+
+        They would be worthless if they quietly became valid, so the
+        complement of the test above is asserted rather than assumed.
+        """
+        from cad_experimental.parser import PlanParseError, parse_plan
+        from cad_experimental.validation import validate_plan
+
+        self.assertTrue(lpp.rejecting_fixtures())
+        for name in lpp.rejecting_fixtures():
+            with self.subTest(fixture=name):
+                expects = lpp.fixture(name)["expects"]
+                try:
+                    plan = parse_plan(lpp.fixture_plan(name))
+                except PlanParseError:
+                    self.assertEqual(expects, lpp.PLAN_REJECTED)
+                    continue
+                if expects == lpp.PLAN_REJECTED:
+                    self.assertFalse(validate_plan(plan).valid)
+                else:
+                    # A BUILD_REJECTED fixture is a valid plan on purpose:
+                    # the existing V1 validator is what refuses it.
+                    self.assertTrue(validate_plan(plan).valid)
 
     def test_expected_volumes_are_computed_from_the_fixture(self):
         """Not transcribed: a typo in an expectation would hide a real error."""
@@ -162,6 +187,7 @@ class ProviderTests(unittest.TestCase):
 
 class StampTests(unittest.TestCase):
     def test_every_result_is_stamped(self):
+        """Including the rejection fixtures: a refusal is a result too."""
         for name in lpp.FIXTURE_NAMES:
             with self.subTest(fixture=name):
                 result = lpp.run_fixture(name, build=False)
@@ -188,8 +214,10 @@ class GeometryTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        # Only the fixtures that are meant to build. The rejection fixtures
+        # have their own tests in test_subtract.py.
         cls.results = {
-            name: lpp.run_fixture(name) for name in lpp.FIXTURE_NAMES
+            name: lpp.run_fixture(name) for name in lpp.building_fixtures()
         }
 
     def test_every_fixture_builds_a_single_real_solid(self):

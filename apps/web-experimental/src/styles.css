@@ -127,3 +127,9 @@ code { font-family: ui-monospace, monospace; color: var(--accent); }
   color: var(--warn); font-family: ui-monospace, monospace;
   font-size: 12px; margin-left: 8px;
 }
+
+/* A subtract's tool list. Consumed solids, so worth calling out. */
+.tree .op-tools {
+  color: var(--bad); font-family: ui-monospace, monospace;
+  font-size: 12px; margin-top: 6px;
+}

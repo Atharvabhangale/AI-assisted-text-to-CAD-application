@@ -72,6 +72,16 @@ def _cylinder(
     return {"id": identifier, "type": "cylinder", "parameters": parameters}
 
 
+def _subtract(identifier: str, target: str, tools: List[str]) -> Dict[str, Any]:
+    """A subtract. No `parameters`: its whole input is two references."""
+    return {
+        "id": identifier,
+        "type": "subtract",
+        "target": target,
+        "tools": list(tools),
+    }
+
+
 def _through_hole(
     identifier: str,
     target: str,
@@ -109,6 +119,18 @@ _BORED_ROD = math.pi * (10.0**2 - 4.0**2) * 50.0
 #: The four hole centres of the plate fixture. All inside the plate with
 #: clearance: at radius 4 the outermost spans 86..94 in x and 46..54 in y.
 _FOUR_HOLES = ((10.0, 10.0), (90.0, 10.0), (10.0, 50.0), (90.0, 50.0))
+
+#: Stage 34 expectations, computed from geometry.
+_CUBE_50 = 50.0**3
+_CUBE_BORED = _CUBE_50 - math.pi * 10.0**2 * 50.0
+_PLATE_SUBTRACT_BORE = _PLATE - math.pi * 10.0**2 * 10.0
+_PLATE_TWO_TOOLS = _PLATE - 2.0 * math.pi * 8.0**2 * 10.0
+
+#: What a fixture is for. Most build; some exist to be *rejected*, because a
+#: rule that is never exercised is a rule nobody has tested.
+BUILDS = "builds"
+PLAN_REJECTED = "plan_rejected"
+BUILD_REJECTED = "build_rejected"
 
 
 #: The development fixtures. Hand-written plans, with the geometry each is
@@ -217,6 +239,173 @@ FIXTURES: Mapping[str, Dict[str, Any]] = {
             "operations": [_cylinder("body", 16, 30, axis="+X")],
         },
     },
+    # --- Stage 34: subtract -------------------------------------------
+    "subtract-cube-bore": {
+        "description": (
+            "a 50 mm cube with a d20 cylindrical tool subtracted through it"
+        ),
+        "expected_bounding_box": {"x": 50.0, "y": 50.0, "z": 50.0},
+        "expected_volume_mm3": _CUBE_BORED,
+        "expected_face_count": 7,
+        "expected_hole_count": 1,
+        "plan": {
+            "status": "generated",
+            "summary": "a 50 mm cube bored through by a 20 mm cylinder",
+            "operations": [
+                _box("body", 50, 50, 50),
+                # The tool spans the cube's full depth: position is the base
+                # centre, so z=0 with height 50 covers 0..50 exactly.
+                _cylinder(
+                    "tool", 20, 50,
+                    position={"x": 25, "y": 25, "z": 0}, axis="+Z",
+                ),
+                _subtract("cut", "body", ["tool"]),
+            ],
+        },
+    },
+    "subtract-plate-bore": {
+        "description": (
+            "the 100 x 60 x 10 plate cut by a d20 cylindrical tool "
+            "(subtract, not through_hole)"
+        ),
+        "expected_bounding_box": {"x": 100.0, "y": 60.0, "z": 10.0},
+        "expected_volume_mm3": _PLATE_SUBTRACT_BORE,
+        "expected_face_count": 7,
+        "expected_hole_count": 1,
+        "plan": {
+            "status": "generated",
+            "summary": "a plate cut through by a 20 mm cylindrical tool",
+            "operations": [
+                _box("plate", 100, 60, 10),
+                # Overshoots both faces, so the cut is unambiguously through.
+                _cylinder(
+                    "tool", 20, 20,
+                    position={"x": 50, "y": 30, "z": -5}, axis="+Z",
+                ),
+                _subtract("bore", "plate", ["tool"]),
+            ],
+        },
+    },
+    "subtract-two-tools": {
+        "description": "one plate, two cylindrical tools, one subtract",
+        "expected_bounding_box": {"x": 100.0, "y": 60.0, "z": 10.0},
+        "expected_volume_mm3": _PLATE_TWO_TOOLS,
+        "expected_face_count": 8,
+        "expected_hole_count": 2,
+        "plan": {
+            "status": "generated",
+            "summary": "a plate with two cylindrical cut-outs",
+            "operations": [
+                _box("plate", 100, 60, 10),
+                _cylinder(
+                    "tool_a", 16, 20,
+                    position={"x": 25, "y": 30, "z": -5}, axis="+Z",
+                ),
+                _cylinder(
+                    "tool_b", 16, 20,
+                    position={"x": 75, "y": 30, "z": -5}, axis="+Z",
+                ),
+                _subtract("cut", "plate", ["tool_a", "tool_b"]),
+            ],
+        },
+    },
+    # --- Stage 34: fixtures that must be REJECTED ---------------------
+    "reject-consumed-tool": {
+        "description": "reusing a tool after a subtract has consumed it",
+        "expects": PLAN_REJECTED,
+        "expected_codes": ("P12",),
+        "plan": {
+            "status": "generated",
+            "summary": "a tool used twice",
+            "operations": [
+                _box("plate", 100, 60, 10),
+                _cylinder(
+                    "tool", 16, 20,
+                    position={"x": 25, "y": 30, "z": -5}, axis="+Z",
+                ),
+                _subtract("first", "plate", ["tool"]),
+                _subtract("second", "plate", ["tool"]),
+            ],
+        },
+    },
+    "reject-empty-tools": {
+        "description": "a subtract with an empty tool list (rule S14)",
+        "expects": PLAN_REJECTED,
+        # Refused by the parser: an empty list is a malformed subtract
+        # rather than a bad reference, so it never becomes a typed plan.
+        "expected_codes": ("parse",),
+        "plan": {
+            "status": "generated",
+            "summary": "a subtract that removes nothing",
+            "operations": [
+                _box("plate", 100, 60, 10),
+                _subtract("cut", "plate", []),
+            ],
+        },
+    },
+    "reject-target-in-tools": {
+        "description": "a subtract listing its own target as a tool (S15)",
+        "expects": PLAN_REJECTED,
+        "expected_codes": ("P14",),
+        "plan": {
+            "status": "generated",
+            "summary": "a solid subtracted from itself",
+            "operations": [
+                _box("plate", 100, 60, 10),
+                _subtract("cut", "plate", ["plate"]),
+            ],
+        },
+    },
+    "reject-future-tool": {
+        "description": "a tool that appears later in the plan",
+        "expects": PLAN_REJECTED,
+        "expected_codes": ("P10",),
+        "plan": {
+            "status": "generated",
+            "summary": "a forward reference",
+            "operations": [
+                _box("plate", 100, 60, 10),
+                _subtract("cut", "plate", ["tool"]),
+                _cylinder(
+                    "tool", 16, 20,
+                    position={"x": 25, "y": 30, "z": -5}, axis="+Z",
+                ),
+            ],
+        },
+    },
+    "reject-modifier-as-tool": {
+        "description": "a through_hole's id used as a subtract tool",
+        "expects": PLAN_REJECTED,
+        "expected_codes": ("P11",),
+        "plan": {
+            "status": "generated",
+            "summary": "a modifier id used as a solid",
+            "operations": [
+                _box("plate", 100, 60, 10),
+                _through_hole("hole1", "plate", 8, 10, 10),
+                _subtract("cut", "plate", ["hole1"]),
+            ],
+        },
+    },
+    "reject-two-unconsumed-solids": {
+        "description": (
+            "two solids and no subtract -- a valid plan, and an invalid part: "
+            "the existing V1 validator rejects it with S9"
+        ),
+        "expects": BUILD_REJECTED,
+        "expected_codes": ("S9",),
+        "plan": {
+            "status": "generated",
+            "summary": "two unconnected solids",
+            "operations": [
+                _box("plate", 100, 60, 10),
+                _cylinder(
+                    "spare", 16, 20,
+                    position={"x": 200, "y": 200, "z": 0}, axis="+Z",
+                ),
+            ],
+        },
+    },
     "cylinder-d80-h100-z": {
         "description": "the plan from the Stage 32 brief, verbatim",
         "expected_bounding_box": {"x": 80.0, "y": 80.0, "z": 100.0},
@@ -267,8 +456,29 @@ def fixture(name: str) -> Dict[str, Any]:
             f"unknown fixture {name!r}; available: {', '.join(FIXTURE_NAMES)}"
         )
     entry = dict(FIXTURES[name])
-    entry["expected_volume_mm3"] = _expected_volume(name)
+    entry.setdefault("expects", BUILDS)
+    entry.setdefault("expected_codes", ())
+    if entry["expects"] == BUILDS:
+        entry["expected_volume_mm3"] = _expected_volume(name)
     return entry
+
+
+def building_fixtures() -> Tuple[str, ...]:
+    """The fixtures that are expected to produce geometry."""
+    return tuple(
+        name
+        for name in FIXTURE_NAMES
+        if FIXTURES[name].get("expects", BUILDS) == BUILDS
+    )
+
+
+def rejecting_fixtures() -> Tuple[str, ...]:
+    """The fixtures that exist to be refused, and where."""
+    return tuple(
+        name
+        for name in FIXTURE_NAMES
+        if FIXTURES[name].get("expects", BUILDS) != BUILDS
+    )
 
 
 def fixture_plan(name: str) -> Dict[str, Any]:
@@ -282,10 +492,18 @@ def describe_fixtures() -> List[Dict[str, Any]]:
         {
             "name": name,
             "description": FIXTURES[name]["description"],
-            "expected_bounding_box": FIXTURES[name]["expected_bounding_box"],
-            "expected_volume_mm3": _expected_volume(name),
-            "expected_face_count": FIXTURES[name]["expected_face_count"],
-            "expected_hole_count": FIXTURES[name]["expected_hole_count"],
+            "expects": FIXTURES[name].get("expects", BUILDS),
+            "expected_codes": list(FIXTURES[name].get("expected_codes", ())),
+            "expected_bounding_box": FIXTURES[name].get(
+                "expected_bounding_box"
+            ),
+            "expected_volume_mm3": (
+                _expected_volume(name)
+                if FIXTURES[name].get("expects", BUILDS) == BUILDS
+                else None
+            ),
+            "expected_face_count": FIXTURES[name].get("expected_face_count"),
+            "expected_hole_count": FIXTURES[name].get("expected_hole_count"),
             "operation_count": len(FIXTURES[name]["plan"]["operations"]),
             "source": SOURCE_LABEL,
         }
@@ -417,21 +635,44 @@ def run_fixture(name: str, *, build: bool = True) -> Dict[str, Any]:
     )
 
     generation = service.generate(entry["description"])
+    expects = entry["expects"]
+    expected_codes = tuple(entry["expected_codes"])
+    validation = generation.plan_validation
+    problems = (
+        [problem.to_dict() for problem in validation.problems]
+        if validation is not None
+        else []
+    )
     result: Dict[str, Any] = {
         "fixture": name,
         "description": entry["description"],
+        "expects": expects,
+        "expected_codes": list(expected_codes),
         "generation_outcome": generation.outcome.value,
         "parsed": generation.plan is not None,
-        "plan_valid": bool(
-            generation.plan_validation is not None
-            and generation.plan_validation.valid
-        ),
+        "plan_valid": bool(validation is not None and validation.valid),
+        "problems": problems,
         "plan": (
             generation.plan.to_dict() if generation.plan is not None else None
         ),
         "provider": generation.metadata.provider,
         "model": generation.metadata.model,
     }
+
+    if expects == PLAN_REJECTED:
+        # A rejection fixture passes by being refused, and by being refused
+        # for the stated reason -- "rejected somehow" would pass even if the
+        # rule under test had quietly stopped working.
+        observed = ["parse"] if generation.plan is None else [
+            problem["code"] for problem in problems
+        ]
+        result["observed_codes"] = observed
+        result["rejected"] = generation.plan is None or not result["plan_valid"]
+        result["rejected_for_the_right_reason"] = result["rejected"] and all(
+            code in observed for code in expected_codes
+        )
+        result["error"] = generation.error
+        return stamp(result)
 
     if generation.plan is None:
         result["error"] = generation.error
@@ -460,12 +701,27 @@ def run_fixture(name: str, *, build: bool = True) -> Dict[str, Any]:
     outcome = built.outcome
     result["built"] = built.built
     if outcome is None or not built.built:
-        result["build_error"] = (
+        message = (
             built.error
             if outcome is None
             else (outcome.error.message if outcome.error else "build failed")
         )
+        result["build_error"] = message
+        if expects == BUILD_REJECTED:
+            result["rejected"] = True
+            result["observed_codes"] = [
+                code for code in expected_codes if code in (message or "")
+            ]
+            result["rejected_for_the_right_reason"] = all(
+                code in (message or "") for code in expected_codes
+            )
         return stamp(result)
+
+    if expects == BUILD_REJECTED:
+        # It built when it should not have. Recorded plainly rather than
+        # dressed up as a pass.
+        result["rejected"] = False
+        result["rejected_for_the_right_reason"] = False
 
     geometry = outcome.artifact("geometry")
     details = geometry.details if geometry is not None else {}
@@ -542,6 +798,26 @@ def format_report(results: List[Dict[str, Any]]) -> str:
             f"  generation {entry['generation_outcome']}   parsed "
             f"{entry['parsed']}   plan_valid {entry['plan_valid']}"
         )
+        if entry.get("expects") in (PLAN_REJECTED, BUILD_REJECTED):
+            verdict = (
+                "REJECTED as expected"
+                if entry.get("rejected_for_the_right_reason")
+                else "*** NOT REJECTED AS EXPECTED ***"
+            )
+            lines.append(
+                f"  expects {entry['expects']} {entry['expected_codes']}   "
+                f"observed {entry.get('observed_codes')}   {verdict}"
+            )
+            for problem in entry.get("problems", []):
+                lines.append(
+                    f"  problem    {problem['code']} {problem['where']} "
+                    f"{problem['message'][:60]}"
+                )
+            if entry.get("build_error"):
+                lines.append(f"  build error {entry['build_error'][:64]}")
+            if entry.get("error"):
+                lines.append(f"  error      {entry['error'][:64]}")
+            continue
         if "v1_conversion" in entry:
             lines.append(
                 f"  v1 conversion {entry['v1_conversion']}   existing "
@@ -578,15 +854,25 @@ def format_report(results: List[Dict[str, Any]]) -> str:
         if entry.get("error"):
             lines.append(f"  error {entry['error']}")
     lines.append("=" * 74)
-    built = sum(1 for e in results if e.get("built"))
+    building = [
+        e for e in results if e.get("expects", BUILDS) == BUILDS
+    ]
+    rejecting = [e for e in results if e.get("expects", BUILDS) != BUILDS]
+    built = sum(1 for e in building if e.get("built"))
     ok = sum(
         1
-        for e in results
+        for e in building
         if e.get("volume_matches") and e.get("bounding_box_matches")
     )
-    lines.append(f"fixtures            {len(results)}")
-    lines.append(f"built               {built}")
+    rejected = sum(
+        1 for e in rejecting if e.get("rejected_for_the_right_reason")
+    )
+    lines.append(f"fixtures             {len(results)}")
+    lines.append(f"expected to build    {len(building)}")
+    lines.append(f"built                {built}")
     lines.append(f"geometry as expected {ok}")
+    lines.append(f"expected to reject   {len(rejecting)}")
+    lines.append(f"rejected correctly   {rejected}")
     lines.append("=" * 74)
     lines.append(
         "REAL HAIKU COMPARISON: STILL PENDING -- needs ANTHROPIC_API_KEY and "
@@ -731,8 +1017,13 @@ def _run_supplied(plan: Mapping[str, Any], *, build: bool) -> Dict[str, Any]:
 
 
 __all__ = [
+    "BUILDS",
+    "BUILD_REJECTED",
     "FIXTURES",
     "FIXTURE_NAMES",
+    "PLAN_REJECTED",
+    "building_fixtures",
+    "rejecting_fixtures",
     "MODEL_NAME",
     "PROVIDER_NAME",
     "SOURCE_LABEL",

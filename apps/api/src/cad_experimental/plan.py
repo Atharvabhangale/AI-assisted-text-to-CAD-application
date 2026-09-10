@@ -21,7 +21,8 @@ from typing import Any, Dict, Optional, Tuple
 BOX = "box"
 CYLINDER = "cylinder"
 THROUGH_HOLE = "through_hole"
-OPERATION_TYPES: Tuple[str, ...] = (BOX, CYLINDER, THROUGH_HOLE)
+SUBTRACT = "subtract"
+OPERATION_TYPES: Tuple[str, ...] = (BOX, CYLINDER, THROUGH_HOLE, SUBTRACT)
 
 #: Operations that add a solid to the solid set, named by their own id
 #: (specification Section B.4).
@@ -31,7 +32,13 @@ CONSTRUCTIVE_TYPES: Tuple[str, ...] = (BOX, CYLINDER)
 #: modifier replaces its target **in place** and the result keeps the
 #: **target's** id -- the modifier's own id never names a solid. So four
 #: holes in a plate all target the plate, and never each other.
-MODIFIER_TYPES: Tuple[str, ...] = (THROUGH_HOLE,)
+MODIFIER_TYPES: Tuple[str, ...] = (THROUGH_HOLE, SUBTRACT)
+
+#: Modifiers that additionally **consume** solids: each id in ``tools`` is
+#: removed from the solid set and can never be referenced again (Section
+#: C.4). Only ``subtract`` does this, and it is the whole reason this stage
+#: exists -- it is the first operation with history.
+CONSUMING_TYPES: Tuple[str, ...] = (SUBTRACT,)
 
 #: The six signed principal directions, exactly as the V1 contract spells
 #: them (Section A.4). No arbitrary vectors.
@@ -61,6 +68,10 @@ PARAMETERS: Dict[str, Tuple[Tuple[str, ...], Tuple[str, ...]]] = {
     BOX: (BOX_REQUIRED, BOX_OPTIONAL),
     CYLINDER: (CYLINDER_REQUIRED, CYLINDER_OPTIONAL),
     THROUGH_HOLE: (THROUGH_HOLE_REQUIRED, THROUGH_HOLE_OPTIONAL),
+    # `subtract` has no parameters at all: its whole input is two
+    # references. It therefore carries no `parameters` key, exactly as the
+    # V1 feature carries no parameter fields -- see OPERATION_FIELDS.
+    SUBTRACT: ((), ()),
 }
 
 #: Which operation-level keys each type may carry, beside ``parameters``.
@@ -71,7 +82,15 @@ OPERATION_FIELDS: Dict[str, Tuple[str, ...]] = {
     BOX: ("id", "type", "parameters"),
     CYLINDER: ("id", "type", "parameters"),
     THROUGH_HOLE: ("id", "type", "target", "parameters"),
+    # No `parameters`: a subtract is entirely references. Supplying one --
+    # even an empty one -- is an unknown field, so there is exactly one
+    # shape for a subtract rather than two.
+    SUBTRACT: ("id", "type", "target", "tools"),
 }
+
+#: The most tools one subtract may list. A part is not built from hundreds of
+#: cutters, and an unbounded list is free denial of service.
+MAX_TOOLS = 16
 
 #: Operation ids: the same shape the V1 contract requires of feature ids
 #: (rule S8), so an id that survives here survives there too.
@@ -196,6 +215,37 @@ class ThroughHoleOperation:
         return values
 
 
+@dataclass(frozen=True)
+class SubtractOperation:
+    """Boolean subtraction: each solid in ``tools`` is removed from ``target``.
+
+    Section C.4 exactly, and nothing more:
+
+    * the tools are removed **in list order**;
+    * the result replaces the target in place and keeps the **target's** id,
+      as every modifier does (Section B.4);
+    * every tool solid is **consumed** -- deleted from the solid set and
+      unavailable to any later operation. This is the only operation in the
+      language with that effect, and it is what makes a plan have history;
+    * subtraction only. There is no union and no intersection in V1, so this
+      never joins two solids and never produces a new independent body.
+
+    ``tools`` is non-empty (rule S14), does not contain ``target``, and holds
+    no duplicates (rule S15) -- a tool is consumed by its first use, so
+    listing it twice could not mean anything.
+    """
+
+    TYPE = SUBTRACT
+
+    id: str
+    target: str
+    tools: Tuple[str, ...]
+
+    def parameters(self) -> Dict[str, Any]:
+        """No parameters. A subtract is entirely references."""
+        return {}
+
+
 #: A parsed operation. A union of exactly the implemented types.
 Operation = Any  # BoxOperation | CylinderOperation (3.9-compatible)
 
@@ -215,6 +265,16 @@ def is_modifier(operation: Operation) -> bool:
     return operation_type(operation) in MODIFIER_TYPES
 
 
+def is_consuming(operation: Operation) -> bool:
+    """True if the operation consumes the solids it references as tools."""
+    return operation_type(operation) in CONSUMING_TYPES
+
+
+def tools_of(operation: Operation) -> Tuple[str, ...]:
+    """The tool references of a consuming operation; empty for the others."""
+    return tuple(getattr(operation, "tools", ()) or ())
+
+
 def operation_to_dict(operation: Operation) -> Dict[str, Any]:
     """Round-trip an operation back to its plan shape."""
     payload: Dict[str, Any] = {
@@ -224,7 +284,14 @@ def operation_to_dict(operation: Operation) -> Dict[str, Any]:
     target = getattr(operation, "target", None)
     if target is not None:
         payload["target"] = target
-    payload["parameters"] = operation.parameters()
+    tools = getattr(operation, "tools", None)
+    if tools is not None:
+        payload["tools"] = list(tools)
+    parameters = operation.parameters()
+    # A subtract has none, and writing `"parameters": {}` would invent a
+    # second valid shape for it.
+    if parameters or not tools:
+        payload["parameters"] = parameters
     return payload
 
 
@@ -295,6 +362,14 @@ def plan_schema() -> Dict[str, Any]:
                         # here without a conditional the model would have to
                         # reason about.
                         "target": {"type": "string", "pattern": ID_PATTERN},
+                        # Required for subtract, forbidden elsewhere. The
+                        # parser enforces that per type.
+                        "tools": {
+                            "type": "array",
+                            "items": {"type": "string", "pattern": ID_PATTERN},
+                            "minItems": 1,
+                            "maxItems": MAX_TOOLS,
+                        },
                         "parameters": {
                             "type": "object",
                             "properties": {
@@ -309,7 +384,8 @@ def plan_schema() -> Dict[str, Any]:
                             "additionalProperties": False,
                         },
                     },
-                    "required": ["id", "type", "parameters"],
+                    # `parameters` is not required: a subtract has none.
+                    "required": ["id", "type"],
                     "additionalProperties": False,
                 },
             },
@@ -323,6 +399,12 @@ __all__ = [
     "AXES",
     "BOX",
     "CONSTRUCTIVE_TYPES",
+    "CONSUMING_TYPES",
+    "MAX_TOOLS",
+    "SUBTRACT",
+    "SubtractOperation",
+    "is_consuming",
+    "tools_of",
     "CYLINDER",
     "MODIFIER_TYPES",
     "OPERATION_FIELDS",

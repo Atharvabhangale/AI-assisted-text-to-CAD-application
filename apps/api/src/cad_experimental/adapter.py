@@ -28,6 +28,10 @@ plan             V1 document
                  "position"}`` -- the plan's operation-level ``target``
                  becomes the feature's ``target``, which is where the V1
                  document already keeps it
+``subtract``     ``{"type": "subtract", "target", "tools"}`` -- both
+                 references pass through unchanged, and **``tools`` keeps its
+                 order**, because Section C.4 removes the tools in list order
+                 and reordering them would change the geometry
 ``position``     the same ``position`` object -- **omitted when absent**, so
                  the contract's own default applies rather than an invented
                  ``{0,0,0}``. A ``through_hole`` always carries one, because
@@ -47,7 +51,15 @@ from __future__ import annotations
 
 from typing import Any, Dict, List
 
-from .plan import BOX, CYLINDER, THROUGH_HOLE, UNITS, OperationPlan, PlanStatus
+from .plan import (
+    BOX,
+    CYLINDER,
+    SUBTRACT,
+    THROUGH_HOLE,
+    UNITS,
+    OperationPlan,
+    PlanStatus,
+)
 
 #: The V1 schema version this adapter writes. It tracks the specification,
 #: and is imported from nowhere else because ``cad_core`` exposes it as the
@@ -126,6 +138,16 @@ def _feature(operation: Any) -> Dict[str, Any]:
         if operation.axis is not None:
             feature["axis"] = operation.axis
         return feature
+    elif kind == SUBTRACT:
+        # Both references straight through. `tools` is a list, in the plan's
+        # order: Section C.4 subtracts in list order, so the order is
+        # geometry, not presentation.
+        return {
+            "id": operation.id,
+            "type": SUBTRACT,
+            "target": operation.target,
+            "tools": list(operation.tools),
+        }
     else:
         raise AdapterError(f"no V1 feature for operation type {kind!r}")
 

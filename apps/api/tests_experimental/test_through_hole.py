@@ -72,8 +72,13 @@ def generated(*operations):
 
 
 class VocabularyTests(unittest.TestCase):
-    def test_exactly_three_operations_exist(self):
-        self.assertEqual(set(OPERATION_TYPES), {"box", "cylinder", "through_hole"})
+    def test_the_vocabulary_contains_through_hole(self):
+        """Stage 34 added `subtract`; the exact set is pinned there."""
+        self.assertIn(THROUGH_HOLE, OPERATION_TYPES)
+        self.assertEqual(
+            set(OPERATION_TYPES),
+            {"box", "cylinder", "through_hole", "subtract"},
+        )
 
     def test_through_hole_is_a_modifier_not_constructive(self):
         self.assertIn(THROUGH_HOLE, MODIFIER_TYPES)
@@ -81,17 +86,14 @@ class VocabularyTests(unittest.TestCase):
 
     def test_no_further_operation_crept_in(self):
         for absent in (
-            "subtract", "fillet", "chamfer", "sketch", "extrude", "revolve",
+            "fillet", "chamfer", "sketch", "extrude", "revolve",
             "sweep", "loft", "pattern", "mirror", "union", "assembly",
         ):
             self.assertNotIn(absent, OPERATION_TYPES)
 
-    def test_the_schema_lists_the_three_types_and_target(self):
+    def test_the_schema_lists_through_hole_and_target(self):
         item = plan_schema()["properties"]["operations"]["items"]
-        self.assertEqual(
-            set(item["properties"]["type"]["enum"]),
-            {"box", "cylinder", "through_hole"},
-        )
+        self.assertIn("through_hole", item["properties"]["type"]["enum"])
         self.assertIn("target", item["properties"])
 
     def test_the_reference_rule_codes_are_registered(self):
@@ -288,17 +290,18 @@ class ReferenceValidationTests(unittest.TestCase):
         ]
         self.assertEqual(len(target_problems), 1)
 
-    def test_the_consumed_rule_is_unreachable_in_this_stage(self):
-        """P12 exists for `subtract`, which is not implemented yet.
+    def test_a_through_hole_alone_can_never_trigger_the_consumed_rule(self):
+        """P12 became reachable in Stage 34, but not through `through_hole`.
 
-        Nothing in a three-operation vocabulary can consume a solid, so no
-        plan can trigger it. Asserted rather than assumed, so adding
-        `subtract` later cannot silently leave the rule unenforced.
+        Stage 33 asserted P12 was unreachable at all; `subtract` made it
+        reachable, and that is tested in test_subtract.py. What remains true
+        here is narrower and still worth pinning: a through_hole consumes
+        nothing, so no plan built only from holes can trigger it.
         """
-        self.assertEqual(MODIFIER_TYPES, (THROUGH_HOLE,))
         holes = [hole(f"h{index}") for index in range(3)]
         for code in [p.code for p in self.verdict(plate(), *holes).problems]:
             self.assertNotEqual(code, P12)
+        self.assertTrue(self.verdict(plate(), *holes).valid)
 
 
 class AdapterTests(unittest.TestCase):

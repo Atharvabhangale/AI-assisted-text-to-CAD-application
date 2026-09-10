@@ -354,13 +354,44 @@ class IsolationTests(unittest.TestCase):
             self.assertNotIn(sdk, imports)
 
     def test_the_experiment_defines_no_second_cad_schema(self):
-        """It translates into the one contract; it does not restate it."""
+        """It translates into the one contract; it does not restate it.
+
+        The check is on *definitions*, not mentions. Naming a rule the
+        existing validator emits -- a fixture that expects `S9`, a message
+        that cites S14 -- is a reference to the one contract and is exactly
+        right. What would be wrong is this package declaring rule constants
+        of its own, so that is what is forbidden: no assignment here may bind
+        a name shaped like a specification rule code.
+        """
+        import re as _re
+
+        rule_name = _re.compile(r"^[SE]\d+$")
+        for path in (SOURCE / "cad_experimental").rglob("*.py"):
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            for node in ast.walk(tree):
+                if not isinstance(node, (ast.Assign, ast.AnnAssign)):
+                    continue
+                targets = (
+                    node.targets if isinstance(node, ast.Assign)
+                    else [node.target]
+                )
+                for target in targets:
+                    name = getattr(target, "id", "")
+                    self.assertFalse(
+                        rule_name.match(name),
+                        f"{path.name} defines rule constant {name}",
+                    )
+
+    def test_the_experiment_implements_no_v1_rule_text(self):
+        """It must not copy the contract's rule wording into itself."""
         for path in (SOURCE / "cad_experimental").rglob("*.py"):
             source = path.read_text(encoding="utf-8")
-            for rule in ("S1", "S5", "S9", "S20"):
-                self.assertNotIn(
-                    f'"{rule}"', source, f"{path.name} restates rule {rule}"
-                )
+            for phrase in (
+                "schema_version is a valid version string",
+                "No unknown fields anywhere in the document",
+                "features is an array with at least one element",
+            ):
+                self.assertNotIn(phrase, source, path.name)
 
 
 class ExecutionBoundaryTests(unittest.TestCase):

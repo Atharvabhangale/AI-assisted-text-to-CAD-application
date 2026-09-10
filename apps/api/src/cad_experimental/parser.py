@@ -32,12 +32,15 @@ from typing import Any, Dict, List, Mapping, Optional, Tuple
 from .plan import (
     AXES,
     BOX,
+    CONSUMING_TYPES,
     CYLINDER,
     ID_PATTERN,
+    MAX_TOOLS,
     MODIFIER_TYPES,
     OPERATION_FIELDS,
     OPERATION_TYPES,
     PARAMETERS,
+    SUBTRACT,
     THROUGH_HOLE,
     BoxOperation,
     CylinderOperation,
@@ -45,6 +48,7 @@ from .plan import (
     OperationPlan,
     PlanStatus,
     Point,
+    SubtractOperation,
     ThroughHoleOperation,
 )
 
@@ -56,7 +60,7 @@ PLAN_KEYS = frozenset(
 #: The keys any operation may carry. Which of them a *particular* type may
 #: carry is narrower -- see :data:`~cad_experimental.plan.OPERATION_FIELDS`.
 #: ``target`` on a box is rejected as an unknown field for that type.
-OPERATION_KEYS = frozenset({"id", "type", "target", "parameters"})
+OPERATION_KEYS = frozenset({"id", "type", "target", "tools", "parameters"})
 
 #: The keys a position may carry.
 POINT_KEYS = frozenset({"x", "y", "z"})
@@ -167,7 +171,7 @@ def _operation(entry: Any, index: int) -> Operation:
     mapping = _object(entry, where)
     _reject_unknown(mapping, OPERATION_KEYS, where)
 
-    for required in ("id", "type", "parameters"):
+    for required in ("id", "type"):
         if required not in mapping:
             raise PlanParseError(f"{where} is missing `{required}`")
 
@@ -197,6 +201,16 @@ def _operation(entry: Any, index: int) -> Operation:
             )
         target = _identifier(mapping["target"], f"{where} target")
 
+    if kind in CONSUMING_TYPES:
+        assert target is not None
+        return SubtractOperation(
+            id=identifier,
+            target=target,
+            tools=_tools(mapping.get("tools"), where),
+        )
+
+    if "parameters" not in mapping:
+        raise PlanParseError(f"{where} is missing `parameters`")
     parameters = _object(mapping["parameters"], f"{where} parameters")
     required_names, optional_names = PARAMETERS[kind]
     allowed = frozenset(required_names) | frozenset(optional_names)
@@ -240,6 +254,39 @@ def _operation(entry: Any, index: int) -> Operation:
 
 
 # --- values ----------------------------------------------------------------
+
+
+def _tools(value: Any, where: str) -> Tuple[str, ...]:
+    """Read a subtract's tool list.
+
+    Shape only. Whether each id resolves to an available solid is the
+    validator's judgement, because it depends on everything before it in the
+    plan; a list of well-formed ids that name nothing is a valid *shape* and
+    an invalid *plan*.
+    """
+    if value is None:
+        raise PlanParseError(
+            f"{where} is missing `tools`",
+            detail="a subtract must remove at least one solid (rule S14)",
+        )
+    if not isinstance(value, list):
+        raise PlanParseError(f"{where} `tools` must be a list of ids")
+    if not value:
+        # S14. Caught here rather than left to the validator because an
+        # empty list is a malformed subtract, not a bad reference.
+        raise PlanParseError(
+            f"{where} has an empty `tools` list",
+            detail="a subtract must remove at least one solid (rule S14)",
+        )
+    if len(value) > MAX_TOOLS:
+        raise PlanParseError(
+            f"{where} lists more tools than this stage accepts",
+            detail=f"{len(value)} tools, limit {MAX_TOOLS}",
+        )
+    return tuple(
+        _identifier(entry, f"{where} tools[{index}]")
+        for index, entry in enumerate(value)
+    )
 
 
 def _object(value: Any, where: str) -> Mapping[str, Any]:

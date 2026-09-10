@@ -30,18 +30,19 @@ still applies and nothing downstream needed changing.
 
 ## Operations implemented
 
-Three, as of Stage 33. That is the entire vocabulary.
+Four, as of Stage 34. That is the entire vocabulary.
 
 | Operation | Kind | Fields |
 |---|---|---|
 | `box` | constructive | `parameters`: `x`, `y`, `z` (all > 0); optional `position` (minimum corner) |
 | `cylinder` | constructive | `parameters`: `diameter`, `height` (both > 0); optional `position` (base centre), optional `axis` |
-| `through_hole` | **modifier** | `target` (beside `id`/`type`); `parameters`: `diameter` (> 0), `position` (**required**), optional `axis` |
+| `through_hole` | modifier | `target`; `parameters`: `diameter` (> 0), `position` (**required**), optional `axis` |
+| `subtract` | modifier, **consuming** | `target`, `tools` (non-empty list); **no `parameters`** |
 
-Everything else — spheres, blind holes, counterbores, general subtraction,
-joins, fillets, chamfers, sketches, extrudes, patterns, assemblies — is
-`unsupported` by design, and the parser rejects any operation type it does not
-implement rather than passing it downstream.
+Everything else — spheres, blind holes, counterbores, unions, fillets,
+chamfers, sketches, extrudes, patterns, assemblies — is `unsupported` by
+design, and the parser rejects any operation type it does not implement rather
+than passing it downstream.
 
 ### How the plan differs from the V1 document
 
@@ -243,6 +244,71 @@ geometry is **semantically** what was asked for, whether it built, the volume
 against an expected volume, and the RenderModel triangle count. A provider
 failure is recorded as a provider failure and never as a wrong answer.
 
+## `subtract` and history (Stage 34)
+
+`subtract` is the first operation with **history**: it consumes the solids it
+uses, so an id's meaning depends on where in the plan you are.
+
+```json
+{"id": "cut", "type": "subtract", "target": "plate", "tools": ["tool_a", "tool_b"]}
+```
+
+Semantics are Section C.4's, not invented:
+
+- each solid in `tools` is removed from `target`, **in list order** — so the
+  order is geometry, and the adapter never reorders it;
+- the result **replaces the target in place** and keeps the *target's* id, like
+  every modifier. It is not a new body, and the subtract's own id names nothing;
+- every tool is **consumed** — deleted from the solid set. A later operation
+  may not target it, list it again, or reference it at all;
+- subtraction only. There is no union or intersection in V1, so `subtract`
+  never joins two solids.
+
+It carries **no `parameters` key at all** — its whole input is two references.
+Supplying one, even an empty one, is an unknown field, so a subtract has
+exactly one shape rather than two.
+
+### The history model
+
+The plan validator simulates the solid set as it reads the plan:
+
+- `declared` — every operation id, and where it first appeared;
+- `live` — the ids that currently **name a solid**: constructive ids that have
+  not been consumed;
+- `consumed` — ids a `subtract` has used as tools, and where.
+
+A constructive operation adds to `live`. A modifier adds nothing. A `subtract`
+removes each of its tools from `live` and records it in `consumed`. Only tools
+that actually resolved are consumed — consuming an unresolved one would invent
+a second, misleading problem further down the plan.
+
+```
+box plate        live = {plate}
+box tool         live = {plate, tool}
+subtract         target=plate tools=[tool]
+                 live = {plate}          consumed = {tool: 2}
+subtract         tools=[tool]  ->  P12: already consumed at operations[2]
+```
+
+### Rules added
+
+| Code | Rule | V1 counterpart |
+|---|---|---|
+| `P13` | `tools` is a non-empty list of ids | `S14` |
+| `P14` | a tool is neither the target nor a repeat | `S15` |
+
+`P9`–`P12` were not duplicated: a tool reference asks exactly the same four
+questions as a target, so one implementation answers both. `P12` — "already
+consumed" — existed from Stage 33 but was **unreachable** until now; a test
+asserted that, and Stage 34 is what makes it fire.
+
+Two things stay where they belong. **`S9`** (exactly one solid at the end) is
+*not* duplicated in the plan layer: a plan with two unconsumed solids is a
+perfectly coherent plan and an invalid part, and the existing V1 validator says
+so — there is a fixture for exactly that. And a tool that **removes no
+material** has no rule code at all: Section C.4 lists only `E2` and `E3`, so
+the engine refuses it without claiming one.
+
 ## Fixtures
 
 Run them with `python -m cad_experimental.local_plan_provider`. Each records
@@ -257,6 +323,22 @@ the geometry it should produce, so a build is checked rather than observed.
 | `cylinder-bored-d20-h50` | π·(10²−4²)·50, 4 faces — a tube |
 | `cylinder-d16-h30-x` | π·8²·30, bounding box 30 × 16 × 16 |
 | `cylinder-d80-h100-z` | π·40²·100 |
+| `subtract-cube-bore` | 50³ − π·10²·50, 7 faces |
+| `subtract-plate-bore` | plate − π·10²·10, 7 faces |
+| `subtract-two-tools` | plate − 2·π·8²·10, 8 faces |
+
+Six more fixtures exist **to be rejected**, because a rule nothing exercises is
+a rule nobody has tested. Each names the code it expects, so "rejected somehow"
+cannot pass for "rejected correctly":
+
+| Fixture | Refused by | Rule |
+|---|---|---|
+| `reject-empty-tools` | parser | `S14` — an empty list is a malformed subtract, not a bad reference |
+| `reject-target-in-tools` | plan validator | `P14` |
+| `reject-future-tool` | plan validator | `P10` |
+| `reject-modifier-as-tool` | plan validator | `P11` |
+| `reject-consumed-tool` | plan validator | `P12` |
+| `reject-two-unconsumed-solids` | **existing V1 validator** | `S9` |
 
 A hole in a **cylinder** is meaningful under the current semantics — verified,
 not assumed: a coaxial bore leaves one connected solid, so `E3` is satisfied
@@ -275,9 +357,9 @@ and it builds to exactly π·(10²−4²)·50.
   duplicate S9, and the existing validator rejects the translated document
   with `S9`. That is the intended division of labour — the plan layer judges
   plans, and the CAD contract judges CAD.
-* **The prompt is much shorter**: 5374 characters against the production
-  prompt's 14943, for a vocabulary of three operations. Whether that
-  translates into better model accuracy is **not yet known** — see below.
+* **The prompt is much shorter** than production's, for a much smaller
+  vocabulary. Whether that translates into better model accuracy is **not yet
+  known** — see below.
 * **A modifier and a reference cost the architecture nothing.** Stage 33 added
   `through_hole` without a second CAD engine, a second validator, a second
   build path, a second cache or a second RenderModel, and without touching
@@ -287,11 +369,22 @@ and it builds to exactly π·(10²−4²)·50.
 * **The holes are real openings, not a visual impression.** Checked in the
   mesh's own coordinates: 253 rim vertices per hole, zero vertices inside any
   hole, and zero top-face triangles whose centroid falls within one.
+* **History cost the architecture nothing either.** Stage 34 added `subtract`
+  with no second engine, validator, build path, cache or RenderModel, and
+  without touching `local_cad.py` or the V1 validator. A 50 mm cube bored by a
+  d20 tool measures 109292.03673205104 mm³ against a closed form of
+  109292.03673205103; two tools on one plate give 55978.761403405064, matching
+  exactly.
+* **Two routes to one cavity agree.** The same d20 bore expressed as a
+  `subtract` and as a `through_hole` produce the same volume to 1e-9 — a
+  cross-check that would catch an adapter quietly changing either's meaning.
+* **The prompt is now 6934 characters**, against the production prompt's
+  14943, for four operations.
 
 ## What is NOT known
 
-**Real Anthropic testing is still postponed.** Stage 33 was developed and
-tested entirely against the local development provider, which supplies
+**Real Anthropic testing is still postponed.** Stages 33 and 34 were developed
+and tested entirely against the local development provider, which supplies
 developer-written plans and calls no model. No result in this document, in the
 fixtures, in the tests or on the page is a Claude result of any kind, and no
 claim is made about Claude Haiku's quality on any representation.

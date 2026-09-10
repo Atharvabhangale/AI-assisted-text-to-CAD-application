@@ -27,11 +27,14 @@ from .plan import (
     AXES,
     BOX,
     CONSTRUCTIVE_TYPES,
+    CONSUMING_TYPES,
     CYLINDER,
     MODIFIER_TYPES,
+    SUBTRACT,
     THROUGH_HOLE,
     OperationPlan,
     PlanStatus,
+    tools_of,
 )
 
 #: Plan rule codes. Prefixed ``P`` so they can never be mistaken in a log for
@@ -54,10 +57,18 @@ P8 = "P8"   # a modifier names a target
 P9 = "P9"   # the target names an operation that exists in the plan
 P10 = "P10"  # the target appears strictly earlier (no forward refs, no cycles)
 P11 = "P11"  # the target is a constructive body, not another modifier
-P12 = "P12"  # the target has not been consumed
+P12 = "P12"  # the reference has not been consumed
+
+# --- consumption rules, added with the first consuming modifier (subtract) -
+#
+# P9-P12 already judge a reference; a subtract simply has more of them, and
+# every tool goes through the same four checks as a target. What is new is
+# the shape of the tool list itself, mirroring S14 and S15.
+P13 = "P13"  # `tools` is a non-empty list of ids
+P14 = "P14"  # a tool is neither the target nor a repeat of another tool
 
 RULE_CODES: Tuple[str, ...] = (
-    P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12,
+    P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14,
 )
 
 
@@ -169,6 +180,11 @@ def validate_plan(plan: OperationPlan) -> PlanValidation:
                     )
                 )
             _reference(
+                operation.target, f"{where}.target", operation.id, index,
+                declared, live, consumed, problems,
+            )
+        elif kind == SUBTRACT:
+            _subtract(
                 operation, index, where, declared, live, consumed, problems
             )
         else:
@@ -183,8 +199,21 @@ def validate_plan(plan: OperationPlan) -> PlanValidation:
         # result keeps the target's id and the target is already live.
         if kind in CONSTRUCTIVE_TYPES:
             live.setdefault(operation.id, index)
+        elif kind in CONSUMING_TYPES:
+            # The history step, and the reason this stage exists. Every tool
+            # this subtract legitimately used is gone from here on: a later
+            # operation naming it gets P12, not a second chance. Only tools
+            # that actually resolved are consumed -- consuming an unresolved
+            # one would invent a second, misleading problem downstream.
+            for tool in tools_of(operation):
+                if tool in live and tool != operation.target:
+                    live.pop(tool, None)
+                    consumed[tool] = index
 
-        position = operation.position
+        # A subtract has no position: it is entirely references. Checked by
+        # type rather than a defaulted `getattr`, so nothing in this package
+        # looks an attribute up by a computed name.
+        position = None if kind == SUBTRACT else operation.position
         if position is not None:
             for name, value in (
                 ("x", position.x),
@@ -203,7 +232,7 @@ def validate_plan(plan: OperationPlan) -> PlanValidation:
     return PlanValidation(valid=not problems, problems=tuple(problems))
 
 
-def _reference(
+def _subtract(
     operation: object,
     index: int,
     where: str,
@@ -212,29 +241,102 @@ def _reference(
     consumed: Dict[str, int],
     problems: List[PlanProblem],
 ) -> None:
-    """Judge one modifier's ``target`` against the simulated solid set.
+    """Judge one subtract: its target, its tool list, and every tool.
 
-    Reported in order of specificity, and at most one problem per target:
+    The tool list's *shape* (rule S14) is the parser's job, so by the time a
+    ``SubtractOperation`` exists ``tools`` is a non-empty tuple of
+    well-formed ids. What is left for here is S15 -- no self-subtraction, no
+    repeats -- and the same four reference checks the target gets, once per
+    tool.
+    """
+    target = getattr(operation, "target", None)
+    owner_id = getattr(operation, "id", "")
+    _reference(
+        target, f"{where}.target", owner_id, index,
+        declared, live, consumed, problems,
+    )
+
+    tools = tools_of(operation)
+    if not tools:
+        # Unreachable through the parser, which rejects an empty list.
+        # Checked so a plan built in code cannot bypass S14.
+        problems.append(
+            PlanProblem(
+                P13,
+                "a subtract must remove at least one solid",
+                f"{where}.tools",
+            )
+        )
+        return
+
+    seen: Dict[str, int] = {}
+    for position, tool in enumerate(tools):
+        path = f"{where}.tools[{position}]"
+
+        if tool == target:
+            problems.append(
+                PlanProblem(
+                    P14,
+                    f"{tool!r} is this subtract's own target; a solid cannot "
+                    "be subtracted from itself",
+                    path,
+                )
+            )
+            continue
+        if tool in seen:
+            problems.append(
+                PlanProblem(
+                    P14,
+                    f"{tool!r} is already listed at tools[{seen[tool]}]; a "
+                    "tool is consumed by its first use and cannot be reused",
+                    path,
+                )
+            )
+            continue
+        seen[tool] = position
+
+        _reference(
+            tool, path, owner_id, index, declared, live, consumed, problems
+        )
+
+
+def _reference(
+    reference: object,
+    path: str,
+    owner_id: str,
+    index: int,
+    declared: Dict[str, int],
+    live: Dict[str, int],
+    consumed: Dict[str, int],
+    problems: List[PlanProblem],
+) -> None:
+    """Judge one reference against the simulated solid set.
+
+    Used for a modifier's ``target`` and for each of a subtract's ``tools``:
+    the question is identical in both places, so the answer comes from one
+    implementation rather than two that could drift.
+
+    Reported in order of specificity, and at most one problem per reference:
     telling a caller both "no such id" and "not a body" about the same
     reference is noise, and the first true statement is the useful one.
     """
-    target = getattr(operation, "target", None)
+    target = reference
     if not isinstance(target, str) or not target:
         # The parser requires a target, so this is only reachable from a
         # plan built in code. Checked anyway: the validator must not depend
         # on the parser having run.
         problems.append(
-            PlanProblem(P8, "a modifier must name a `target`", f"{where}.target")
+            PlanProblem(P8, "a reference must name a solid", path)
         )
         return
 
-    if target == operation.id:
+    if target == owner_id:
         problems.append(
             PlanProblem(
                 P10,
                 f"{target!r} refers to itself; a reference must point to an "
                 "earlier operation",
-                f"{where}.target",
+                path,
             )
         )
         return
@@ -245,7 +347,7 @@ def _reference(
             PlanProblem(
                 P9,
                 f"{target!r} names no operation in the plan; declared: {known}",
-                f"{where}.target",
+                path,
             )
         )
         return
@@ -257,7 +359,7 @@ def _reference(
                 f"{target!r} appears later in the plan (at operations["
                 f"{declared[target]}]); a reference must point strictly "
                 "earlier, so forward references and cycles are impossible",
-                f"{where}.target",
+                path,
             )
         )
         return
@@ -268,7 +370,7 @@ def _reference(
                 P12,
                 f"{target!r} was already consumed at operations["
                 f"{consumed[target]}] and is no longer a solid",
-                f"{where}.target",
+                path,
             )
         )
         return
@@ -283,7 +385,7 @@ def _reference(
                 f"{target!r} does not name a solid: it is a modifier, whose "
                 "result keeps its own target's id. Target the constructive "
                 "operation instead",
-                f"{where}.target",
+                path,
             )
         )
 
@@ -318,6 +420,8 @@ __all__ = [
     "P7",
     "P8",
     "P9",
+    "P13",
+    "P14",
     "RULE_CODES",
     "PlanProblem",
     "PlanValidation",
