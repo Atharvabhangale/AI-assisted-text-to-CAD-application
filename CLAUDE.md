@@ -1,4 +1,8 @@
-# CLAUDE.md — project handoff for Claude Code sessions
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project handoff
 
 This file exists so a new session can continue the project without re-deriving
 it. It describes the repository as it actually is, verified against the code,
@@ -199,7 +203,7 @@ Docs: `docs/http-api.md`, `docs/artifact-delivery.md`,
 | Module | Purpose |
 |---|---|
 | `provider.py` | The provider boundary: `TextToCadModel`, `ModelRequest`, `ModelResponse`, `ProviderError`, `ProviderErrorKind` — **no vendor types** |
-| `anthropic_provider.py` | Anthropic Messages API adapter (`AnthropicTextToCadModel`) |
+| `anthropic_provider.py` | Anthropic Messages API adapter (`AnthropicTextToCadModel`). Also `schema_for_api` / `UNSUPPORTED_SCHEMA_KEYWORDS`: this API's structured-output compiler **rejects** `exclusiveMinimum`, `minItems`, `minLength` and `pattern`, so the model-facing schema is narrowed to its subset before it is sent. Sending the schema unchanged 400s every request. No information is lost — the appended spec excerpt states all four rules in prose |
 | `gemini_provider.py` | Google `google-genai` adapter (`GeminiTextToCadModel`) |
 | `prompt.py` | The single system prompt, versioned + fingerprinted (`system_prompt`, `prompt_fingerprint`) |
 | `specification.py` | Model-facing view of the spec, **derived** from `docs/cad-specification.md` (`specification_text`, `response_schema`) |
@@ -228,12 +232,17 @@ estimated.
 
 | Suite | Result |
 |---|---|
-| cad-core (`unittest`) | **1481 passed** (Stage 29 measurement) |
-| API + AI (`unittest`) | **582 passed, 2 skipped** (Stage 30: +35 for `/generate`) |
-| Frontend (`vitest`) | **122 passed** (4 files; Stage 30: +35) |
+| cad-core (`unittest`) | **1481 passed** (Stage 32, on Windows) |
+| API + AI (`unittest`) | **591 tests, 6 skipped** |
+| Frontend (`vitest`) | **122 passed** (4 files) |
 | Frontend typecheck (`tsc --noEmit`) | **clean** |
+| Launcher (`scripts\Test-DevLauncher.ps1`) | **62 assertions passed** |
 
-**The 2 skips are deliberate and must stay skipped by default.** They are the
+**Both Python suites were red on Windows until Stage 32, for reasons that had
+nothing to do with CAD.** If a suite fails here, suspect the platform before
+the code — and read §15 before "fixing" anything.
+
+**The live-provider skips are deliberate and must stay skipped by default.** They are the
 live-provider tests, gated behind `CAD_AI_LIVE_TESTS`. They exist so that the
 mere presence of an API key can never cause the ordinary test suite to spend
 money on real provider calls. This gate was added after an accidental live run
@@ -270,20 +279,42 @@ none of which are set. It never sends `tools`, `tool_config` or
 `automatic_function_calling`.
 
 **Prompt architecture.** One prompt, in one place, with one version id:
-`PROMPT_VERSION = "2026-09-08.1"`, fingerprint
-`2b3e3395ec6efee0fe252cf88207e981dcdecfdb88ea847f075ce20a5ad9ba52`. The
+`PROMPT_VERSION = "2026-09-09.2"`, fingerprint
+`f9efe19ac33281ff14ab0efe665dc01971d458ea5d90e8114f6dabba0ca0874e`, length
+25237 characters. **Four separate tests pin those three values** (two in
+`test_text_to_cad_ai.py`, two in `test_gemini_provider_boundary.py`); when you
+change the prompt on purpose, update all of them together and re-measure —
+their own comments say so, and the pins are change *detectors*, not claims
+that the prompt is correct. The
 spec text the model sees is derived from `docs/cad-specification.md` rather
 than retyped, so the two cannot drift. Every evaluation run records the
 version and fingerprint, and a regression test pins them.
 
-**Supported natural-language subset:** one part, a single `box` **or** a
-single `cylinder`, with dimensions, optional position, optional axis, and
-units stated in the request. Everything else — holes, cuts, fillets,
-chamfers, multi-feature parts, assemblies, tolerances, materials — is
-`UNSUPPORTED` by prompt policy. Note this is a **prompt policy, not a
-validation rule**: a box-plus-`through_hole` document is perfectly valid V1
-CAD, so the validator accepts it and the *evaluator* flags it as
-`UNSUPPORTED_FEATURE_ACCEPTED`.
+**Supported natural-language subset:** since prompt `2026-09-09.1`, the
+**full V1 vocabulary** — one part, an ordered feature list over all six
+feature types, with units stated in the request. The earlier restriction to a
+single `box` or `cylinder` is gone: it was refusing parts the engine had been
+able to build since Stage 14.1.
+
+Two policies the prompt adds on top of the contract, both from measured
+failures (see `docs/text-to-cad-ai.md` → *Prompt 2026-09-09.2*):
+
+- **Nothing joins.** V1 has no `union`/`fuse`/`join`, so a part that is only
+  meaningful as two or more primitives *joined into one body* — a desk stand,
+  an L-bracket, a handle on a body — is `UNSUPPORTED`. Before this was
+  stated, the model assumed a join existed and improvised: S9 (three solids
+  left), S14 (`"tools": []` as a pseudo-merge) and S6 (a modifier's id used as
+  a solid) were all one root cause.
+- **Locatives are answers, not gaps.** "on the top", "centred", "through the
+  centre" *supply* a required position rather than being something to ask
+  about, and the prompt gives the arithmetic. Before this, identical wording
+  returned a document 3/5 and a clarification 2/5.
+
+**The corpus in `cad_ai.corpus` still encodes the old, narrower policy.** Its
+E-category cases expect `UNSUPPORTED` for holes, cuts, fillets and chamfers,
+which the prompt now supports, so those five cases are **stale and will score
+as failures**. They are a fixed measurement instrument — do not edit them to
+raise a score; treat a full re-baseline as its own stage.
 
 **Ambiguity rule:** a missing value the spec gives a default may be omitted;
 a missing value with no default must be asked about. So "a 100 × 60 × 10 mm
@@ -320,13 +351,30 @@ state.
 
 ### Live benchmark status — read this before making any quality claim
 
-**A complete real-model benchmark does not exist.** The best run to date
-measured **20 of 35 cases**.
+**A complete real-model benchmark still does not exist.** No 35-case corpus
+run has been made against Anthropic, and the corpus is partly stale (§6).
 
-History, from the evaluation results and git log:
+**Anthropic IS now exercised live**, and is the default provider on
+**`claude-haiku-4-5-20251001`**. What exists is *product-flow* evidence, not a
+corpus score — hand-run prompts through `POST /generate`, five attempts each
+where a rate was claimed:
 
-- **Anthropic: never run live.** `ANTHROPIC_API_KEY` has not been available in
-  any session. There is **no Anthropic quality data at all.**
+| Request | Result |
+|---|---|
+| plate, plate + 4 holes, cylinder, cube + centred hole, block + chamfer, plate + fillet | all `generated`, valid, built; volumes match closed-form arithmetic exactly |
+| enclosure + hole "on the top" | `generated` **5/5** after prompt `2026-09-09.2` (was 3/5) |
+| "a simple desk stand … single solid" | `UNSUPPORTED` **5/5** — correct; V1 cannot join primitives |
+
+Two honest caveats. The four-hole plate was verified down to the B-rep — one
+solid, 6 planes + 4 cylindrical walls, and the exported STEP reads back
+identically — but **categories F (adversarial) and G (semantic) remain
+completely unmeasured on any provider**, so no robustness claim can be made.
+And the model intermittently answers `status: "document"` with the `document`
+field simply absent (seen once on the chamfer case, which then passed 4/4);
+that is a reliability mode, not a wrong document.
+
+- **Gemini: still never run to completion.** The 20/35 history below is
+  Gemini's alone.
 - **Gemini `gemini-2.5-pro`: 404**, and as of Stage 30 `gemini-2.5-flash` is
   404 too — both "no longer available to new users". The default in
   `config.py` was changed to `gemini-3.6-flash`, which is verified working —
@@ -374,7 +422,10 @@ Saved runs are preserved under `docs/evaluation-baselines/`.
   saved evaluation results; the saved results were scanned to confirm it.
   Tests use an obviously synthetic placeholder. `.env*` is gitignored.
   **Never put a key in this file, in code, or in a commit.**
-- **Current model configuration.** `DEFAULT_MODELS["gemini"]` is
+- **Anthropic's default model** is `DEFAULT_MODELS["anthropic"] =
+  "claude-haiku-4-5-20251001"`, and `resolve_provider` picks Anthropic first
+  whenever its credential is present. `CAD_AI_MODEL` overrides it.
+- **Current Gemini model configuration.** `DEFAULT_MODELS["gemini"]` is
   **`gemini-3.6-flash`**, changed in Stage 30 after measuring that *both*
   `gemini-2.5-pro` **and** `gemini-2.5-flash` now return 404 for this key —
   *"no longer available to new users. Please update your code to use
@@ -516,21 +567,28 @@ Stage 29, plus the commit that added this file) and the docs. Verify against
 **IN PROGRESS**
 
 - **Real model evaluation.** Partial: 20/35 on `gemini-2.5-flash`. Categories
-  F and G are unmeasured. Anthropic is entirely unmeasured.
+  F and G are unmeasured, on any provider. Anthropic has product-flow
+  evidence but no corpus run, and five corpus E-cases are stale (§6).
 
 **NEXT**
 
-1. **Complete the 35/35 baseline** — work around the free-tier daily
-   allowance (§7). Until this exists, no full quality claim is possible.
-2. **Fix the unusable Gemini default model** (`gemini-2.5-pro` → an available
-   Flash model).
-3. **Prompt improvement**, driven by the measured failures: the A6 dimension
-   swap and the B2/B3 over-clarification. Change the prompt, then re-measure —
-   never change the corpus or the expected documents to improve a score.
+1. **Re-baseline the corpus for the widened prompt.** Five E-cases now
+   contradict prompt policy (§6), so a corpus run today mis-scores. This is
+   the blocker on every quality claim, and it must be done by re-authoring
+   expectations as a deliberate stage — never by editing cases to raise a
+   score.
+2. **Run 35/35 against Anthropic**, which has product-flow evidence but no
+   corpus number. Gemini's free tier still caps at ~20 requests/day (§7).
+3. ~~**Fix the unusable Gemini default model**~~ — **done**; and Anthropic on
+   `claude-haiku-4-5-20251001` is now the default provider.
+4. **Prompt improvement**, continuing from the measured failures: the A6
+   dimension swap and the B2/B3 over-clarification remain unaddressed. The
+   Stage 32 pattern is the one to follow — reproduce N times live, find the
+   root cause, change the prompt, re-measure.
 
 **FUTURE**
 
-4. **AI repair / verification loop** — deliberately absent today; would need
+5. **AI repair / verification loop** — deliberately absent today; would need
    its own design so it never becomes silent correction.
 5. ~~**Natural-language frontend integration**~~ — **done in Stage 30.**
 6. ~~**MVP**: description → geometry → export, end to end, in the browser.~~ —
@@ -553,18 +611,19 @@ Each of these is supported by the code, the docs or the measured results.
   model, one run. The A6 X/Y swap is a confirmed real failure mode.
 - **AI ambiguity handling is imperfect**: B2/B3 asked for clarification on
   unambiguous explicit-axis cylinders.
-- **The configured model omits the document about half the time.** Measured in
-  Stage 30 over 13 live `POST /generate` calls on `gemini-3.6-flash` with
-  prompt `2026-09-08.1`: **6 documents, 6 `invalid_model_output`, 1 provider
-  error**. The failures return `{"status": "document"}` with the `document`
-  field simply absent, at 36-52 output tokens against 80-106 for a success,
-  and `stop_reason` is `STOP` — so it is not truncation. This is the single
-  biggest product problem, and it is a *prompt/schema* problem to be fixed by
-  measurement, never by a repair loop.
-- **Adversarial and semantic-edge-case behavior is entirely unmeasured.**
+- **A model sometimes answers `status: "document"` with the `document` field
+  absent.** Worst measured on `gemini-3.6-flash` (Stage 30, 13 calls: 6
+  documents, 6 `invalid_model_output`, 1 provider error) — the answer carries
+  36-52 output tokens against 80-106 for a success, and `stop_reason` is
+  `STOP`, so it is not truncation. On `claude-haiku-4-5-20251001` it is rare
+  rather than routine: seen once across the prompt work, on a case that then
+  passed 4/4. Still a *prompt/schema* problem to fix by measurement, never by
+  a repair loop.
+- **Adversarial and semantic-edge-case behavior is entirely unmeasured**, on
+  every provider.
 - **Provider availability is unreliable**: a 404 on the default Gemini model
   and a ~20-request/day free-tier allowance.
-- **Anthropic has never been exercised live.**
+- **Anthropic has no corpus benchmark**, only the hand-run product flow in §6.
 - **Seam-selection semantics are unresolved** — see `docs/edge-selection.md`
   for which edges a cylinder's seam contributes and why it matters for
   `select: "all"`.
@@ -644,6 +703,54 @@ design decision to raise explicitly, not a detail to slip into a diff.
 
 ## 14. Useful commands
 
+### Start everything (Windows, the normal way in)
+
+```powershell
+.\start.ps1      # backend 8000 + frontend 5173, waits for health, opens the page
+.\stop.ps1       # stops what start.ps1 started
+```
+
+`start.ps1` locates the repo, uses the existing `.venv`, reads
+`appspi\.env`, creates the `CAD_API_CACHE_ROOT` the app refuses to invent,
+and starts the same uvicorn factory and Vite dev server. Useful switches:
+`-NoBrowser`, `-BackendPort`, `-FrontendPort`, and `-DotEnvPath` (for a git
+worktree that has no `.env` of its own). It **adopts** an already-running
+server rather than starting a second one, and refuses an occupied port instead
+of silently moving. Logs and state live in the gitignored `.dev\`.
+
+Do not hand-roll `uvicorn`/`npm run dev` command lines when you just need the
+app running. The manual sequence below still works and is still supported.
+
+### Tests
+
+**On Windows use `python` from `.venv` and semicolon-separated `PYTHONPATH`.**
+A colon-separated `PYTHONPATH` is silently ignored there, and the editable
+installs then resolve to whatever tree they were installed from — which means
+you can run a whole suite against the *wrong checkout* and never notice.
+
+```powershell
+# cad-core (1481)
+$env:PYTHONPATH = "$PWD\packages\cad-core\src"
+.\.venv\Scripts\python.exe -m unittest discover -s packages\cad-core	ests -t packages\cad-core	ests
+
+# API + AI (591). Run from appspi	ests: the modules import
+# `provider_stubs` as a top-level module, so a named single-test run needs
+# that directory on sys.path.
+cd appspi	ests
+$env:PYTHONPATH = "<repo>\packages\cad-core\src;<repo>ppspi\src;."
+..\..\..\.venv\Scripts\python.exe -m unittest discover -s . -t .
+
+# one class, or one test
+..\..\..\.venv\Scripts\python.exe -m unittest test_text_to_cad_ai.TestAnthropicProvider
+..\..\..\.venv\Scripts\python.exe -m unittest test_text_to_cad_ai.TestAnthropicProvider.test_no_tools_are_ever_sent
+
+# frontend, and the launcher
+cd apps\web; npm test; npm run typecheck
+.\scripts\Test-DevLauncher.ps1
+```
+
+The POSIX forms below are the originals and remain correct on Linux/macOS.
+
 ```sh
 # --- cad-core tests (1481) ---
 PYTHONPATH=packages/cad-core/src \
@@ -683,7 +790,72 @@ Neither is needed for the core or the HTTP transport.
 
 ---
 
-## 15. Repository structure
+## 15. Windows: platform traps that look like bugs
+
+This is the primary development machine (Windows 11, **Windows PowerShell
+5.1**). Every item below was a red test or a wrong conclusion, diagnosed and
+fixed in Stage 32. If something fails here, check this list before changing
+CAD code.
+
+- **`PYTHONPATH` must be `;`-separated.** A `:`-separated value is silently
+  ignored, and imports then fall back to the editable installs — so a suite
+  can run green against a completely different checkout. This produced a
+  confidently wrong conclusion once already.
+- **The OpenCascade native layer aborts at interpreter shutdown.** A child
+  process can do all its work, print its result, and *then* exit with
+  `0xC0000374` (heap corruption) or `0xC0000005` (access violation) during
+  finalisation. Tests that assert `returncode == 0` therefore flush and
+  `os._exit(0)` once they have proved their point. A bare `python -c` that
+  imports `cad_core` may also "segfault" after printing — the output is still
+  valid.
+- **`os.kill(pid, 0)` is not a liveness probe here.** `os.kill` maps onto
+  `TerminateProcess` and rejects signal 0 with `WinError 87` whether or not
+  the process exists. `test_isolated_execution.process_is_running()` does it
+  properly (`OpenProcess` + `WaitForSingleObject`).
+- **`Path.read_text()` uses the locale codepage (cp1252), not UTF-8.**
+  `edge_selection.py` has box-drawing characters in a docstring diagram, so
+  any test parsing source must pass `encoding="utf-8"` explicitly.
+- **A child given a hand-built minimal environment needs the home
+  variables.** Drop `USERPROFILE`/`HOMEDRIVE`/`HOMEPATH` and `ezdxf` — which
+  CadQuery's exporters import at module scope — raises *"Could not determine
+  home directory"* from `Path("~").expanduser()`. Use
+  `_minimal_child_environment()` in `test_http_api.py`.
+- **Never watch the shared `%TEMP%` in a test.** Any other process writing
+  there fails it. Redirect `tempfile.tempdir` to a private directory instead.
+- **Vite binds `::1` only; uvicorn binds `127.0.0.1`.** An IPv4-only port
+  probe reports Vite's port free and starts a duplicate server. Note also
+  that `New-Object System.Net.Sockets.TcpClient` with no argument creates an
+  **IPv4** socket, so it can never connect to `::1`.
+- **`node` and `npm` are not on `PATH` in non-interactive shells**, though
+  Node is installed. Resolve them explicitly (`Resolve-NpmCommand`,
+  `Resolve-NodeCommand`), and put Node's directory on the `PATH` handed to
+  Vite — `npm.cmd` shells out to `node`.
+- **PowerShell 5.1 has no `?:`, no `??`, and no `&&`/`||` chaining.** Scripts
+  here must avoid them.
+
+## 16. Keeping a running demo safe
+
+The demo runs on **backend 8000 / frontend 5173**; experiments belong on
+**8001 / 5174**, with the experimental frontend proxying to
+`http://127.0.0.1:8001` (`start.ps1 -BackendPort 8001 -FrontendPort 5174`).
+Both stacks run side by side.
+
+When a running demo must not change, prefer a **`git worktree`** for the
+experiment over checking a branch out in the main tree. A branch switch
+rewrites the files the Vite dev server watches, and this project has more than
+once had its running state depend on *uncommitted* files. A worktree leaves
+the demo's files, branch and processes untouched by construction. Note that
+`.venv` and `node_modules` are gitignored, so a fresh worktree needs
+directory junctions to the main tree's copies, and `-DotEnvPath` to read the
+one credential rather than copying it.
+
+A running backend has already imported its modules: editing `prompt.py` does
+not affect a live server until it restarts. That is what makes it safe to
+merge backend changes while a demo is up.
+
+---
+
+## 17. Repository structure
 
 ```
 /
@@ -725,19 +897,25 @@ Neither is needed for the core or the HTTP transport.
 
 ---
 
-## 16. Git / branch state
+## 18. Git / branch state
 
 - **Branch:** `claude/text-to-cad-skeleton-r946xr`
 - **Tracks:** `origin/claude/text-to-cad-skeleton-r946xr`
   (`https://github.com/Atharvabhangale/AI-assisted-text-to-CAD-application`)
-- **History:** 35 implementation commits, Stage 0 → Stage 29, all on this
-  branch, plus the commit that added this handoff.
-- **Recent commits** (newest last; the handoff commit sits on top of these):
+- **History:** Stage 0 → Stage 32, all on this branch, pushed to origin.
+- **Recent commits** (newest first):
+  - `4059b87` Fix the stale identity pins, and the Windows-only test failures
+  - `55c59cb` Prompt 2026-09-09.2: teach Haiku that nothing joins, and that locatives answer
+  - `b94d4e9` Stage 30 and the local launcher: the working demo state
+  - `950077d` Add Claude Code project handoff context
   - `18eb9ce` Stage 29: separate provider reliability from real model quality
-  - `bf8518f` Stage 28A: complete and gate the Gemini provider; defer the live benchmark
-  - `9a4a6af` Add a Gemini provider behind the existing model boundary
-  - `dcb5751` Stage 27: real-model text-to-CAD evaluation harness
-  - `4915485` Stage 26: natural language to CAD specification
+- **`experiment/haiku-generation-reliability`** holds the same work as its own
+  history (its tree is identical to this branch's); it was cherry-picked here,
+  not merged, so the SHAs differ. Its worktree, if still present, sits beside
+  the repo and can be removed with `git worktree remove`.
+- **Stage 30's work lived only in an uncommitted working tree** until Stage 32
+  committed it as `b94d4e9`. Worth knowing: this repository has had its
+  running demo depend on files that existed nowhere in git (see §16).
 
 For the current HEAD and state, run `git log --oneline -5` and `git status` —
 they are authoritative, this list is a snapshot.
