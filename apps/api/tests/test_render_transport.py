@@ -659,6 +659,9 @@ class TestRenderIsNotAFileServer(RenderTransportTestCase):
                 "/build",
                 "/builds/{build_key}",
                 "/builds/{build_key}/render",
+                # Stage 30's natural-language route. It serves no render
+                # model and lists nothing.
+                "/generate",
                 "/health",
                 "/validate",
             ],

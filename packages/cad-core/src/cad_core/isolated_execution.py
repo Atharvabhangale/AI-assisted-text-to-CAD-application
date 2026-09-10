@@ -153,6 +153,13 @@ INHERITED_ENVIRONMENT_NAMES: Tuple[str, ...] = (
     "SYSTEMROOT",
     "SystemRoot",
     "WINDIR",
+    # Windows has no `pwd` fallback for `Path("~").expanduser()`, so a library
+    # that resolves the home directory at import time -- `ezdxf`, which
+    # CadQuery imports for its DXF exporter -- raises without these. Paths,
+    # like the loader variables above, and not credentials.
+    "USERPROFILE",
+    "HOMEDRIVE",
+    "HOMEPATH",
 )
 
 #: Environment variables the child is **given**, whatever the host's are.

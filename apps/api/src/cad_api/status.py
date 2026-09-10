@@ -16,6 +16,8 @@ from typing import Mapping, Tuple
 
 from cad_core.application_service import ServiceFailure
 
+from cad_ai.generation import GenerationOutcome
+
 from cad_api.artifacts import DeliveryReason
 from cad_api.builds import RetrievalReason
 
@@ -53,6 +55,13 @@ FAILURE_STATUS: Mapping[ServiceFailure, int] = {
     ServiceFailure.INTERNAL_ERROR: INTERNAL_STATUS,
 }
 
+#: 502 Bad Gateway. An upstream service answered, and its answer was not
+#: usable. Used for one thing only: the model produced something that is not a
+#: valid CAD document. That is not the client's fault -- the same description
+#: may well work on the next attempt -- and it is not this server failing
+#: either, so it is neither 4xx nor 500.
+BAD_GATEWAY_STATUS = 502
+
 #: 400 Bad Request. The request's own identifier is malformed.
 BAD_REQUEST_STATUS = 400
 
@@ -86,6 +95,28 @@ RETRIEVAL_STATUS: Mapping[RetrievalReason, int] = {
     RetrievalReason.RETRIEVAL_FAILED: INTERNAL_STATUS,
 }
 
+#: One status per AI outcome. Complete by construction: a test asserts every
+#: :class:`GenerationOutcome` member appears.
+#:
+#: The first three are **200 because the question was asked and answered**,
+#: which is the same rule ``POST /validate`` follows when its answer is
+#: ``"valid": false``. A clarification and a refusal are results, not
+#: failures: the service did exactly what it exists to do and reported what it
+#: found. Collapsing them into a 4xx would tell a client its request was
+#: malformed when it was merely under-specified or out of scope.
+#:
+#: The last two are the two genuine failures, and they are separated because a
+#: client can act on the difference: a model that answered badly may answer
+#: well next time (502), while a provider that could not be reached at all is
+#: an availability problem (503).
+GENERATION_STATUS: Mapping[GenerationOutcome, int] = {
+    GenerationOutcome.GENERATED: OK_STATUS,
+    GenerationOutcome.NEEDS_CLARIFICATION: OK_STATUS,
+    GenerationOutcome.UNSUPPORTED: OK_STATUS,
+    GenerationOutcome.INVALID_MODEL_OUTPUT: BAD_GATEWAY_STATUS,
+    GenerationOutcome.MODEL_ERROR: UNAVAILABLE_STATUS,
+}
+
 #: Statuses this application can return, for documentation and tests.
 STATUSES: Tuple[int, ...] = (
     OK_STATUS,
@@ -93,8 +124,19 @@ STATUSES: Tuple[int, ...] = (
     NOT_FOUND_STATUS,
     UNPROCESSABLE_STATUS,
     INTERNAL_STATUS,
+    BAD_GATEWAY_STATUS,
     UNAVAILABLE_STATUS,
 )
+
+
+def status_for_outcome(outcome: GenerationOutcome) -> int:
+    """The HTTP status for an AI generation outcome.
+
+    An unrecognised outcome is a 500 rather than a guess: the taxonomy is
+    closed, so an unknown member means this map is out of date, which is a
+    server problem and not the client's.
+    """
+    return GENERATION_STATUS.get(outcome, INTERNAL_STATUS)
 
 
 def status_for_retrieval(reason: RetrievalReason) -> int:

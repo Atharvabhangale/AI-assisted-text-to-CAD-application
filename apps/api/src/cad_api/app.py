@@ -1,13 +1,21 @@
-"""The ASGI application: six routes, and no CAD logic.
+"""The ASGI application: seven routes, and no CAD logic.
 
 ```
 POST /validate                     ->  ValidateBody  ->  CadApiContract.validate_document_payload
 POST /build                        ->  BuildBody     ->  CadApiContract.build_document_payload
+POST /generate                     ->  GenerateBody  ->  TextGenerator.generate
 GET  /builds/{build_key}           ->  BuildRetriever.retrieve         ->  the published result
 GET  /builds/{build_key}/render    ->  BuildRetriever.retrieve_render  ->  canonical render JSON
 GET  /artifacts/{id}               ->  ArtifactResolver.resolve        ->  verified bytes
 GET  /health                       ->  {"status": "ok"}
 ```
+
+``POST /generate`` is the natural-language entry point, and it is a *sibling*
+of ``POST /build`` rather than a replacement for it: it returns a validated
+CAD document and builds nothing, so the client sends that document to
+``POST /build`` exactly as it would one a human wrote. There is one build
+path, one validator and one CAD contract; the AI adds an interpreter in front
+of them and changes none of them.
 
 The two JSON routes each do four things: let Pydantic check the envelope,
 hand the payload to the transport-neutral contract, choose a status from the
@@ -81,7 +89,8 @@ from cad_api.builds import (
     RetrievalReason,
 )
 from cad_api.config import ApiConfig
-from cad_api.schemas import BuildBody, ValidateBody
+from cad_api.generation import TextGenerator
+from cad_api.schemas import BuildBody, GenerateBody, ValidateBody
 from cad_api.status import (
     INTERNAL_STATUS,
     NOT_FOUND_STATUS,
@@ -89,6 +98,7 @@ from cad_api.status import (
     TRANSPORT_STATUS,
     status_for_delivery,
     status_for_failure,
+    status_for_outcome,
     status_for_retrieval,
 )
 
@@ -110,6 +120,7 @@ INTERNAL_ERROR = ErrorContract(
 #: would have had.
 VALIDATE_PATH = "/validate"
 BUILD_PATH = "/build"
+GENERATE_PATH = "/generate"
 HEALTH_PATH = "/health"
 ARTIFACTS_PREFIX = "/artifacts/"
 ARTIFACT_PATH = ARTIFACTS_PREFIX + "{artifact_id}"
@@ -185,6 +196,11 @@ def create_app(
         getattr(getattr(service, "backend", None), "cache", None)
     )
     app.state.retriever = BuildRetriever(service)
+    # The AI entry point shares the one application service, so a generated
+    # document is validated by exactly the validator every other route uses.
+    # Its provider is built on first use, not here: the server must start, and
+    # every CAD route must work, with no credential configured.
+    app.state.generator = TextGenerator(service)
 
     @app.exception_handler(RequestValidationError)
     async def _malformed_request(
@@ -388,6 +404,32 @@ def create_app(
         payload = contract.build_document_payload(body.to_payload())
         return JSONResponse(status_code=_status_of(payload), content=payload)
 
+    @app.post(GENERATE_PATH)
+    async def generate_document(
+        body: GenerateBody, generator: TextGenerator = Depends(_generator)
+    ) -> JSONResponse:
+        """Interpret a natural-language description into a CAD document.
+
+        **Generation only.** No geometry runs here: the answer carries a
+        document the validator already accepted, and the client sends that
+        document to ``POST /build`` like any other. One model call, one
+        attempt, no retry and no repair.
+
+        **200** for all three *answers* -- a document, a clarification
+        question, or a refusal -- because each is the service doing its job;
+        **502** when the model's answer was not a valid CAD document;
+        **503** when no model could be reached. See :mod:`cad_api.status`.
+
+        The body is the AI layer's own result payload, which excludes its
+        development-only diagnostic. No credential, header, provider message,
+        traceback or path can reach a client through it.
+        """
+        result = generator.generate(body.text)
+        _log_generation(result)
+        return JSONResponse(
+            status_code=status_for_outcome(result.outcome), content=result.to_dict()
+        )
+
     return app
 
 
@@ -422,6 +464,11 @@ async def _retriever(request: Request) -> BuildRetriever:
     return request.app.state.retriever
 
 
+async def _generator(request: Request) -> TextGenerator:
+    """The application's one text-to-CAD entry point, built at startup."""
+    return request.app.state.generator
+
+
 def _artifact_response(artifact: DeliveredArtifact) -> Response:
     """The bytes the resolver verified, with safe headers.
 
@@ -438,6 +485,41 @@ def _artifact_response(artifact: DeliveredArtifact) -> Response:
             "content-length": str(artifact.size_bytes),
             "etag": artifact.etag,
         },
+    )
+
+
+def _log_generation(result: Any) -> None:
+    """Record that a generation failed, server-side and never to the client.
+
+    **Only this application's own closed vocabularies are logged**: the
+    outcome, the vendor-neutral error kind, and any specification rule codes
+    the validator produced. Each names a class of failure, and every possible
+    value is a constant defined in this repository.
+
+    Three things are deliberately *not* logged, at any level:
+
+    * **the AI layer's ``detail``** -- it may quote the provider's own
+      exception text, and a provider diagnostic is exactly where a credential
+      or an authorization header turns up. A log file is a place secrets go to
+      be forgotten about; the safe amount to write there is none. A test
+      asserts this by failing the model with a key-shaped diagnostic and
+      grepping the log for it.
+    * **the description** -- user content, for the same reason the CAD routes
+      never log a document.
+    * **the generated document** -- a whole design in a server log, for
+      nothing.
+
+    A successful generation logs nothing at all.
+    """
+    outcome = getattr(result, "outcome", None)
+    if outcome is None or getattr(outcome, "value", "") == "generated":
+        return
+    kind = getattr(result, "error_kind", None)
+    logger.warning(
+        "generation did not produce a document: outcome=%s kind=%s rules=%s",
+        getattr(outcome, "value", "unknown"),
+        getattr(kind, "value", None),
+        ",".join(getattr(result, "rule_codes", ()) or ()) or "-",
     )
 
 

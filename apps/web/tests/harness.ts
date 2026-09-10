@@ -13,7 +13,11 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { collectElements, type Elements, type ViewerPort } from "../src/app";
-import type { BuildResponse, ValidateResponse } from "../src/api";
+import type {
+  BuildResponse,
+  GenerateResponse,
+  ValidateResponse,
+} from "../src/api";
 import type { RenderModel } from "../src/render-model";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -62,6 +66,29 @@ export const sectionDRender = (): RenderModel =>
   fixture<RenderModel>("section-d-render.json");
 export const sectionDDocument = (): Record<string, unknown> =>
   fixture<Record<string, unknown>>("section-d-document.json");
+
+/**
+ * Real `POST /generate` answers, captured from the live Gemini provider.
+ *
+ * These are what the model actually returned for the descriptions named in
+ * `fixtures/README.md`. They are evidence of *shape*, not of quality: the
+ * suite asserts the page handles each shape, and nothing here claims the
+ * model answers this way every time. (It does not -- see the README.)
+ */
+export const generatedPlate = (): GenerateResponse =>
+  fixture<GenerateResponse>("generate-plate.json");
+export const generatedCylinder = (): GenerateResponse =>
+  fixture<GenerateResponse>("generate-cylinder.json");
+export const clarificationNeeded = (): GenerateResponse =>
+  fixture<GenerateResponse>("generate-clarification.json");
+export const unsupportedRequest = (): GenerateResponse =>
+  fixture<GenerateResponse>("generate-unsupported.json");
+export const invalidModelOutput = (): GenerateResponse =>
+  fixture<GenerateResponse>("generate-invalid-model-output.json");
+export const generatedPlateBuild = (): BuildResponse =>
+  fixture<BuildResponse>("generated-plate-build.json");
+export const generatedPlateRender = (): RenderModel =>
+  fixture<RenderModel>("generated-plate-render.json");
 
 /** One recorded request: what the page actually sent. */
 export interface RecordedCall {

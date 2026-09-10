@@ -3,49 +3,62 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Text-to-CAD viewer</title>
+    <title>Text to CAD</title>
     <link rel="stylesheet" href="/src/styles.css" />
   </head>
   <body>
     <main id="app">
-      <h1>CAD build viewer</h1>
+      <h1>Text to CAD</h1>
 
-      <section class="panel" aria-labelledby="document-heading">
-        <h2 id="document-heading">CAD document</h2>
-        <label for="document-input">Canonical CAD document (JSON)</label>
+      <section class="panel" aria-labelledby="describe-heading">
+        <h2 id="describe-heading">Describe your part</h2>
+        <label for="description-input">What would you like to make?</label>
         <textarea
-          id="document-input"
-          rows="16"
+          id="description-input"
+          rows="3"
           spellcheck="false"
-          aria-describedby="document-help"
+          aria-describedby="description-help"
+          placeholder="Create a rectangular plate 100 mm long, 60 mm wide and 10 mm thick."
         ></textarea>
-        <p id="document-help" class="help">
-          A canonical V1 CAD document. The backend validates it; this page does
-          not.
+        <p id="description-help" class="help">
+          State the dimensions and the units. The model interprets the
+          description; the backend validates and builds the result.
         </p>
         <div class="actions">
-          <button id="load-example" type="button">Load example</button>
-          <button id="validate-button" type="button">Validate</button>
-          <button id="build-button" type="button">Build</button>
-        </div>
-      </section>
-
-      <section class="panel" aria-labelledby="viewer-heading">
-        <h2 id="viewer-heading">Viewport</h2>
-        <div id="viewport" class="viewport">
-          <canvas id="viewer-canvas" aria-labelledby="geometry-summary"></canvas>
-        </div>
-        <div class="actions">
-          <button id="fit-button" type="button" disabled>Fit to model</button>
+          <button id="generate-button" type="button">Generate CAD</button>
         </div>
       </section>
 
       <section class="panel" aria-labelledby="status-heading">
         <h2 id="status-heading">Status</h2>
         <p id="status" role="status" aria-live="polite" data-state="idle">
-          Idle. Paste a CAD document and press Build.
+          Idle. Describe a part and press Generate CAD.
         </p>
         <ul id="errors" class="errors" hidden></ul>
+        <div id="clarify" class="clarify" hidden>
+          <ul id="questions" class="questions"></ul>
+          <label for="clarify-input">Your answer</label>
+          <textarea id="clarify-input" rows="2" spellcheck="false"></textarea>
+          <div class="actions">
+            <button id="clarify-button" type="button">Answer and retry</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="intent-heading">
+        <h2 id="intent-heading">Design intent</h2>
+        <p id="intent-summary" class="summary"></p>
+        <div id="design-intent" class="intent" hidden></div>
+      </section>
+
+      <section class="panel" aria-labelledby="viewer-heading">
+        <h2 id="viewer-heading">3D model</h2>
+        <div id="viewport" class="viewport">
+          <canvas id="viewer-canvas" aria-labelledby="geometry-summary"></canvas>
+        </div>
+        <div class="actions">
+          <button id="fit-button" type="button" disabled>Fit to model</button>
+        </div>
       </section>
 
       <section class="panel" aria-labelledby="result-heading">
@@ -59,6 +72,27 @@
           <button id="export-stl" type="button" hidden>Export STL</button>
         </div>
       </section>
+
+      <details class="panel" id="advanced">
+        <summary><h2 id="document-heading">Advanced: CAD JSON</h2></summary>
+        <label for="document-input">Canonical CAD document (JSON)</label>
+        <textarea
+          id="document-input"
+          rows="16"
+          spellcheck="false"
+          aria-describedby="document-help"
+        ></textarea>
+        <p id="document-help" class="help">
+          A canonical V1 CAD document. The backend validates it; this page does
+          not. Generating a part fills this in, so you can see and rebuild
+          exactly what was interpreted.
+        </p>
+        <div class="actions">
+          <button id="load-example" type="button">Load example</button>
+          <button id="validate-button" type="button">Validate</button>
+          <button id="build-button" type="button">Build</button>
+        </div>
+      </details>
     </main>
     <script type="module" src="/src/main.ts"></script>
   </body>

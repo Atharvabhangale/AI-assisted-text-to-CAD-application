@@ -1,7 +1,8 @@
 # Natural language → CAD specification
 
-Status: **Stage 26 — the first AI interpretation layer. Service-only; no HTTP
-endpoint and no natural-language UI. Not production-ready.**
+Status: **Stage 26 — the first AI interpretation layer. Stage 30 put it
+behind `POST /generate` and wired it to the browser, so the layer is no longer
+service-only. Not production-ready.**
 
 > **The LLM does not generate executable CAD code.** It emits a CAD *data*
 > document and nothing else — no Python, no CadQuery, no OpenCascade, no
@@ -26,6 +27,31 @@ AiGenerationResult
   │  (a separate, deliberate call by the caller)
 CadApplicationService.build_document      the existing build pipeline
 ```
+
+### The product flow, end to end (Stage 30)
+
+```
+browser: a sentence in a text box
+  │  POST /generate                        cad_api.generation.TextGenerator
+Gemini (or Anthropic)                      the configured provider, backend-side only
+  │  the pipeline above                    parse -> deserialize -> validate
+validated CAD document                     returned to the browser
+  │  POST /build                           the SAME endpoint the JSON flow uses
+build / cache / isolation                  unchanged
+RenderModel  +  STEP / IGES / STL
+  │  GET /builds/{key}/render, GET /artifacts/{id}
+browser: an interactive 3D model
+```
+
+**The AI generates CAD intent. The CAD engine generates geometry.** Nothing in
+this chain asks a model for a B-rep, a mesh, a STEP file or a line of code, and
+no stage of it executes anything a model returned. The document is the only
+thing that crosses from the AI layer, and the validator decides whether it may.
+
+The browser never holds a credential: only the backend talks to a provider.
+The frontend names no vendor at all — it posts a sentence to `/generate` and
+reads back the outcome, and a test asserts the strings `gemini`, `anthropic`,
+`openai`, `claude` and `prompt` appear nowhere in its sources.
 
 The invariant, stated as the stage requires:
 
@@ -97,6 +123,32 @@ messages.create parameters:
 * `tools` and `tool_choice` exist and are **never sent**. A test asserts the
   call this provider makes carries exactly
   `max_tokens, messages, model, output_config, system` and nothing else.
+* **the schema is narrowed to this API's structured-output subset before it is
+  sent.** Measured, not assumed: sending `response_schema()` unchanged returns
+  **400** `invalid_request_error` — *"output_config.format.schema: For
+  'number' type, property 'exclusiveMinimum' is not supported"*. The subset
+  accepts the basic types, `enum`, `const`, `anyOf`, `allOf`, `$ref`/`$defs`,
+  the named string formats and `additionalProperties: false`; it accepts no
+  numeric bound, no string length or pattern constraint, and no array-size
+  constraint. `schema_for_api` therefore removes
+  `UNSUPPORTED_SCHEMA_KEYWORDS` — `exclusiveMinimum`, `minimum`, `maximum`,
+  `multipleOf`, `minLength`, `maxLength`, `pattern`, `minItems`, `maxItems`,
+  `uniqueItems` — at every depth, returning a copy so the shared schema the
+  evaluation harness and the Gemini provider see stays whole.
+
+  **This weakens no rule.** The schema is a decoding constraint, never an
+  authority on CAD validity: the V1 validator remains the only thing that
+  decides that, and it still rejects a zero-or-negative size, a malformed
+  feature id and an empty feature list regardless of what the model was free
+  to emit. The prompt states each requirement in prose as well, so a model
+  that ignores one produces a document the validator refuses — the designed
+  behaviour. Tests pin the removal, the untouched original, the surviving
+  supported keywords, and that a stripped constraint is still enforced.
+
+  Until this was found, **every** `POST /generate` on this provider failed
+  with `invalid_model_output`/`model_error` before interpretation was even
+  attempted. It went unnoticed because Anthropic had never been exercised
+  live; the request never reached the model.
 
 #### Gemini
 

@@ -933,7 +933,7 @@ class TestPackageBoundary(unittest.TestCase):
     def imported_modules(self, filename: str) -> set:
         import ast
 
-        tree = ast.parse((self.ROOT / filename).read_text())
+        tree = ast.parse((self.ROOT / filename).read_text(encoding="utf-8"))
         names = set()
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):

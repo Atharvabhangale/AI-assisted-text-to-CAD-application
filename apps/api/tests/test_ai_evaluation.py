@@ -1829,12 +1829,58 @@ class TestEvaluationBoundary(unittest.TestCase):
         for member in SemanticErrorCategory.__members__:
             self.assertNotIn(member, model_source)
 
-    def test_the_http_transport_is_untouched_by_this_stage(self) -> None:
+    def test_the_benchmark_is_not_reachable_over_http(self) -> None:
+        """The transport serves the product, never the measuring instrument.
+
+        Stage 30 gave ``cad_api.generation`` a dependency on the AI layer --
+        that is the ``POST /generate`` route, and it is deliberate. It did
+        **not** give the transport a dependency on the *evaluation* layer, and
+        it must not: a benchmark spends quota, writes result files and exists
+        to measure the product, so exposing it over HTTP would turn a
+        measurement into a feature. There is no endpoint that runs the corpus,
+        and no transport module names it.
+        """
         transport = REPO_ROOT / "apps" / "api" / "src" / "cad_api"
         for path in sorted(transport.glob("*.py")):
             source = path.read_text(encoding="utf-8")
-            self.assertNotIn("cad_ai", source, msg=path.name)
-            self.assertNotIn("evaluation", source, msg=path.name)
+            # Imported names and identifiers, not English words: "comparison"
+            # and "evaluation" occur in ordinary prose in these files, and a
+            # bare substring ban would be a ban on explaining oneself.
+            for forbidden in (
+                "cad_ai.evaluation",
+                "cad_ai.corpus",
+                "cad_ai.comparison",
+                "EvaluationCase",
+                "EvaluationResult",
+                "EvaluationRun",
+                "load_corpus",
+                "SemanticErrorCategory",
+                "CORPUS",
+                "benchmark",
+            ):
+                self.assertNotIn(forbidden, source, msg=f"{path.name}: {forbidden}")
+
+    def test_only_one_transport_module_touches_the_ai_layer(self) -> None:
+        """``cad_api.generation`` is the single seam, and it is a thin one.
+
+        Every other transport module is exactly as AI-free as it was before
+        Stage 30, so the CAD routes cannot acquire an AI dependency by
+        accident.
+        """
+        transport = REPO_ROOT / "apps" / "api" / "src" / "cad_api"
+        touching = {
+            path.name
+            for path in sorted(transport.glob("*.py"))
+            if "cad_ai" in path.read_text(encoding="utf-8")
+        }
+        # `status.py` maps the AI outcomes onto HTTP statuses, and `schemas.py`
+        # takes the request field list from the same place; both are naming,
+        # not behaviour. `app.py` wires the route.
+        # `generation.py` holds the service; `status.py` maps the AI outcome
+        # enum onto HTTP statuses. Nothing else -- `app.py` reaches the AI
+        # layer only through `cad_api.generation`, and `schemas.py` takes its
+        # field list from there too.
+        self.assertEqual(touching, {"generation.py", "status.py"})
 
     def test_the_generation_path_is_unchanged_by_evaluation(self) -> None:
         # The evaluator wraps the model, never the service's own logic.

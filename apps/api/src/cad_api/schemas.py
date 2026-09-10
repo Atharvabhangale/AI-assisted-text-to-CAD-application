@@ -21,9 +21,11 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from cad_core.api_contract import BUILD_REQUEST_FIELDS, VALIDATE_REQUEST_FIELDS
+
+from cad_api.generation import GENERATE_REQUEST_FIELDS, MAX_DESCRIPTION_CHARACTERS
 
 
 class ValidateBody(BaseModel):
@@ -69,7 +71,41 @@ class BuildBody(BaseModel):
         return self.model_dump(exclude_unset=True)
 
 
+class GenerateBody(BaseModel):
+    """``POST /generate``: ``{"text": "a 100 x 60 x 10 mm plate"}``.
+
+    The only checks here are transport checks: it is a string, it is not
+    empty or blank, and it is not unbounded. **Nothing interprets it** -- the
+    description is not parsed, not matched against a pattern, and never turned
+    into geometry by this layer. What a description *means* is the model's
+    question and the validator's answer.
+
+    A blank string is rejected rather than sent, because spending a model call
+    on nothing is not a service the client wanted.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    text: str = Field(
+        min_length=1,
+        max_length=MAX_DESCRIPTION_CHARACTERS,
+        description="A natural-language description of one part.",
+    )
+
+    @field_validator("text")
+    @classmethod
+    def _not_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("a description is required")
+        return value
+
+    def to_payload(self) -> Dict[str, Any]:
+        """The transport-contract payload, with omitted fields left out."""
+        return self.model_dump(exclude_unset=True)
+
+
 #: The fields these models accept, taken from the transport contract itself so
 #: the two cannot drift. A test asserts the correspondence.
 VALIDATE_FIELDS = VALIDATE_REQUEST_FIELDS
 BUILD_FIELDS = BUILD_REQUEST_FIELDS
+GENERATE_FIELDS = GENERATE_REQUEST_FIELDS

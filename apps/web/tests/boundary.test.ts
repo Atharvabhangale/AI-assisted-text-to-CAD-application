@@ -31,11 +31,24 @@ function importsOf(text: string): string[] {
   return [...text.matchAll(/from\s+"([^"]+)"/g)].map((match) => match[1]);
 }
 
+/**
+ * A source file with its comments removed.
+ *
+ * Some bans below are about what the code *does*, and these files explain
+ * themselves at length -- a module that documents "never repairs the model's
+ * output" would otherwise fail a ban on the word "repair" for saying so. The
+ * prose is the wrong thing to assert against; the code is the right thing.
+ */
+function codeOf(text: string): string {
+  return text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+}
+
 describe("the frontend's dependencies", () => {
   it("has the source files the stage describes and no others", () => {
     expect(SOURCES).toEqual([
       "api.ts",
       "app.ts",
+      "design-intent.ts",
       "example.ts",
       "main.ts",
       "render-model.ts",
@@ -49,6 +62,7 @@ describe("the frontend's dependencies", () => {
       "three/addons/controls/OrbitControls.js",
       "./api",
       "./app",
+      "./design-intent",
       "./example",
       "./render-model",
       "./viewer",
@@ -177,11 +191,11 @@ describe("no CAD business logic exists in the frontend", () => {
   });
 
   it("performs no boolean or feature operation", () => {
+    // Call-shaped tokens: a feature operation being *performed*. Forbidden
+    // everywhere, with no exemption -- this is the invariant that matters.
     for (const name of SOURCES) {
-      const text = read(name);
+      const text = read(name).toLowerCase();
       for (const forbidden of [
-        "through_hole",
-        "diameter",
         "fillet(",
         "chamfer(",
         "subtract(",
@@ -189,14 +203,48 @@ describe("no CAD business logic exists in the frontend", () => {
         ".union(",
         "extrude(",
       ]) {
-        if (name === "example.ts") {
-          continue; // the preloaded document is input data, checked below
-        }
-        expect(text.toLowerCase(), `${name}: ${forbidden}`).not.toContain(
-          forbidden,
-        );
+        expect(text, `${name}: ${forbidden}`).not.toContain(forbidden);
       }
     }
+    // Bare field names of the V1 vocabulary. These are *nouns*, not
+    // operations, and two files legitimately carry them: `example.ts` is a
+    // document literal, and `design-intent.ts` labels the fields of a
+    // document the backend generated. Naming a field is not performing an
+    // operation on it -- and the call-shaped ban above still covers both.
+    const labelling = new Set(["example.ts", "design-intent.ts"]);
+    for (const name of SOURCES) {
+      if (labelling.has(name)) {
+        continue;
+      }
+      const text = read(name).toLowerCase();
+      for (const forbidden of ["through_hole", "diameter"]) {
+        expect(text, `${name}: ${forbidden}`).not.toContain(forbidden);
+      }
+    }
+  });
+
+  it("keeps the design-intent panel a formatter, not a calculator", () => {
+    // It may name CAD fields, so the ban above exempts it. In exchange it
+    // must demonstrably only *read and format*: no arithmetic, no defaulting,
+    // no unit conversion, no kernel, and no request of its own.
+    const text = read("design-intent.ts");
+    const code = codeOf(text);
+    for (const forbidden of [
+      "Math.",
+      "Number(",
+      "parseFloat",
+      "parseInt",
+      "* 2",
+      "/ 2",
+      "toFixed",
+      "fetch(",
+      "convert",
+    ]) {
+      expect(code, `design-intent.ts: ${forbidden}`).not.toContain(forbidden);
+    }
+    expect(importsOf(text)).toEqual([]);
+    // Values reach the page as text, exactly as the backend wrote them.
+    expect(text).toContain("String(value)");
   });
 
   it("computes no engineering number in the UI layer", () => {
@@ -335,26 +383,58 @@ describe("nothing environment-specific is hard-coded", () => {
 });
 
 describe("the stage's exclusions hold", () => {
-  it("contains no natural-language, LLM, MCP or Onshape code", () => {
-    const everything = [
-      ...SOURCES.map((name) => read(name)),
-      pageSource(),
-    ]
+  it("contains no LLM, provider, MCP or Onshape code", () => {
+    // The page now *offers* natural-language input, so "natural language" and
+    // "describe your part" are the product and no longer excluded. What stays
+    // excluded is any of the model machinery: the browser talks to our own
+    // `/generate` and knows nothing about which provider answers it, what the
+    // prompt says, or how the response was decoded.
+    const everything = [...SOURCES.map((name) => read(name)), pageSource()]
       .join("\n")
       .toLowerCase();
     for (const forbidden of [
       "openai",
       "anthropic",
+      "claude",
+      "gemini",
+      "google",
       "gpt-",
       "completion",
       "system prompt",
+      "prompt",
+      "temperature",
+      "max_tokens",
       "mcp",
       "onshape",
       "featurescript",
-      "natural language",
-      "describe your part",
+      "cadquery",
     ]) {
       expect(everything, forbidden).not.toContain(forbidden);
+    }
+  });
+
+  it("asks the backend to interpret, and interprets nothing itself", () => {
+    const api = read("api.ts");
+    // One endpoint, one field, and the description is sent verbatim.
+    expect(api).toContain('"/generate"');
+    expect(api).toContain("JSON.stringify({ text })");
+    const app = read("app.ts");
+    // The generated document is handed to the build call unchanged: the page
+    // never edits, completes or repairs what the model produced.
+    expect(app).toContain("runBuild(response.document)");
+    const code = codeOf(app);
+    for (const forbidden of ["repair", "retry", "fixUp", "correct("]) {
+      expect(code, `app.ts: ${forbidden}`).not.toContain(forbidden);
+    }
+    // Outcome names come from the backend's taxonomy, not a second one.
+    for (const outcome of [
+      "generated",
+      "needs_clarification",
+      "unsupported",
+      "model_error",
+      "invalid_model_output",
+    ]) {
+      expect(api, outcome).toContain(outcome);
     }
   });
 
@@ -362,6 +442,10 @@ describe("the stage's exclusions hold", () => {
     const everything = [...SOURCES.map((name) => read(name)), pageSource()]
       .join("\n")
       .toLowerCase();
+    // Matched on word boundaries rather than as bare substrings: "signin"
+    // occurs inside "de-signIn-tent", which is a formatting module and not a
+    // login form. A substring check would have to be deleted to pass; a
+    // boundary check keeps catching what it was written to catch.
     for (const forbidden of [
       "signin",
       "sign in",
@@ -376,30 +460,53 @@ describe("the stage's exclusions hold", () => {
       "presence",
       "collaborat",
     ]) {
-      expect(everything, forbidden).not.toContain(forbidden);
+      const pattern = new RegExp(`\\b${forbidden.replace(/ /g, "\\s+")}`, "i");
+      expect(pattern.test(everything), `${forbidden}`).toBe(false);
     }
   });
 
-  it("is a viewer, not an editor: the only editable field is the document", () => {
+  it("is a viewer and a prompt, not a CAD editor", () => {
     const html = pageSource();
+    // Three text areas, and every one is free text the user types: the
+    // description, the clarification answer, and the advanced CAD JSON.
+    // Still no field that edits geometry directly -- no number spinner, no
+    // dimension input, no dropdown of feature types.
     const editable = [...html.matchAll(/<(textarea|input|select)\b/g)].map(
       (match) => match[1],
     );
-    expect(editable).toEqual(["textarea"]);
+    expect(editable).toEqual(["textarea", "textarea", "textarea"]);
     expect(html).not.toContain("contenteditable");
-    // Every control is a button that does one of the five documented things.
+    expect(html).not.toContain('type="number"');
+    // Every control is a button that does one documented thing.
     const buttons = [...html.matchAll(/<button[^>]*id="([^"]+)"/g)].map(
       (match) => match[1],
     );
     expect(buttons.sort()).toEqual([
       "build-button",
+      "clarify-button",
       "export-iges",
       "export-step",
       "export-stl",
       "fit-button",
+      "generate-button",
       "load-example",
       "validate-button",
     ]);
+  });
+
+  it("makes text-to-CAD the primary flow and CAD JSON secondary", () => {
+    const html = pageSource().toLowerCase();
+    // The description comes first in the document, and the raw CAD document
+    // is inside a collapsed `details` -- a normal user never has to open it.
+    expect(html.indexOf("description-input")).toBeLessThan(
+      html.indexOf("document-input"),
+    );
+    expect(html).toMatch(/<details[^>]*id="advanced"/);
+    expect(html).toContain("advanced: cad json");
+    // The advanced mode is kept, not removed.
+    for (const id of ["document-input", "validate-button", "build-button"]) {
+      expect(html, id).toContain(id);
+    }
   });
 });
 

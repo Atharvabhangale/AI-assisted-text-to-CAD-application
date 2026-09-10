@@ -234,6 +234,15 @@ async function main() {
   await page.goto(WEB_ORIGIN, { waitUntil: "load" });
   await page.waitForFunction(() => "__cadApp" in globalThis);
 
+  // Stage 30 moved the CAD-JSON workflow into a collapsed `details`, so its
+  // controls are not visible until it is opened. This run exercises that
+  // advanced path (the natural-language path needs a live provider and is
+  // deliberately not driven here), so it opens the section first -- exactly
+  // as a user reaching for the raw document would.
+  await page.evaluate(() => {
+    document.querySelector("#advanced").open = true;
+  });
+
   // --- 1. the page loads, with the example already in it ------------------
 
   equal(

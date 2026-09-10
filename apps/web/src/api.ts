@@ -78,6 +78,41 @@ export interface ValidateResponse {
   readonly error: ErrorRecord | null;
 }
 
+/**
+ * The five AI outcomes, exactly as the backend's own taxonomy names them.
+ *
+ * Not a second taxonomy: these strings are the backend's
+ * `GenerationOutcome` values, and the page branches on them rather than on
+ * anything it decides for itself.
+ */
+export const GENERATION_OUTCOMES = [
+  "generated",
+  "needs_clarification",
+  "unsupported",
+  "model_error",
+  "invalid_model_output",
+] as const;
+export type GenerationOutcome = (typeof GENERATION_OUTCOMES)[number];
+
+/**
+ * `POST /generate`'s answer.
+ *
+ * `document` is a CAD document the backend's validator **already accepted**.
+ * The page never inspects it for validity, never repairs it and never edits
+ * it: it shows it, and sends it back for building unchanged.
+ */
+export interface GenerateResponse {
+  readonly outcome: GenerationOutcome;
+  readonly message: string;
+  readonly document: Record<string, unknown> | null;
+  readonly document_hash: string | null;
+  readonly summary: string | null;
+  readonly questions: readonly string[];
+  readonly issues: readonly string[];
+  readonly rule_codes: readonly string[];
+  readonly error_kind: string | null;
+}
+
 /** A request that never reached the API, or an answer that was not JSON. */
 export class NetworkError extends Error {}
 
@@ -87,6 +122,7 @@ export interface ApiClientOptions {
 }
 
 /** The API, as this page uses it: four calls and one URL helper. */
+// (generate, validate, build, renderModel -- plus `artifactUrl`.)
 export class ApiClient {
   private readonly base: string;
   private readonly request: typeof globalThis.fetch;
@@ -94,6 +130,21 @@ export class ApiClient {
   constructor(options: ApiClientOptions = {}) {
     this.base = options.base ?? API_BASE;
     this.request = options.fetch ?? globalThis.fetch.bind(globalThis);
+  }
+
+  /**
+   * `POST /generate`: one description in, one interpretation out.
+   *
+   * The description is sent verbatim. This client does not pre-process it,
+   * does not attach history, and makes exactly one request per call -- there
+   * is no retry here and no conversation state anywhere.
+   */
+  async generate(text: string): Promise<GenerateResponse> {
+    return this.json<GenerateResponse>("/generate", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
   }
 
   /** `POST /validate`. */

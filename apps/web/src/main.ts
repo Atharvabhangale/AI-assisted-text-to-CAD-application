@@ -41,6 +41,12 @@ function start(): void {
     },
   });
 
+  elements.generateButton.addEventListener("click", () => {
+    void app.generate();
+  });
+  elements.clarifyButton.addEventListener("click", () => {
+    void app.clarify();
+  });
   elements.loadExample.addEventListener("click", () => {
     app.loadExample();
   });

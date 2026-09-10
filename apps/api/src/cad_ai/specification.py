@@ -29,9 +29,11 @@ from cad_core.model import (
     AXIS_VALUES,
     CONSTRUCTIVE_TYPES,
     DEFAULT_AXIS,
+    EDGE_SELECT_VALUES,
     FEATURE_PARAMETERS,
     FEATURE_TYPES,
     ID_PATTERN,
+    SELECTOR_AXIS_VALUES,
     OPTIONAL_ROOT_FIELDS,
     REQUIRED_ROOT_FIELDS,
     SCHEMA_VERSION,
@@ -87,18 +89,33 @@ def section(heading: str) -> str:
     return "\n".join(lines[start:]).rstrip()
 
 
-#: The sections a generating model needs, in document order. Sections C.3-C.7
-#: (through_hole, subtract, fillet, chamfer, edge selectors) are deliberately
-#: **excluded**: they are valid V1, but outside this stage's supported subset,
-#: and showing the model a feature it must not use invites it to use one. What
-#: it is told instead is that they exist and are not supported yet, so the
-#: honest answer for such a request is "unsupported".
+#: The sections a generating model needs, in document order.
+#:
+#: Until Stage 31 this stopped at C.2, because the prompt refused modifiers and
+#: showing a model a feature it must not use invites it to use one. Now that
+#: the prompt admits the whole V1 vocabulary the reasoning inverts: a model
+#: allowed to emit a ``through_hole`` must be given C.3's parameter table
+#: verbatim, or it will guess field names. C.7 comes with the two selector
+#: features that need it, and E.2 with them because a hole that misses its
+#: material is an error rather than a quiet no-op.
 PROMPT_SECTIONS: Tuple[str, ...] = (
     "## A. Coordinate system",
     "## B. Part structure",
     "### C.1 `box`",
     "### C.2 `cylinder`",
+    # Stage 31: the modifier sections, added when the prompt stopped refusing
+    # modifiers. The model may now emit these features, so it must be given
+    # their parameter tables verbatim rather than left to guess field names.
+    "### C.3 `through_hole`",
+    "### C.4 `subtract`",
+    "### C.5 `fillet`",
+    "### C.6 `chamfer`",
+    "### C.7 Edge selector",
     "### E.1 Static rules (`S`) — decidable from the document alone",
+    # The geometric rules matter now too: a hole that misses its material or a
+    # fillet radius the edge cannot take is an error, not a silent no-op, and
+    # the model should avoid describing one.
+    "### E.2 Geometric rules (`E`) — require evaluation by the engine",
     "## F. Versioning",
 )
 
@@ -110,12 +127,27 @@ def specification_excerpt() -> str:
 
 # --- the JSON Schema, derived from cad_core.model's constants ---------------
 
-#: The feature types this stage's prompt and schema admit. A subset of
-#: :data:`cad_core.model.FEATURE_TYPES`, taken from
-#: :data:`~cad_core.model.CONSTRUCTIVE_TYPES` rather than retyped.
-SUPPORTED_FEATURE_TYPES: Tuple[str, ...] = tuple(CONSTRUCTIVE_TYPES)
+#: The feature types the prompt and the response schema admit: **the whole V1
+#: vocabulary**, taken from :data:`cad_core.model.FEATURE_TYPES` rather than
+#: retyped.
+#:
+#: Until Stage 31 this was only :data:`~cad_core.model.CONSTRUCTIVE_TYPES`.
+#: That was a Stage 26 scoping decision made when the AI layer was new, and it
+#: had gone stale: the local engine implements ``through_hole``, ``subtract``,
+#: ``fillet`` and ``chamfer`` (Stages 10-14.1), the validator enforces their
+#: rules, and the specification defines all six. The prompt was therefore
+#: refusing parts this system can actually build -- a four-hole plate, the
+#: specification's *own* worked example in Section D, came back "unsupported".
+#:
+#: Widening it here widens the prompt text and the derived JSON Schema
+#: together, because both read this tuple. It changes **no** CAD rule: the
+#: validator, the engine and the specification are untouched, and a document
+#: using these features had always been valid V1 CAD.
+SUPPORTED_FEATURE_TYPES: Tuple[str, ...] = tuple(FEATURE_TYPES)
 
-#: The types V1 defines but this stage does not generate.
+#: The types V1 defines but this stage does not generate. Empty now that the
+#: prompt admits the full vocabulary; kept because it is the honest way to say
+#: "nothing is held back", and because a future V2 type would land here first.
 UNSUPPORTED_FEATURE_TYPES: Tuple[str, ...] = tuple(
     name for name in FEATURE_TYPES if name not in SUPPORTED_FEATURE_TYPES
 )
@@ -161,6 +193,47 @@ _PARAMETER_SCHEMAS: Mapping[str, Dict[str, Any]] = {
             f"A signed principal direction. Defaults to {DEFAULT_AXIS} when "
             "omitted."
         ),
+    },
+    # --- modifier parameters (Sections C.3-C.7), added in Stage 31 ----------
+    "target": {
+        "type": "string",
+        "pattern": ID_PATTERN,
+        "description": (
+            "The id of the solid this feature modifies. It must appear "
+            "strictly earlier in the feature list (rule S7)."
+        ),
+    },
+    "tools": {
+        "type": "array",
+        "minItems": 1,
+        "items": {"type": "string", "pattern": ID_PATTERN},
+        "description": (
+            "Ids of the solids to remove from the target. Each must appear "
+            "strictly earlier in the feature list (rule S7)."
+        ),
+    },
+    "radius": {
+        "type": "number",
+        "exclusiveMinimum": 0,
+        "description": "Fillet radius, in the part's declared unit.",
+    },
+    "distance": {
+        "type": "number",
+        "exclusiveMinimum": 0,
+        "description": "Chamfer distance, in the part's declared unit.",
+    },
+    "edges": {
+        "type": "object",
+        "description": (
+            "Which edges of the target to operate on. `axis` is present "
+            "exactly when `select` is \"axis_parallel\" (rule S18)."
+        ),
+        "properties": {
+            "select": {"type": "string", "enum": list(EDGE_SELECT_VALUES)},
+            "axis": {"type": "string", "enum": list(SELECTOR_AXIS_VALUES)},
+        },
+        "required": ["select"],
+        "additionalProperties": False,
     },
 }
 

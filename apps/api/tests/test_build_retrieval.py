@@ -1073,6 +1073,10 @@ class TestRetrievalBoundary(unittest.TestCase):
                     BUILD_LOOKUP_PATH,
                     BUILD_LOOKUP_PATH + "/render",
                     BUILD_PATH,
+                    # Stage 30's natural-language route. It is still not a
+                    # cache or document endpoint: it reads nothing stored and
+                    # returns no identifier that can be exchanged for one.
+                    "/generate",
                     HEALTH_PATH,
                     VALIDATE_PATH,
                 ]

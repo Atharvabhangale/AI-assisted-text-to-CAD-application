@@ -1572,14 +1572,15 @@ class OracleStub:
 
 
 def _live_model(config: AiConfig) -> TextToCadModel:
-    """The configured provider. Two named implementations, no registry."""
-    if config.provider == GEMINI_PROVIDER_NAME:
-        from cad_ai.gemini_provider import GeminiTextToCadModel
+    """The configured provider, from the one dispatch the application shares.
 
-        return GeminiTextToCadModel.from_environment(config)
-    from cad_ai.anthropic_provider import AnthropicTextToCadModel
+    Delegated rather than duplicated: the benchmark and the running
+    application must agree about which provider a given configuration means,
+    or a measurement would describe something the product does not do.
+    """
+    from cad_ai.factory import model_from_environment
 
-    return AnthropicTextToCadModel.from_environment(config)
+    return model_from_environment(config)
 
 
 # --- the command ------------------------------------------------------------

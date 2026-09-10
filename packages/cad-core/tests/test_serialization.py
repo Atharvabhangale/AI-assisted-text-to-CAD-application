@@ -1156,7 +1156,7 @@ class TestNoGeometryDependency(unittest.TestCase):
     ROOT = Path(__file__).resolve().parents[1] / "src" / "cad_core"
 
     def imported_modules(self, filename: str) -> set:
-        tree = ast.parse((self.ROOT / filename).read_text())
+        tree = ast.parse((self.ROOT / filename).read_text(encoding="utf-8"))
         names = set()
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):

@@ -1121,7 +1121,7 @@ class TestPackageBoundary(unittest.TestCase):
         ).read_text(encoding="utf-8")
 
     def api_modules(self) -> Tuple[str, ...]:
-        return ("app", "config", "schemas", "status", "__init__")
+        return ("app", "config", "generation", "schemas", "status", "__init__")
 
     def imports_of_source(self, source: str) -> List[str]:
         tree = ast.parse(source)
@@ -1422,7 +1422,11 @@ print("OK")
 class TestOpenApi(ApiTestCase):
     def test_the_generated_schema_lists_only_the_declared_routes(self) -> None:
         schema = self.client().get("/openapi.json").json()
-        from cad_api.app import BUILD_LOOKUP_PATH, BUILD_RENDER_PATH
+        from cad_api.app import (
+            BUILD_LOOKUP_PATH,
+            BUILD_RENDER_PATH,
+            GENERATE_PATH,
+        )
 
         self.assertEqual(
             sorted(schema["paths"]),
@@ -1432,6 +1436,7 @@ class TestOpenApi(ApiTestCase):
                     BUILD_LOOKUP_PATH,
                     BUILD_RENDER_PATH,
                     BUILD_PATH,
+                    GENERATE_PATH,
                     HEALTH_PATH,
                     VALIDATE_PATH,
                 ]
@@ -1440,7 +1445,9 @@ class TestOpenApi(ApiTestCase):
         for path, spec in schema["paths"].items():
             with self.subTest(path=path):
                 expected = (
-                    ["post"] if path in (BUILD_PATH, VALIDATE_PATH) else ["get"]
+                    ["post"]
+                    if path in (BUILD_PATH, VALIDATE_PATH, GENERATE_PATH)
+                    else ["get"]
                 )
                 self.assertEqual(sorted(spec), expected)
 

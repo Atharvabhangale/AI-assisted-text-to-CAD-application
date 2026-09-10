@@ -52,6 +52,60 @@ SDK_PACKAGE = "anthropic"
 #: against ``anthropic.types.json_output_format_param.JSONOutputFormatParam``.
 JSON_SCHEMA_FORMAT = "json_schema"
 
+#: JSON-Schema keywords this API's structured-output compiler rejects.
+#:
+#: Measured, not assumed. Sending the model-facing schema unchanged returned
+#: **400** ``invalid_request_error``: *"output_config.format.schema: For
+#: 'number' type, property 'exclusiveMinimum' is not supported"*. The
+#: documented subset accepts the basic types, ``enum``, ``const``, ``anyOf``,
+#: ``allOf``, ``$ref``/``$defs``, the named string formats and
+#: ``additionalProperties: false``; it accepts no numeric bound, no string
+#: length or pattern constraint and no array-size constraint.
+#:
+#: Removing these costs **no validity**. The schema is a *decoding
+#: constraint*, never an authority on what a CAD document may be: the V1
+#: validator remains the only thing that decides that, and it still rejects a
+#: zero-or-negative size (S11), an empty feature list, a malformed id (S8) and
+#: every other rule regardless of what the model was free to emit. What is
+#: lost is a hint, and the prompt states each of these requirements in prose
+#: anyway -- so a model that ignores one produces a document the validator
+#: refuses, which is exactly the designed behaviour.
+UNSUPPORTED_SCHEMA_KEYWORDS = (
+    "exclusiveMaximum",
+    "exclusiveMinimum",
+    "maxItems",
+    "maxLength",
+    "maximum",
+    "minItems",
+    "minLength",
+    "minimum",
+    "multipleOf",
+    "pattern",
+    "uniqueItems",
+)
+
+
+def schema_for_api(schema: Dict[str, Any]) -> Dict[str, Any]:
+    """The schema as this API's structured-output compiler will accept it.
+
+    Returns a copy with every keyword in :data:`UNSUPPORTED_SCHEMA_KEYWORDS`
+    removed at every depth. The argument is never mutated, so the caller's
+    schema -- and the one the evaluation harness records -- stays whole.
+
+    This lives in the provider because it is knowledge about one vendor's
+    schema dialect, and the provider is the only module allowed to hold that.
+    Nothing about the CAD contract changes here.
+    """
+    if isinstance(schema, dict):
+        return {
+            key: schema_for_api(value)
+            for key, value in schema.items()
+            if key not in UNSUPPORTED_SCHEMA_KEYWORDS
+        }
+    if isinstance(schema, list):
+        return [schema_for_api(item) for item in schema]  # type: ignore[return-value]
+    return schema
+
 
 def _import_sdk() -> Any:
     """Import the SDK, or say plainly that it is not installed."""
@@ -118,7 +172,7 @@ class AnthropicTextToCadModel:
             parameters["output_config"] = {
                 "format": {
                     "type": JSON_SCHEMA_FORMAT,
-                    "schema": dict(request.output_schema or {}),
+                    "schema": schema_for_api(dict(request.output_schema or {})),
                 }
             }
         try:
@@ -262,6 +316,8 @@ def _optional_str(value: Any) -> Optional[str]:
 __all__ = [
     "JSON_SCHEMA_FORMAT",
     "SDK_PACKAGE",
+    "UNSUPPORTED_SCHEMA_KEYWORDS",
     "AnthropicTextToCadModel",
     "decoding_capabilities",
+    "schema_for_api",
 ]

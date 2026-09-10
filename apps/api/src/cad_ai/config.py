@@ -55,9 +55,27 @@ TIMEOUT_VARIABLE = "CAD_AI_TIMEOUT_SECONDS"
 
 #: The default model per provider. Each is a name the installed SDK itself
 #: lists as valid; no model identifier was invented here.
+#:
+#: Gemini's default was ``gemini-2.5-pro`` until it stopped being reachable.
+#: Measured, not assumed: ``models.generate_content`` answers **404** for both
+#: ``gemini-2.5-pro`` and ``gemini-2.5-flash`` -- *"is no longer available to
+#: new users. Please update your code to use models/gemini-3.6-flash"* --
+#: while ``models.list`` still lists them, so listing a model is not evidence
+#: that it can be called. ``gemini-3.6-flash`` is Google's own named
+#: replacement and was verified with a single probe request that returned a
+#: valid V1 CAD document through the existing prompt and schema.
+#:
+#: This changes which model a run reaches and **nothing about what is asked of
+#: it**: the prompt, the response schema, the supported subset and the
+#: evaluation corpus are untouched. ``CAD_AI_MODEL`` still overrides it.
+#: Anthropic's default is **Claude Haiku 4.5**, the model the product flow
+#: runs on. Named once, here: every other layer -- the HTTP route, the browser,
+#: the application service -- reaches it through
+#: :func:`config_from_environment`, so no model identifier is written twice.
+#: ``CAD_AI_MODEL`` still overrides it for a one-off run.
 DEFAULT_MODELS: Mapping[str, str] = {
-    PROVIDER_NAME: "claude-sonnet-5",
-    GEMINI_PROVIDER_NAME: "gemini-2.5-pro",
+    PROVIDER_NAME: "claude-haiku-4-5-20251001",
+    GEMINI_PROVIDER_NAME: "gemini-3.6-flash",
 }
 
 #: The default model for the default provider. Kept as its own name because

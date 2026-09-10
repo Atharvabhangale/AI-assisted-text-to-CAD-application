@@ -19,22 +19,30 @@ from typing import Tuple
 
 from cad_core.model import (
     AXIS_VALUES,
+    CONSTRUCTIVE_TYPES,
     DEFAULT_AXIS,
     FEATURE_PARAMETERS,
+    MODIFIER_TYPES,
     SCHEMA_VERSION,
     SUPPORTED_UNITS,
 )
 
 from cad_ai.specification import (
     SUPPORTED_FEATURE_TYPES,
-    UNSUPPORTED_FEATURE_TYPES,
     specification_excerpt,
 )
 
 #: The prompt's identity, recorded with every generation. Bumped by hand when
 #: the instructions below change meaning. It is a label, not a version
 #: *system*: there is no registry, no migration and no stored history.
-PROMPT_VERSION = "2026-09-08.1"
+#:
+#: ``2026-09-09.1`` widened the declared capability from the two constructive
+#: types to the full V1 vocabulary, because the engine had supported all six
+#: since Stage 14.1 and the prompt was refusing parts the system can build.
+#: Nothing else about the instructions changed: the units policy, the
+#: ambiguity rule, the position and axis semantics, the refusal to emit code
+#: and the defaults policy are all as they were.
+PROMPT_VERSION = "2026-09-09.1"
 
 
 def _defaulted_parameters() -> Tuple[str, ...]:
@@ -77,20 +85,33 @@ geometry. Because of that:
 
 Supported feature types: {", ".join(SUPPORTED_FEATURE_TYPES)}.
 
-A supported request describes **one** part made of a single {" or ".join(SUPPORTED_FEATURE_TYPES)}:
-its dimensions, optionally where it sits, and for a cylinder optionally which
-axis it follows.
+A supported request describes **one** part, built by an **ordered** list of
+features evaluated in sequence:
 
-These feature types exist in V1 but are **not supported by this stage**:
-{", ".join(UNSUPPORTED_FEATURE_TYPES)}. A request needing one of them -- a
-hole, a cut, a rounded or bevelled edge, two or more solids combined -- is
-"unsupported". Do not approximate it with a supported feature, and do not
-silently drop the part of the request you cannot express.
+* the **first** feature must be constructive -- {" or ".join(CONSTRUCTIVE_TYPES)} --
+  because there is nothing to modify before it;
+* later features may be constructive, or one of the modifiers
+  {", ".join(MODIFIER_TYPES)}, which replace their target in place;
+* every `target` (and every id in a `subtract` tool list) must name a feature
+  that appears **strictly earlier** in the list. There are no forward
+  references and no cycles;
+* after the last feature exactly **one** solid must remain. That is the
+  single-solid rule, and it is not negotiable: a request that would leave two
+  separate bodies is "unsupported".
 
-Also unsupported: assemblies, multiple parts, sketches, lofts, sweeps,
-revolves, threads, patterns, tolerances, GD&T, materials, surface finish,
-manufacturing process, cost, simulation, and any dimension given as a formula
-or a range.
+So a plate with four holes is a `box` followed by four `through_hole`
+features, each targeting the box by its id. Do not refuse it, and do not
+approximate it with a plain box.
+
+Order is meaning, not presentation. A fillet placed before a hole and the same
+fillet placed after it describe different parts, so put the features in the
+order the description implies.
+
+Unsupported, whatever the wording: assemblies, multiple parts, sketches,
+lofts, sweeps, revolves, threads, patterns, tolerances, GD&T, materials,
+surface finish, manufacturing process, cost, simulation, and any dimension
+given as a formula or a range. A request needing one of those is
+"unsupported" -- say so rather than dropping the part you cannot express.
 
 ## Defaults, and the difference between a default and a guess
 

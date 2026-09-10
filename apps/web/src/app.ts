@@ -13,8 +13,10 @@ import type {
   BuildResponse,
   DownloadableKind,
   ErrorRecord,
+  GenerateResponse,
   ValidateResponse,
 } from "./api";
+import { describeIntent, type IntentFeature } from "./design-intent";
 import { SECTION_D_JSON } from "./example";
 import {
   RenderModelError,
@@ -26,6 +28,10 @@ import {
 /** The states the status line can be in. Exactly these. */
 export type AppState =
   | "idle"
+  | "generating"
+  | "needs-clarification"
+  | "unsupported"
+  | "model-error"
   | "building"
   | "success"
   | "validation-error"
@@ -33,6 +39,25 @@ export type AppState =
   | "output-error"
   | "execution-error"
   | "network-error";
+
+/**
+ * Which state each AI outcome means.
+ *
+ * A mapping of the backend's own `outcome` values, so the page distinguishes
+ * a clarification from a refusal from a model failure without inventing a
+ * taxonomy. `generated` is absent on purpose: it is not a resting state, it
+ * is the point at which the page goes on to build.
+ */
+export const OUTCOME_STATES: Readonly<Record<string, AppState>> = {
+  needs_clarification: "needs-clarification",
+  unsupported: "unsupported",
+  model_error: "model-error",
+  invalid_model_output: "model-error",
+};
+
+export function stateForOutcome(outcome: string | undefined): AppState {
+  return OUTCOME_STATES[outcome ?? ""] ?? "model-error";
+}
 
 /**
  * Which state a backend failure classification means.
@@ -57,6 +82,14 @@ export function stateForFailure(failure: string | undefined): AppState {
 
 /** The parts of the page this module drives. */
 export interface Elements {
+  readonly descriptionInput: HTMLTextAreaElement;
+  readonly generateButton: HTMLButtonElement;
+  readonly clarify: HTMLElement;
+  readonly questions: HTMLElement;
+  readonly clarifyInput: HTMLTextAreaElement;
+  readonly clarifyButton: HTMLButtonElement;
+  readonly intentSummary: HTMLElement;
+  readonly designIntent: HTMLElement;
   readonly documentInput: HTMLTextAreaElement;
   readonly loadExample: HTMLButtonElement;
   readonly validateButton: HTMLButtonElement;
@@ -76,6 +109,14 @@ export interface Elements {
  * tests collect the real page's markup through `collectElements` below.
  */
 export const ELEMENT_IDS = {
+  descriptionInput: "description-input",
+  generateButton: "generate-button",
+  clarify: "clarify",
+  questions: "questions",
+  clarifyInput: "clarify-input",
+  clarifyButton: "clarify-button",
+  intentSummary: "intent-summary",
+  designIntent: "design-intent",
   documentInput: "document-input",
   loadExample: "load-example",
   validateButton: "validate-button",
@@ -106,6 +147,26 @@ export function requireElement<T extends HTMLElement>(
 /** Collect the page's elements. Used by the entry point and by the tests. */
 export function collectElements(root: ParentNode): Elements {
   return {
+    descriptionInput: requireElement<HTMLTextAreaElement>(
+      root,
+      ELEMENT_IDS.descriptionInput,
+    ),
+    generateButton: requireElement<HTMLButtonElement>(
+      root,
+      ELEMENT_IDS.generateButton,
+    ),
+    clarify: requireElement(root, ELEMENT_IDS.clarify),
+    questions: requireElement(root, ELEMENT_IDS.questions),
+    clarifyInput: requireElement<HTMLTextAreaElement>(
+      root,
+      ELEMENT_IDS.clarifyInput,
+    ),
+    clarifyButton: requireElement<HTMLButtonElement>(
+      root,
+      ELEMENT_IDS.clarifyButton,
+    ),
+    intentSummary: requireElement(root, ELEMENT_IDS.intentSummary),
+    designIntent: requireElement(root, ELEMENT_IDS.designIntent),
     documentInput: requireElement<HTMLTextAreaElement>(
       root,
       ELEMENT_IDS.documentInput,
@@ -145,6 +206,10 @@ export interface AppOptions {
 export interface App {
   /** The current state, for tests and for the status line. */
   state(): AppState;
+  /** The whole product flow: interpret, then build, as one action. */
+  generate(): Promise<void>;
+  /** Re-run generation with the clarification answer appended. */
+  clarify(): Promise<void>;
   loadExample(): void;
   validate(): Promise<void>;
   build(): Promise<void>;
@@ -152,6 +217,8 @@ export interface App {
   lastBuild(): BuildResponse | null;
   /** The last render model drawn, if any. */
   lastModel(): RenderModel | null;
+  /** The last generation answer, if any. */
+  lastGeneration(): GenerateResponse | null;
 }
 
 const DOWNLOADABLE: readonly DownloadableKind[] = ["step", "iges", "stl"];
@@ -164,6 +231,7 @@ export function createApp(options: AppOptions): App {
   let build: BuildResponse | null = null;
   let model: RenderModel | null = null;
   let viewer: ViewerPort | null = null;
+  let generation: GenerateResponse | null = null;
 
   function setState(next: AppState, message: string): void {
     state = next;
@@ -214,9 +282,73 @@ export function createApp(options: AppOptions): App {
     elements.result.hidden = true;
     elements.geometrySummary.textContent = "";
     for (const kind of DOWNLOADABLE) {
-      elements.exportButtons[kind].hidden = true;
+      const button = elements.exportButtons[kind];
+      button.hidden = true;
+      // Drop the identifier too, not just the button: a stale logical id from
+      // a previous build must not survive into the next one.
+      delete button.dataset.logicalId;
     }
     elements.fitButton.disabled = true;
+  }
+
+  function clearIntent(): void {
+    elements.designIntent.textContent = "";
+    elements.designIntent.hidden = true;
+    elements.intentSummary.textContent = "";
+  }
+
+  function clearClarify(): void {
+    elements.questions.textContent = "";
+    elements.clarify.hidden = true;
+  }
+
+  /**
+   * Show what the model decided, read from the document the backend returned.
+   *
+   * Nothing here is inferred from the user's sentence: `describeIntent` reads
+   * document fields and formats them, and a field the document does not carry
+   * is simply not shown.
+   */
+  function showIntent(response: GenerateResponse): void {
+    clearIntent();
+    elements.intentSummary.textContent = response.summary ?? "";
+    const intent = describeIntent(response.document);
+    if (intent === null || intent.features.length === 0) {
+      return;
+    }
+    for (const feature of intent.features as readonly IntentFeature[]) {
+      const heading = document.createElement("h3");
+      heading.textContent = feature.heading;
+      const list = document.createElement("dl");
+      for (const entry of feature.rows) {
+        row(list, entry.label, entry.value);
+      }
+      elements.designIntent.append(heading, list);
+    }
+    elements.designIntent.hidden = false;
+  }
+
+  /** Show the model's clarification questions, and invite one answer. */
+  function showQuestions(questions: readonly string[]): void {
+    clearClarify();
+    for (const question of questions) {
+      const entry = document.createElement("li");
+      entry.textContent = question;
+      elements.questions.append(entry);
+    }
+    elements.clarifyInput.value = "";
+    elements.clarify.hidden = questions.length === 0;
+  }
+
+  /** Show plain reasons the backend gave, as a list. Never a traceback. */
+  function showIssues(issues: readonly string[]): void {
+    clearErrors();
+    for (const issue of issues) {
+      const entry = document.createElement("li");
+      entry.textContent = issue;
+      elements.errors.append(entry);
+    }
+    elements.errors.hidden = issues.length === 0;
   }
 
   function parseDocument(): unknown {
@@ -296,6 +428,8 @@ export function createApp(options: AppOptions): App {
     elements.buildButton.disabled = next;
     elements.validateButton.disabled = next;
     elements.loadExample.disabled = next;
+    elements.generateButton.disabled = next;
+    elements.clarifyButton.disabled = next;
   }
 
   async function draw(buildKey: string): Promise<void> {
@@ -309,16 +443,143 @@ export function createApp(options: AppOptions): App {
     elements.fitButton.disabled = viewer === null;
   }
 
+  /**
+   * Build one document and draw it. Shared by both entry points.
+   *
+   * The document is passed through untouched, whoever produced it: the AI
+   * path and the JSON path reach the *same* `POST /build`, so there is one
+   * build flow and the generated document gets no special treatment.
+   *
+   * Assumes the caller has already taken the busy flag.
+   */
+  async function runBuild(parsed: unknown): Promise<void> {
+    setState("building", "Building geometry...");
+    try {
+      const response = await client.build(parsed);
+      if (!response.succeeded) {
+        build = null;
+        showErrors(response.error);
+        setState(
+          stateForFailure(response.error?.failure),
+          response.error?.message ?? "The build failed.",
+        );
+        return;
+      }
+      build = response;
+      showResult(response);
+      if (response.build_key !== null) {
+        await draw(response.build_key);
+      }
+      setState(
+        "success",
+        response.cache_hit ? "Ready (served from cache)." : "Ready.",
+      );
+    } catch (cause) {
+      if (cause instanceof RenderModelError) {
+        setState("output-error", cause.message);
+      } else {
+        setState(
+          "network-error",
+          cause instanceof NetworkError
+            ? cause.message
+            : "The API could not be reached.",
+        );
+      }
+    }
+  }
+
+  /**
+   * The product flow: interpret a description, then build what came back.
+   *
+   * One action from the user's point of view. The page does not inspect,
+   * repair, complete or second-guess the model's document -- it shows what
+   * the backend validated and sends that same document to be built.
+   */
+  async function runGeneration(text: string): Promise<void> {
+    if (busy) {
+      return;
+    }
+    if (!text.trim()) {
+      clearErrors();
+      clearIntent();
+      clearClarify();
+      setState("idle", "Describe the part you want before generating.");
+      return;
+    }
+    setBusy(true);
+    clearErrors();
+    clearIntent();
+    clearClarify();
+    hideResult();
+    generation = null;
+    setState("generating", "Generating CAD...");
+    try {
+      const response = await client.generate(text);
+      generation = response;
+      if (response.outcome !== "generated" || response.document === null) {
+        showIssues(response.issues);
+        if (response.outcome === "needs_clarification") {
+          showQuestions(response.questions);
+        }
+        setState(stateForOutcome(response.outcome), response.message);
+        return;
+      }
+      showIntent(response);
+      // Mirror the generated document into the advanced view, so what was
+      // built is inspectable and re-buildable without retyping it.
+      elements.documentInput.value = JSON.stringify(response.document, null, 2);
+      await runBuild(response.document);
+    } catch (cause) {
+      setState(
+        "network-error",
+        cause instanceof NetworkError
+          ? cause.message
+          : "The API could not be reached.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return {
     state: () => state,
     lastBuild: () => build,
     lastModel: () => model,
+    lastGeneration: () => generation,
+
+    async generate(): Promise<void> {
+      await runGeneration(elements.descriptionInput.value);
+    },
+
+    /**
+     * Answer a clarification and try again.
+     *
+     * The answer is appended to the original description and sent as **one
+     * fresh request**. There is no conversation, no history and no server-side
+     * state: the model sees a single self-contained description, and the
+     * document that comes back is validated exactly like any other.
+     */
+    async clarify(): Promise<void> {
+      const answer = elements.clarifyInput.value.trim();
+      if (!answer) {
+        return;
+      }
+      const combined = `${elements.descriptionInput.value.trim()} ${answer}`;
+      elements.descriptionInput.value = combined;
+      await runGeneration(combined);
+    },
 
     loadExample(): void {
       elements.documentInput.value = SECTION_D_JSON;
       clearErrors();
+      clearIntent();
+      clearClarify();
       hideResult();
-      setState("idle", "Example loaded. Press Build.");
+      setState(
+        "idle",
+        "Describe a part and press Generate CAD, or press Build to use the " +
+          "example CAD JSON.",
+      );
     },
 
     async validate(): Promise<void> {
@@ -380,40 +641,8 @@ export function createApp(options: AppOptions): App {
       setBusy(true);
       clearErrors();
       hideResult();
-      setState("building", "Building...");
       try {
-        const response = await client.build(parsed);
-        if (!response.succeeded) {
-          build = null;
-          showErrors(response.error);
-          setState(
-            stateForFailure(response.error?.failure),
-            response.error?.message ?? "The build failed.",
-          );
-          return;
-        }
-        build = response;
-        showResult(response);
-        if (response.build_key !== null) {
-          await draw(response.build_key);
-        }
-        setState(
-          "success",
-          response.cache_hit
-            ? "Built (served from cache)."
-            : "Built successfully.",
-        );
-      } catch (cause) {
-        if (cause instanceof RenderModelError) {
-          setState("output-error", cause.message);
-        } else {
-          setState(
-            "network-error",
-            cause instanceof NetworkError
-              ? cause.message
-              : "The API could not be reached.",
-          );
-        }
+        await runBuild(parsed);
       } finally {
         setBusy(false);
       }

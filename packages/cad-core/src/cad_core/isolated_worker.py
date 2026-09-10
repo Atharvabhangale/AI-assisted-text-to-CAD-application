@@ -630,4 +630,16 @@ __all__ = [
 
 
 if __name__ == "__main__":  # pragma: no cover - process entrypoint
-    sys.exit(main())
+    # `os._exit`, not `sys.exit`: the response envelope is already committed to
+    # disk by `_emit` (written, then `os.replace`d into place), so nothing is
+    # lost by skipping interpreter teardown -- and teardown is precisely where
+    # OpenCascade's Python bindings corrupt the heap on Windows, replacing this
+    # worker's own exit code with 0xC0000374. The protocol requires the exit
+    # code to agree with the reported status, so ending here keeps that
+    # invariant a statement about the build rather than about a third-party
+    # library's destructors. Streams are flushed first, since `os._exit` runs
+    # no atexit handler and flushes no buffer.
+    _code = main()
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(_code)

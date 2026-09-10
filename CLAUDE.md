@@ -29,11 +29,14 @@ natural language
   → browser                      (apps/web)
 ```
 
-Every stage of that chain exists today **except the join between the first two
-and the rest**: the AI layer produces a validated CAD document, and the browser
-consumes a CAD document, but no HTTP endpoint connects them yet. A human
-currently pastes a document into the page. Closing that gap is the main
-remaining product step (see §10).
+**That chain is now joined end to end** (Stage 30). `POST /generate` exposes
+the AI layer over HTTP, and the browser's primary input is a sentence: type a
+description, press **Generate CAD**, and the page interprets, builds and draws
+it as one action. The CAD-JSON workflow survives behind an **Advanced** section.
+
+What is *not* solved is reliability of the interpretation itself — see §6 and
+§11: the configured model returns a valid document only about half the time,
+and the remaining failures are reported honestly rather than repaired.
 
 ### FeatureScript / Onshape
 
@@ -180,12 +183,13 @@ simulation, and expressions/scripting of any kind.
 
 | Module | Purpose |
 |---|---|
-| `app.py` | The ASGI app: six routes, no CAD logic (`create_app`, `app_from_environment`) |
-| `schemas.py` | Pydantic models for the **transport envelope only** (`ValidateBody`, `BuildBody`) |
+| `app.py` | The ASGI app: seven routes, no CAD logic (`create_app`, `app_from_environment`) |
+| `schemas.py` | Pydantic models for the **transport envelope only** (`ValidateBody`, `BuildBody`, `GenerateBody`) |
 | `artifacts.py` | Safe logical-id → bytes resolution (`ArtifactResolver`) |
 | `builds.py` | Read-only build retrieval by build key (`BuildRetriever`) |
 | `status.py` | The HTTP status mapping, in one place |
 | `config.py` | `CAD_API_CACHE_ROOT`, `CAD_API_TIMEOUT_SECONDS` |
+| `generation.py` | `POST /generate`'s coordinator (`TextGenerator`). Holds the one `TextToCadService`, built lazily. Names **no** vendor |
 
 Docs: `docs/http-api.md`, `docs/artifact-delivery.md`,
 `docs/build-result-retrieval.md`.
@@ -204,14 +208,16 @@ Docs: `docs/http-api.md`, `docs/artifact-delivery.md`,
 | `corpus.py` | The 35-case benchmark corpus (`CORPUS_VERSION = "1.0.0"`) |
 | `comparison.py` | Field-level document comparison + semantic error taxonomy |
 | `evaluation.py` | The benchmark harness and its CLI |
+| `factory.py` | `model_from_environment` — the one provider dispatch, shared by the app and the benchmark |
 
 Docs: `docs/text-to-cad-ai.md`, `docs/ai-evaluation.md`,
 `docs/ai-provider-comparison.md`.
 
-### `apps/web` — the browser viewer
+### `apps/web` — the browser text-to-CAD application
 
-`main.ts`, `app.ts`, `api.ts`, `viewer.ts` (Three.js), `render-model.ts`.
-Docs: `docs/web-application.md`.
+`main.ts`, `app.ts`, `api.ts`, `viewer.ts` (Three.js), `render-model.ts`,
+`design-intent.ts` (formats a generated document into English; computes
+nothing). Docs: `docs/web-application.md`.
 
 ---
 
@@ -222,9 +228,9 @@ estimated.
 
 | Suite | Result |
 |---|---|
-| cad-core (`unittest`) | **1481 passed** |
-| API + AI (`unittest`) | **547 passed, 2 skipped** |
-| Frontend (`vitest`) | **87 passed** (3 files) |
+| cad-core (`unittest`) | **1481 passed** (Stage 29 measurement) |
+| API + AI (`unittest`) | **582 passed, 2 skipped** (Stage 30: +35 for `/generate`) |
+| Frontend (`vitest`) | **122 passed** (4 files; Stage 30: +35) |
 | Frontend typecheck (`tsc --noEmit`) | **clean** |
 
 **The 2 skips are deliberate and must stay skipped by default.** They are the
@@ -307,7 +313,10 @@ no retry, no re-prompt, no automatic correction anywhere.
 
 **Nothing the model returns is executed.** Boundary tests assert this.
 
-**No HTTP endpoint exposes the AI layer.** It is library + CLI only.
+**`POST /generate` exposes the AI layer** (Stage 30). It returns a validated
+document and builds nothing; the client posts that document to the existing
+`POST /build`. There is still no repair loop, no retry and no conversation
+state.
 
 ### Live benchmark status — read this before making any quality claim
 
@@ -318,9 +327,12 @@ History, from the evaluation results and git log:
 
 - **Anthropic: never run live.** `ANTHROPIC_API_KEY` has not been available in
   any session. There is **no Anthropic quality data at all.**
-- **Gemini `gemini-2.5-pro` (the current code default): 404.** The API replied
-  that the model "is no longer available to new users". The default in
-  `config.py` is therefore **not usable as-is** — see §7.
+- **Gemini `gemini-2.5-pro`: 404**, and as of Stage 30 `gemini-2.5-flash` is
+  404 too — both "no longer available to new users". The default in
+  `config.py` was changed to `gemini-3.6-flash`, which is verified working —
+  see §7. The old 20/35 baseline's model can therefore **no longer be
+  reached**, so that run cannot be completed or extended; a new baseline on
+  `gemini-3.6-flash` must be started fresh and must not be merged with it.
 - **Gemini `gemini-3.8-flash`, `gemini-3.5-flash`:** partial runs during the
   free-tier pacing work; superseded.
 - **Gemini `gemini-2.5-flash`, paced at 12 s, 2026-09-09:** the current
@@ -363,10 +375,14 @@ Saved runs are preserved under `docs/evaluation-baselines/`.
   Tests use an obviously synthetic placeholder. `.env*` is gitignored.
   **Never put a key in this file, in code, or in a commit.**
 - **Current model configuration.** `DEFAULT_MODELS["gemini"]` is
-  **`gemini-2.5-pro`, which returns 404** ("no longer available to new
-  users"). Until that default is changed, a live Gemini run **must** override
-  it: `CAD_AI_MODEL=gemini-2.5-flash`. This is a real, reproducible
-  configuration bug and a good first cleanup.
+  **`gemini-3.6-flash`**, changed in Stage 30 after measuring that *both*
+  `gemini-2.5-pro` **and** `gemini-2.5-flash` now return 404 for this key —
+  *"no longer available to new users. Please update your code to use
+  models/gemini-3.6-flash"*. Google's own named replacement was verified with
+  a single probe before the default was changed.
+  **`models.list` is not a usability signal**: it still lists both dead models
+  (and 38 others) for this key. Availability must be established by an actual
+  call.
 - **Known availability issues.** Beyond the 404: the free tier enforces a
   **daily per-model request allowance of about 20**, not merely a per-minute
   rate. This was established empirically — slower pacing scored *worse* than
@@ -410,30 +426,36 @@ WebGL viewport, with STEP / IGES / STL downloads.
 - **3D viewer** (`viewer.ts`): Three.js scene rendering the mesh.
 - **RenderModel usage** (`render-model.ts`): consumes the backend's neutral
   render payload. It does not tessellate anything itself.
-- **Build flow:** `POST /validate` → `POST /build` → `GET
+- **Generate flow:** `POST /generate` → design intent → `POST /build` → `GET
+  /builds/{key}/render` → draw, as **one** user action.
+- **Build flow (advanced):** `POST /validate` → `POST /build` → `GET
   /builds/{key}/render` → draw.
 - **Export flow:** `GET /artifacts/{id}` for STEP/IGES/STL bytes.
-- **Current input type:** a **JSON CAD document in a textarea**. That is the
-  only editable field on the page, and a boundary test asserts it.
+- **Current input type:** a **natural-language description**, with the CAD
+  JSON kept behind an **Advanced** section. The three editable fields are all
+  free text a person types — description, clarification answer, CAD JSON — and
+  a boundary test asserts there is still no field that edits geometry
+  directly.
 
 **The frontend is a client, not the CAD engine.** Every dimension, volume,
 solid count and triangle count it displays is a field the backend sent. It
 imports no kernel and computes no geometry.
 
-**Missing for the final text-to-CAD UX:**
+**Delivered in Stage 30:** the natural-language input box, the `/generate`
+endpoint, a design-intent panel, clarification questions with a follow-up
+answer box, `UNSUPPORTED` refusals as product copy, and the automatic
+generate → build → draw chain. `src/design-intent.ts` formats the returned
+document into English and computes nothing.
 
-- a natural-language input box (the headline gap);
-- an HTTP endpoint to call for interpretation — none exists yet (§9);
-- a way to surface `NEEDS_CLARIFICATION` questions and collect answers;
-- a way to present `UNSUPPORTED` refusals as product copy rather than errors;
-- showing the generated document for review before/alongside the build;
-- iteration/edit-and-rebuild, history, and any notion of a saved project.
+**Still missing:** history, saved projects, edit-and-rebuild of a generated
+part, and any multi-turn conversation (the clarification follow-up composes
+one fresh self-contained description rather than keeping state).
 
 ---
 
 ## 9. HTTP API status
 
-Six routes, from `apps/api/src/cad_api/app.py`. Docs: `docs/http-api.md`.
+Seven routes, from `apps/api/src/cad_api/app.py`. Docs: `docs/http-api.md`.
 
 | Route | Purpose |
 |---|---|
@@ -443,14 +465,17 @@ Six routes, from `apps/api/src/cad_api/app.py`. Docs: `docs/http-api.md`.
 | `GET /builds/{build_key}` | read-only retrieval of a previously published build |
 | `GET /builds/{build_key}/render` | the `RenderModel` for a build, for the viewer |
 | `GET /artifacts/{artifact_id}` | deliver artifact bytes (STEP / IGES / STL / geometry / render) |
+| `POST /generate` | **(Stage 30)** interpret a natural-language description into a validated CAD document. Builds nothing |
 
 Relationships: `POST /build` returns a **build key** and **artifact ids**; the
 two `GET` routes exchange those identifiers for the build result and for bytes.
 Artifact ids are **logical** — the resolver maps them to storage, and the
 storage path is never exposed or accepted.
 
-**There is no AI endpoint.** Natural-language interpretation is not reachable
-over HTTP. Adding it is a deliberate future step, not an oversight.
+**The AI endpoint is `POST /generate`** (Stage 30). Its five outcomes map to
+three statuses: `generated` / `needs_clarification` / `unsupported` are **200**
+(the question was asked and answered), `invalid_model_output` is **502** (an
+upstream answered badly) and `model_error` is **503**.
 
 **Limitations — this is local-development software:**
 
@@ -507,9 +532,10 @@ Stage 29, plus the commit that added this file) and the docs. Verify against
 
 4. **AI repair / verification loop** — deliberately absent today; would need
    its own design so it never becomes silent correction.
-5. **Natural-language frontend integration** — the AI HTTP endpoint plus the
-   UX for clarification questions and unsupported refusals.
-6. **MVP**: description → geometry → export, end to end, in the browser.
+5. ~~**Natural-language frontend integration**~~ — **done in Stage 30.**
+6. ~~**MVP**: description → geometry → export, end to end, in the browser.~~ —
+   **done in Stage 30**, and demonstrated live. The remaining gap is
+   *reliability*, not capability: see §11.
 7. Beyond MVP: broader feature vocabulary (a V2 schema), live Onshape
    verification, authentication and multi-user storage, production sandboxing
    and persistence.
@@ -527,6 +553,14 @@ Each of these is supported by the code, the docs or the measured results.
   model, one run. The A6 X/Y swap is a confirmed real failure mode.
 - **AI ambiguity handling is imperfect**: B2/B3 asked for clarification on
   unambiguous explicit-axis cylinders.
+- **The configured model omits the document about half the time.** Measured in
+  Stage 30 over 13 live `POST /generate` calls on `gemini-3.6-flash` with
+  prompt `2026-09-08.1`: **6 documents, 6 `invalid_model_output`, 1 provider
+  error**. The failures return `{"status": "document"}` with the `document`
+  field simply absent, at 36-52 output tokens against 80-106 for a success,
+  and `stop_reason` is `STOP` — so it is not truncation. This is the single
+  biggest product problem, and it is a *prompt/schema* problem to be fixed by
+  measurement, never by a repair loop.
 - **Adversarial and semantic-edge-case behavior is entirely unmeasured.**
 - **Provider availability is unreliable**: a 404 on the default Gemini model
   and a ~20-request/day free-tier allowance.

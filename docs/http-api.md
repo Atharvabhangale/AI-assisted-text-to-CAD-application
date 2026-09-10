@@ -3,7 +3,8 @@
 Status: **Stage 22 — the first HTTP transport, as a thin adapter over the
 transport-neutral contract. Stage 23 added artifact delivery, Stage 24
 read-only build retrieval, Stage 25 the render endpoint a browser viewer
-needs. Local development only.**
+needs, Stage 30 the natural-language `POST /generate`. Local development
+only.**
 
 > **HTTP API contains no CAD business logic.**
 
@@ -34,6 +35,13 @@ artifact checksums, LLM or MCP. Tests assert it imports none of
 `api_contract`, `application_service`, `artifact_registry` (for the checksum
 algorithm name) and `isolated_execution` (for the default timeout) — asserted
 exactly.
+
+`POST /generate` adds one dependency in the other direction: the transport
+imports `cad_ai` (this application's own AI layer), never a provider SDK. It
+names no vendor — a test asserts the strings `anthropic`, `gemini`, `google`,
+`openai`, `claude` and `gpt-` appear nowhere in `cad_api.generation` — and
+asks `cad_ai.factory` which provider is configured. Adding a third provider
+touches no file under `cad_api`.
 
 `cad_core` remains usable without FastAPI: no module in it imports `fastapi`,
 `starlette`, `pydantic`, `httpx` or `httpx2`, and a test runs the contract in
@@ -139,6 +147,58 @@ The repeat of an identical request is a **cache hit**: `200`,
 `"cache_hit": true`, `"execution_id": null`, the same `build_key`, and a body
 otherwise identical to the first. A test asserts the cached body equals the
 transport contract's own payload for that request, field for field.
+
+### `POST /generate`
+
+Turn a natural-language description into a **validated candidate CAD
+document**. This is the natural-language entry point, added in Stage 30.
+
+```json
+// request
+{"text": "Create a rectangular plate 100 mm long, 60 mm wide and 10 mm thick."}
+```
+
+`GenerateBody` → `TextGenerator.generate` → `cad_ai.TextToCadService` → the
+configured provider → the existing deserializer → the **existing validator**.
+
+**It builds nothing.** The response carries a document, and the client posts
+that document to `POST /build` exactly as it would one a human wrote. There is
+one build path, one validator and one CAD contract; the AI adds an interpreter
+in front of them and changes none of them.
+
+Representative 200 response:
+
+```json
+{"outcome": "generated",
+ "message": "a CAD document was generated from the description",
+ "document": {"schema_version": "1.0.0", "units": "mm",
+              "name": "rectangular-plate",
+              "features": [{"id": "plate", "type": "box",
+                            "size": {"x": 100.0, "y": 60.0, "z": 10.0},
+                            "position": {"x": 0.0, "y": 0.0, "z": 0.0}}]},
+ "document_hash": "9e2be624…",
+ "summary": "Created a 100 mm x 60 mm x 10 mm rectangular plate using a box feature.",
+ "questions": [], "issues": [], "rule_codes": [], "error_kind": null,
+ "metadata": {"provider": "gemini", "model": "gemini-3.6-flash",
+              "prompt_version": "2026-09-08.1", "structured_output": true,
+              "stop_reason": "STOP",
+              "usage": {"input_tokens": 4052, "output_tokens": 84},
+              "request_characters": 67}}
+```
+
+The body is the AI layer's **existing** `AiGenerationResult.to_dict()`. No
+second result model and no second outcome taxonomy were defined, and the AI
+layer's development-only `detail` — which may quote the model's raw answer —
+is excluded from it.
+
+`document` is non-null for exactly one outcome, `generated`, and what it
+carries has already passed the V1 validator. **A model answer the validator
+rejects is reported, never repaired**: the response carries the rule codes and
+no document.
+
+`text` must be a non-blank string of at most 2000 characters. A blank one is
+a 422 and **no model call is made** — spending a request on nothing is not a
+service the client asked for.
 
 ### `GET /builds/{build_key}`
 
@@ -276,6 +336,11 @@ The line a status code draws here is **whose fault** the failure is.
 | export or publication failure | `output_failed` | **500** |
 | execution or cache failure (crash, timeout) | `execution_failed` | **503** |
 | unexpected internal error | `internal_error` | **500** |
+| generation produced a document | `generated` | **200** |
+| generation needs a clarification | `needs_clarification` | **200** |
+| generation refused an unsupported request | `unsupported` | **200** |
+| the model's answer was not a valid CAD document | `invalid_model_output` | **502** |
+| no model could be reached | `model_error` | **503** |
 | build key that is not a build key | `build_key_invalid` | **400** |
 | build not available | `build_not_found` | **404** |
 | build retrieval failed unexpectedly | `retrieval_failed` | **500** |
@@ -285,7 +350,7 @@ The line a status code draws here is **whose fault** the failure is.
 | wrong method on an existing route | — | 405 (FastAPI) |
 | unknown route | — | 404 (FastAPI) |
 
-Six statuses in total: `200`, `400`, `404`, `422`, `500`, `503`.
+Seven statuses in total: `200`, `400`, `404`, `422`, `500`, `502`, `503`.
 
 - **422 Unprocessable Content** for everything the client can fix — a bad
   envelope, an unbuildable document, an impossible geometry. The request was
@@ -294,6 +359,15 @@ Six statuses in total: `200`, `400`, `404`, `422`, `500`, `503`.
   an exporter refusing, or an unexpected error.
 - **503** for an execution or cache failure, because the same request may well
   succeed on a retry — that distinction is the reason not to fold it into 500.
+- **502 Bad Gateway** for exactly one case: an upstream model answered, and its
+  answer was not a usable CAD document. It is not 4xx, because the client's
+  description was fine; it is not 500, because this server did not fail.
+
+The first three generation rows are **200 because the question was asked and
+answered**, which is the same rule `POST /validate` follows when its answer is
+`"valid": false`. A clarification and a refusal are results, not failures:
+turning them into a 4xx would tell a client its request was malformed when it
+was merely under-specified or out of scope.
 
 A status is chosen **only** from the contract's `succeeded` flag and `failure`
 value. No Python exception class reaches the mapping, and nothing collapses to

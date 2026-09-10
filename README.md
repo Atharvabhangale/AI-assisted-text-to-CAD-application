@@ -10,6 +10,35 @@ natural-language description into a candidate CAD document, for a small
 subset — one box or one cylinder — behind a small provider boundary. The
 browser still takes a canonical CAD document, not a description.
 
+## Quick start (Windows / PowerShell)
+
+From the repository root:
+
+```powershell
+.\start.ps1     # backend + frontend, waits until both are healthy, opens the page
+.\stop.ps1      # stops what start.ps1 started
+```
+
+`start.ps1` locates the repository, uses the existing `.venv`, loads
+`apps\api\.env`, creates the `CAD_API_CACHE_ROOT` the application requires,
+starts the same `uvicorn` factory on port 8000 and the same Vite dev server on
+port 5173, waits for both to answer, and prints
+<http://localhost:5173/>. Add `-NoBrowser` to skip opening a browser, or
+`-BackendPort` / `-FrontendPort` to move the ports.
+
+It changes no application behaviour and adds no service manager, container or
+database. A credential from `apps\api\.env` is placed in the **backend
+process's** environment only — never in the frontend's, never in the state
+file, never in a log, and never printed; only variable names and value lengths
+are reported. Runtime state (process ids, logs, build cache) lives in the
+gitignored `.dev\` directory.
+
+Already-running servers are adopted rather than duplicated, and an occupied
+port is refused with an explanation instead of silently moving. The manual
+startup documented below continues to work unchanged.
+
+Launcher tests: `.\scripts\Test-DevLauncher.ps1`.
+
 ## Repository structure
 
 ```

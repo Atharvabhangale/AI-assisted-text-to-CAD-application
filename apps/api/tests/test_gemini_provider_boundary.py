@@ -84,7 +84,7 @@ SYNTHETIC_KEY = "AIzaSy-SYNTHETIC-TEST-KEY-DO-NOT-USE-000"
 
 #: The prompt fingerprint Stage 26 pinned. Adding a provider must not move it.
 PROMPT_FINGERPRINT = (
-    "2b3e3395ec6efee0fe252cf88207e981dcdecfdb88ea847f075ce20a5ad9ba52"
+    "fe62c9759a08d45ca372672479631863b25876cc52aca999da7edb1e8cde979a"
 )
 
 
@@ -926,7 +926,7 @@ class TestAnthropicUnchanged(unittest.TestCase):
     def test_the_prompt_and_schema_are_shared_and_unchanged(self) -> None:
         self.assertEqual(prompt_fingerprint(), PROMPT_FINGERPRINT)
         self.assertEqual(PROMPT_VERSION, "2026-09-08.1")
-        self.assertEqual(len(system_prompt()), 14943)
+        self.assertEqual(len(system_prompt()), 21938)
         schema = response_schema()
         self.assertEqual(sorted(schema["properties"]),
                          ["document", "issues", "questions", "status", "summary"])

@@ -126,9 +126,13 @@ def generation_sources() -> Tuple[Path, ...]:
 #: The plate every dimensional test uses, in millimetres.
 PLATE_SIZE = (100.0, 60.0, 10.0)
 
-#: The prompt fingerprint Stage 26 pinned. Unchanged by adding a provider.
+#: The prompt fingerprint, re-pinned at Stage 31 when the declared capability
+#: widened from the two constructive types to the full V1 vocabulary. Stage
+#: 26's value was 2b3e3395ec6efee0...; the
+#: prompt version moved with it, so a run's recorded identity still says
+#: exactly which instructions produced it.
 PROMPT_FINGERPRINT = (
-    "2b3e3395ec6efee0fe252cf88207e981dcdecfdb88ea847f075ce20a5ad9ba52"
+    "fe62c9759a08d45ca372672479631863b25876cc52aca999da7edb1e8cde979a"
 )
 
 #: Tolerance for a kernel-reported length. Never exact float equality.
@@ -852,11 +856,29 @@ class TestUnsupported(AiTestCase):
             self.assertIn(name, text)
         for name in UNSUPPORTED_FEATURE_TYPES:
             self.assertIn(name, text)
-        self.assertEqual(set(SUPPORTED_FEATURE_TYPES), set(CONSTRUCTIVE_TYPES))
+        # Stage 31: the declared capability is the whole V1 vocabulary, not
+        # just the constructive half. The engine has implemented every one of
+        # these since Stage 14.1, so refusing them was the prompt describing a
+        # limit the system no longer had.
+        self.assertEqual(set(SUPPORTED_FEATURE_TYPES), set(FEATURE_TYPES))
+        self.assertEqual(UNSUPPORTED_FEATURE_TYPES, ())
+        self.assertTrue(set(CONSTRUCTIVE_TYPES) <= set(SUPPORTED_FEATURE_TYPES))
         self.assertEqual(
             set(SUPPORTED_FEATURE_TYPES) | set(UNSUPPORTED_FEATURE_TYPES),
             set(FEATURE_TYPES),
         )
+
+    def test_the_prompt_states_the_feature_ordering_contract(self) -> None:
+        # A model allowed to emit modifiers must be told the rules that make a
+        # modifier legal: a constructive feature first, references strictly
+        # backwards, and exactly one solid at the end.
+        text = system_prompt()
+        for phrase in (
+            "first",
+            "strictly earlier",
+            "exactly **one** solid",
+        ):
+            self.assertIn(phrase, text, msg=phrase)
 
     def test_the_prompt_refuses_unit_conversion(self) -> None:
         text = system_prompt()
@@ -1701,17 +1723,39 @@ print("OK")
         self.assertEqual(completed.returncode, 0, msg=completed.stderr[-2000:])
         self.assertIn("OK", completed.stdout)
 
-    def test_the_http_transport_does_not_import_the_ai_layer(self) -> None:
-        # Stage 26 is service-only: no route was added, so cad_api is
-        # untouched. Asserted, so an accidental import is visible.
+    def test_the_http_transport_imports_no_provider_sdk(self) -> None:
+        """The transport may use the AI layer; it may never use a vendor.
+
+        Stage 26 asserted that ``cad_api`` imported no ``cad_ai`` at all,
+        because the AI layer was service-only. Stage 30 added
+        ``POST /generate``, so that particular exclusion is now the wrong
+        thing to assert -- it would only be satisfiable by deleting the
+        feature. What survives, and matters more, is the *vendor* boundary:
+        no SDK, and no provider module, is imported anywhere in the transport.
+        Which provider answers is decided by ``cad_ai.factory``, and adding a
+        third one still touches no file here.
+        """
         transport = REPO_ROOT / "apps" / "api" / "src" / "cad_api"
         for path in sorted(transport.glob("*.py")):
             for name in _module_imports(path):
-                self.assertFalse(
-                    name.startswith("cad_ai"),
-                    msg=f"{path.name} imports {name}",
-                )
-                self.assertNotEqual(name, "anthropic")
+                for forbidden in (
+                    "anthropic",
+                    "google",
+                    "google.genai",
+                    "openai",
+                    "cad_ai.anthropic_provider",
+                    "cad_ai.gemini_provider",
+                ):
+                    self.assertNotEqual(
+                        name, forbidden, msg=f"{path.name} imports {name}"
+                    )
+
+    def test_the_transport_names_no_provider(self) -> None:
+        transport = REPO_ROOT / "apps" / "api" / "src" / "cad_api"
+        for path in sorted(transport.glob("*.py")):
+            lowered = path.read_text(encoding="utf-8").lower()
+            for vendor in ("anthropic", "gemini", "openai", "claude", "gpt-"):
+                self.assertNotIn(vendor, lowered, msg=f"{path.name}: {vendor}")
 
 
 # --- the prompt and the derived schema -------------------------------------
@@ -1770,11 +1814,8 @@ class TestPromptAndSchema(unittest.TestCase):
         # This is the prompt-regression test. If it fails, the prompt changed:
         # update PROMPT_VERSION and this value together, and do not assume any
         # earlier claim about model behaviour still holds.
-        self.assertEqual(
-            prompt_fingerprint(),
-            "2b3e3395ec6efee0fe252cf88207e981dcdecfdb88ea847f075ce20a5ad9ba52",
-        )
-        self.assertEqual(PROMPT_VERSION, "2026-09-08.1")
+        self.assertEqual(prompt_fingerprint(), PROMPT_FINGERPRINT)
+        self.assertEqual(PROMPT_VERSION, "2026-09-09.1")
 
     def test_the_prompt_states_the_seven_required_things(self) -> None:
         text = system_prompt()
@@ -1786,8 +1827,10 @@ class TestPromptAndSchema(unittest.TestCase):
             # 3. no Python / CadQuery / FeatureScript
             "Never output Python, CadQuery",
             "FeatureScript",
-            # 4. no invented features
-            "not supported by this stage",
+            # 4. no invented features: what is out of scope is refused,
+            #    never approximated with something the model can express
+            "Unsupported, whatever the wording",
+            "approximate it with a plain box",
             # 5. feature order preserved
             "order follows the order the request describes",
             # 6. defaults only per the specification
@@ -1873,12 +1916,24 @@ class TestPromptAndSchema(unittest.TestCase):
             schema["properties"]["summary"]["description"],
         )
 
-    def test_the_schema_offers_no_unsupported_feature_type(self) -> None:
+    def test_the_schema_offers_exactly_the_supported_feature_types(self) -> None:
+        """The schema admits every declared type, and nothing beyond V1.
+
+        Stage 26 asserted the modifier parameters were *absent*, because the
+        stage refused modifiers. Stage 31 admits them, so the assertion turns
+        around: each must now be present, and the schema must still offer
+        nothing the V1 model does not define.
+        """
         rendered = json.dumps(response_schema())
         for name in UNSUPPORTED_FEATURE_TYPES:
             self.assertNotIn(f'"const": "{name}"', rendered)
+        for name in SUPPORTED_FEATURE_TYPES:
+            self.assertIn(f'"const": "{name}"', rendered, msg=name)
         for name in ("radius", "distance", "edges", "tools", "target", "select"):
-            self.assertNotIn(f'"{name}"', rendered, msg=f"{name} is offered")
+            self.assertIn(f'"{name}"', rendered, msg=f"{name} is missing")
+        # Still nothing invented: every feature key comes from the model.
+        for invented in ("revolve", "loft", "sweep", "helix", "thread"):
+            self.assertNotIn(invented, rendered, msg=invented)
 
     def test_no_schema_field_is_absent_from_the_specification(self) -> None:
         text = specification_text()
@@ -1953,11 +2008,15 @@ class TestAnthropicProvider(unittest.TestCase):
             self.skipTest("the anthropic SDK is not installed")
         from cad_ai.anthropic_provider import (
             JSON_SCHEMA_FORMAT,
+            UNSUPPORTED_SCHEMA_KEYWORDS,
             AnthropicTextToCadModel,
+            schema_for_api,
         )
 
         self.provider_class = AnthropicTextToCadModel
         self.json_format = JSON_SCHEMA_FORMAT
+        self.schema_for_api = schema_for_api
+        self.unsupported_keywords = UNSUPPORTED_SCHEMA_KEYWORDS
         self.config = AiConfig(model="claude-fake", timeout_seconds=5.0)
 
     def model(self, messages: FakeMessages) -> Any:
@@ -1999,7 +2058,11 @@ class TestAnthropicProvider(unittest.TestCase):
         response = model.generate(self.request())
         config = messages.calls[0]["output_config"]
         self.assertEqual(config["format"]["type"], self.json_format)
-        self.assertEqual(config["format"]["schema"], response_schema())
+        # The schema sent is the model-facing schema in this API's own
+        # dialect -- see the sanitiser tests below for what that changes.
+        self.assertEqual(
+            config["format"]["schema"], self.schema_for_api(response_schema())
+        )
         self.assertTrue(response.structured_output)
         # The parameter name is the installed SDK's, not an invented one.
         import inspect
@@ -2047,6 +2110,116 @@ class TestAnthropicProvider(unittest.TestCase):
             "stream",
         ):
             self.assertNotIn(forbidden, call)
+
+    def test_the_schema_sent_carries_no_keyword_this_api_rejects(self) -> None:
+        # A regression test for a measured, total outage. Sending the
+        # model-facing schema unchanged returned 400 invalid_request_error --
+        # "output_config.format.schema: For 'number' type, property
+        # 'exclusiveMinimum' is not supported" -- so *every* POST /generate
+        # on this provider failed before the interpretation was even
+        # attempted. This API's structured-output subset accepts no numeric
+        # bound, no string length or pattern constraint and no array-size
+        # constraint.
+        messages = FakeMessages(FakeMessage([FakeBlock("text", "{}")]))
+        self.model(messages).generate(self.request())
+        sent = json.dumps(messages.calls[0]["output_config"]["format"]["schema"])
+        for keyword in self.unsupported_keywords:
+            self.assertNotIn(keyword, sent, f"{keyword} would be rejected")
+
+    def test_the_schema_the_rest_of_the_layer_sees_is_left_whole(self) -> None:
+        # The sanitiser is a copy, not an edit: the shared schema still
+        # carries its constraints, so the evaluation harness and the Gemini
+        # provider are unaffected by what this one API cannot compile.
+        original = response_schema()
+        before = json.dumps(original, sort_keys=True)
+        sent = self.schema_for_api(original)
+        self.assertEqual(json.dumps(original, sort_keys=True), before)
+        self.assertNotEqual(json.dumps(sent, sort_keys=True), before)
+        self.assertIn("exclusiveMinimum", before)
+
+    def test_sanitising_removes_the_keywords_at_every_depth(self) -> None:
+        deep = {
+            "type": "object",
+            "minLength": 1,
+            "properties": {
+                "a": {"type": "number", "exclusiveMinimum": 0, "description": "keep"},
+                "b": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": [{"type": "string", "pattern": "^x$", "enum": ["x"]}],
+                },
+            },
+            "additionalProperties": False,
+        }
+        cleaned = self.schema_for_api(deep)
+        self.assertEqual(
+            cleaned,
+            {
+                "type": "object",
+                "properties": {
+                    "a": {"type": "number", "description": "keep"},
+                    "b": {
+                        "type": "array",
+                        "items": [{"type": "string", "enum": ["x"]}],
+                    },
+                },
+                "additionalProperties": False,
+            },
+        )
+
+    def test_sanitising_keeps_every_keyword_this_api_supports(self) -> None:
+        # What survives is what the documented subset accepts, and it is
+        # what the model needs to produce a well-shaped document.
+        sent = self.schema_for_api(response_schema())
+        text = json.dumps(sent)
+        for supported in (
+            "additionalProperties",
+            "anyOf",
+            "const",
+            "description",
+            "enum",
+            "items",
+            "properties",
+            "required",
+            "type",
+        ):
+            self.assertIn(supported, text)
+        # additionalProperties must remain false everywhere: this API
+        # requires it, and rule S3 requires it of the contract too.
+        def additional_properties(node: Any) -> None:
+            if isinstance(node, dict):
+                if node.get("type") == "object":
+                    self.assertIs(node.get("additionalProperties"), False)
+                for value in node.values():
+                    additional_properties(value)
+            elif isinstance(node, list):
+                for item in node:
+                    additional_properties(item)
+
+        additional_properties(sent)
+
+    def test_a_stripped_constraint_is_still_enforced_by_the_validator(self) -> None:
+        # The schema is a decoding constraint, never the authority on CAD
+        # validity. A zero size is no longer forbidden by the schema sent to
+        # this API, and the validator refuses it anyway -- so removing the
+        # keyword weakened no rule.
+        sent = self.schema_for_api(response_schema())
+        self.assertNotIn("exclusiveMinimum", json.dumps(sent))
+        result = validate(
+            {
+                "schema_version": "1.0.0",
+                "units": "mm",
+                "name": "zero-plate",
+                "features": [
+                    {
+                        "id": "plate",
+                        "type": "box",
+                        "size": {"x": 0.0, "y": 60.0, "z": 10.0},
+                    }
+                ],
+            }
+        )
+        self.assertFalse(result.valid)
 
     def test_a_request_without_a_schema_sends_no_output_config(self) -> None:
         messages = FakeMessages(FakeMessage([FakeBlock("text", "{}")]))
@@ -2459,7 +2632,7 @@ class TestProviderParity(unittest.TestCase):
         # nothing above the boundary changes.
         from cad_ai.prompt import system_prompt
 
-        self.assertEqual(len(system_prompt()), 14943)
+        self.assertEqual(len(system_prompt()), 21938)
         self.assertEqual(prompt_fingerprint(), PROMPT_FINGERPRINT)
 
 

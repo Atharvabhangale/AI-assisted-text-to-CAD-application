@@ -1,23 +1,49 @@
-# Browser CAD viewer
+# Browser text-to-CAD application
 
-Status: **Stage 25 — the first visible browser application. A viewer, not an
-editor, and not the AI interface.**
+Status: **Stage 25 — the first visible browser application, a CAD-document
+viewer. Stage 30 made natural language the primary input and demoted the raw
+CAD JSON to an advanced section. Still not an editor.**
 
 ## What it is
 
-A single page that posts a canonical CAD document to the existing HTTP API,
-shows the build result, and draws the tessellated mesh the backend returns.
+A single page where you describe a part in a sentence, press one button, and
+see real CAD geometry. The CAD-JSON workflow it began as is still there,
+behind **Advanced: CAD JSON**.
 
 ```
 browser (apps/web)
-  │  POST /validate            the document, judged by the backend
-  │  POST /build               the document + the outputs to produce
+  │  POST /generate            a sentence -> a validated CAD document
+  │  POST /build               that document + the outputs to produce
   │  GET  /builds/{key}/render the RenderModel to draw
   │  GET  /artifacts/{id}      STEP / IGES / STL bytes
-apps/api            thin HTTP transport (Stage 22-24)
+apps/api            thin HTTP transport (Stage 22-24, 30)
   │
-CadApplicationService → cache / isolation → CAD engine
+cad_ai (interpretation)   CadApplicationService → cache / isolation → CAD engine
 ```
+
+### The one-action flow
+
+Pressing **Generate CAD** does the whole thing; there is no second Build click
+on the natural-language path.
+
+```
+type a description
+  -> "Generating CAD..."      POST /generate
+  -> design intent shown      read from the document the backend returned
+  -> "Building geometry..."   POST /build, with that document unchanged
+  -> "Ready."                 the mesh, the measurements, the export buttons
+```
+
+Three of the five outcomes stop the flow before any build, each with its own
+state and its own wording: a **clarification** (with the model's question and
+a box to answer it), an **unsupported** refusal, and an unusable **model
+answer**. None of them shows a traceback, a path or a provider message.
+
+**The page interprets nothing.** It sends the description verbatim, shows the
+document the backend validated, and posts that same document back to be built
+without editing it — a test asserts the object sent to `/build` is deeply
+equal to the one `/generate` returned. It performs no repair, no retry and no
+completion of missing fields.
 
 **The dependency runs one way.** The browser knows the transport contract and
 nothing below it. It never imports CadQuery or OpenCascade — it cannot: the
@@ -25,12 +51,21 @@ kernel is Python, and there is no WebAssembly build here.
 
 ## What it deliberately is not
 
-No natural-language input, no LLM, no MCP, no Onshape, no authentication, no
-database, no cloud storage, no collaboration, no multi-user features, no CAD
-editor and no arbitrary geometry editing. The only editable field on the page
-is the document textarea; a test asserts that (`tests/boundary.test.ts`).
+No LLM client, no provider SDK, no prompt, no MCP, no Onshape, no
+authentication, no database, no cloud storage, no collaboration, no multi-user
+features, no CAD editor and no arbitrary geometry editing. Natural language is
+*input*, not intelligence: the page posts a sentence to the backend and knows
+nothing about which model answers it.
 
-Stage 25 is the viewer. **Natural language is a later stage.**
+The three editable fields are all free text a person types — the description,
+the clarification answer, and the advanced CAD JSON. There is still no field
+that edits geometry directly: no number spinner, no dimension input, no
+feature dropdown. Tests assert all of this (`tests/boundary.test.ts`),
+including that the sources name no vendor and carry no credential.
+
+**The browser never sees a credential.** `GEMINI_API_KEY` is read by the
+backend's provider and by nothing else; it is not in the page, not in the
+bundle, not in `vite.config.ts`, and not in browser storage.
 
 ## The frontend is a client, not the CAD engine
 
@@ -194,18 +229,43 @@ failure.
 
 ```
 apps/web/
-  index.html          the page: textarea, viewport, status, result, exports
+  index.html          the page: description, intent, viewport, result,
+                      exports, and the advanced CAD JSON section
   vite.config.ts      the dev/preview proxy and the test environment
-  src/api.ts          the four calls and one URL helper. No CAD logic.
-  src/app.ts          state, DOM and the build flow. No CAD logic.
+  src/api.ts          the five calls and one URL helper. No CAD logic.
+  src/app.ts          state, DOM, the generate flow and the build flow.
+                      No CAD logic.
+  src/design-intent.ts  formats a generated document into English. Reads
+                      and formats only: no arithmetic, no defaulting, no
+                      unit conversion, no imports.
   src/render-model.ts the RenderModel type, its checks, and the pure
                       conversion to WebGL buffers. Imports nothing.
   src/viewer.ts       the Three.js viewport
   src/example.ts      Section D, as a data literal
   src/main.ts         entry point: collect, wire, start
-  tests/              87 Vitest tests, against the real page and real fixtures
+  tests/              122 Vitest tests, against the real page and real fixtures
   e2e/run.mjs         the end-to-end run: real backend, real browser
 ```
+
+## Design intent
+
+After a successful generation the page shows what the model decided, read out
+of the returned document rather than out of the user's sentence:
+
+```
+Design intent
+  Created a 100 mm x 60 mm x 10 mm rectangular plate using a box feature.
+  Box — plate
+    Length (X)  100 mm
+    Width (Y)   60 mm
+    Height (Z)  10 mm
+    Position    0, 0, 0 mm
+```
+
+Features are listed **in document order**, because in the V1 specification the
+order is semantic. A field the document does not carry is omitted rather than
+guessed — an absent `position` means the specification's default applied, and
+saying so is the backend's job.
 
 ## Testing
 

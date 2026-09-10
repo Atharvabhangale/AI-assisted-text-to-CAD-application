@@ -966,7 +966,7 @@ class TestPackageBoundary(unittest.TestCase):
     ROOT = Path(__file__).resolve().parents[1] / "src" / "cad_core"
 
     def imported_modules(self, filename: str) -> set:
-        tree = ast.parse((self.ROOT / filename).read_text())
+        tree = ast.parse((self.ROOT / filename).read_text(encoding="utf-8"))
         names = set()
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
@@ -1062,7 +1062,7 @@ class TestPackageBoundary(unittest.TestCase):
 
     def test_no_filesystem_layout_is_baked_into_the_artifact_layer(self) -> None:
         """It is told a path; it never invents a directory or a filename."""
-        source = (self.ROOT / "artifact_registry.py").read_text()
+        source = (self.ROOT / "artifact_registry.py").read_text(encoding="utf-8")
         for forbidden in ("mkdir", "makedirs", "/tmp", "gettempdir", "cwd()", "home()"):
             with self.subTest(forbidden=forbidden):
                 self.assertNotIn(forbidden, source)

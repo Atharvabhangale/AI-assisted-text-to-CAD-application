@@ -183,3 +183,58 @@ textarea:focus-visible {
     grid-template-columns: 1fr;
   }
 }
+
+/* --- text-to-CAD ------------------------------------------------------- */
+
+.intent h3 {
+  margin: 0.6rem 0 0.2rem;
+  font-size: 0.9rem;
+}
+
+.intent dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.2rem 0.7rem;
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.intent dt {
+  color: var(--muted);
+}
+
+.intent dd {
+  margin: 0;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  overflow-wrap: anywhere;
+}
+
+.questions {
+  margin: 0 0 0.6rem;
+  padding-left: 1.1rem;
+  font-size: 0.9rem;
+}
+
+.clarify {
+  margin-top: 0.8rem;
+}
+
+/* The advanced panel is secondary: closed by default, and quieter. */
+details#advanced > summary {
+  cursor: pointer;
+  list-style: revert;
+}
+
+details#advanced > summary h2 {
+  display: inline;
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+
+#description-input {
+  font-size: 1rem;
+}
+
+#generate-button {
+  font-weight: 600;
+}

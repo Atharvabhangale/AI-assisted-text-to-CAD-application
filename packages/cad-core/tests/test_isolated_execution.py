@@ -544,7 +544,7 @@ class TestProtocolFailures(IsolationTestCase):
         area = self.workspace("{ not json at all")
         code = worker_main([str(area)])
         self.assertEqual(code, EXIT_PROTOCOL_ERROR)
-        response = json.loads((area / RESPONSE_FILENAME).read_text())
+        response = json.loads((area / RESPONSE_FILENAME).read_text(encoding="utf-8"))
         self.assertEqual(response["status"], WorkerStatus.PROTOCOL_ERROR.value)
         self.assertIsNone(response["result"])
         self.assertIn("JSON", response["error"]["message"])
@@ -569,7 +569,7 @@ class TestProtocolFailures(IsolationTestCase):
             }
         )
         self.assertEqual(worker_main([str(area)]), EXIT_PROTOCOL_ERROR)
-        response = json.loads((area / RESPONSE_FILENAME).read_text())
+        response = json.loads((area / RESPONSE_FILENAME).read_text(encoding="utf-8"))
         self.assertIn("protocol", response["error"]["message"])
 
     def test_an_unknown_operation_is_refused(self) -> None:
@@ -595,7 +595,7 @@ class TestProtocolFailures(IsolationTestCase):
             }
         )
         self.assertEqual(worker_main([str(area)]), EXIT_PROTOCOL_ERROR)
-        response = json.loads((area / RESPONSE_FILENAME).read_text())
+        response = json.loads((area / RESPONSE_FILENAME).read_text(encoding="utf-8"))
         self.assertIn("fields", response["error"]["message"])
 
     def test_an_unknown_build_output_is_refused(self) -> None:
