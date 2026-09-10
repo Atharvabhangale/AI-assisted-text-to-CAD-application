@@ -1355,7 +1355,23 @@ class TestExecutionBoundary(EvaluationTestCase):
                     self.run_one(case, answer)
 
     def test_no_file_is_written_because_of_model_output(self) -> None:
-        watched = (self.tmp, Path(tempfile.gettempdir()))
+        # Point `tempfile` at a private directory for the duration.
+        #
+        # This watched the *shared* system temp directory, which made it fail
+        # whenever anything else on the machine happened to write there --
+        # another test run, a build, an editor. That is a false alarm: it says
+        # nothing about what the model's output caused. Redirecting
+        # `tempfile.tempdir` keeps the property exact and observable -- code
+        # under test that reaches for a temp file still lands somewhere this
+        # test inspects -- while making the observation immune to unrelated
+        # processes.
+        private_temp = self.tmp / "private-system-temp"
+        private_temp.mkdir(exist_ok=True)
+        previous_tempdir = tempfile.tempdir
+        tempfile.tempdir = str(private_temp)
+        self.addCleanup(setattr, tempfile, "tempdir", previous_tempdir)
+
+        watched = (self.tmp, private_temp)
         before = {
             root: sorted(str(path) for path in root.rglob("*")) for root in watched
         }

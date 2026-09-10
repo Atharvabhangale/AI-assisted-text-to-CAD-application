@@ -82,9 +82,19 @@ AI_SOURCE = REPO_ROOT / "apps" / "api" / "src" / "cad_ai"
 #: appear in no source file outside the tests that deliberately use it.
 SYNTHETIC_KEY = "AIzaSy-SYNTHETIC-TEST-KEY-DO-NOT-USE-000"
 
-#: The prompt fingerprint Stage 26 pinned. Adding a provider must not move it.
+#: The prompt fingerprint. What this module asserts is **provider parity**:
+#: selecting a provider must not move the prompt, so Gemini and Anthropic are
+#: handed byte-identical instructions. It does not pin one *particular*
+#: prompt -- that is `tests.test_text_to_cad_ai.PROMPT_FINGERPRINT`'s job --
+#: so this value moves whenever the prompt is deliberately revised, and the
+#: parity claim is what must not break.
+#:
+#: Stage 26 pinned 2b3e3395ec6efee0...; 2026-09-09.1 moved it to
+#: fe62c9759a08d45c...; this is **2026-09-09.2**, which taught the model that
+#: the vocabulary cannot join solids and that words locating a feature supply
+#: a required position.
 PROMPT_FINGERPRINT = (
-    "fe62c9759a08d45ca372672479631863b25876cc52aca999da7edb1e8cde979a"
+    "f9efe19ac33281ff14ab0efe665dc01971d458ea5d90e8114f6dabba0ca0874e"
 )
 
 
@@ -175,6 +185,15 @@ class TestNoLiveCall(GeminiBoundaryTestCase):
                     "assert 'google.genai' not in sys.modules, 'SDK imported eagerly'\n"
                     "assert callable(g.GeminiTextToCadModel.from_environment)\n"
                     "print('OK')\n"
+                    # Leave without interpreter finalisation. The assertions
+                    # above are the whole point of this child; what remains is
+                    # teardown, and OpenCascade's native shutdown aborts the
+                    # process on this platform after a fully successful run.
+                    # This keeps `returncode == 0` a real assertion rather
+                    # than a report on a third-party teardown bug.
+                    "import os\n"
+                    "sys.stdout.flush()\n"
+                    "os._exit(0)\n"
                 ),
             ],
             capture_output=True,
@@ -273,7 +292,7 @@ class TestSdkCallShape(GeminiBoundaryTestCase):
         # wrapper, no reformatting, no addition.
         self.assertEqual(sent, system_prompt())
         self.assertEqual(prompt_fingerprint(), PROMPT_FINGERPRINT)
-        self.assertEqual(PROMPT_VERSION, "2026-09-08.1")
+        self.assertEqual(PROMPT_VERSION, "2026-09-09.2")
 
     def test_the_user_text_is_passed_unchanged(self) -> None:
         for text in (
@@ -902,7 +921,11 @@ class TestAnthropicUnchanged(unittest.TestCase):
         self.assertEqual(PROVIDER_NAMES[0], PROVIDER_NAME)
         self.assertEqual(PROVIDER_NAME, "anthropic")
         self.assertEqual(config_from_environment({}).provider, "anthropic")
-        self.assertEqual(DEFAULT_MODELS["anthropic"], "claude-sonnet-5")
+        # Claude Haiku 4.5 is the model the product flow runs on; the
+        # default moved to it when the live flow was first exercised. What
+        # this test guards is that *Anthropic* stays the default provider,
+        # not which Anthropic model is configured.
+        self.assertEqual(DEFAULT_MODELS["anthropic"], "claude-haiku-4-5-20251001")
 
     def test_anthropic_is_chosen_when_both_credentials_exist(self) -> None:
         config = config_from_environment(
@@ -925,8 +948,10 @@ class TestAnthropicUnchanged(unittest.TestCase):
 
     def test_the_prompt_and_schema_are_shared_and_unchanged(self) -> None:
         self.assertEqual(prompt_fingerprint(), PROMPT_FINGERPRINT)
-        self.assertEqual(PROMPT_VERSION, "2026-09-08.1")
-        self.assertEqual(len(system_prompt()), 21938)
+        self.assertEqual(PROMPT_VERSION, "2026-09-09.2")
+        # 21938 for 2026-09-09.1; 25237 for 2026-09-09.2, which added the
+        # no-joining rule and the locative-resolution rule.
+        self.assertEqual(len(system_prompt()), 25237)
         schema = response_schema()
         self.assertEqual(sorted(schema["properties"]),
                          ["document", "issues", "questions", "status", "summary"])

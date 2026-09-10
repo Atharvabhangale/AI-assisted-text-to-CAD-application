@@ -1601,6 +1601,16 @@ result = validate(document)
 assert result.valid, result.rule_codes()
 assert part_hash(deserialize_part(document))
 print("OK")
+# Leave without running interpreter finalisation. Everything this child
+# exists to prove has already been asserted and printed above; what remains
+# is only teardown, and OpenCascade's native shutdown aborts the process on
+# this platform (0xC0000374 heap corruption / 0xC0000005 access violation)
+# *after* a completely successful run. Exiting here keeps `returncode == 0`
+# a real assertion instead of a report on a third-party teardown bug.
+import os as _os, sys as _sys
+_sys.stdout.flush()
+_sys.stderr.flush()
+_os._exit(0)
 """
         completed = subprocess.run(
             [sys.executable, "-c", script],
@@ -1717,6 +1727,16 @@ from cad_ai.specification import response_schema
 assert "anthropic" not in sys.modules, sorted(sys.modules)
 assert response_schema()["type"] == "object"
 print("OK")
+# Leave without running interpreter finalisation. Everything this child
+# exists to prove has already been asserted and printed above; what remains
+# is only teardown, and OpenCascade's native shutdown aborts the process on
+# this platform (0xC0000374 heap corruption / 0xC0000005 access violation)
+# *after* a completely successful run. Exiting here keeps `returncode == 0`
+# a real assertion instead of a report on a third-party teardown bug.
+import os as _os, sys as _sys
+_sys.stdout.flush()
+_sys.stderr.flush()
+_os._exit(0)
 """
         completed = subprocess.run(
             [sys.executable, "-c", script],

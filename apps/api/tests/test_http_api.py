@@ -219,6 +219,34 @@ def walk_strings(payload: Any) -> Iterator[str]:
         yield payload
 
 
+
+def _minimal_child_environment(extra: dict) -> dict:
+    """A small environment for a child process, minus what would break it.
+
+    "Minimal" here means *free of the things a test is proving are
+    unnecessary* -- not free of everything. The interpreter and its
+    dependencies still need to locate the user's home directory and, on
+    Windows, the system root; a child starved of those fails for reasons that
+    have nothing to do with the property under test.
+    """
+    import os as _os
+
+    names = ["PATH", "PYTHONIOENCODING", "SYSTEMROOT", "SystemRoot", "TEMP", "TMP"]
+    if _os.name == "nt":
+        names += ["USERPROFILE", "HOMEDRIVE", "HOMEPATH", "LOCALAPPDATA", "APPDATA"]
+    else:
+        names += ["HOME"]
+
+    environment = {"PYTHONIOENCODING": "utf-8"}
+    for name in names:
+        value = _os.environ.get(name)
+        if value is not None:
+            environment[name] = value
+    environment.update(extra)
+    return environment
+
+
+
 class StubService:
     """A stand-in application service, to prove the route is a pass-through.
 
@@ -1335,16 +1363,31 @@ assert request.outputs == ("stl",)
 for name in BLOCKED:
     assert name not in sys.modules, name
 print("OK")
+# Leave without running interpreter finalisation. Everything this child
+# exists to prove has already been asserted and printed above; what remains
+# is only teardown, and OpenCascade's native shutdown aborts the process on
+# this platform (0xC0000374 heap corruption / 0xC0000005 access violation)
+# *after* a completely successful run. Exiting here keeps `returncode == 0`
+# a real assertion instead of a report on a third-party teardown bug.
+import os as _os, sys as _sys
+_sys.stdout.flush()
+_sys.stderr.flush()
+_os._exit(0)
 """
         completed = subprocess.run(
             [sys.executable, "-c", program],
             capture_output=True,
             text=True,
-            env={
-                "PYTHONPATH": str(core),
-                "PYTHONIOENCODING": "utf-8",
-                "PATH": os.environ.get("PATH", ""),
-            },
+            # A deliberately small environment -- but the property under test
+            # is enforced by the `Blocker` import hook above, not by starving
+            # the child of variables. The home-directory variables are carried
+            # through because dropping them breaks an unrelated third-party
+            # import: `ezdxf`, which CadQuery's exporters import at module
+            # scope, resolves `Path("~").expanduser()` eagerly, and on Windows
+            # that raises `RuntimeError: Could not determine home directory`
+            # when USERPROFILE/HOMEDRIVE/HOMEPATH are absent. That failure says
+            # nothing about whether cad_core needs the HTTP stack.
+            env=_minimal_child_environment({"PYTHONPATH": str(core)}),
         )
         self.assertEqual(
             completed.returncode, 0, msg=completed.stderr[-2000:]

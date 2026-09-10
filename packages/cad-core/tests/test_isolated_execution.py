@@ -208,6 +208,50 @@ def request_of(doc: Dict[str, Any], *kinds: ArtifactKind) -> BuildRequest:
     )
 
 
+
+def process_is_running(pid: Optional[int]) -> bool:
+    """Whether ``pid`` names a live process, on this platform.
+
+    ``os.kill(pid, 0)`` is the POSIX idiom for "does this process exist", and
+    it is not portable: on Windows ``os.kill`` maps onto ``TerminateProcess``
+    and rejects signal 0 outright with ``OSError(WinError 87)``, so the idiom
+    raises whether or not the process exists. Asking the question properly
+    keeps "the child was reaped" a real assertion on both platforms rather
+    than an error on one of them.
+    """
+    if pid is None or pid <= 0:
+        return False
+
+    if os.name == "nt":
+        import ctypes
+
+        SYNCHRONIZE = 0x00100000
+        WAIT_OBJECT_0 = 0x00000000
+
+        kernel32 = ctypes.windll.kernel32
+        handle = kernel32.OpenProcess(SYNCHRONIZE, False, int(pid))
+        if not handle:
+            # No such process, or it is gone and unopenable: not running.
+            return False
+        try:
+            # Signalled means the process has exited; still waiting means it
+            # is alive. This avoids the classic STILL_ACTIVE (259) ambiguity
+            # of GetExitCodeProcess.
+            return kernel32.WaitForSingleObject(handle, 0) != WAIT_OBJECT_0
+        finally:
+            kernel32.CloseHandle(handle)
+
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        # It exists; it simply is not ours to signal.
+        return True
+    return True
+
+
+
 class IsolationTestCase(unittest.TestCase):
     def setUp(self) -> None:
         directory = tempfile.TemporaryDirectory()
@@ -361,8 +405,7 @@ class TestIsolatedBuild(unittest.TestCase):
 
     def test_the_child_is_reaped(self) -> None:
         self.assertFalse(self.execution.child_abandoned)
-        with self.assertRaises((ProcessLookupError, PermissionError)):
-            os.kill(self.execution.child_pid, 0)
+        self.assertFalse(process_is_running(self.execution.child_pid))
 
     def test_the_host_result_speaks_the_existing_vocabulary(self) -> None:
         payload = self.execution.to_dict()
@@ -834,8 +877,7 @@ class TestTimeout(IsolationTestCase):
         )
         self.assertFalse(execution.child_abandoned)
         self.assertIsNotNone(execution.child_pid)
-        with self.assertRaises((ProcessLookupError, PermissionError)):
-            os.kill(execution.child_pid, 0)
+        self.assertFalse(process_is_running(execution.child_pid))
 
     def test_a_timeout_cleans_the_workspace_and_publishes_nothing(self) -> None:
         execution = invoke_worker(
@@ -857,8 +899,7 @@ class TestTimeout(IsolationTestCase):
         self.assertFalse(execution.cache_published)
         self.assertFalse(cache.contains(request.build_key))
         self.assertFalse(Path(execution.workspace).exists())
-        with self.assertRaises((ProcessLookupError, PermissionError)):
-            os.kill(execution.child_pid, 0)
+        self.assertFalse(process_is_running(execution.child_pid))
 
     def test_the_default_timeout_is_explicit_and_generous(self) -> None:
         self.assertEqual(DEFAULT_TIMEOUT_SECONDS, 60.0)
