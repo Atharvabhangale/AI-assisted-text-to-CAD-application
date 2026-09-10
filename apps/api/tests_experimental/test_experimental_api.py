@@ -452,7 +452,14 @@ class ExecutionBoundaryTests(unittest.TestCase):
 
     def test_the_parser_and_adapter_touch_no_filesystem(self):
         """The two modules that read model output open nothing at all."""
-        for module in ("parser.py", "adapter.py", "plan.py", "validation.py"):
+        # `sketch.py` and `build.py` were added after this guard and were
+        # not covered by it -- found by the Stage 39 audit. The two CLI
+        # entry points (`harness.py`, `local_plan_provider.py`) DO open a
+        # file, at a path a developer typed on the command line, and are
+        # deliberately out of scope here: the rule is that nothing on the
+        # model's data path touches the filesystem.
+        for module in ("parser.py", "adapter.py", "plan.py", "validation.py",
+                       "sketch.py", "build.py"):
             path = SOURCE / "cad_experimental" / module
             tree = ast.parse(path.read_text(encoding="utf-8"))
             for node in ast.walk(tree):

@@ -125,12 +125,13 @@ class VocabularyTests(unittest.TestCase):
         self.assertNotIn(FILLET, CONSTRUCTIVE_TYPES)
 
     def test_no_further_operation_crept_in(self):
-        """`chamfer` and `sketch` left this list when they were built.
+        """`chamfer` (36), `sketch` (37), `extrude` and `revolve` (38) left
+        this list when they were built.
 
         Everything still here is genuinely absent, so the guard still bites.
         """
         for absent in (
-            "extrude", "revolve", "sweep", "loft",
+            "sweep", "loft",
             "pattern", "mirror", "union", "assembly", "joint", "drawing",
             "material",
         ):

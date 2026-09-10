@@ -30,21 +30,44 @@ still applies and nothing downstream needed changing.
 
 ## Operations implemented
 
-Five, as of Stage 35. That is the entire vocabulary.
+Nine, as of Stage 38 — and **six of them can be built.** That gap is the
+single most important fact about the current state of this experiment, and it
+is deliberate. See "The language is larger than the engine" below.
 
-| Operation | Kind | Fields |
-|---|---|---|
-| `box` | constructive | `parameters`: `x`, `y`, `z` (all > 0); optional `position` (minimum corner) |
-| `cylinder` | constructive | `parameters`: `diameter`, `height` (both > 0); optional `position` (base centre), optional `axis` |
-| `through_hole` | modifier | `target`; `parameters`: `diameter` (> 0), `position` (**required**), optional `axis` |
-| `subtract` | modifier, **consuming** | `target`, `tools` (non-empty list); **no `parameters`** |
-| `fillet` | modifier | `target`; `parameters`: `radius` (> 0), `edges` (a selector **object**) |
+| Operation | Kind | Buildable | Fields |
+|---|---|---|---|
+| `box` | constructive | yes | `parameters`: `x`, `y`, `z` (all > 0); optional `position` (minimum corner) |
+| `cylinder` | constructive | yes | `parameters`: `diameter`, `height` (both > 0); optional `position` (base centre), optional `axis` |
+| `through_hole` | modifier | yes | `target`; `parameters`: `diameter` (> 0), `position` (**required**), optional `axis` |
+| `subtract` | modifier, **consuming** | yes | `target`, `tools` (non-empty list); **no `parameters`** |
+| `fillet` | modifier | yes | `target`; `parameters`: `radius` (> 0), `edges` (a selector **object**) |
+| `chamfer` | modifier | yes | `target`; `parameters`: `distance` (> 0), `edges` (the same selector) |
+| `sketch` | **profile** | **no** | `parameters`: `plane` (`XY`/`XZ`/`YZ`), `geometry` (non-empty), optional `constraints` |
+| `extrude` | **profile → solid** | **no** | `target` (a **sketch**); `parameters`: `distance` (> 0), optional `direction` |
+| `revolve` | **profile → solid** | **no** | `target` (a **sketch**); `parameters`: `angle` in (0, 360], `axis` (**required**) |
 
-Everything else — spheres, blind holes, counterbores, unions, **chamfers**,
-variable or per-edge fillet radii, naming an individual edge, sketches,
-extrudes, patterns, assemblies — is `unsupported` by design, and the parser
-rejects any operation type it does not implement rather than passing it
-downstream.
+Everything else — spheres, blind holes, counterbores, unions, variable or
+per-edge fillet radii, naming an individual edge, sweeps, lofts, patterns,
+mirrors, assemblies — is `unsupported` by design, and the parser rejects any
+operation type it does not implement rather than passing it downstream.
+
+### The four categories
+
+The vocabulary now divides into four kinds, and every operation is in exactly
+one (a test asserts it):
+
+* **constructive** — `box`, `cylinder`. Makes a solid from nothing, named by
+  its own id.
+* **modifier** — `through_hole`, `subtract`, `fillet`, `chamfer`. Acts on a
+  solid named by `target`, replaces it **in place**, and the result keeps the
+  **target's** id. A modifier's own id never names a solid.
+* **profile** — `sketch`. Declares a profile, which is **not** a solid:
+  nothing can fillet it, drill it, subtract it or consume it, and it does not
+  count toward the single-solid rule.
+* **profile → solid** — `extrude`, `revolve`. The only references in this
+  language that point at a *sketch*. Their own ids **do** name solids, so a
+  later modifier can act on an extrusion. They do **not** consume the profile:
+  extruding one sketch twice is legitimate.
 
 ### How the plan differs from the V1 document
 
@@ -142,12 +165,13 @@ All under `apps/api/src/cad_experimental/`. Nothing in `cad_ai`, `cad_api` or
 
 | Module | Purpose |
 |---|---|
-| `plan.py` | The typed plan: `BoxOperation`, `CylinderOperation`, `ThroughHoleOperation`, `OperationPlan`, `PlanStatus`, and the plan's JSON Schema |
+| `plan.py` | The typed plan: one record per operation, `OperationPlan`, `PlanStatus`, the four category tuples, and the plan's JSON Schema |
+| `sketch.py` | The sketch vocabulary and its typed records. **No solver.** Imports only the standard library |
 | `parser.py` | Untrusted model text -> typed operations. The security boundary |
-| `validation.py` | Plan rules `P1`-`P12`. Separate from the V1 validator, which is untouched |
+| `validation.py` | Plan rules `P1`-`P26`. Separate from the V1 validator, which is untouched |
 | `local_plan_provider.py` | The local development provider and its fixtures (Stage 32A) |
-| `adapter.py` | Plan -> canonical V1 document. A translation, with no geometry in it |
-| `build.py` | Hands the document to the existing `CadApplicationService` |
+| `adapter.py` | Plan -> canonical V1 document. A translation, with no geometry in it. Raises `ExecutionUnsupported` for an operation the engine cannot build |
+| `build.py` | Hands the document to the existing `CadApplicationService`; reports `execution_unsupported` separately from an error |
 | `prompt.py` | The experimental prompt, separately versioned |
 | `generation.py` | Description -> plan, over the stable provider boundary |
 | `config.py` | The pinned model and the ports |
@@ -170,7 +194,14 @@ The model's reply is attacker-influenced data. It is never code.
   non-literal name;
 * the package imports no `subprocess`, `pickle`, `socket`, `importlib`,
   `requests`, `urllib` or `httpx`, and a test asserts it;
-* the parser, plan, validator and adapter open no files.
+* the parser, plan, validator, adapter, build layer and sketch module open
+  no files, and a test asserts it. The only two `open()` calls in the package
+  are inside a CLI `main()`, on a path a developer typed as an `argparse`
+  argument — never on model output;
+* `sketch.py` imports **only** `__future__`, `dataclasses` and `typing`: no
+  kernel, no `cad_core`, nothing that could execute anything;
+* there is **no constraint solver**. A conflicting constraint is reported, so
+  no iteration on model-supplied numbers happens anywhere.
 
 The frontend builds the plan tree with `textContent`, never `innerHTML`: the
 ids and summaries are model-authored strings.
@@ -212,7 +243,9 @@ one does not invent a filesystem path.
 | `GET /experimental/plan-schema` | the plan's JSON Schema |
 | `POST /experimental/generate-plan` | `{"text": "..."}` -> a plan |
 | `POST /experimental/validate-plan` | a plan -> a verdict. Calls no model |
-| `POST /experimental/build-plan` | a plan -> the existing build result + RenderModel |
+| `POST /experimental/build-plan` | a plan -> the existing build result + RenderModel; **501** with `execution_unsupported` for a valid plan this backend cannot execute |
+| `POST /experimental/local-plan` | run a development fixture or a supplied plan. Every response is stamped `is_live_model_result: false` |
+| `GET /experimental/local-plan/fixtures` | the fixture list |
 
 `/validate`, `/build` and the rest of the stable surface are **not** served
 here, and a test asserts the experimental app has not grown a copy of them.
@@ -415,6 +448,178 @@ no longer does — the seam is one of the three edges. That production document
 was not changed here; this is the experimental layer recording what the engine
 actually does today.
 
+## `chamfer` (Stage 36)
+
+Structurally identical to `fillet` with `distance` in place of `radius`. V1
+has only the symmetric, equal-setback chamfer (Section C.6): no angle, no
+asymmetric form. The parser, validator and adapter share one branch with
+`fillet`, because the only difference is the name of the one length —
+`EDGE_MODIFIER_LENGTH` records which, in one place, so the three layers
+cannot disagree.
+
+Measured (exact decimals, unlike a fillet's quarter-circle — a chamfer removes
+a right triangle of area `d²/2` per unit of edge length):
+
+| Case | Volume |
+|---|---|
+| plate, `axis_parallel Z`, d2 | `59920.0` |
+| plate, `axis_parallel X`, d2 | `59200.0` |
+| drilled plate, `axis_parallel X`, d2 | `56058.407346…` |
+
+Selector behaviour on a cylinder is **identical to a fillet's**, measured
+rather than assumed: `all` and `axis_parallel Z` both fail `E5` (the seam),
+`axis_parallel X` fails `E4` (nothing matches). The plan route and the
+cad-core route agree on volume, faces, edges, solids and bounding box.
+
+## The sketch foundation (Stage 37)
+
+**A sketch cannot be built, and this is the honest answer rather than a
+missing feature.** V1's contract lists sketches among the concepts a
+validator MUST reject, and `cad_core`'s engine implements the six V1 features
+and nothing else. There were three options:
+
+1. extend `cad_core` — that modifies the stable production package;
+2. execute it in the experimental layer — that is a second CAD path, which
+   the architecture forbids for good reason;
+3. represent it precisely, validate it thoroughly, and say **explicitly**
+   that execution is unsupported.
+
+Stage 37 took the third. `adapter.ExecutionUnsupported` is that answer.
+
+### Why it is a distinct answer
+
+There are now five different "no" in this system, and collapsing any two
+would misreport the state of the project:
+
+| Failure | Means |
+|---|---|
+| parse | the model did not produce a plan |
+| plan (`P`-rules) | the plan is malformed or incoherent |
+| validation (`S`-rules) | the CAD document is invalid |
+| geometric (`E`-rules) | the kernel refused the geometry |
+| **execution unsupported** | **the plan is fine and the backend is not** |
+
+`POST /experimental/build-plan` answers **501 Not Implemented**, not 400: the
+plan is not the problem. The response names `execution_unsupported`, the
+offending types and the offending operation ids, and carries **no document,
+no build and no render model** — there is nothing that could be mistaken for
+geometry. The page says "not executable here", in warn colour, not "the build
+failed" in red.
+
+The check runs over the whole plan **before a single feature is emitted**, so
+a partially translated document can never escape. A plan is executable or it
+is not; there is no partial build.
+
+### Constraints are checked, never solved
+
+A `length` of 80 on a line that measures 50 is reported as a **conflict**
+(`P22`) and the line is not moved. Solving would hide the disagreement and
+would invent geometry the backend cannot execute anyway. The comparison uses
+a relative tolerance (`1e-9`), not float equality: a length computed from
+endpoints must not need bit equality. A test pins both directions — twelve
+significant figures agree, eight do not.
+
+### Sketch vocabulary
+
+Three primitives (`line`, `circle`, `rectangle`) and five constraints
+(`coincident`, `horizontal`, `vertical`, `length`, `radius`). No splines,
+arcs, ellipses or polylines. A rectangle is one primitive rather than four
+constrained lines, because holding four lines together would need a solver
+and there isn't one.
+
+Point handles are **objects**, not dotted strings:
+
+```json
+{"geometry": "l1", "point": "end"}
+```
+
+A dotted `"l1.end"` would work, and it would put a traversal-shaped string
+where every other reference in this language is a plain identifier. The
+security properties of the rest of the parser rest on that, so every
+reference stays an identifier plus an enumerated handle name.
+
+### Rules added
+
+| Rule | Meaning |
+|---|---|
+| `P18` | ids are unique within one sketch — geometry and constraints share the namespace |
+| `P19` | a constraint names geometry that exists **in this sketch** |
+| `P20` | the point handle is a real point of that geometry type |
+| `P21` | the constraint type applies to that geometry type (a `radius` on a line is a category error) |
+| `P22` | a dimensional constraint **agrees** with its geometry |
+
+`P11` now distinguishes two mistakes that used to read alike: "that id is a
+sketch, which declares a profile and not a solid" and "that id is a modifier,
+whose result keeps its own target's id".
+
+## `extrude` and `revolve` (Stage 38)
+
+The two operations the sketch foundation existed for, and the first
+references in this language that point at a **profile**. That inverts `P11`
+into `P23`.
+
+Neither can be built either — and the Stage 37 boundary needed **no change**
+to say so, because it is derived from `EXECUTABLE_TYPES` rather than from a
+list somebody has to remember to extend. A test asserts the adapter names
+neither operation anywhere.
+
+### Rules added
+
+| Rule | Meaning |
+|---|---|
+| `P23` | the target is a **sketch** — the mirror of `P11` |
+| `P24` | an extrude's `direction` is **normal** to the sketch's plane |
+| `P25` | a revolve's `axis` lies **in** the sketch's plane |
+| `P26` | a revolve's `angle` is in (0, 360] |
+
+`P24` and `P25` are complementary by construction, and a test measures it:
+exactly the axes an extrusion may use are the ones a revolve may not. Both
+come out of `PLANE_NORMAL` and `PLANE_AXES`, which are checked against the
+plane *names* rather than retyped.
+
+### Defaults, and the one that does not exist
+
+`direction` is **optional** on an extrude: the plane fixes the axis, so only
+the sign is a choice and the positive normal is a defensible default.
+
+`axis` is **required** on a revolve and has no default. A profile on XY
+revolved about X and about Y are different parts, so defaulting one would be
+inventing geometry — the same reason a `through_hole`'s `position` is
+required. The axis is also **signed**, because 90° about `+Z` and about `-Z`
+are mirror images; that is deliberately unlike an edge selector's unsigned
+axis (Section C.7), where parallelism has no direction.
+
+### What this layer refuses to guess
+
+**Whether a revolved profile crosses its own axis is not checked.** A profile
+straddling its axis of revolution produces self-intersecting material.
+Deciding that needs the resolved 2D geometry measured against the axis line —
+the kernel's kind of judgement, of the same sort as `E1`–`E5` — and there is
+no engine for this operation to ask. So nothing here guesses at it: such a
+plan is accepted as plan-valid, and still cannot be built. A test pins the gap
+so it stays visible rather than being mistaken for an oversight.
+
+## The language is larger than the engine
+
+Since Stage 37 the plan language can express three things the backend cannot
+build. That is a real and intentional state, and it is worth being precise
+about what it does and does not mean:
+
+* every one of the nine operations is **parsed and validated** to the same
+  standard;
+* three of them **cannot produce geometry of any kind** — no solid, no mesh,
+  no STEP, no volume, no bounding box, no build key;
+* the refusal is **explicit and machine-readable**, not an error message a
+  caller has to interpret;
+* **nothing is approximated.** There is no extrude-as-a-box and no
+  revolve-as-a-cylinder. A test scans the adapter and build layer for exactly
+  that kind of substitution.
+
+A plan mixing buildable and unbuildable operations — a sketch, an extrude and
+a fillet — is refused **as a whole**, and only the operations this backend
+cannot execute are named. The fillet is not blamed for something it could
+have done.
+
 ## Fixtures
 
 Run them with `python -m cad_experimental.local_plan_provider`. Each records
@@ -438,9 +643,15 @@ the geometry it should produce, so a build is checked rather than observed.
 | `fillet-after-through-hole` | drilled plate − 4·100·r²(1−π/4), 11 faces |
 | `fillet-after-subtract` | cut plate − 4·60·r²(1−π/4), 11 faces |
 
-Six more fixtures exist **to be rejected**, because a rule nothing exercises is
-a rule nobody has tested. Each names the code it expects, so "rejected somehow"
-cannot pass for "rejected correctly":
+There are **63 fixtures** as of Stage 38: 19 that build, 30 refused by the
+plan validator, 5 refused further down (the V1 validator or the engine), and
+9 that are **valid and unexecutable**. The tables below list a representative
+subset; `python -m cad_experimental.local_plan_provider --list` prints them
+all.
+
+The rejecting fixtures exist because a rule nothing exercises is a rule nobody
+has tested. Each names the code it expects, so "rejected somehow" cannot pass
+for "rejected correctly":
 
 | Fixture | Refused by | Rule |
 |---|---|---|
@@ -459,6 +670,23 @@ cannot pass for "rejected correctly":
 | `reject-fillet-consumed-target` | plan validator | `P12` |
 | `reject-fillet-no-edges` | **engine** | `E4` |
 | `reject-fillet-seam` | **engine** | `E5` |
+
+Nine fixtures are **valid and unexecutable** — the instrument for the one
+answer that is neither a build nor a rejection. Each is asserted to be
+plan-valid, to carry no V1 document, and to report no volume, bounding box,
+build key, solid count, face count or render model:
+
+| Fixture | What it is |
+|---|---|
+| `sketch-rectangle-profile` | a 100 × 60 profile on XY |
+| `sketch-constrained-lines` | two lines, with agreeing horizontal, vertical, length and coincident constraints |
+| `sketch-beside-a-solid` | a sketch next to a buildable box — the *whole* plan is refused |
+| `extrude-rectangle-to-plate` | the box fixture's plate, as a sketch and an extrusion |
+| `extrude-negative-direction` | the same, extruded along `-Z` |
+| `extrude-then-fillet` | a fillet on the extruded solid — the fillet is not blamed |
+| `extrude-one-profile-twice` | one profile, two thicknesses; a profile is not consumed |
+| `revolve-full-turn` | an XZ profile revolved 360° about `+Z` |
+| `revolve-partial-turn` | the same, 90° |
 
 One fixture has no analytic expectation: a box with all twelve edges blended
 has no clean closed form, because the corner blends interact. Recording a
@@ -504,8 +732,10 @@ and it builds to exactly π·(10²−4²)·50.
 * **Two routes to one cavity agree.** The same d20 bore expressed as a
   `subtract` and as a `through_hole` produce the same volume to 1e-9 — a
   cross-check that would catch an adapter quietly changing either's meaning.
-* **The prompt is now 8846 characters**, against the production prompt's
-  14943, for five operations.
+* **The prompt's size advantage has disappeared.** It was 4018 characters for
+  two operations at Stage 32; it is **14685 for nine** at Stage 38, against
+  the production prompt's **14943** for the six V1 features. See the audit
+  below: this bears directly on the experiment's central hypothesis.
 * **Edge selection cost the architecture nothing either.** Stage 35 added
   `fillet` with no second engine, validator, build path, cache or RenderModel,
   and without touching `local_cad.py`, `edge_selection.py` or the V1
@@ -520,13 +750,145 @@ and it builds to exactly π·(10²−4²)·50.
   carries more than six distinct unit normals, all finite — a plain box has
   exactly six.
 
+## Stage 39: audit
+
+One checkpoint, run after Stage 38, over the whole experiment. Everything
+below was measured, not estimated.
+
+### Test and suite state
+
+| Suite | Result |
+|---|---|
+| experimental (`tests_experimental`) | **681 passed** |
+| production API + AI (`apps/api/tests`) | **547 passed, 2 skipped** — unchanged |
+| stable frontend (`vitest`) | **87 passed** — unchanged |
+| stable frontend typecheck | clean |
+| experimental frontend typecheck | clean |
+
+The two skips are production's deliberate live-provider gates and must stay
+skipped. No test anywhere is quarantined, weakened or skipped to pass.
+
+### Production isolation
+
+`git diff --name-only` against the stable branch changes **35 files, and not
+one of them is production code.** Everything under `packages/`,
+`apps/api/src/cad_api`, `apps/api/src/cad_ai`, `apps/api/tests` and
+`apps/web/` is byte-identical to `claude/text-to-cad-skeleton-r946xr`. The
+only non-experimental change is `.gitignore` (a bare `node_modules`, because
+a trailing slash does not match a symlink) and this document.
+
+Six stages added **no** second CAD engine, validator, build path, cache,
+exporter, artifact registry or RenderModel, and never touched `local_cad.py`,
+`edge_selection.py` or the V1 validator.
+
+### Rule coverage
+
+All 26 plan rules `P1`–`P26` are raised by the validator and named in at
+least one test. Two gaps were **found by this audit and fixed**:
+
+* `P3` (unknown operation type) and `P6` (a non-finite position component)
+  were raised by the validator and named in **no test in the whole suite**.
+  Both are unreachable through the parser by design, which is precisely why
+  nobody had checked they still fire. `test_defence_in_depth.py` now builds
+  plans in code, bypassing the parser, and confirms both. They did fire.
+* the "no module opens a file" guard covered `parser`, `adapter`, `plan` and
+  `validation`, but not `sketch.py` or `build.py`, which were added later. It
+  now covers all six.
+
+12 of the 26 rules have a unit test but **no fixture**. Fixtures are the
+run-for-real instrument, so that is a genuine, if lesser, coverage gap:
+`P1`, `P2`, `P3`, `P5`, `P6`, `P7`, `P8`, `P9`, `P13`, `P15`, `P16`, `P17`.
+
+### Security posture, re-scanned
+
+An AST scan of all 13 modules for `eval`/`exec`/`compile`/`__import__`,
+computed-name attribute access, dunder traversal
+(`__class__`/`__dict__`/`__globals__`/`__subclasses__`) and the dangerous
+imports (`subprocess`, `pickle`, `socket`, `importlib`, `requests`, `urllib`,
+`httpx`, `shutil`, `ctypes`, `marshal`) returns **nothing**.
+
+Two `open()` calls exist, both inside a CLI `main()`, both on a path a
+developer typed as an `argparse` argument: `harness.py` writes a report where
+it was told to, and `local_plan_provider.py` reads a developer-supplied plan
+file. Neither touches model output. Nothing on the model's data path — the
+parser, plan, validator, adapter, build layer or sketch module — opens a file.
+
+`sketch.py` imports **only** `__future__`, `dataclasses` and `typing`: no
+kernel, no `cad_core`, no numpy, nothing.
+
+### The CAD backend: keep CadQuery/OpenCascade
+
+Evaluated, as the audit brief asked, and **not switched**. The evidence for
+keeping it:
+
+* **It is exact.** A `d20 × 50` cylinder measures `15707.963267948966` mm³
+  against `π·10²·50` at a relative error of **0.0**. A plate drilled and then
+  chamfered on four X-parallel edges lands within `1.2e-16` of its closed
+  form. Every geometric claim in this document is a closed-form check, not a
+  measurement recorded as its own expectation.
+* **It is B-rep, and the exports prove it.** A STEP file for that cylinder is
+  5664 bytes and contains **one `CYLINDRICAL_SURFACE`, two `PLANE`s, zero
+  `B_SPLINE`s and zero `TRIANGULATED` entities** — exact analytic surfaces,
+  not an approximation of them. The same part's *mesh* is 500 triangles. A
+  mesh-based backend would give up that distinction, and with it STEP and
+  IGES as meaningful outputs.
+* **It says no.** `E1`–`E5` exist because the kernel refuses work it cannot
+  do: a hole that misses the material, a cut that splits the body, a fillet
+  radius an edge cannot take. A backend that silently produced *something*
+  would be worse for this project than one that fails, because the whole
+  design rests on wrong output being reported rather than patched.
+* **The one real friction is not the kernel's fault.** The seam behaviour
+  (below) is a genuine limitation of parameterised-surface topology, not of
+  this particular kernel, and would appear in any B-rep engine.
+
+Switching would cost the exact volumes, the two B-rep exporters, the `E`-rule
+guarantees and 1481 cad-core tests, to buy nothing this project needs. **The
+recommendation is to keep it.**
+
+### The experiment's central hypothesis is now in doubt
+
+Stage 32 asked whether a flatter, smaller operation-plan language is easier
+for a model to get right than the canonical V1 document. Part of the argument
+was a much shorter prompt. That part has been measured away:
+
+| Stage | Operations | Prompt |
+|---|---|---|
+| 32 | 2 | 4018 chars |
+| 33 | 3 | 5374 |
+| 34 | 4 | 6934 |
+| 35 | 5 | 8846 |
+| 36 | 6 | 9590 |
+| 37 | 7 | 12408 |
+| 38 | 9 | **14685** |
+
+Production's prompt, for the six V1 features, is **14943**. The experimental
+prompt is now **98%** of it. Whatever advantage the operation plan has, at
+this vocabulary size it is **not** brevity.
+
+This does not settle the question — the plan language is still flatter, its
+references are still operation-level, and it still has no `units` field to get
+wrong. But the cheap part of the hypothesis is gone, and **the question can
+only be answered by a live comparison that has never been run.**
+
 ## What is NOT known
 
-**Real Anthropic testing is still postponed.** Stages 33 to 35 were developed
+**Real Anthropic testing is still postponed.** Stages 33 to 39 were developed
 and tested entirely against the local development provider, which supplies
 developer-written plans and calls no model. No result in this document, in the
 fixtures, in the tests or on the page is a Claude result of any kind, and no
 claim is made about Claude Haiku's quality on any representation.
+
+**Nothing is known about how a model handles the new vocabulary.** Six
+operations were added across Stages 33–38 and not one of them has been put to
+a real model. In particular it is unmeasured whether a model offers a sketch
+where a `box` would do, whether it gets `P24`/`P25` plane compatibility right,
+and whether it writes dimensional constraints that agree with their geometry —
+all three are things the prompt now spends words on, and words in a prompt are
+a hypothesis, not a result.
+
+**Nothing is known about how an unbuildable-but-valid plan reads to a user.**
+The 501 answer and the page's "not executable here" are tested as mechanism.
+Whether they are *understood* has not been observed with anyone.
 
 **No live measurement exists.** `ANTHROPIC_API_KEY` is not available in the
 environment this was built in, so the five cases have not been put to real
