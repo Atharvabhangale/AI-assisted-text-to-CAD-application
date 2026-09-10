@@ -71,6 +71,25 @@ function clear(element: HTMLElement): void {
 }
 
 /**
+ * One parameter, as text.
+ *
+ * An edge selector gets a readable form rather than raw JSON: `edges` is the
+ * only nested object in the vocabulary, and `all` / `axis_parallel Z` is what
+ * a reader actually wants to see.
+ */
+function describeParameter(name: string, value: unknown): string {
+  if (name === "edges" && typeof value === "object" && value !== null) {
+    const selector = value as { select?: string; axis?: string };
+    return selector.axis === undefined
+      ? String(selector.select)
+      : `${String(selector.select)} ${selector.axis}`;
+  }
+  return typeof value === "object" && value !== null
+    ? JSON.stringify(value)
+    : String(value);
+}
+
+/**
  * Render the plan as a tree.
  *
  * Built with `textContent`, never `innerHTML`: the operation ids, types and
@@ -114,10 +133,7 @@ function showOperations(operations: readonly PlanOperation[]): void {
       const term = document.createElement("dt");
       term.textContent = name;
       const definition = document.createElement("dd");
-      definition.textContent =
-        typeof value === "object" && value !== null
-          ? JSON.stringify(value)
-          : String(value);
+      definition.textContent = describeParameter(name, value);
       list.append(term, definition);
     }
     item.append(list);

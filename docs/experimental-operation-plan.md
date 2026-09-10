@@ -30,7 +30,7 @@ still applies and nothing downstream needed changing.
 
 ## Operations implemented
 
-Four, as of Stage 34. That is the entire vocabulary.
+Five, as of Stage 35. That is the entire vocabulary.
 
 | Operation | Kind | Fields |
 |---|---|---|
@@ -38,11 +38,13 @@ Four, as of Stage 34. That is the entire vocabulary.
 | `cylinder` | constructive | `parameters`: `diameter`, `height` (both > 0); optional `position` (base centre), optional `axis` |
 | `through_hole` | modifier | `target`; `parameters`: `diameter` (> 0), `position` (**required**), optional `axis` |
 | `subtract` | modifier, **consuming** | `target`, `tools` (non-empty list); **no `parameters`** |
+| `fillet` | modifier | `target`; `parameters`: `radius` (> 0), `edges` (a selector **object**) |
 
-Everything else — spheres, blind holes, counterbores, unions, fillets,
-chamfers, sketches, extrudes, patterns, assemblies — is `unsupported` by
-design, and the parser rejects any operation type it does not implement rather
-than passing it downstream.
+Everything else — spheres, blind holes, counterbores, unions, **chamfers**,
+variable or per-edge fillet radii, naming an individual edge, sketches,
+extrudes, patterns, assemblies — is `unsupported` by design, and the parser
+rejects any operation type it does not implement rather than passing it
+downstream.
 
 ### How the plan differs from the V1 document
 
@@ -309,6 +311,110 @@ so — there is a fixture for exactly that. And a tool that **removes no
 material** has no rule code at all: Section C.4 lists only `E2` and `E3`, so
 the engine refuses it without claiming one.
 
+## `fillet` and edge selection (Stage 35)
+
+`fillet` is the first operation that names **edges**, and the first whose
+feasibility the plan layer cannot judge.
+
+```json
+{"id": "round", "type": "fillet", "target": "plate",
+ "parameters": {"radius": 2, "edges": {"select": "axis_parallel", "axis": "Z"}}}
+```
+
+Semantics are Section C.5's:
+
+- every matched edge is replaced by a **constant-radius** circular blend.
+  There is no variable radius and no per-edge radius in V1;
+- it is a modifier: the result replaces the target in place and keeps the
+  *target's* id, so the fillet's own id never names a solid;
+- `radius > 0` (rule S16) is decidable from the plan. Nothing else about the
+  geometry is.
+
+### The edge selector
+
+Exactly two selectors exist (Section C.7), and it is an **object**, never a
+string — `"all"` is not a selector and is rejected rather than helpfully
+interpreted:
+
+```json
+{"select": "all"}
+{"select": "axis_parallel", "axis": "Z"}
+```
+
+`axis_parallel` matches every **straight** edge parallel to that axis, so a
+circular hole rim never matches — the specification's own example, and a test
+holds the geometry to it.
+
+**The selector axis is unsigned** — `"X"`, `"Y"`, `"Z"`. That is deliberately a
+different vocabulary from a cylinder's *signed* `"+Z"`, because parallelism has
+no direction, and the contract says so explicitly. Writing `"+Z"` in a selector
+is an error, not a synonym. It is the single most likely thing for a generator
+to get wrong here, so it has its own rejection message and its own fixture.
+
+`axis` is required for `axis_parallel` and forbidden for `all` (rule S18) —
+both directions are enforced.
+
+### Rules added
+
+| Code | Rule |
+|---|---|
+| `P15` | the selector is one of the two supported modes |
+| `P16` | `axis` is present exactly when required |
+| `P17` | the selector axis is one of the unsigned letters |
+
+`radius` reuses `P4` (a dimension must be positive), and the target reuses
+`P9`–`P12` like any other reference.
+
+### What the plan layer refuses to guess: E4 and E5
+
+These are **geometric**, and the plan validator deliberately does not predict
+them. A plan that will fail at the engine is still a valid *plan*, and a test
+asserts exactly that.
+
+| Rule | Meaning | Example |
+|---|---|---|
+| `E4` | the selector matched **no** edge | `axis_parallel X` on a `+Z` cylinder |
+| `E5` | the selector matched edges the kernel will **not** blend | `axis_parallel Z` on a bare cylinder |
+
+The difference matters and is tested: the cylinder case is *not* E4 — one edge
+matched — it is E5, and the engine says so.
+
+### The seam, honestly
+
+`docs/edge-selection.md` records that a selector can legitimately match an edge
+a fillet cannot accept: a cylindrical surface's **parameterisation seam**, which
+the kernel represents as a genuine straight line and which V1's contract
+therefore names.
+
+Since Stage 14.1 the engine requires **complete edge coverage**: if any matched
+edge is not taken into a kernel contour, the whole fillet fails with `E5` and no
+geometry is produced. A matched edge is never quietly dropped.
+
+Nothing in the plan layer special-cases this. The adapter hands the selector
+over untouched — it does not exclude seams, and it does not trim a selection to
+what the kernel is likely to accept. A test asserts no module in the package
+so much as calls the selector machinery.
+
+The practical consequences, measured rather than assumed:
+
+| Selection | Result |
+|---|---|
+| box, `axis_parallel X`/`Y`/`Z` | builds |
+| box, `all` | builds (26 faces) |
+| drilled plate, `axis_parallel X`/`Y` | builds |
+| drilled plate, `axis_parallel Z` | **E5** — includes the cavity seam |
+| drilled plate, `all` | **E5** — accepted 14 of 15 |
+| bare cylinder, `axis_parallel X`/`Y` | **E4** — matches nothing |
+| bare cylinder, `axis_parallel Z` | **E5** — the seam is the only match |
+| bare cylinder, `all` | **E5** — accepted 2 of 3 |
+
+One correction to the record, found by measuring rather than reading: the
+Stage 13 note in `docs/edge-selection.md` says `{"select": "all"}` on a bare
+cylinder *succeeds*. Since Stage 14.1 introduced the complete-coverage rule it
+no longer does — the seam is one of the three edges. That production document
+was not changed here; this is the experimental layer recording what the engine
+actually does today.
+
 ## Fixtures
 
 Run them with `python -m cad_experimental.local_plan_provider`. Each records
@@ -326,6 +432,11 @@ the geometry it should produce, so a build is checked rather than observed.
 | `subtract-cube-bore` | 50³ − π·10²·50, 7 faces |
 | `subtract-plate-bore` | plate − π·10²·10, 7 faces |
 | `subtract-two-tools` | plate − 2·π·8²·10, 8 faces |
+| `fillet-box-z` | plate − 4·10·r²(1−π/4), 10 faces |
+| `fillet-box-x` | plate − 4·100·r²(1−π/4), 10 faces |
+| `fillet-box-all` | no closed form — cross-checked against cad-core, 26 faces |
+| `fillet-after-through-hole` | drilled plate − 4·100·r²(1−π/4), 11 faces |
+| `fillet-after-subtract` | cut plate − 4·60·r²(1−π/4), 11 faces |
 
 Six more fixtures exist **to be rejected**, because a rule nothing exercises is
 a rule nobody has tested. Each names the code it expects, so "rejected somehow"
@@ -339,6 +450,21 @@ cannot pass for "rejected correctly":
 | `reject-modifier-as-tool` | plan validator | `P11` |
 | `reject-consumed-tool` | plan validator | `P12` |
 | `reject-two-unconsumed-solids` | **existing V1 validator** | `S9` |
+| `reject-fillet-bad-selector` | parser | a selector written as a string |
+| `reject-fillet-signed-axis` | parser | `"+Z"` in a selector |
+| `reject-fillet-zero-radius` | plan validator | `P4` (rule S16) |
+| `reject-fillet-negative-radius` | plan validator | `P4` |
+| `reject-fillet-future-target` | plan validator | `P10` |
+| `reject-fillet-modifier-target` | plan validator | `P11` |
+| `reject-fillet-consumed-target` | plan validator | `P12` |
+| `reject-fillet-no-edges` | **engine** | `E4` |
+| `reject-fillet-seam` | **engine** | `E5` |
+
+One fixture has no analytic expectation: a box with all twelve edges blended
+has no clean closed form, because the corner blends interact. Recording a
+*measured* number as the expectation would be circular, so it is marked
+`cross_checked` and compared against a document built directly with cad-core
+instead.
 
 A hole in a **cylinder** is meaningful under the current semantics — verified,
 not assumed: a coaxial bore leaves one connected solid, so `E3` is satisfied
@@ -378,12 +504,25 @@ and it builds to exactly π·(10²−4²)·50.
 * **Two routes to one cavity agree.** The same d20 bore expressed as a
   `subtract` and as a `through_hole` produce the same volume to 1e-9 — a
   cross-check that would catch an adapter quietly changing either's meaning.
-* **The prompt is now 6934 characters**, against the production prompt's
-  14943, for four operations.
+* **The prompt is now 8846 characters**, against the production prompt's
+  14943, for five operations.
+* **Edge selection cost the architecture nothing either.** Stage 35 added
+  `fillet` with no second engine, validator, build path, cache or RenderModel,
+  and without touching `local_cad.py`, `edge_selection.py` or the V1
+  validator. A plate with its four vertical corners blended at r2 measures
+  59965.663706143576 mm³ against a closed form of 59965.66370614359.
+* **The plan route and the cad-core route produce the same solid.** The same
+  filleted part expressed as an operation plan and as a hand-written canonical
+  document agree on volume, face count, edge count, solid count and bounding
+  box — the check that the plan layer adds nothing and loses nothing.
+* **The blend is really in the mesh.** Verified by coordinate: vertices lie on
+  each corner's arc at the blend radius, none remain inside it, and the mesh
+  carries more than six distinct unit normals, all finite — a plain box has
+  exactly six.
 
 ## What is NOT known
 
-**Real Anthropic testing is still postponed.** Stages 33 and 34 were developed
+**Real Anthropic testing is still postponed.** Stages 33 to 35 were developed
 and tested entirely against the local development provider, which supplies
 developer-written plans and calls no model. No result in this document, in the
 fixtures, in the tests or on the page is a Claude result of any kind, and no

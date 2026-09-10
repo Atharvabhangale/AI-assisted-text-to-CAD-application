@@ -32,6 +32,11 @@ plan             V1 document
                  references pass through unchanged, and **``tools`` keeps its
                  order**, because Section C.4 removes the tools in list order
                  and reordering them would change the geometry
+``fillet``       ``{"type": "fillet", "target", "radius", "edges"}`` -- the
+                 selector object passes through **as it is**. There is no
+                 selector logic here: ``cad_core.edge_selection`` owns that,
+                 and reinterpreting a selector on the way past is exactly how
+                 a layer like this would start lying about geometry
 ``position``     the same ``position`` object -- **omitted when absent**, so
                  the contract's own default applies rather than an invented
                  ``{0,0,0}``. A ``through_hole`` always carries one, because
@@ -54,6 +59,7 @@ from typing import Any, Dict, List
 from .plan import (
     BOX,
     CYLINDER,
+    FILLET,
     SUBTRACT,
     THROUGH_HOLE,
     UNITS,
@@ -138,6 +144,20 @@ def _feature(operation: Any) -> Dict[str, Any]:
         if operation.axis is not None:
             feature["axis"] = operation.axis
         return feature
+    elif kind == FILLET:
+        # `edges` is handed over unchanged. In particular nothing here
+        # excludes a parameterisation seam or trims a selection to what the
+        # kernel is likely to accept: `docs/edge-selection.md` records that a
+        # selector can legitimately match an edge a fillet cannot take, and
+        # the honest answer is the engine's E5 failure, not a quietly
+        # narrowed selection.
+        return {
+            "id": operation.id,
+            "type": FILLET,
+            "target": operation.target,
+            "radius": operation.radius,
+            "edges": operation.edges.to_dict(),
+        }
     elif kind == SUBTRACT:
         # Both references straight through. `tools` is a list, in the plan's
         # order: Section C.4 subtracts in list order, so the order is

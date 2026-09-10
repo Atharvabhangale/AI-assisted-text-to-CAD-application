@@ -29,7 +29,11 @@ from .plan import (
     CONSTRUCTIVE_TYPES,
     CONSUMING_TYPES,
     CYLINDER,
+    FILLET,
     MODIFIER_TYPES,
+    SELECT_AXIS_PARALLEL,
+    SELECT_MODES,
+    SELECTOR_AXES,
     SUBTRACT,
     THROUGH_HOLE,
     OperationPlan,
@@ -67,8 +71,20 @@ P12 = "P12"  # the reference has not been consumed
 P13 = "P13"  # `tools` is a non-empty list of ids
 P14 = "P14"  # a tool is neither the target nor a repeat of another tool
 
+# --- selector rules, added with the first edge-selecting modifier (fillet) -
+#
+# These judge the selector as *data*: a shape and a vocabulary. They say
+# nothing about geometry. Whether the selector matches an edge (E4) and
+# whether the radius is admissible for every matched edge (E5) are the
+# engine's to decide, and this layer deliberately does not guess -- see
+# `docs/edge-selection.md` for why guessing would be wrong.
+P15 = "P15"  # the selector is a supported mode
+P16 = "P16"  # the selector's axis is present exactly when required (S18)
+P17 = "P17"  # the selector's axis is one of the unsigned letters
+
 RULE_CODES: Tuple[str, ...] = (
     P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14,
+    P15, P16, P17,
 )
 
 
@@ -187,6 +203,15 @@ def validate_plan(plan: OperationPlan) -> PlanValidation:
             _subtract(
                 operation, index, where, declared, live, consumed, problems
             )
+        elif kind == FILLET:
+            # S16 is decidable from the document; E4 and E5 are not, and are
+            # left to the engine.
+            _positive(operation.radius, f"{where}.radius", problems)
+            _selector(operation.edges, f"{where}.edges", problems)
+            _reference(
+                operation.target, f"{where}.target", operation.id, index,
+                declared, live, consumed, problems,
+            )
         else:
             # Unreachable through the parser, which rejects unknown types.
             # Kept so a plan built in code cannot bypass the check.
@@ -213,7 +238,9 @@ def validate_plan(plan: OperationPlan) -> PlanValidation:
         # A subtract has no position: it is entirely references. Checked by
         # type rather than a defaulted `getattr`, so nothing in this package
         # looks an attribute up by a computed name.
-        position = None if kind == SUBTRACT else operation.position
+        position = (
+            None if kind in (SUBTRACT, FILLET) else operation.position
+        )
         if position is not None:
             for name, value in (
                 ("x", position.x),
@@ -230,6 +257,57 @@ def validate_plan(plan: OperationPlan) -> PlanValidation:
                     )
 
     return PlanValidation(valid=not problems, problems=tuple(problems))
+
+
+def _selector(
+    selector: object, path: str, problems: List[PlanProblem]
+) -> None:
+    """Judge an edge selector as data. Nothing geometric happens here.
+
+    The parser already refuses a malformed selector, so from a parsed plan
+    this is redundant -- deliberately. A plan built in code must not be able
+    to reach the adapter with a selector the contract does not define.
+    """
+    mode = getattr(selector, "select", None)
+    axis = getattr(selector, "axis", None)
+
+    if not isinstance(mode, str) or mode not in SELECT_MODES:
+        problems.append(
+            PlanProblem(
+                P15,
+                f"{mode!r} is not a selector; expected one of "
+                f"{', '.join(SELECT_MODES)}",
+                f"{path}.select",
+            )
+        )
+        return
+
+    if mode == SELECT_AXIS_PARALLEL:
+        if axis is None:
+            problems.append(
+                PlanProblem(
+                    P16,
+                    f"`{SELECT_AXIS_PARALLEL}` requires an axis",
+                    f"{path}.axis",
+                )
+            )
+        elif axis not in SELECTOR_AXES:
+            problems.append(
+                PlanProblem(
+                    P17,
+                    f"{axis!r} is not an unsigned selector axis; expected one "
+                    f"of {', '.join(SELECTOR_AXES)}",
+                    f"{path}.axis",
+                )
+            )
+    elif axis is not None:
+        problems.append(
+            PlanProblem(
+                P16,
+                f"`{mode}` selects every edge, so an axis means nothing",
+                f"{path}.axis",
+            )
+        )
 
 
 def _subtract(
@@ -422,6 +500,9 @@ __all__ = [
     "P9",
     "P13",
     "P14",
+    "P15",
+    "P16",
+    "P17",
     "RULE_CODES",
     "PlanProblem",
     "PlanValidation",

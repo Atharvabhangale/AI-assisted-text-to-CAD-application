@@ -91,11 +91,9 @@ def valid_plan():
 
 
 class VocabularyTests(unittest.TestCase):
-    def test_exactly_four_operations_exist(self):
-        self.assertEqual(
-            set(OPERATION_TYPES),
-            {"box", "cylinder", "through_hole", "subtract"},
-        )
+    def test_the_vocabulary_contains_subtract(self):
+        """This module owns subtract only; the exact set is pinned once."""
+        self.assertIn(SUBTRACT, OPERATION_TYPES)
 
     def test_subtract_is_a_consuming_modifier(self):
         self.assertIn(SUBTRACT, MODIFIER_TYPES)
@@ -105,9 +103,9 @@ class VocabularyTests(unittest.TestCase):
     def test_subtract_is_the_only_consuming_operation(self):
         self.assertEqual(CONSUMING_TYPES, (SUBTRACT,))
 
-    def test_no_further_operation_crept_in(self):
+    def test_no_unimplemented_operation_crept_in(self):
         for absent in (
-            "fillet", "chamfer", "sketch", "extrude", "revolve", "sweep",
+            "chamfer", "sketch", "extrude", "revolve", "sweep",
             "loft", "pattern", "mirror", "union", "intersect", "assembly",
             "joint", "drawing", "material",
         ):
@@ -644,9 +642,18 @@ class FixtureTests(unittest.TestCase):
             with self.subTest(fixture=name):
                 result = lpp.run_fixture(name)
                 self.assertTrue(result["built"], result.get("build_error"))
-                self.assertTrue(result["volume_matches"])
                 self.assertTrue(result["bounding_box_matches"])
                 self.assertTrue(result["face_count_matches"])
+                # `None` means the fixture has no closed form and is
+                # cross-checked against cad-core in the tests instead.
+                # `False` is still a real failure.
+                if result["volume_matches"] is None:
+                    self.assertEqual(
+                        lpp.fixture(name)["expected_volume_mm3"],
+                        lpp.CROSS_CHECKED,
+                    )
+                else:
+                    self.assertTrue(result["volume_matches"])
 
     def test_the_two_kinds_of_fixture_are_disjoint_and_complete(self):
         self.assertEqual(

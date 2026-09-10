@@ -40,10 +40,17 @@ from .plan import (
     OPERATION_FIELDS,
     OPERATION_TYPES,
     PARAMETERS,
+    SELECT_AXIS_PARALLEL,
+    SELECT_MODES,
+    SELECTOR_AXES,
+    SELECTOR_FIELDS,
     SUBTRACT,
     THROUGH_HOLE,
+    FILLET,
     BoxOperation,
     CylinderOperation,
+    EdgeSelector,
+    FilletOperation,
     Operation,
     OperationPlan,
     PlanStatus,
@@ -219,6 +226,15 @@ def _operation(entry: Any, index: int) -> Operation:
         if name not in parameters:
             raise PlanParseError(f"{where} is missing parameter `{name}`")
 
+    if kind == FILLET:
+        assert target is not None
+        return FilletOperation(
+            id=identifier,
+            target=target,
+            radius=_number(parameters["radius"], f"{where}.radius"),
+            edges=_selector(parameters["edges"], where),
+        )
+
     if kind == THROUGH_HOLE:
         assert target is not None
         position = _optional_point(parameters["position"], where)
@@ -254,6 +270,61 @@ def _operation(entry: Any, index: int) -> Operation:
 
 
 # --- values ----------------------------------------------------------------
+
+
+def _selector(value: Any, where: str) -> EdgeSelector:
+    """Read an edge selector. Shape only, and strictly (Section C.7).
+
+    The selector is an **object**, never a bare string: ``"all"`` is not a
+    selector and is rejected rather than helpfully interpreted. `axis` is
+    required for ``axis_parallel`` and forbidden for ``all`` (rule S18), and
+    the axis letters are **unsigned** -- ``"+Z"`` is an error, not a synonym
+    for ``"Z"``.
+    """
+    if isinstance(value, str):
+        # The single most likely malformed selector: worth its own message.
+        raise PlanParseError(
+            f"{where} `edges` must be an object, not a string",
+            detail=f'got {value!r}; write {{"select": "all"}}',
+        )
+    mapping = _object(value, f"{where} edges")
+    _reject_unknown(mapping, SELECTOR_FIELDS, f"{where} edges")
+
+    if "select" not in mapping:
+        raise PlanParseError(f"{where} edges is missing `select`")
+    mode = mapping["select"]
+    if not isinstance(mode, str) or mode not in SELECT_MODES:
+        raise PlanParseError(
+            f"{where} edges has an unknown `select`",
+            detail=f"{mode!r}; expected one of {', '.join(SELECT_MODES)}",
+        )
+
+    axis = mapping.get("axis")
+    if mode == SELECT_AXIS_PARALLEL:
+        if axis is None:
+            raise PlanParseError(
+                f"{where} edges is missing `axis`",
+                detail=(
+                    f"`{SELECT_AXIS_PARALLEL}` needs an axis (rule S18); one "
+                    f"of {', '.join(SELECTOR_AXES)}"
+                ),
+            )
+        if not isinstance(axis, str) or axis not in SELECTOR_AXES:
+            raise PlanParseError(
+                f"{where} edges has an invalid `axis`",
+                detail=(
+                    f"{axis!r}; a selector axis is UNSIGNED -- one of "
+                    f"{', '.join(SELECTOR_AXES)}, not a signed direction"
+                ),
+            )
+        return EdgeSelector(select=mode, axis=axis)
+
+    if axis is not None:
+        raise PlanParseError(
+            f"{where} edges must not carry `axis`",
+            detail=f"`{mode}` selects every edge, so an axis means nothing",
+        )
+    return EdgeSelector(select=mode)
 
 
 def _tools(value: Any, where: str) -> Tuple[str, ...]:

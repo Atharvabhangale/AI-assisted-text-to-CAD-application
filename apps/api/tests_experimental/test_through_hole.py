@@ -73,21 +73,22 @@ def generated(*operations):
 
 class VocabularyTests(unittest.TestCase):
     def test_the_vocabulary_contains_through_hole(self):
-        """Stage 34 added `subtract`; the exact set is pinned there."""
+        """This module owns through_hole only.
+
+        The exact vocabulary is pinned once, in the newest stage's module,
+        so adding an operation breaks one test rather than one per stage.
+        """
         self.assertIn(THROUGH_HOLE, OPERATION_TYPES)
-        self.assertEqual(
-            set(OPERATION_TYPES),
-            {"box", "cylinder", "through_hole", "subtract"},
-        )
 
     def test_through_hole_is_a_modifier_not_constructive(self):
         self.assertIn(THROUGH_HOLE, MODIFIER_TYPES)
         self.assertNotIn(THROUGH_HOLE, CONSTRUCTIVE_TYPES)
 
-    def test_no_further_operation_crept_in(self):
+    def test_no_unimplemented_operation_crept_in(self):
+        """Operations no stage has implemented, and none silently should."""
         for absent in (
-            "fillet", "chamfer", "sketch", "extrude", "revolve",
-            "sweep", "loft", "pattern", "mirror", "union", "assembly",
+            "chamfer", "sketch", "extrude", "revolve", "sweep", "loft",
+            "pattern", "mirror", "union", "assembly",
         ):
             self.assertNotIn(absent, OPERATION_TYPES)
 

@@ -535,14 +535,14 @@ class SchemaTests(unittest.TestCase):
         types = schema["properties"]["operations"]["items"]["properties"]["type"]
         self.assertEqual(
             set(types["enum"]),
-            {"box", "cylinder", "through_hole", "subtract"},
+            {"box", "cylinder", "through_hole", "subtract", "fillet"},
         )
 
     def test_the_schema_lists_no_unimplemented_operation(self):
         schema = plan_schema()
         types = schema["properties"]["operations"]["items"]["properties"]["type"]
         for absent in (
-            "fillet", "chamfer", "sketch", "extrude", "revolve",
+            "chamfer", "sketch", "extrude", "revolve",
             "sweep", "loft", "pattern", "mirror", "union", "assembly",
         ):
             self.assertNotIn(absent, types["enum"])

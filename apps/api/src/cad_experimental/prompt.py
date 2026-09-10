@@ -18,7 +18,7 @@ from .plan import AXES, OPERATION_TYPES, PlanStatus
 
 #: Bumped on any change to the text below. A measurement without this is not
 #: reproducible.
-PROMPT_VERSION = "2026-09-10.3"
+PROMPT_VERSION = "2026-09-10.4"
 
 SYSTEM_PROMPT = f"""\
 You turn a description of a mechanical part into a CAD operation plan.
@@ -104,6 +104,45 @@ or cylinder and then list it in `tools`. Every solid you create must end up
 either as the final part or consumed as a tool: a leftover solid that is never
 subtracted is an error, not a second body.
 
+## fillet
+Rounds selected edges of an existing solid with one constant radius.
+
+This operation has `target` beside `id` and `type`, and its parameters are a
+radius and an edge selector.
+
+  target  the id of an earlier solid: the one whose edges are rounded.
+  radius  required, number > 0. One radius for every selected edge -- there is
+          no variable radius and no per-edge radius.
+  edges   required. An OBJECT saying which edges to round. Not a string.
+
+The edge selector is one of exactly two shapes:
+
+  {{"select": "all"}}
+      every edge of the target.
+
+  {{"select": "axis_parallel", "axis": "Z"}}
+      every STRAIGHT edge parallel to that axis. Curved edges never match, so
+      this does not touch a hole's circular rim.
+
+The selector axis is UNSIGNED: "X", "Y" or "Z". This is deliberately
+different from a cylinder's axis, which is signed. Writing "+Z" here is an
+error, not another way of writing "Z". `axis` is required for
+`axis_parallel` and must be left out for `all`.
+
+A fillet is a modifier: the result replaces the target and keeps the
+TARGET's id, so the fillet's own id never names a solid.
+
+You cannot know in advance whether a selection can actually be rounded. Two
+things are decided by the CAD engine, not by you:
+
+* a selector that matches no edge is an error;
+* a selector that matches an edge the engine cannot round is an error, and
+  the whole fillet fails rather than rounding the rest.
+
+So choose the selector the description asks for and let the engine judge it.
+Do not try to avoid a failure by narrowing a selection, and do not invent a
+way to name individual edges -- there isn't one.
+
 There are no other operations. Nothing else exists in this language.
 
 # Units
@@ -146,6 +185,12 @@ and a subtract carries `target` and `tools`, and no `parameters`:
 
   {{"id": "cut", "type": "subtract", "target": "body", "tools": ["tool"]}}
 
+and a fillet carries `target`, a radius and an edge selector:
+
+  {{"id": "round", "type": "fillet", "target": "plate",
+    "parameters": {{"radius": 2,
+                  "edges": {{"select": "axis_parallel", "axis": "Z"}}}}}}
+
 An id starts with a letter or underscore and contains only letters, digits,
 underscores and hyphens. Ids are unique within a plan.
 
@@ -159,8 +204,9 @@ the request needs anything this language does not have. That includes, and is
 not limited to: spheres, cones, tori, pyramids, prisms and every other shape
 that is not a box or a cylinder; blind or partial holes, counterbores,
 countersinks and threads (only a plain hole all the way through exists);
-union; intersection; joining, merging or combining two solids; fillets;
-chamfers; rounds; shells; ribs; sketches;
+union; intersection; joining, merging or combining two solids; chamfers and
+bevels; variable or per-edge fillet radii; naming an individual edge; shells;
+ribs; sketches;
 extrusions; revolves; sweeps; lofts; patterns; mirrors; assemblies;
 tolerances; materials; surface finish; and any dimension given as a formula, a
 range or a tolerance.

@@ -22,7 +22,10 @@ BOX = "box"
 CYLINDER = "cylinder"
 THROUGH_HOLE = "through_hole"
 SUBTRACT = "subtract"
-OPERATION_TYPES: Tuple[str, ...] = (BOX, CYLINDER, THROUGH_HOLE, SUBTRACT)
+FILLET = "fillet"
+OPERATION_TYPES: Tuple[str, ...] = (
+    BOX, CYLINDER, THROUGH_HOLE, SUBTRACT, FILLET,
+)
 
 #: Operations that add a solid to the solid set, named by their own id
 #: (specification Section B.4).
@@ -32,7 +35,7 @@ CONSTRUCTIVE_TYPES: Tuple[str, ...] = (BOX, CYLINDER)
 #: modifier replaces its target **in place** and the result keeps the
 #: **target's** id -- the modifier's own id never names a solid. So four
 #: holes in a plate all target the plate, and never each other.
-MODIFIER_TYPES: Tuple[str, ...] = (THROUGH_HOLE, SUBTRACT)
+MODIFIER_TYPES: Tuple[str, ...] = (THROUGH_HOLE, SUBTRACT, FILLET)
 
 #: Modifiers that additionally **consume** solids: each id in ``tools`` is
 #: removed from the solid set and can never be referenced again (Section
@@ -46,6 +49,18 @@ AXES: Tuple[str, ...] = ("+X", "-X", "+Y", "-Y", "+Z", "-Z")
 
 #: The contract's default axis for a cylinder (Section C.2).
 DEFAULT_AXIS = "+Z"
+
+#: Edge-selector axes are **unsigned**: parallelism has no direction
+#: (Section C.7). Deliberately different from :data:`AXES` above, and the
+#: contract says so in as many words -- a selector written ``"+Z"`` is an
+#: error, not a synonym for ``"Z"``.
+SELECTOR_AXES: Tuple[str, ...] = ("X", "Y", "Z")
+
+#: The two deterministic selectors V1 provides, and no others. Persistent
+#: named-topology selection is deferred to a later schema version.
+SELECT_ALL = "all"
+SELECT_AXIS_PARALLEL = "axis_parallel"
+SELECT_MODES: Tuple[str, ...] = (SELECT_ALL, SELECT_AXIS_PARALLEL)
 
 #: V1 is millimetres only (rule S5). The plan carries no unit field at all:
 #: a unit the model could get wrong is a unit the model can get wrong.
@@ -64,6 +79,10 @@ CYLINDER_OPTIONAL: Tuple[str, ...] = ("position", "axis")
 THROUGH_HOLE_REQUIRED: Tuple[str, ...] = ("diameter", "position")
 THROUGH_HOLE_OPTIONAL: Tuple[str, ...] = ("axis",)
 
+#: A fillet needs a radius and a selector, and has no defaults.
+FILLET_REQUIRED: Tuple[str, ...] = ("radius", "edges")
+FILLET_OPTIONAL: Tuple[str, ...] = ()
+
 PARAMETERS: Dict[str, Tuple[Tuple[str, ...], Tuple[str, ...]]] = {
     BOX: (BOX_REQUIRED, BOX_OPTIONAL),
     CYLINDER: (CYLINDER_REQUIRED, CYLINDER_OPTIONAL),
@@ -72,7 +91,13 @@ PARAMETERS: Dict[str, Tuple[Tuple[str, ...], Tuple[str, ...]]] = {
     # references. It therefore carries no `parameters` key, exactly as the
     # V1 feature carries no parameter fields -- see OPERATION_FIELDS.
     SUBTRACT: ((), ()),
+    FILLET: (FILLET_REQUIRED, FILLET_OPTIONAL),
 }
+
+#: The keys an edge selector may carry. ``axis`` is present exactly when
+#: ``select`` is ``axis_parallel`` (rule S18) -- not optional, and not
+#: allowed otherwise.
+SELECTOR_FIELDS: Tuple[str, ...] = ("select", "axis")
 
 #: Which operation-level keys each type may carry, beside ``parameters``.
 #: ``target`` belongs at the operation level, as it does in the V1 document,
@@ -86,6 +111,7 @@ OPERATION_FIELDS: Dict[str, Tuple[str, ...]] = {
     # even an empty one -- is an unknown field, so there is exactly one
     # shape for a subtract rather than two.
     SUBTRACT: ("id", "type", "target", "tools"),
+    FILLET: ("id", "type", "target", "parameters"),
 }
 
 #: The most tools one subtract may list. A part is not built from hundreds of
@@ -213,6 +239,60 @@ class ThroughHoleOperation:
         if self.axis is not None:
             values["axis"] = self.axis
         return values
+
+
+@dataclass(frozen=True)
+class EdgeSelector:
+    """Which edges of the target a fillet acts on (Section C.7).
+
+    Two selectors exist and no others:
+
+    * ``{"select": "all"}`` -- every edge of the target solid;
+    * ``{"select": "axis_parallel", "axis": "Z"}`` -- every **straight** edge
+      parallel to that axis. Circular edges never match, so filleting a
+      drilled plate's vertical corners does not touch the hole rims.
+
+    :attr:`axis` is **unsigned** and present exactly when :attr:`select` is
+    ``axis_parallel``. It is a different vocabulary from a cylinder's signed
+    axis on purpose, and the contract is explicit about that.
+    """
+
+    select: str
+    axis: Optional[str] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        payload: Dict[str, Any] = {"select": self.select}
+        if self.axis is not None:
+            payload["axis"] = self.axis
+        return payload
+
+
+@dataclass(frozen=True)
+class FilletOperation:
+    """Rounds selected edges of ``target`` with one constant radius.
+
+    Section C.5 exactly:
+
+    * every edge the selector matches is replaced by a constant-radius
+      circular blend. Only constant radius exists in V1 -- no variable
+      radius, no per-edge radius;
+    * it is a modifier: the result replaces the target in place and keeps the
+      **target's** id, so this operation's own id never names a solid;
+    * ``radius > 0`` (rule S16) is decidable here. Whether the selector
+      matches anything (E4) and whether the radius is admissible for every
+      matched edge (E5) are **geometric**, and belong to the engine. This
+      layer does not guess at either.
+    """
+
+    TYPE = FILLET
+
+    id: str
+    target: str
+    radius: float
+    edges: EdgeSelector
+
+    def parameters(self) -> Dict[str, Any]:
+        return {"radius": self.radius, "edges": self.edges.to_dict()}
 
 
 @dataclass(frozen=True)
@@ -380,6 +460,24 @@ def plan_schema() -> Dict[str, Any]:
                                 "height": {"type": "number"},
                                 "axis": {"type": "string", "enum": list(AXES)},
                                 "position": point,
+                                "radius": {"type": "number"},
+                                "edges": {
+                                    "type": "object",
+                                    "properties": {
+                                        "select": {
+                                            "type": "string",
+                                            "enum": list(SELECT_MODES),
+                                        },
+                                        # Unsigned. Not the signed axis
+                                        # above -- Section C.7 is explicit.
+                                        "axis": {
+                                            "type": "string",
+                                            "enum": list(SELECTOR_AXES),
+                                        },
+                                    },
+                                    "required": ["select"],
+                                    "additionalProperties": False,
+                                },
                             },
                             "additionalProperties": False,
                         },
@@ -400,7 +498,15 @@ __all__ = [
     "BOX",
     "CONSTRUCTIVE_TYPES",
     "CONSUMING_TYPES",
+    "FILLET",
     "MAX_TOOLS",
+    "SELECTOR_AXES",
+    "SELECTOR_FIELDS",
+    "SELECT_ALL",
+    "SELECT_AXIS_PARALLEL",
+    "SELECT_MODES",
+    "EdgeSelector",
+    "FilletOperation",
     "SUBTRACT",
     "SubtractOperation",
     "is_consuming",

@@ -82,6 +82,18 @@ def _subtract(identifier: str, target: str, tools: List[str]) -> Dict[str, Any]:
     }
 
 
+def _fillet(
+    identifier: str, target: str, radius: float, edges: Dict[str, Any]
+) -> Dict[str, Any]:
+    """A fillet. The selector is an object, and passes through untouched."""
+    return {
+        "id": identifier,
+        "type": "fillet",
+        "target": target,
+        "parameters": {"radius": radius, "edges": dict(edges)},
+    }
+
+
 def _through_hole(
     identifier: str,
     target: str,
@@ -131,6 +143,30 @@ _PLATE_TWO_TOOLS = _PLATE - 2.0 * math.pi * 8.0**2 * 10.0
 BUILDS = "builds"
 PLAN_REJECTED = "plan_rejected"
 BUILD_REJECTED = "build_rejected"
+
+#: For a geometry with no clean closed form -- a box with all twelve edges
+#: filleted, where the corner blends interact. Recording a *measured* number
+#: as the "expected" one would be circular, so these are checked against a
+#: document built directly with cad-core instead, in the tests.
+CROSS_CHECKED = "cross_checked"
+
+#: Stage 35 expectations. A vertical corner blended at radius r removes
+#: r^2 - pi*r^2/4 = r^2(1 - pi/4) in cross-section, over the edge's length.
+_CORNER = 2.0**2 * (1.0 - math.pi / 4.0)
+_PLATE_FILLET_Z = _PLATE - 4.0 * 10.0 * _CORNER
+_PLATE_FILLET_X = _PLATE - 4.0 * 100.0 * _CORNER
+#: The drilled plate, then its four X or Y corners blended.
+_DRILLED = _PLATE - math.pi * 10.0**2 * 10.0
+_DRILLED_FILLET_X = _DRILLED - 4.0 * 100.0 * _CORNER
+_DRILLED_FILLET_Y = _DRILLED - 4.0 * 60.0 * _CORNER
+
+#: The two selectors, spelled once.
+_ALL = {"select": "all"}
+
+
+def _axis_parallel(axis: str) -> Dict[str, Any]:
+    """An unsigned selector axis -- ``"Z"``, never ``"+Z"`` (Section C.7)."""
+    return {"select": "axis_parallel", "axis": axis}
 
 
 #: The development fixtures. Hand-written plans, with the geometry each is
@@ -406,6 +442,239 @@ FIXTURES: Mapping[str, Dict[str, Any]] = {
             ],
         },
     },
+    # --- Stage 35: fillet ---------------------------------------------
+    "fillet-box-z": {
+        "description": (
+            "the plate with its four vertical corners rounded, r2 "
+            "(axis_parallel Z)"
+        ),
+        "expected_bounding_box": {"x": 100.0, "y": 60.0, "z": 10.0},
+        "expected_volume_mm3": _PLATE_FILLET_Z,
+        "expected_face_count": 10,
+        "expected_hole_count": 0,
+        "plan": {
+            "status": "generated",
+            "summary": "a plate with rounded vertical corners",
+            "operations": [
+                _box("plate", 100, 60, 10),
+                _fillet("round", "plate", 2, _axis_parallel("Z")),
+            ],
+        },
+    },
+    "fillet-box-x": {
+        "description": "the plate's four X-parallel edges rounded, r2",
+        "expected_bounding_box": {"x": 100.0, "y": 60.0, "z": 10.0},
+        "expected_volume_mm3": _PLATE_FILLET_X,
+        "expected_face_count": 10,
+        "expected_hole_count": 0,
+        "plan": {
+            "status": "generated",
+            "summary": "a plate with its long edges rounded",
+            "operations": [
+                _box("plate", 100, 60, 10),
+                _fillet("round", "plate", 2, _axis_parallel("X")),
+            ],
+        },
+    },
+    "fillet-box-all": {
+        "description": (
+            "the plate with every edge rounded, r2 -- permitted on a plain "
+            "box, and cross-checked against cad-core rather than a number"
+        ),
+        "expected_bounding_box": {"x": 100.0, "y": 60.0, "z": 10.0},
+        "expected_volume_mm3": CROSS_CHECKED,
+        "expected_face_count": 26,
+        "expected_hole_count": 0,
+        "plan": {
+            "status": "generated",
+            "summary": "a plate with every edge rounded",
+            "operations": [
+                _box("plate", 100, 60, 10),
+                _fillet("round", "plate", 2, _ALL),
+            ],
+        },
+    },
+    "fillet-after-through-hole": {
+        "description": (
+            "a drilled plate, then its X-parallel corners rounded. Z would "
+            "select the cavity seam and fail E5 -- see the docs"
+        ),
+        "expected_bounding_box": {"x": 100.0, "y": 60.0, "z": 10.0},
+        "expected_volume_mm3": _DRILLED_FILLET_X,
+        "expected_face_count": 11,
+        "expected_hole_count": 1,
+        "plan": {
+            "status": "generated",
+            "summary": "a drilled plate with rounded long edges",
+            "operations": [
+                _box("plate", 100, 60, 10),
+                _through_hole("hole1", "plate", 20, 50, 30),
+                _fillet("round", "plate", 2, _axis_parallel("X")),
+            ],
+        },
+    },
+    "fillet-after-subtract": {
+        "description": (
+            "a plate cut by a cylindrical tool, then its Y-parallel corners "
+            "rounded -- a fillet on a solid with history"
+        ),
+        "expected_bounding_box": {"x": 100.0, "y": 60.0, "z": 10.0},
+        "expected_volume_mm3": _DRILLED_FILLET_Y,
+        "expected_face_count": 11,
+        "expected_hole_count": 1,
+        "plan": {
+            "status": "generated",
+            "summary": "a cut plate with rounded short edges",
+            "operations": [
+                _box("plate", 100, 60, 10),
+                _cylinder(
+                    "tool", 20, 20,
+                    position={"x": 50, "y": 30, "z": -5}, axis="+Z",
+                ),
+                _subtract("bore", "plate", ["tool"]),
+                _fillet("round", "plate", 2, _axis_parallel("Y")),
+            ],
+        },
+    },
+    # --- Stage 35: fixtures that must be REJECTED ---------------------
+    "reject-fillet-no-edges": {
+        "description": (
+            "a selector that matches nothing -- axis_parallel X on a +Z "
+            "cylinder. Rule E4, and only the engine can know it"
+        ),
+        "expects": BUILD_REJECTED,
+        "expected_codes": ("E4",),
+        "plan": {
+            "status": "generated",
+            "summary": "a fillet that would affect nothing",
+            "operations": [
+                _cylinder("rod", 20, 50, axis="+Z"),
+                _fillet("round", "rod", 2, _axis_parallel("X")),
+            ],
+        },
+    },
+    "reject-fillet-seam": {
+        "description": (
+            "a selector that matches only a parameterisation seam -- "
+            "axis_parallel Z on a bare cylinder. Rule E5: the edge is not "
+            "skipped, the whole fillet fails"
+        ),
+        "expects": BUILD_REJECTED,
+        "expected_codes": ("E5",),
+        "plan": {
+            "status": "generated",
+            "summary": "a fillet on a cylinder's seam",
+            "operations": [
+                _cylinder("rod", 20, 50, axis="+Z"),
+                _fillet("round", "rod", 2, _axis_parallel("Z")),
+            ],
+        },
+    },
+    "reject-fillet-bad-selector": {
+        "description": "a selector written as a bare string, not an object",
+        "expects": PLAN_REJECTED,
+        "expected_codes": ("parse",),
+        "plan": {
+            "status": "generated",
+            "summary": "a malformed selector",
+            "operations": [
+                _box("plate", 100, 60, 10),
+                {
+                    "id": "round", "type": "fillet", "target": "plate",
+                    "parameters": {"radius": 2, "edges": "all"},
+                },
+            ],
+        },
+    },
+    "reject-fillet-signed-axis": {
+        "description": (
+            "a signed selector axis. Section C.7 axes are UNSIGNED, and "
+            "deliberately a different vocabulary from a cylinder's"
+        ),
+        "expects": PLAN_REJECTED,
+        "expected_codes": ("parse",),
+        "plan": {
+            "status": "generated",
+            "summary": "a signed selector axis",
+            "operations": [
+                _box("plate", 100, 60, 10),
+                _fillet("round", "plate", 2,
+                        {"select": "axis_parallel", "axis": "+Z"}),
+            ],
+        },
+    },
+    "reject-fillet-zero-radius": {
+        "description": "a fillet of radius zero (rule S16)",
+        "expects": PLAN_REJECTED,
+        "expected_codes": ("P4",),
+        "plan": {
+            "status": "generated",
+            "summary": "a fillet with no radius",
+            "operations": [
+                _box("plate", 100, 60, 10),
+                _fillet("round", "plate", 0, _axis_parallel("Z")),
+            ],
+        },
+    },
+    "reject-fillet-negative-radius": {
+        "description": "a fillet of negative radius (rule S16)",
+        "expects": PLAN_REJECTED,
+        "expected_codes": ("P4",),
+        "plan": {
+            "status": "generated",
+            "summary": "a fillet with a negative radius",
+            "operations": [
+                _box("plate", 100, 60, 10),
+                _fillet("round", "plate", -2, _axis_parallel("Z")),
+            ],
+        },
+    },
+    "reject-fillet-future-target": {
+        "description": "a fillet targeting an operation that comes later",
+        "expects": PLAN_REJECTED,
+        "expected_codes": ("P10",),
+        "plan": {
+            "status": "generated",
+            "summary": "a forward reference",
+            "operations": [
+                _box("plate", 100, 60, 10),
+                _fillet("round", "later", 2, _axis_parallel("Z")),
+                _box("later", 10, 10, 10),
+            ],
+        },
+    },
+    "reject-fillet-modifier-target": {
+        "description": "a fillet targeting a through_hole's id",
+        "expects": PLAN_REJECTED,
+        "expected_codes": ("P11",),
+        "plan": {
+            "status": "generated",
+            "summary": "a modifier id used as a solid",
+            "operations": [
+                _box("plate", 100, 60, 10),
+                _through_hole("hole1", "plate", 8, 10, 10),
+                _fillet("round", "hole1", 2, _axis_parallel("Z")),
+            ],
+        },
+    },
+    "reject-fillet-consumed-target": {
+        "description": "a fillet targeting a solid a subtract has consumed",
+        "expects": PLAN_REJECTED,
+        "expected_codes": ("P12",),
+        "plan": {
+            "status": "generated",
+            "summary": "a consumed solid used again",
+            "operations": [
+                _box("plate", 100, 60, 10),
+                _cylinder(
+                    "tool", 20, 20,
+                    position={"x": 50, "y": 30, "z": -5}, axis="+Z",
+                ),
+                _subtract("bore", "plate", ["tool"]),
+                _fillet("round", "tool", 2, _axis_parallel("Z")),
+            ],
+        },
+    },
     "cylinder-d80-h100-z": {
         "description": "the plan from the Stage 32 brief, verbatim",
         "expected_bounding_box": {"x": 80.0, "y": 80.0, "z": 100.0},
@@ -432,7 +701,7 @@ FIXTURES: Mapping[str, Dict[str, Any]] = {
 FIXTURE_NAMES: Tuple[str, ...] = tuple(FIXTURES)
 
 
-def _expected_volume(name: str) -> float:
+def _expected_volume(name: str) -> Any:
     """The volume a fixture should build to, computed from its own numbers.
 
     A recorded value wins. The fallback derives a lone cylinder's volume
@@ -442,6 +711,8 @@ def _expected_volume(name: str) -> float:
     """
     entry = FIXTURES[name]
     recorded = entry.get("expected_volume_mm3")
+    if recorded == CROSS_CHECKED:
+        return CROSS_CHECKED
     if recorded is not None:
         return float(recorded)
     parameters = entry["plan"]["operations"][0]["parameters"]
@@ -752,10 +1023,16 @@ def run_fixture(name: str, *, build: bool = True) -> Dict[str, Any]:
 
     import math
 
-    result["volume_matches"] = (
-        volume is not None
-        and math.isclose(volume, expected_volume, rel_tol=1e-6)
-    )
+    if expected_volume == CROSS_CHECKED:
+        # No closed form. `None` rather than True: this fixture's volume is
+        # checked against cad-core in the tests, and claiming a match here
+        # would be claiming a check that did not happen.
+        result["volume_matches"] = None
+    else:
+        result["volume_matches"] = (
+            volume is not None
+            and math.isclose(volume, expected_volume, rel_tol=1e-6)
+        )
     result["bounding_box_matches"] = box is not None and all(
         math.isclose(
             float(box[axis]),
@@ -1019,6 +1296,7 @@ def _run_supplied(plan: Mapping[str, Any], *, build: bool) -> Dict[str, Any]:
 __all__ = [
     "BUILDS",
     "BUILD_REJECTED",
+    "CROSS_CHECKED",
     "FIXTURES",
     "FIXTURE_NAMES",
     "PLAN_REJECTED",

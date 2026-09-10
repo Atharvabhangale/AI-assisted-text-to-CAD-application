@@ -236,6 +236,14 @@ class GeometryTests(unittest.TestCase):
     def test_every_volume_matches_within_tolerance(self):
         for name, result in self.results.items():
             with self.subTest(fixture=name):
+                if result["volume_matches"] is None:
+                    # No closed form; cross-checked against cad-core in
+                    # test_fillet.py rather than against a number here.
+                    self.assertEqual(
+                        lpp.fixture(name)["expected_volume_mm3"],
+                        lpp.CROSS_CHECKED,
+                    )
+                    continue
                 self.assertTrue(
                     result["volume_matches"],
                     f"{result['volume_mm3']} != {result['expected_volume_mm3']}",
