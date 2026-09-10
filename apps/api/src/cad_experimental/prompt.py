@@ -18,7 +18,7 @@ from .plan import AXES, OPERATION_TYPES, PlanStatus
 
 #: Bumped on any change to the text below. A measurement without this is not
 #: reproducible.
-PROMPT_VERSION = "2026-09-10.6"
+PROMPT_VERSION = "2026-09-10.7"
 
 SYSTEM_PROMPT = f"""\
 You turn a description of a mechanical part into a CAD operation plan.
@@ -201,6 +201,44 @@ asks for a profile, a sketch or 2D geometry as such, and say plainly in the
 A sketch declares a profile, so its id names no solid: nothing can fillet it,
 chamfer it, drill it, subtract it or use it as a subtract tool.
 
+## extrude
+Sweeps a sketch profile along its plane's normal, making a solid.
+
+  target     REQUIRED. The id of an earlier SKETCH -- not a solid. This is
+             the only reference in this language that names a sketch.
+  distance   required, number > 0. How far to sweep, in mm.
+  direction  optional, one of "+X", "-X", "+Y", "-Y", "+Z", "-Z". It must be
+             NORMAL to the sketch's plane: "+Z" or "-Z" for an XY sketch,
+             "+Y" or "-Y" for XZ, "+X" or "-X" for YZ. Omit it for the
+             plane's positive normal, which is the usual case.
+
+The extrusion's OWN id names the new solid, so a later through_hole, fillet
+or chamfer can target the extrude. The profile is NOT consumed: extruding one
+sketch twice is allowed and makes two solids.
+
+## revolve
+Sweeps a sketch profile about an axis lying in its plane, making a solid.
+
+  target  REQUIRED. The id of an earlier SKETCH, as an extrude's is.
+  angle   required, number in (0, 360]. Degrees. 360 is a full revolution.
+  axis    REQUIRED, one of the six signed directions. It must be one of the
+          two axes the sketch's plane SPANS -- X or Y for an XY sketch, X or
+          Z for XZ, Y or Z for YZ. Revolving a profile about its own normal
+          sweeps nothing and is an error. There is no default: a profile on
+          XY revolved about X and about Y are different parts, so you must
+          say which.
+
+The sign matters for a partial revolve: 90 degrees about "+Z" and about "-Z"
+are mirror images. As with an extrude, the revolve's own id names the new
+solid and the profile is not consumed.
+
+IMPORTANT -- neither an extrude nor a revolve can be built. Like a sketch,
+they can be expressed and validated here and this backend cannot turn them
+into geometry. A plan containing one is reported as unexecutable: no solid,
+no mesh, no export. So do not offer them as a way to make a part when the
+solid operations can express it -- a 100 x 60 x 10 mm plate is a `box`, not a
+sketch and an extrusion.
+
 There are no other operations. Nothing else exists in this language.
 
 # Units
@@ -254,6 +292,14 @@ and a chamfer is the same with `distance`:
   {{"id": "bevel", "type": "chamfer", "target": "plate",
     "parameters": {{"distance": 2, "edges": {{"select": "all"}}}}}}
 
+and an extrude and a revolve carry `target` and their parameters:
+
+  {{"id": "body", "type": "extrude", "target": "profile",
+    "parameters": {{"distance": 10, "direction": "+Z"}}}}
+
+  {{"id": "body", "type": "revolve", "target": "profile",
+    "parameters": {{"angle": 360, "axis": "+Z"}}}}
+
 and a sketch carries its plane, its geometry and any constraints:
 
   {{"id": "profile", "type": "sketch",
@@ -279,7 +325,7 @@ countersinks and threads (only a plain hole all the way through exists);
 union; intersection; joining, merging or combining two solids; variable or
 per-edge fillet radii; angled or asymmetric chamfers; naming an individual
 edge; shells; ribs;
-extrusions; revolves; sweeps; lofts; patterns; mirrors; assemblies;
+sweeps; lofts; patterns; mirrors; assemblies;
 tolerances; materials; surface finish; and any dimension given as a formula, a
 range or a tolerance.
 

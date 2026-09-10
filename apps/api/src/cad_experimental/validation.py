@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from .plan import (
     AXES,
@@ -33,8 +33,13 @@ from .plan import (
     CYLINDER,
     EDGE_MODIFIER_LENGTH,
     EDGE_MODIFIER_TYPES,
+    EXTRUDE,
     FILLET,
+    FULL_TURN,
     MODIFIER_TYPES,
+    PROFILE_SOLID_TYPES,
+    REVOLVE,
+    SOLID_DECLARING_TYPES,
     SELECT_AXIS_PARALLEL,
     SELECT_MODES,
     SELECTOR_AXES,
@@ -48,6 +53,8 @@ from .plan import (
 )
 from .sketch import (
     CIRCLE,
+    PLANE_AXES,
+    PLANE_NORMAL,
     CONSTRAINT_APPLIES_TO,
     DIMENSIONAL_TYPES,
     LENGTH,
@@ -110,9 +117,20 @@ P20 = "P20"  # the point handle is a real point of that geometry
 P21 = "P21"  # the constraint type applies to that geometry type
 P22 = "P22"  # a dimensional constraint agrees with its geometry
 
+# --- profile-to-solid rules, added with extrude and revolve ----------------
+#
+# These are the mirror of P11. A modifier's target must be a solid; an
+# extrude's or revolve's target must be a PROFILE, and the two mistakes are
+# opposite, so they get different codes and different advice.
+P23 = "P23"  # the target names a sketch, not a solid and not a modifier
+P24 = "P24"  # an extrude's direction is normal to the sketch's plane
+P25 = "P25"  # a revolve's axis lies in the sketch's plane
+P26 = "P26"  # a revolve's angle is in (0, 360]
+
 RULE_CODES: Tuple[str, ...] = (
     P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14,
     P15, P16, P17, P18, P19, P20, P21, P22,
+    P23, P24, P25, P26,
 )
 
 
@@ -235,6 +253,11 @@ def validate_plan(plan: OperationPlan) -> PlanValidation:
             )
         elif kind == SKETCH:
             _sketch(operation, where, problems)
+        elif kind in PROFILE_SOLID_TYPES:
+            _profile_solid(
+                operation, kind, index, where, plan.operations,
+                declared, live, consumed, problems, profiles,
+            )
         elif kind in EDGE_MODIFIER_TYPES:
             # One branch for both edge modifiers: they differ only in the
             # name of their length. S16/S17 are decidable from the document;
@@ -259,7 +282,12 @@ def validate_plan(plan: OperationPlan) -> PlanValidation:
         # Update the simulated solid set. A constructive operation adds a
         # solid named by its own id; a modifier adds nothing, because its
         # result keeps the target's id and the target is already live.
-        if kind in CONSTRUCTIVE_TYPES:
+        if kind in SOLID_DECLARING_TYPES:
+            # A box or cylinder makes a solid from nothing; an extrude or
+            # revolve makes one from a profile. Either way the new solid is
+            # named by the operation's OWN id, so a later fillet can target
+            # it -- and the profile it came from is untouched and still a
+            # profile.
             live.setdefault(operation.id, index)
         elif kind in PROFILE_TYPES:
             # A profile is not a solid: nothing may fillet it, subtract it or
@@ -282,7 +310,8 @@ def validate_plan(plan: OperationPlan) -> PlanValidation:
         # looks an attribute up by a computed name.
         position = (
             None
-            if kind in (SUBTRACT, FILLET, CHAMFER, SKETCH)
+            if kind in (SUBTRACT, FILLET, CHAMFER, SKETCH, EXTRUDE,
+                        REVOLVE)
             else operation.position
         )
         if position is not None:
@@ -587,6 +616,217 @@ def _subtract(
         )
 
 
+def _resolve(
+    reference: object,
+    path: str,
+    owner_id: str,
+    index: int,
+    declared: Dict[str, int],
+    consumed: Dict[str, int],
+    problems: List[PlanProblem],
+) -> Optional[str]:
+    """The checks every reference shares, whatever it must point AT.
+
+    Returns the reference when it names a declared, strictly-earlier,
+    unconsumed operation, and ``None`` when it has already been reported.
+    Shared by :func:`_reference` (whose target must be a solid) and
+    :func:`_profile_solid` (whose target must be a profile) so the two
+    cannot come to disagree about what "earlier" means.
+
+    Reported in order of specificity, and at most one problem per reference:
+    telling a caller both "no such id" and "wrong category" about the same
+    reference is noise, and the first true statement is the useful one.
+    """
+    if not isinstance(reference, str) or not reference:
+        # The parser requires a target, so this is only reachable from a
+        # plan built in code. Checked anyway: the validator must not depend
+        # on the parser having run.
+        problems.append(
+            PlanProblem(P8, "a reference must name an earlier operation", path)
+        )
+        return None
+    target = reference
+
+    if target == owner_id:
+        problems.append(
+            PlanProblem(
+                P10,
+                f"{target!r} refers to itself; a reference must point to an "
+                "earlier operation",
+                path,
+            )
+        )
+        return None
+
+    if target not in declared:
+        known = ", ".join(sorted(declared)) or "nothing"
+        problems.append(
+            PlanProblem(
+                P9,
+                f"{target!r} names no operation in the plan; declared: {known}",
+                path,
+            )
+        )
+        return None
+
+    if declared[target] > index:
+        problems.append(
+            PlanProblem(
+                P10,
+                f"{target!r} appears later in the plan (at operations["
+                f"{declared[target]}]); a reference must point strictly "
+                "earlier, so forward references and cycles are impossible",
+                path,
+            )
+        )
+        return None
+
+    if target in consumed:
+        problems.append(
+            PlanProblem(
+                P12,
+                f"{target!r} was already consumed at operations["
+                f"{consumed[target]}] and is no longer available",
+                path,
+            )
+        )
+        return None
+
+    return target
+
+
+def _profile_solid(
+    operation: object,
+    kind: str,
+    index: int,
+    where: str,
+    operations: Tuple[object, ...],
+    declared: Dict[str, int],
+    live: Dict[str, int],
+    consumed: Dict[str, int],
+    problems: List[PlanProblem],
+    profiles: Dict[str, int],
+) -> None:
+    """Judge an extrude or a revolve: its reference, then its direction.
+
+    Two things are decidable here and are checked:
+
+    * the target is a **profile** (P23) -- the mirror of P11, and the only
+      reference in the language that must point at a sketch;
+    * the direction or axis is compatible with that sketch's plane (P24,
+      P25), because a plane fixes its own normal and its own two in-plane
+      axes. This is arithmetic on an enumerated pair of names, not geometry.
+
+    One thing is **not** checked, and is a known gap rather than an omission:
+    whether a revolved profile crosses its own axis. That produces
+    self-intersecting material, and deciding it needs the resolved 2D
+    geometry measured against the axis line -- the kernel's kind of
+    judgement, like E1-E5. There is no engine for this operation, so nothing
+    here guesses at it.
+    """
+    target = _resolve(
+        operation.target, f"{where}.target", operation.id, index,
+        declared, consumed, problems,
+    )
+
+    if kind == EXTRUDE:
+        _positive(operation.distance, f"{where}.distance", problems)
+    else:
+        _angle(operation.angle, f"{where}.angle", problems)
+        if operation.axis not in AXES:
+            problems.append(
+                PlanProblem(
+                    P5,
+                    f"{operation.axis!r} is not one of {', '.join(AXES)}",
+                    f"{where}.axis",
+                )
+            )
+
+    if target is None:
+        return
+
+    if target not in profiles:
+        # Declared, earlier, not consumed -- and not a profile. Which one it
+        # is changes the advice, so the message says which.
+        described = (
+            "a solid" if target in live
+            else "a modifier, whose result keeps its own target's id"
+        )
+        article = "an" if kind == EXTRUDE else "a"
+        problems.append(
+            PlanProblem(
+                P23,
+                f"{article} {kind} acts on a profile, but {target!r} is "
+                f"{described}. Target a sketch instead",
+                f"{where}.target",
+            )
+        )
+        return
+
+    plane = operations[profiles[target]].definition.plane
+
+    if kind == EXTRUDE:
+        # Absent means the plane's positive normal, which trivially agrees,
+        # so only an explicit direction can be wrong.
+        if operation.direction is None:
+            return
+        axis = operation.direction[1:]
+        if axis != PLANE_NORMAL[plane]:
+            problems.append(
+                PlanProblem(
+                    P24,
+                    f"{operation.direction!r} is not normal to the {plane} "
+                    f"plane of {target!r}; an extrusion runs along "
+                    f"+{PLANE_NORMAL[plane]} or -{PLANE_NORMAL[plane]}",
+                    f"{where}.direction",
+                )
+            )
+        return
+
+    axis = operation.axis[1:] if operation.axis in AXES else operation.axis
+    if axis not in PLANE_AXES[plane]:
+        allowed = ", ".join(
+            f"{sign}{name}"
+            for name in PLANE_AXES[plane]
+            for sign in ("+", "-")
+        )
+        problems.append(
+            PlanProblem(
+                P25,
+                f"{operation.axis!r} does not lie in the {plane} plane of "
+                f"{target!r}, so revolving about it sweeps nothing; expected "
+                f"one of {allowed}",
+                f"{where}.axis",
+            )
+        )
+
+
+def _angle(value: object, path: str, problems: List[PlanProblem]) -> None:
+    """A revolve's sweep: a finite number in (0, 360] degrees."""
+    if not _finite(value):
+        problems.append(
+            PlanProblem(P26, "an angle must be a finite number", path)
+        )
+        return
+    if value <= 0:
+        problems.append(
+            PlanProblem(
+                P26, f"an angle of {value} sweeps nothing; it must be > 0", path
+            )
+        )
+        return
+    if value > FULL_TURN:
+        problems.append(
+            PlanProblem(
+                P26,
+                f"an angle of {value} is more than a full turn, so the sweep "
+                f"would overlap material it already made; the maximum is "
+                f"{FULL_TURN}",
+                path,
+            )
+        )
+
+
 def _reference(
     reference: object,
     path: str,
@@ -608,59 +848,10 @@ def _reference(
     telling a caller both "no such id" and "not a body" about the same
     reference is noise, and the first true statement is the useful one.
     """
-    target = reference
-    if not isinstance(target, str) or not target:
-        # The parser requires a target, so this is only reachable from a
-        # plan built in code. Checked anyway: the validator must not depend
-        # on the parser having run.
-        problems.append(
-            PlanProblem(P8, "a reference must name a solid", path)
-        )
-        return
-
-    if target == owner_id:
-        problems.append(
-            PlanProblem(
-                P10,
-                f"{target!r} refers to itself; a reference must point to an "
-                "earlier operation",
-                path,
-            )
-        )
-        return
-
-    if target not in declared:
-        known = ", ".join(sorted(declared)) or "nothing"
-        problems.append(
-            PlanProblem(
-                P9,
-                f"{target!r} names no operation in the plan; declared: {known}",
-                path,
-            )
-        )
-        return
-
-    if declared[target] > index:
-        problems.append(
-            PlanProblem(
-                P10,
-                f"{target!r} appears later in the plan (at operations["
-                f"{declared[target]}]); a reference must point strictly "
-                "earlier, so forward references and cycles are impossible",
-                path,
-            )
-        )
-        return
-
-    if target in consumed:
-        problems.append(
-            PlanProblem(
-                P12,
-                f"{target!r} was already consumed at operations["
-                f"{consumed[target]}] and is no longer a solid",
-                path,
-            )
-        )
+    target = _resolve(
+        reference, path, owner_id, index, declared, consumed, problems
+    )
+    if target is None:
         return
 
     if target not in live:
@@ -728,6 +919,10 @@ __all__ = [
     "P20",
     "P21",
     "P22",
+    "P23",
+    "P24",
+    "P25",
+    "P26",
     "RULE_CODES",
     "PlanProblem",
     "PlanValidation",

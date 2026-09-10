@@ -34,17 +34,21 @@ from .plan import (
     BOX,
     CONSUMING_TYPES,
     CYLINDER,
+    EXTRUDE,
     ID_PATTERN,
     MAX_TOOLS,
     MODIFIER_TYPES,
     OPERATION_FIELDS,
     OPERATION_TYPES,
     PARAMETERS,
+    PROFILE_SOLID_TYPES,
+    REVOLVE,
     SELECT_AXIS_PARALLEL,
     SELECT_MODES,
     SELECTOR_AXES,
     SELECTOR_FIELDS,
     SUBTRACT,
+    TARGETED_TYPES,
     THROUGH_HOLE,
     CHAMFER,
     FILLET,
@@ -53,11 +57,13 @@ from .plan import (
     ChamferOperation,
     CylinderOperation,
     EdgeSelector,
+    ExtrudeOperation,
     FilletOperation,
     Operation,
     OperationPlan,
     PlanStatus,
     Point,
+    RevolveOperation,
     SketchOperation,
     SubtractOperation,
     ThroughHoleOperation,
@@ -226,11 +232,15 @@ def _operation(entry: Any, index: int) -> Operation:
     _reject_unknown(mapping, OPERATION_FIELDS[kind], f"a {kind} operation")
 
     target: Optional[str] = None
-    if kind in MODIFIER_TYPES:
+    if kind in TARGETED_TYPES:
         if "target" not in mapping:
+            acts_on = (
+                "a profile" if kind in PROFILE_SOLID_TYPES
+                else "an existing solid"
+            )
             raise PlanParseError(
                 f"{where} is missing `target`",
-                detail=f"a {kind} acts on an existing solid and must name it",
+                detail=f"a {kind} acts on {acts_on} and must name it",
             )
         target = _identifier(mapping["target"], f"{where} target")
 
@@ -274,6 +284,30 @@ def _operation(entry: Any, index: int) -> Operation:
             target=target,
             distance=_number(parameters["distance"], f"{where}.distance"),
             edges=_selector(parameters["edges"], where),
+        )
+
+    if kind == EXTRUDE:
+        assert target is not None
+        return ExtrudeOperation(
+            id=identifier,
+            target=target,
+            distance=_number(parameters["distance"], f"{where}.distance"),
+            # Optional: absent means the plane's positive normal. Read as
+            # `None` rather than filled in here, so the default stays one
+            # documented fact in one place instead of a value the parser
+            # invents.
+            direction=_optional_axis(parameters.get("direction"), where),
+        )
+
+    if kind == REVOLVE:
+        assert target is not None
+        return RevolveOperation(
+            id=identifier,
+            target=target,
+            angle=_number(parameters["angle"], f"{where}.angle"),
+            # Required, and signed: a partial revolve about `+Z` and about
+            # `-Z` are mirror-image parts, so the sign is geometry.
+            axis=_axis(parameters["axis"], where),
         )
 
     if kind == THROUGH_HOLE:
@@ -667,6 +701,11 @@ def _optional_point(value: Any, where: str) -> Optional[Point]:
 def _optional_axis(value: Any, where: str) -> Optional[str]:
     if value is None:
         return None
+    return _axis(value, where)
+
+
+def _axis(value: Any, where: str) -> str:
+    """A required signed principal axis. ``None`` is not one of them."""
     if not isinstance(value, str) or value not in AXES:
         raise PlanParseError(
             f"{where} has an invalid axis",

@@ -25,14 +25,28 @@ SUBTRACT = "subtract"
 FILLET = "fillet"
 CHAMFER = "chamfer"
 SKETCH = "sketch"
+EXTRUDE = "extrude"
+REVOLVE = "revolve"
 OPERATION_TYPES: Tuple[str, ...] = (
     BOX, CYLINDER, THROUGH_HOLE, SUBTRACT, FILLET, CHAMFER, SKETCH,
+    EXTRUDE, REVOLVE,
 )
 
 #: Operations that declare a **profile** rather than a solid. A profile is
 #: not a solid: a fillet cannot target one, a subtract cannot consume one,
 #: and it does not count toward the single-solid rule.
 PROFILE_TYPES: Tuple[str, ...] = (SKETCH,)
+
+#: Operations that turn a **profile into a solid**. Their ``target`` names a
+#: sketch rather than a solid -- the only place in the language where that is
+#: true, and the reason they need their own reference rule (P23) instead of
+#: the modifier rule (P11).
+#:
+#: They do **not** consume the profile. Extruding a sketch does not destroy
+#: it in any CAD system, and two extrusions of one profile are legitimate,
+#: so a profile stays referenceable after use. That is deliberately unlike
+#: ``subtract``, whose tools are consumed.
+PROFILE_SOLID_TYPES: Tuple[str, ...] = (EXTRUDE, REVOLVE)
 
 #: Operations V1 can execute. The rest are represented and validated here
 #: and then refused by the adapter with an explicit unsupported result --
@@ -50,6 +64,14 @@ EDGE_MODIFIER_TYPES: Tuple[str, ...] = (FILLET, CHAMFER)
 #: (specification Section B.4).
 CONSTRUCTIVE_TYPES: Tuple[str, ...] = (BOX, CYLINDER)
 
+#: Every operation whose own id names a solid afterwards: the constructive
+#: primitives, plus the two that build a solid from a profile. This, not
+#: :data:`CONSTRUCTIVE_TYPES`, is what the simulated solid set grows by --
+#: an extruded profile is a solid, and a later fillet can target it.
+SOLID_DECLARING_TYPES: Tuple[str, ...] = (
+    CONSTRUCTIVE_TYPES + PROFILE_SOLID_TYPES
+)
+
 #: Operations that act on an existing solid named by their ``target``. A
 #: modifier replaces its target **in place** and the result keeps the
 #: **target's** id -- the modifier's own id never names a solid. So four
@@ -63,6 +85,12 @@ MODIFIER_TYPES: Tuple[str, ...] = (
 #: C.4). Only ``subtract`` does this, and it is the whole reason this stage
 #: exists -- it is the first operation with history.
 CONSUMING_TYPES: Tuple[str, ...] = (SUBTRACT,)
+
+#: Every operation that carries a ``target``. The two groups differ in what
+#: the target must BE -- a modifier's is a solid (P11), a profile-solid
+#: operation's is a sketch (P23) -- but both must have one, so the parser
+#: requires it from one place.
+TARGETED_TYPES: Tuple[str, ...] = MODIFIER_TYPES + PROFILE_SOLID_TYPES
 
 #: The six signed principal directions, exactly as the V1 contract spells
 #: them (Section A.4). No arbitrary vectors.
@@ -114,6 +142,25 @@ CHAMFER_OPTIONAL: Tuple[str, ...] = ()
 SKETCH_REQUIRED: Tuple[str, ...] = ("plane", "geometry")
 SKETCH_OPTIONAL: Tuple[str, ...] = ("constraints",)
 
+#: An extrude needs a distance. ``direction`` is optional because there is a
+#: defensible default -- the plane's POSITIVE normal -- and only the sign is
+#: ever in question (rule P24 requires the axis to be that normal).
+EXTRUDE_REQUIRED: Tuple[str, ...] = ("distance",)
+EXTRUDE_OPTIONAL: Tuple[str, ...] = ("direction",)
+
+#: A revolve needs both an angle and an axis, and ``axis`` is REQUIRED: a
+#: profile on XY can be revolved about X or about Y, and those are different
+#: parts. There is no defensible default, so defaulting one would be
+#: inventing geometry -- the same reason a through_hole's position is
+#: required.
+REVOLVE_REQUIRED: Tuple[str, ...] = ("angle", "axis")
+REVOLVE_OPTIONAL: Tuple[str, ...] = ()
+
+#: A full revolution, in degrees. The angle is in (0, FULL_TURN]: zero
+#: sweeps nothing and more than a full turn would overlap the material it
+#: already made.
+FULL_TURN = 360.0
+
 #: Which length each edge modifier carries. One place, so the parser, the
 #: validator and the adapter cannot disagree about it.
 EDGE_MODIFIER_LENGTH: Dict[str, str] = {FILLET: "radius", CHAMFER: "distance"}
@@ -129,6 +176,8 @@ PARAMETERS: Dict[str, Tuple[Tuple[str, ...], Tuple[str, ...]]] = {
     FILLET: (FILLET_REQUIRED, FILLET_OPTIONAL),
     CHAMFER: (CHAMFER_REQUIRED, CHAMFER_OPTIONAL),
     SKETCH: (SKETCH_REQUIRED, SKETCH_OPTIONAL),
+    EXTRUDE: (EXTRUDE_REQUIRED, EXTRUDE_OPTIONAL),
+    REVOLVE: (REVOLVE_REQUIRED, REVOLVE_OPTIONAL),
 }
 
 #: The keys an edge selector may carry. ``axis`` is present exactly when
@@ -151,6 +200,11 @@ OPERATION_FIELDS: Dict[str, Tuple[str, ...]] = {
     FILLET: ("id", "type", "target", "parameters"),
     CHAMFER: ("id", "type", "target", "parameters"),
     SKETCH: ("id", "type", "parameters"),
+    # `target` names a SKETCH here, not a solid. The key is the same because
+    # the question is the same -- "which earlier operation does this act on"
+    # -- and rule P23 decides which category the answer must be in.
+    EXTRUDE: ("id", "type", "target", "parameters"),
+    REVOLVE: ("id", "type", "target", "parameters"),
 }
 
 #: The most tools one subtract may list. A part is not built from hundreds of
@@ -357,6 +411,67 @@ class SketchOperation:
 
 
 @dataclass(frozen=True)
+class ExtrudeOperation:
+    """Sweeps a profile along its plane's normal, making a solid.
+
+    ``target`` names a **sketch**, not a solid -- the only reference in this
+    language that points at a profile. The profile is not consumed: a second
+    extrusion of the same sketch is legitimate.
+
+    ``direction`` is a signed principal axis and must be the plane's normal
+    (rule P24): ``"+Z"`` or ``"-Z"`` for a sketch on XY, and nothing else. It
+    defaults to the plane's positive normal, which is the only defensible
+    default -- the axis is fixed by the plane, so only the sign is a choice.
+
+    It cannot be executed. See :mod:`cad_experimental.sketch` and
+    :class:`~cad_experimental.adapter.ExecutionUnsupported`.
+    """
+
+    TYPE = EXTRUDE
+
+    id: str
+    target: str
+    distance: float
+    direction: Optional[str] = None
+
+    def parameters(self) -> Dict[str, Any]:
+        payload: Dict[str, Any] = {"distance": self.distance}
+        if self.direction is not None:
+            payload["direction"] = self.direction
+        return payload
+
+
+@dataclass(frozen=True)
+class RevolveOperation:
+    """Sweeps a profile about an in-plane axis, making a solid.
+
+    ``target`` names a sketch, as an extrude's does, and is likewise not
+    consumed.
+
+    ``axis`` is required and must be one of the two axes the sketch's plane
+    spans (rule P25): revolving a profile about its own normal sweeps
+    nothing. ``angle`` is in degrees, in (0, 360].
+
+    **Not checked here:** whether the profile crosses the axis. A profile
+    that straddles its axis of revolution produces self-intersecting
+    material, and deciding that needs the 2D geometry resolved against the
+    axis line -- which is the kernel's judgement, of the same kind as E1-E5.
+    This layer does not guess at it, and there is no engine to ask, so it is
+    recorded as a known gap rather than as a rule that exists.
+    """
+
+    TYPE = REVOLVE
+
+    id: str
+    target: str
+    angle: float
+    axis: str
+
+    def parameters(self) -> Dict[str, Any]:
+        return {"angle": self.angle, "axis": self.axis}
+
+
+@dataclass(frozen=True)
 class ChamferOperation:
     """Bevels selected edges of ``target`` by an equal setback.
 
@@ -433,6 +548,16 @@ def is_modifier(operation: Operation) -> bool:
 def is_profile(operation: Operation) -> bool:
     """True if the operation declares a profile rather than a solid."""
     return operation_type(operation) in PROFILE_TYPES
+
+
+def is_profile_solid(operation: Operation) -> bool:
+    """True if the operation turns a profile into a solid."""
+    return operation_type(operation) in PROFILE_SOLID_TYPES
+
+
+def declares_solid(operation: Operation) -> bool:
+    """True if the operation's own id names a solid afterwards."""
+    return operation_type(operation) in SOLID_DECLARING_TYPES
 
 
 def is_executable(operation: Operation) -> bool:
@@ -563,7 +688,21 @@ def plan_schema() -> Dict[str, Any]:
                                 "axis": {"type": "string", "enum": list(AXES)},
                                 "position": point,
                                 "radius": {"type": "number"},
+                                # Shared by chamfer and extrude: both are one
+                                # positive length, so one key rather than two
+                                # names for the same thing.
                                 "distance": {"type": "number"},
+                                # A revolve's sweep, in degrees, in (0, 360].
+                                "angle": {
+                                    "type": "number",
+                                    "exclusiveMinimum": 0,
+                                    "maximum": FULL_TURN,
+                                },
+                                # An extrude's direction: signed, and required
+                                # by P24 to be the sketch plane's normal.
+                                "direction": {
+                                    "type": "string", "enum": list(AXES),
+                                },
                                 **_sketch_schema(),
                                 "edges": {
                                     "type": "object",
@@ -627,7 +766,21 @@ __all__ = [
     "tools_of",
     "CYLINDER",
     "MODIFIER_TYPES",
+    "EXTRUDE",
+    "EXTRUDE_OPTIONAL",
+    "EXTRUDE_REQUIRED",
+    "ExtrudeOperation",
+    "FULL_TURN",
     "OPERATION_FIELDS",
+    "PROFILE_SOLID_TYPES",
+    "REVOLVE",
+    "REVOLVE_OPTIONAL",
+    "REVOLVE_REQUIRED",
+    "RevolveOperation",
+    "SOLID_DECLARING_TYPES",
+    "TARGETED_TYPES",
+    "declares_solid",
+    "is_profile_solid",
     "THROUGH_HOLE",
     "ThroughHoleOperation",
     "is_constructive",

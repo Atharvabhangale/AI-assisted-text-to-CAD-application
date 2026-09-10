@@ -49,6 +49,20 @@ from typing import Any, Dict, List, Mapping, Optional, Tuple
 #: needs a datum, and V1 has no datums (Section A.2).
 PLANES: Tuple[str, ...] = ("XY", "XZ", "YZ")
 
+#: The unsigned axis normal to each plane. Derived from the plane's name, and
+#: written out so nothing has to parse it: "XY" spans X and Y, so its normal
+#: is Z. An extrusion runs along this axis and along no other -- extruding a
+#: profile sideways within its own plane is not an extrusion.
+PLANE_NORMAL: Dict[str, str] = {"XY": "Z", "XZ": "Y", "YZ": "X"}
+
+#: The two unsigned axes each plane spans. A revolve's axis must be one of
+#: these: revolving a profile about its own normal sweeps nothing.
+PLANE_AXES: Dict[str, Tuple[str, str]] = {
+    "XY": ("X", "Y"),
+    "XZ": ("X", "Z"),
+    "YZ": ("Y", "Z"),
+}
+
 LINE = "line"
 CIRCLE = "circle"
 RECTANGLE = "rectangle"
@@ -306,6 +320,8 @@ def sketch_schema() -> Dict[str, Any]:
 
 __all__ = [
     "CIRCLE",
+    "PLANE_AXES",
+    "PLANE_NORMAL",
     "COINCIDENT",
     "CONSTRAINT_APPLIES_TO",
     "CONSTRAINT_FIELDS",

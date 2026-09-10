@@ -230,6 +230,25 @@ def _rectangle(
     }
 
 
+def _extrude(
+    ident: str, target: str, distance: float, direction: Optional[str] = None
+) -> Dict[str, Any]:
+    """An extrude operation. Its target is a SKETCH, not a solid."""
+    parameters: Dict[str, Any] = {"distance": distance}
+    if direction is not None:
+        parameters["direction"] = direction
+    return {"id": ident, "type": "extrude", "target": target,
+            "parameters": parameters}
+
+
+def _revolve(
+    ident: str, target: str, angle: float, axis: str
+) -> Dict[str, Any]:
+    """A revolve operation. `axis` is required and signed."""
+    return {"id": ident, "type": "revolve", "target": target,
+            "parameters": {"angle": angle, "axis": axis}}
+
+
 #: The development fixtures. Hand-written plans, with the geometry each is
 #: expected to produce recorded beside it so a build can be checked rather
 #: than merely observed.
@@ -1042,6 +1061,228 @@ FIXTURES: Mapping[str, Dict[str, Any]] = {
             "operations": [
                 _sketch("profile", "XY", [_rectangle("r1", 0, 0, 100, 60)]),
                 _fillet("round", "profile", 2, _axis_parallel("Z")),
+            ],
+        },
+    },
+    # --- extrude and revolve ---------------------------------------------
+    #
+    # The same story as the sketch fixtures: every one of these is valid, and
+    # none of them builds. What they add is the profile-to-solid reference
+    # (P23) and the plane compatibility rules (P24, P25).
+    "extrude-rectangle-to-plate": {
+        "description": (
+            "a 100 x 60 mm profile extruded 10 mm -- the same plate the box "
+            "fixture builds, expressed as a sketch and an extrusion"
+        ),
+        "expects": EXECUTION_UNSUPPORTED,
+        "expected_codes": ("sketch", "extrude"),
+        "plan": {
+            "status": "generated",
+            "summary": "a 100 x 60 x 10 mm plate from a profile",
+            "operations": [
+                _sketch("profile", "XY", [_rectangle("r1", 0, 0, 100, 60)]),
+                _extrude("body", "profile", 10),
+            ],
+        },
+    },
+    "extrude-negative-direction": {
+        "description": "the same profile extruded downward, along -Z",
+        "expects": EXECUTION_UNSUPPORTED,
+        "expected_codes": ("sketch", "extrude"),
+        "plan": {
+            "status": "generated",
+            "summary": "a plate extruded along -Z",
+            "operations": [
+                _sketch("profile", "XY", [_rectangle("r1", 0, 0, 100, 60)]),
+                _extrude("body", "profile", 10, "-Z"),
+            ],
+        },
+    },
+    "extrude-then-fillet": {
+        "description": (
+            "an extruded solid with its vertical edges filleted -- the "
+            "extrusion's own id names a solid, so a modifier can target it"
+        ),
+        "expects": EXECUTION_UNSUPPORTED,
+        "expected_codes": ("sketch", "extrude"),
+        "plan": {
+            "status": "generated",
+            "summary": "an extruded plate with rounded corners",
+            "operations": [
+                _sketch("profile", "XY", [_rectangle("r1", 0, 0, 100, 60)]),
+                _extrude("body", "profile", 10),
+                _fillet("round", "body", 2, _axis_parallel("Z")),
+            ],
+        },
+    },
+    "extrude-one-profile-twice": {
+        "description": (
+            "two extrusions of one profile -- a profile is not consumed by "
+            "use, unlike a subtract's tools"
+        ),
+        "expects": EXECUTION_UNSUPPORTED,
+        "expected_codes": ("sketch", "extrude"),
+        "plan": {
+            "status": "generated",
+            "summary": "one profile extruded to two thicknesses",
+            "operations": [
+                _sketch("profile", "XY", [_circle("c1", 0, 0, 20)]),
+                _extrude("thin", "profile", 5),
+                _extrude("thick", "profile", 40),
+            ],
+        },
+    },
+    "revolve-full-turn": {
+        "description": (
+            "a profile on XZ revolved a full turn about +Z -- how a rod is "
+            "made without a cylinder primitive"
+        ),
+        "expects": EXECUTION_UNSUPPORTED,
+        "expected_codes": ("sketch", "revolve"),
+        "plan": {
+            "status": "generated",
+            "summary": "a profile revolved 360 degrees about +Z",
+            "operations": [
+                _sketch("profile", "XZ", [_rectangle("r1", 10, 0, 20, 50)]),
+                _revolve("body", "profile", 360, "+Z"),
+            ],
+        },
+    },
+    "revolve-partial-turn": {
+        "description": "the same profile revolved only 90 degrees",
+        "expects": EXECUTION_UNSUPPORTED,
+        "expected_codes": ("sketch", "revolve"),
+        "plan": {
+            "status": "generated",
+            "summary": "a quarter revolution about +Z",
+            "operations": [
+                _sketch("profile", "XZ", [_rectangle("r1", 10, 0, 20, 50)]),
+                _revolve("body", "profile", 90, "+Z"),
+            ],
+        },
+    },
+    "reject-extrude-on-a-solid": {
+        "description": "an extrude whose target is a box, not a sketch (P23)",
+        "expects": PLAN_REJECTED,
+        "expected_codes": ("P23",),
+        "plan": {
+            "status": "generated",
+            "summary": "an extrusion of a solid",
+            "operations": [
+                _box("plate", 100, 60, 10),
+                _extrude("body", "plate", 10),
+            ],
+        },
+    },
+    "reject-revolve-on-a-modifier": {
+        "description": (
+            "a revolve targeting a fillet's id, which names nothing (P23)"
+        ),
+        "expects": PLAN_REJECTED,
+        "expected_codes": ("P23",),
+        "plan": {
+            "status": "generated",
+            "summary": "a revolve of a modifier id",
+            "operations": [
+                _box("plate", 100, 60, 10),
+                _fillet("round", "plate", 2, _axis_parallel("Z")),
+                _revolve("body", "round", 90, "+X"),
+            ],
+        },
+    },
+    "reject-extrude-direction-in-plane": {
+        "description": (
+            "extruding an XY profile along +X, which is in the plane rather "
+            "than normal to it (P24)"
+        ),
+        "expects": PLAN_REJECTED,
+        "expected_codes": ("P24",),
+        "plan": {
+            "status": "generated",
+            "summary": "an extrusion along the wrong axis",
+            "operations": [
+                _sketch("profile", "XY", [_rectangle("r1", 0, 0, 100, 60)]),
+                _extrude("body", "profile", 10, "+X"),
+            ],
+        },
+    },
+    "reject-revolve-about-the-normal": {
+        "description": (
+            "revolving an XY profile about -Z, its own normal, which sweeps "
+            "nothing (P25)"
+        ),
+        "expects": PLAN_REJECTED,
+        "expected_codes": ("P25",),
+        "plan": {
+            "status": "generated",
+            "summary": "a revolve about the profile's normal",
+            "operations": [
+                _sketch("profile", "XY", [_rectangle("r1", 10, 0, 20, 50)]),
+                _revolve("body", "profile", 90, "-Z"),
+            ],
+        },
+    },
+    "reject-revolve-zero-angle": {
+        "description": "a revolve of zero degrees, which sweeps nothing (P26)",
+        "expects": PLAN_REJECTED,
+        "expected_codes": ("P26",),
+        "plan": {
+            "status": "generated",
+            "summary": "a revolve of no angle",
+            "operations": [
+                _sketch("profile", "XZ", [_rectangle("r1", 10, 0, 20, 50)]),
+                _revolve("body", "profile", 0, "+Z"),
+            ],
+        },
+    },
+    "reject-revolve-over-a-full-turn": {
+        "description": (
+            "a revolve of 540 degrees, which would overlap its own material "
+            "(P26)"
+        ),
+        "expects": PLAN_REJECTED,
+        "expected_codes": ("P26",),
+        "plan": {
+            "status": "generated",
+            "summary": "a revolve past a full turn",
+            "operations": [
+                _sketch("profile", "XZ", [_rectangle("r1", 10, 0, 20, 50)]),
+                _revolve("body", "profile", 540, "+Z"),
+            ],
+        },
+    },
+    "reject-extrude-forward-reference": {
+        "description": (
+            "an extrude naming a sketch declared after it (P10) -- the "
+            "ordering rule is unchanged for a profile reference"
+        ),
+        "expects": PLAN_REJECTED,
+        "expected_codes": ("P10",),
+        "plan": {
+            "status": "generated",
+            "summary": "an extrusion before its profile",
+            "operations": [
+                _extrude("body", "profile", 10),
+                _sketch("profile", "XY", [_rectangle("r1", 0, 0, 100, 60)]),
+            ],
+        },
+    },
+    "reject-extrude-consumed-target": {
+        "description": (
+            "an extrude naming a solid a subtract already consumed (P12), "
+            "reported as consumed rather than as the wrong category"
+        ),
+        "expects": PLAN_REJECTED,
+        "expected_codes": ("P12",),
+        "plan": {
+            "status": "generated",
+            "summary": "an extrusion of a consumed tool",
+            "operations": [
+                _box("plate", 100, 60, 10),
+                _cylinder("tool", 20, 10, position={"x": 50, "y": 30, "z": 0}),
+                {"id": "cut", "type": "subtract", "target": "plate",
+                 "tools": ["tool"]},
+                _extrude("body", "tool", 10),
             ],
         },
     },

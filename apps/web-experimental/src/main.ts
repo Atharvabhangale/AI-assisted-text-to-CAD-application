@@ -124,22 +124,34 @@ function showOperations(operations: readonly PlanOperation[]): void {
     heading.append(type, id);
     if (operation.target !== undefined) {
       // A modifier acts on a solid; showing which one is the difference
-      // between a readable plan and a list of unattached operations.
+      // between a readable plan and a list of unattached operations. An
+      // extrude or revolve acts on a *profile*, and the arrow says so --
+      // the same key means a different category of thing.
+      const profileTarget =
+        operation.type === "extrude" || operation.type === "revolve";
       const target = document.createElement("span");
       target.className = "op-target";
-      target.textContent = `→ ${operation.target}`;
+      target.textContent = profileTarget
+        ? `→ ${operation.target} (profile)`
+        : `→ ${operation.target}`;
       heading.append(target);
     }
     item.append(heading);
 
-    if (operation.type === "sketch") {
-      // A sketch declares a profile, and this backend cannot build one. Saying
-      // so beside the operation is the difference between a page that reads as
-      // a part and a page that tells the truth about what it has.
-      const note = document.createElement("div");
-      note.className = "op-note";
-      note.textContent = "profile — not a solid, and not executable here";
-      item.append(note);
+    // The two operations this backend cannot build, each said plainly. An
+    // extrude or revolve DOES make a solid -- its own id names one -- so its
+    // note differs from a sketch's, which names no solid at all.
+    const note =
+      operation.type === "sketch"
+        ? "profile — not a solid, and not executable here"
+        : operation.type === "extrude" || operation.type === "revolve"
+          ? "makes a solid from a profile — not executable here"
+          : null;
+    if (note !== null) {
+      const element = document.createElement("div");
+      element.className = "op-note";
+      element.textContent = note;
+      item.append(element);
     }
 
     if (operation.tools !== undefined && operation.tools.length > 0) {

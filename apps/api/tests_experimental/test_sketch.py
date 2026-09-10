@@ -153,11 +153,20 @@ class SketchVocabularyTests(unittest.TestCase):
         self.assertNotIn(SKETCH, MODIFIER_TYPES)
 
     def test_the_categories_do_not_overlap(self):
+        """Four categories since Stage 38 added the profile-solid pair.
+
+        The invariant this asserts is unchanged -- every type is in exactly
+        one category -- so the list of categories was extended rather than
+        the assertion weakened.
+        """
+        from cad_experimental.plan import PROFILE_SOLID_TYPES
+
         for kind in OPERATION_TYPES:
             categories = [
                 kind in CONSTRUCTIVE_TYPES,
                 kind in MODIFIER_TYPES,
                 kind in PROFILE_TYPES,
+                kind in PROFILE_SOLID_TYPES,
             ]
             self.assertEqual(
                 sum(categories), 1, f"{kind} is in {sum(categories)} categories"
@@ -173,11 +182,15 @@ class SketchVocabularyTests(unittest.TestCase):
         self.assertNotIn(SKETCH, EXECUTABLE_TYPES)
 
     def test_the_language_is_now_larger_than_the_engine(self):
-        """The whole point of this stage, stated as an assertion."""
+        """The whole point of this stage, stated as an assertion.
+
+        Stage 37 could say the difference was exactly ``{sketch}``. Stage 38
+        added extrude and revolve, so what remains true here is that a sketch
+        is one of the unexecutable types and that the language is the larger
+        set. The exact difference is pinned in Stage 38's own module.
+        """
         self.assertGreater(len(OPERATION_TYPES), len(EXECUTABLE_TYPES))
-        self.assertEqual(
-            set(OPERATION_TYPES) - set(EXECUTABLE_TYPES), {SKETCH}
-        )
+        self.assertIn(SKETCH, set(OPERATION_TYPES) - set(EXECUTABLE_TYPES))
 
     def test_the_predicates_agree_with_the_tuples(self):
         """Measured on real operations: the predicates take an operation."""
@@ -1282,11 +1295,16 @@ class SketchPromptTests(unittest.TestCase):
         after = self.text.split("# When to say unsupported", 1)[1]
         self.assertNotIn("sketches", after[:800])
 
-    def test_extrusions_and_revolves_are_still_unsupported(self):
-        """Stage 38's work, and not claimed early."""
+    def test_the_sweeps_beyond_this_stage_are_still_unsupported(self):
+        """Was `test_extrusions_and_revolves_are_still_unsupported`.
+
+        Extrude and revolve left the unsupported list at Stage 38 when they
+        were built. The sweeps that remain unbuilt are still named.
+        """
         after = self.text.split("# When to say unsupported", 1)[1]
-        self.assertIn("extrusions", after)
-        self.assertIn("revolves", after)
+        self.assertIn("sweeps", after)
+        self.assertIn("lofts", after)
+        self.assertIn("patterns", after)
 
     def test_every_plane_and_geometry_type_is_documented(self):
         for plane in PLANES:
@@ -1305,8 +1323,10 @@ class SketchPromptTests(unittest.TestCase):
         self.assertNotIn("{PlanStatus", self.text)
         self.assertNotIn("{'", self.text)
 
-    def test_the_version_moved_with_the_vocabulary(self):
-        self.assertEqual(self.version, "2026-09-10.6")
+    def test_the_version_and_fingerprint_are_well_formed(self):
+        """The exact version belongs to whichever stage last changed the
+        prompt -- Stage 38's module pins it. Here: that both exist."""
+        self.assertRegex(self.version, r"^\d{4}-\d{2}-\d{2}\.\d+$")
         self.assertEqual(len(self.fingerprint), 64)
 
 
