@@ -522,16 +522,29 @@ class AdapterTests(unittest.TestCase):
 
 class SchemaTests(unittest.TestCase):
     def test_the_schema_admits_a_valid_plan_shape(self):
+        """`target` joined the shape in Stage 33, with through_hole."""
         schema = plan_schema()
         self.assertEqual(
             set(schema["properties"]["operations"]["items"]["properties"]),
-            {"id", "type", "parameters"},
+            {"id", "type", "target", "parameters"},
         )
 
     def test_the_schema_lists_only_the_implemented_types(self):
+        """Spelled out, not derived: a fourth type must be a deliberate edit."""
         schema = plan_schema()
         types = schema["properties"]["operations"]["items"]["properties"]["type"]
-        self.assertEqual(set(types["enum"]), {"box", "cylinder"})
+        self.assertEqual(
+            set(types["enum"]), {"box", "cylinder", "through_hole"}
+        )
+
+    def test_the_schema_lists_no_unimplemented_operation(self):
+        schema = plan_schema()
+        types = schema["properties"]["operations"]["items"]["properties"]["type"]
+        for absent in (
+            "subtract", "fillet", "chamfer", "sketch", "extrude", "revolve",
+            "sweep", "loft", "pattern", "mirror", "union", "assembly",
+        ):
+            self.assertNotIn(absent, types["enum"])
 
     def test_the_schema_forbids_extra_fields(self):
         schema = plan_schema()

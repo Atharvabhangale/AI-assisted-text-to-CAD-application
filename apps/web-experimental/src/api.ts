@@ -14,6 +14,8 @@ export const API_BASE: string =
 export interface PlanOperation {
   readonly id: string;
   readonly type: string;
+  /** Present on a modifier (through_hole): the solid it acts on. */
+  readonly target?: string;
   readonly parameters: Readonly<Record<string, unknown>>;
 }
 

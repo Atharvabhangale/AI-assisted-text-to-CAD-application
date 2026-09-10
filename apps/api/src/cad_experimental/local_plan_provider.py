@@ -40,6 +40,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
 from typing import Any, Dict, List, Mapping, Optional, Tuple
 
@@ -71,6 +72,45 @@ def _cylinder(
     return {"id": identifier, "type": "cylinder", "parameters": parameters}
 
 
+def _through_hole(
+    identifier: str,
+    target: str,
+    diameter: float,
+    x: float,
+    y: float,
+    z: float = 0.0,
+    axis: str = "+Z",
+) -> Dict[str, Any]:
+    """A hole in ``target``. Every hole in a body targets the body itself.
+
+    Per Section B.4 a modifier's result keeps the target's id, so holes never
+    chain: four holes in a plate all name the plate.
+    """
+    return {
+        "id": identifier,
+        "type": "through_hole",
+        "target": target,
+        "parameters": {
+            "diameter": diameter,
+            "position": {"x": x, "y": y, "z": z},
+            "axis": axis,
+        },
+    }
+
+
+#: Expected volumes, computed from geometry rather than transcribed. Written
+#: out so a wrong expectation cannot quietly hide a wrong build.
+_PLATE = 100.0 * 60.0 * 10.0
+_HOLE_D8_THROUGH_10 = math.pi * 4.0**2 * 10.0
+_PLATE_ONE_HOLE = _PLATE - _HOLE_D8_THROUGH_10
+_PLATE_FOUR_HOLES = _PLATE - 4.0 * _HOLE_D8_THROUGH_10
+_BORED_ROD = math.pi * (10.0**2 - 4.0**2) * 50.0
+
+#: The four hole centres of the plate fixture. All inside the plate with
+#: clearance: at radius 4 the outermost spans 86..94 in x and 46..54 in y.
+_FOUR_HOLES = ((10.0, 10.0), (90.0, 10.0), (10.0, 50.0), (90.0, 50.0))
+
+
 #: The development fixtures. Hand-written plans, with the geometry each is
 #: expected to produce recorded beside it so a build can be checked rather
 #: than merely observed.
@@ -78,16 +118,59 @@ FIXTURES: Mapping[str, Dict[str, Any]] = {
     "box-100x60x10": {
         "description": "a rectangular plate, 100 x 60 x 10 mm",
         "expected_bounding_box": {"x": 100.0, "y": 60.0, "z": 10.0},
-        "expected_volume_mm3": 100.0 * 60.0 * 10.0,
+        "expected_volume_mm3": _PLATE,
+        "expected_face_count": 6,
+        "expected_hole_count": 0,
         "plan": {
             "status": "generated",
             "summary": "a rectangular plate 100 x 60 x 10 mm",
             "operations": [_box("body", 100, 60, 10)],
         },
     },
+    "plate-one-hole": {
+        "description": (
+            "the plate with one 8 mm through hole at x=10, y=10, along +Z"
+        ),
+        "expected_bounding_box": {"x": 100.0, "y": 60.0, "z": 10.0},
+        "expected_volume_mm3": _PLATE_ONE_HOLE,
+        # Six planar faces, plus one cylindrical face per hole.
+        "expected_face_count": 7,
+        "expected_hole_count": 1,
+        "plan": {
+            "status": "generated",
+            "summary": "a 100 x 60 x 10 mm plate with one 8 mm through hole",
+            "operations": [
+                _box("plate", 100, 60, 10),
+                _through_hole("hole1", "plate", 8, 10, 10),
+            ],
+        },
+    },
+    "plate-four-holes": {
+        "description": (
+            "the plate with four 8 mm through holes at the corners, along +Z"
+        ),
+        "expected_bounding_box": {"x": 100.0, "y": 60.0, "z": 10.0},
+        "expected_volume_mm3": _PLATE_FOUR_HOLES,
+        "expected_face_count": 10,
+        "expected_hole_count": 4,
+        "plan": {
+            "status": "generated",
+            "summary": "a 100 x 60 x 10 mm plate with four 8 mm through holes",
+            "operations": [
+                _box("plate", 100, 60, 10),
+                *(
+                    # Every hole targets `plate`, never the hole before it.
+                    _through_hole(f"hole{index + 1}", "plate", 8, x, y)
+                    for index, (x, y) in enumerate(_FOUR_HOLES)
+                ),
+            ],
+        },
+    },
     "cylinder-d20-h50-z": {
         "description": "a cylinder, diameter 20 mm, height 50 mm, along +Z",
         "expected_bounding_box": {"x": 20.0, "y": 20.0, "z": 50.0},
+        "expected_face_count": 3,
+        "expected_hole_count": 0,
         "expected_volume_mm3": None,  # computed from the diameter below
         "plan": {
             "status": "generated",
@@ -103,9 +186,30 @@ FIXTURES: Mapping[str, Dict[str, Any]] = {
             ],
         },
     },
+    "cylinder-bored-d20-h50": {
+        "description": (
+            "the d20 x 50 cylinder bored through coaxially with an 8 mm hole "
+            "-- a tube"
+        ),
+        "expected_bounding_box": {"x": 20.0, "y": 20.0, "z": 50.0},
+        "expected_volume_mm3": _BORED_ROD,
+        # Outer wall, inner wall, and the two annular ends.
+        "expected_face_count": 4,
+        "expected_hole_count": 1,
+        "plan": {
+            "status": "generated",
+            "summary": "a 20 mm cylinder, 50 mm tall, bored 8 mm through",
+            "operations": [
+                _cylinder("rod", 20, 50, axis="+Z"),
+                _through_hole("bore", "rod", 8, 0, 0, axis="+Z"),
+            ],
+        },
+    },
     "cylinder-d16-h30-x": {
         "description": "a cylinder, diameter 16 mm, height 30 mm, along +X",
         "expected_bounding_box": {"x": 30.0, "y": 16.0, "z": 16.0},
+        "expected_face_count": 3,
+        "expected_hole_count": 0,
         "expected_volume_mm3": None,
         "plan": {
             "status": "generated",
@@ -114,8 +218,10 @@ FIXTURES: Mapping[str, Dict[str, Any]] = {
         },
     },
     "cylinder-d80-h100-z": {
-        "description": "the plan from the stage brief, verbatim",
+        "description": "the plan from the Stage 32 brief, verbatim",
         "expected_bounding_box": {"x": 80.0, "y": 80.0, "z": 100.0},
+        "expected_face_count": 3,
+        "expected_hole_count": 0,
         "expected_volume_mm3": None,
         "plan": {
             "status": "generated",
@@ -138,9 +244,13 @@ FIXTURE_NAMES: Tuple[str, ...] = tuple(FIXTURES)
 
 
 def _expected_volume(name: str) -> float:
-    """The volume a fixture should build to, computed from its own numbers."""
-    import math
+    """The volume a fixture should build to, computed from its own numbers.
 
+    A recorded value wins. The fallback derives a lone cylinder's volume
+    from its own parameters, and applies only to single-operation cylinder
+    fixtures -- anything with a modifier records its expectation explicitly,
+    because deriving it here would re-implement the geometry.
+    """
     entry = FIXTURES[name]
     recorded = entry.get("expected_volume_mm3")
     if recorded is not None:
@@ -174,6 +284,9 @@ def describe_fixtures() -> List[Dict[str, Any]]:
             "description": FIXTURES[name]["description"],
             "expected_bounding_box": FIXTURES[name]["expected_bounding_box"],
             "expected_volume_mm3": _expected_volume(name),
+            "expected_face_count": FIXTURES[name]["expected_face_count"],
+            "expected_hole_count": FIXTURES[name]["expected_hole_count"],
+            "operation_count": len(FIXTURES[name]["plan"]["operations"]),
             "source": SOURCE_LABEL,
         }
         for name in FIXTURE_NAMES
@@ -371,7 +484,14 @@ def run_fixture(name: str, *, build: bool = True) -> Dict[str, Any]:
             "expected_volume_mm3": expected_volume,
             "bounding_box": box,
             "expected_bounding_box": entry["expected_bounding_box"],
+            "expected_face_count": entry["expected_face_count"],
+            "expected_hole_count": entry["expected_hole_count"],
         }
+    )
+    # A hole is a real cylindrical face in the B-rep, so the face count is a
+    # topological check on the holes rather than a visual impression.
+    result["face_count_matches"] = (
+        details.get("face_count") == entry["expected_face_count"]
     )
 
     import math
@@ -431,7 +551,10 @@ def format_report(results: List[Dict[str, Any]]) -> str:
             lines.append(
                 f"  built {entry['built']}   solids "
                 f"{entry.get('solid_count')}   faces "
-                f"{entry.get('face_count')}"
+                f"{entry.get('face_count')} (expected "
+                f"{entry.get('expected_face_count')}, match "
+                f"{entry.get('face_count_matches')})   holes "
+                f"{entry.get('expected_hole_count')}"
             )
             lines.append(
                 f"  volume {entry.get('volume_mm3')}  expected "

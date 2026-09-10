@@ -34,14 +34,18 @@ from .plan import (
     BOX,
     CYLINDER,
     ID_PATTERN,
+    MODIFIER_TYPES,
+    OPERATION_FIELDS,
     OPERATION_TYPES,
     PARAMETERS,
+    THROUGH_HOLE,
     BoxOperation,
     CylinderOperation,
     Operation,
     OperationPlan,
     PlanStatus,
     Point,
+    ThroughHoleOperation,
 )
 
 #: The keys a plan object may carry. Anything else is a rejection.
@@ -49,8 +53,10 @@ PLAN_KEYS = frozenset(
     {"status", "operations", "summary", "reason", "questions"}
 )
 
-#: The keys one operation may carry.
-OPERATION_KEYS = frozenset({"id", "type", "parameters"})
+#: The keys any operation may carry. Which of them a *particular* type may
+#: carry is narrower -- see :data:`~cad_experimental.plan.OPERATION_FIELDS`.
+#: ``target`` on a box is rejected as an unknown field for that type.
+OPERATION_KEYS = frozenset({"id", "type", "target", "parameters"})
 
 #: The keys a position may carry.
 POINT_KEYS = frozenset({"x", "y", "z"})
@@ -178,6 +184,19 @@ def _operation(entry: Any, index: int) -> Operation:
             ),
         )
 
+    # Narrow the operation-level keys to the ones this type may carry, so a
+    # `target` on a box is an error rather than a field quietly ignored.
+    _reject_unknown(mapping, OPERATION_FIELDS[kind], f"a {kind} operation")
+
+    target: Optional[str] = None
+    if kind in MODIFIER_TYPES:
+        if "target" not in mapping:
+            raise PlanParseError(
+                f"{where} is missing `target`",
+                detail=f"a {kind} acts on an existing solid and must name it",
+            )
+        target = _identifier(mapping["target"], f"{where} target")
+
     parameters = _object(mapping["parameters"], f"{where} parameters")
     required_names, optional_names = PARAMETERS[kind]
     allowed = frozenset(required_names) | frozenset(optional_names)
@@ -185,6 +204,21 @@ def _operation(entry: Any, index: int) -> Operation:
     for name in required_names:
         if name not in parameters:
             raise PlanParseError(f"{where} is missing parameter `{name}`")
+
+    if kind == THROUGH_HOLE:
+        assert target is not None
+        position = _optional_point(parameters["position"], where)
+        if position is None:
+            # Unreachable: `position` is required above, and an explicit
+            # `null` is rejected by `_optional_point`'s object check.
+            raise PlanParseError(f"{where} has no position")
+        return ThroughHoleOperation(
+            id=identifier,
+            target=target,
+            diameter=_number(parameters["diameter"], f"{where}.diameter"),
+            position=position,
+            axis=_optional_axis(parameters.get("axis"), where),
+        )
 
     if kind == BOX:
         return BoxOperation(
@@ -241,11 +275,16 @@ def _status(value: Any) -> PlanStatus:
 
 
 def _identifier(value: Any, where: str) -> str:
+    """An operation id or a reference to one. The same shape, per rule S8.
+
+    Used for `target` as well as `id`: a reference that could not be a legal
+    id could not name anything, so the check is the same one.
+    """
     if not isinstance(value, str):
-        raise PlanParseError(f"{where} has a non-string id")
+        raise PlanParseError(f"{where} is not a string")
     if not _ID_RE.match(value):
         raise PlanParseError(
-            f"{where} has an id that is not a valid identifier",
+            f"{where} is not a valid identifier",
             detail=f"{value!r} does not match {ID_PATTERN}",
         )
     return value
@@ -313,6 +352,7 @@ def _optional_axis(value: Any, where: str) -> Optional[str]:
 
 __all__ = [
     "MAX_OPERATIONS",
+    "OPERATION_FIELDS",
     "MAX_PAYLOAD_CHARS",
     "OPERATION_KEYS",
     "PLAN_KEYS",

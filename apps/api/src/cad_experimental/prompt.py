@@ -18,7 +18,7 @@ from .plan import AXES, OPERATION_TYPES, PlanStatus
 
 #: Bumped on any change to the text below. A measurement without this is not
 #: reproducible.
-PROMPT_VERSION = "2026-09-10.1"
+PROMPT_VERSION = "2026-09-10.2"
 
 SYSTEM_PROMPT = f"""\
 You turn a description of a mechanical part into a CAD operation plan.
@@ -49,6 +49,28 @@ parameters:
   axis      optional, one of {", ".join(AXES)}. The direction the cylinder
             extends from its base. Omit it when the description does not say;
             the default is +Z.
+
+## through_hole
+A cylindrical cut that passes completely through an existing solid. It always
+emerges on both sides, so there is no depth.
+
+This operation has a `target` field BESIDE `id` and `type`, not inside
+`parameters`. `target` is the id of an EARLIER box or cylinder -- the solid
+being cut.
+
+parameters:
+  diameter  required, number > 0. The hole's diameter, not its radius.
+  position  REQUIRED, {{"x": n, "y": n, "z": n}}. A point on the hole's
+            centreline. Because the cut goes all the way through, the
+            component along `axis` has no effect: for a +Z hole only x and y
+            matter, and z is conventionally 0.
+  axis      optional, one of {", ".join(AXES)}. The direction of the
+            centreline. Omit it when the description does not say; the
+            default is +Z.
+
+A hole always targets the SOLID it cuts, never another hole. Four holes in one
+plate all use the same `target` -- the plate's id. Drilling into a hole is not
+a thing, and a plan that does it is invalid.
 
 There are no other operations. Nothing else exists in this language.
 
@@ -83,6 +105,11 @@ Each operation is:
   {{"id": "<identifier>", "type": "<{ '|'.join(OPERATION_TYPES) }>",
     "parameters": {{...}}}}
 
+and a through_hole additionally carries `target`:
+
+  {{"id": "hole1", "type": "through_hole", "target": "plate",
+    "parameters": {{"diameter": 8, "position": {{"x": 10, "y": 10, "z": 0}}}}}}
+
 An id starts with a letter or underscore and contains only letters, digits,
 underscores and hyphens. Ids are unique within a plan.
 
@@ -94,9 +121,11 @@ fields. Do not add comments.
 Say "{PlanStatus.UNSUPPORTED.value}" -- with an empty operations list -- when
 the request needs anything this language does not have. That includes, and is
 not limited to: spheres, cones, tori, pyramids, prisms and every other shape
-that is not a box or a cylinder; holes; cuts; subtraction; union; joining or
-combining two solids; fillets; chamfers; rounds; shells; ribs; threads;
-sketches; extrusions; revolves; sweeps; lofts; patterns; mirrors; assemblies;
+that is not a box or a cylinder; blind or partial holes, counterbores,
+countersinks and threads (only a plain hole all the way through exists);
+general cuts and subtraction of one solid from another; union; joining or
+combining two solids; fillets; chamfers; rounds; shells; ribs; sketches;
+extrusions; revolves; sweeps; lofts; patterns; mirrors; assemblies;
 tolerances; materials; surface finish; and any dimension given as a formula, a
 range or a tolerance.
 

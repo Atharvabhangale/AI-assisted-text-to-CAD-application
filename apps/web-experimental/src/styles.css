@@ -121,3 +121,9 @@ code { font-family: ui-monospace, monospace; color: var(--accent); }
 .local-panel .row > select { flex: 1 1 260px; min-width: 200px; }
 .local-panel .row > button { flex: 0 0 auto; white-space: nowrap; }
 .local-panel .row > .status { flex: 1 1 100%; margin-top: 2px; }
+
+/* A modifier's target, so a hole is visibly attached to its body. */
+.tree .op-target {
+  color: var(--warn); font-family: ui-monospace, monospace;
+  font-size: 12px; margin-left: 8px;
+}

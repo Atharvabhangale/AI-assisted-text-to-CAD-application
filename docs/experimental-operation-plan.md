@@ -30,17 +30,18 @@ still applies and nothing downstream needed changing.
 
 ## Operations implemented
 
-Two. That is the entire vocabulary.
+Three, as of Stage 33. That is the entire vocabulary.
 
-| Operation | Parameters |
-|---|---|
-| `box` | `x`, `y`, `z` (all > 0); optional `position` (minimum corner) |
-| `cylinder` | `diameter`, `height` (both > 0); optional `position` (base centre), optional `axis` (one of `+X -X +Y -Y +Z -Z`) |
+| Operation | Kind | Fields |
+|---|---|---|
+| `box` | constructive | `parameters`: `x`, `y`, `z` (all > 0); optional `position` (minimum corner) |
+| `cylinder` | constructive | `parameters`: `diameter`, `height` (both > 0); optional `position` (base centre), optional `axis` |
+| `through_hole` | **modifier** | `target` (beside `id`/`type`); `parameters`: `diameter` (> 0), `position` (**required**), optional `axis` |
 
-Everything else — spheres, holes, subtraction, joins, fillets, chamfers,
-sketches, extrudes, patterns, assemblies — is `unsupported` by design, and the
-parser rejects any operation type it does not implement rather than passing it
-downstream.
+Everything else — spheres, blind holes, counterbores, general subtraction,
+joins, fillets, chamfers, sketches, extrudes, patterns, assemblies — is
+`unsupported` by design, and the parser rejects any operation type it does not
+implement rather than passing it downstream.
 
 ### How the plan differs from the V1 document
 
@@ -53,12 +54,83 @@ pure rename would measure nothing.
 ```json
 {
   "status": "generated",
-  "summary": "a rectangular plate",
+  "summary": "a plate with one hole",
   "operations": [
-    {"id": "body", "type": "box", "parameters": {"x": 100, "y": 60, "z": 10}}
+    {"id": "plate", "type": "box", "parameters": {"x": 100, "y": 60, "z": 10}},
+    {"id": "hole1", "type": "through_hole", "target": "plate",
+     "parameters": {"diameter": 8, "position": {"x": 10, "y": 10, "z": 0}}}
   ]
 }
 ```
+
+## `through_hole` and references (Stage 33)
+
+`through_hole` is the first **modifier**, and the first operation that refers
+to another. Its semantics are the V1 contract's (Section C.3), not invented:
+
+- the centreline is the infinite line through `position` along `axis`, so the
+  cut always emerges on both sides and **there is no depth parameter**;
+- because the cut is unbounded along the axis, the component of `position`
+  *along* `axis` has **no effect**. For a `+Z` hole only `x` and `y` locate it,
+  and `z: 0` is conventional rather than meaningful;
+- `position` is **required**, unlike on a box or cylinder. A hole has no
+  default location, so omitting it would be inventing geometry.
+
+`target` sits **beside** `id` and `type`, not inside `parameters` — it is a
+reference, not a dimension, and that is where the V1 document already keeps it.
+A `target` on a box or cylinder is an unknown field and is rejected.
+
+### The one rule that surprises people
+
+Per Section B.4, **a modifier replaces its target in place and the result
+keeps the target's id.** The modifier's own `id` is a label for traceability
+and *never names a solid*.
+
+So holes do not chain. Four holes in a plate all carry `"target": "plate"` —
+never `hole1`, `hole2`, `hole3`. A plan that drills into a hole is invalid, and
+the plan validator says so with `P11`.
+
+### How references are validated
+
+The plan validator simulates the solid set over the plan and reports at most
+one problem per bad reference, most specific first:
+
+| Code | Rule |
+|---|---|
+| `P8` | a modifier names a `target` |
+| `P9` | the target names an operation that exists in the plan |
+| `P10` | the target appears **strictly earlier** — so forward references and cycles are impossible |
+| `P11` | the target is a constructive body, not another modifier |
+| `P12` | the target has not been consumed (reserved for `subtract`; unreachable today, and a test asserts that) |
+
+These do **not** replace the V1 validator's `S6`/`S7`. That validator still
+runs on the converted document and remains authoritative; catching a bad
+reference in the plan layer only means a clearer message, sooner. A test
+corrupts a target *after* conversion to prove `S6` still fires.
+
+Geometric rules stay with the engine: a hole that misses the material is `E1`,
+and a cut that would split the body is `E3`. Neither is decidable from the
+plan, and neither is guessed at here — a test drills at `(500, 500)` and
+confirms the plan validates while the **build** fails.
+
+### Conversion to V1
+
+Almost an identity, deliberately: the plan's difference from the V1 document is
+a flatter *shape*, not different semantics.
+
+```
+{"id": "hole1", "type": "through_hole", "target": "plate",
+ "parameters": {"diameter": 8, "position": {...}, "axis": "+Z"}}
+
+        ↓  cad_experimental.adapter
+
+{"id": "hole1", "type": "through_hole", "target": "plate",
+ "diameter": 8, "position": {...}, "axis": "+Z"}
+```
+
+Nothing is reordered, renamed, reinterpreted or computed. `axis` is omitted
+when absent so the contract's own default applies; `position` is always
+written, because Section C.3 requires it.
 
 ## The modules
 
@@ -67,9 +139,10 @@ All under `apps/api/src/cad_experimental/`. Nothing in `cad_ai`, `cad_api` or
 
 | Module | Purpose |
 |---|---|
-| `plan.py` | The typed plan: `BoxOperation`, `CylinderOperation`, `OperationPlan`, `PlanStatus`, and the plan's JSON Schema |
+| `plan.py` | The typed plan: `BoxOperation`, `CylinderOperation`, `ThroughHoleOperation`, `OperationPlan`, `PlanStatus`, and the plan's JSON Schema |
 | `parser.py` | Untrusted model text -> typed operations. The security boundary |
-| `validation.py` | Plan rules `P1`-`P7`. Separate from the V1 validator, which is untouched |
+| `validation.py` | Plan rules `P1`-`P12`. Separate from the V1 validator, which is untouched |
+| `local_plan_provider.py` | The local development provider and its fixtures (Stage 32A) |
 | `adapter.py` | Plan -> canonical V1 document. A translation, with no geometry in it |
 | `build.py` | Hands the document to the existing `CadApplicationService` |
 | `prompt.py` | The experimental prompt, separately versioned |
@@ -170,6 +243,25 @@ geometry is **semantically** what was asked for, whether it built, the volume
 against an expected volume, and the RenderModel triangle count. A provider
 failure is recorded as a provider failure and never as a wrong answer.
 
+## Fixtures
+
+Run them with `python -m cad_experimental.local_plan_provider`. Each records
+the geometry it should produce, so a build is checked rather than observed.
+
+| Fixture | Expected |
+|---|---|
+| `box-100x60x10` | 60000.0 mm³, 6 faces |
+| `plate-one-hole` | plate − π·4²·10, 7 faces |
+| `plate-four-holes` | plate − 4·π·4²·10, 10 faces |
+| `cylinder-d20-h50-z` | π·10²·50, 3 faces |
+| `cylinder-bored-d20-h50` | π·(10²−4²)·50, 4 faces — a tube |
+| `cylinder-d16-h30-x` | π·8²·30, bounding box 30 × 16 × 16 |
+| `cylinder-d80-h100-z` | π·40²·100 |
+
+A hole in a **cylinder** is meaningful under the current semantics — verified,
+not assumed: a coaxial bore leaves one connected solid, so `E3` is satisfied
+and it builds to exactly π·(10²−4²)·50.
+
 ## Findings so far
 
 * **The whole path works.** A plan becomes a real B-rep solid through the
@@ -183,11 +275,26 @@ failure is recorded as a provider failure and never as a wrong answer.
   duplicate S9, and the existing validator rejects the translated document
   with `S9`. That is the intended division of labour — the plan layer judges
   plans, and the CAD contract judges CAD.
-* **The prompt is much shorter**: 4018 characters against the production
-  prompt's 14943, for a vocabulary of two operations. Whether that translates
-  into better model accuracy is **not yet known** — see below.
+* **The prompt is much shorter**: 5374 characters against the production
+  prompt's 14943, for a vocabulary of three operations. Whether that
+  translates into better model accuracy is **not yet known** — see below.
+* **A modifier and a reference cost the architecture nothing.** Stage 33 added
+  `through_hole` without a second CAD engine, a second validator, a second
+  build path, a second cache or a second RenderModel, and without touching
+  `local_cad.py` or the V1 validator. The four-hole plate builds to
+  57989.38070170254 mm³ against a closed form of 57989.38070170253 — one solid,
+  ten faces, outside dimensions unchanged.
+* **The holes are real openings, not a visual impression.** Checked in the
+  mesh's own coordinates: 253 rim vertices per hole, zero vertices inside any
+  hole, and zero top-face triangles whose centroid falls within one.
 
 ## What is NOT known
+
+**Real Anthropic testing is still postponed.** Stage 33 was developed and
+tested entirely against the local development provider, which supplies
+developer-written plans and calls no model. No result in this document, in the
+fixtures, in the tests or on the page is a Claude result of any kind, and no
+claim is made about Claude Haiku's quality on any representation.
 
 **No live measurement exists.** `ANTHROPIC_API_KEY` is not available in the
 environment this was built in, so the five cases have not been put to real

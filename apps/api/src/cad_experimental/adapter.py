@@ -24,18 +24,30 @@ plan             V1 document
 ===============  ===========================================================
 ``box``          ``{"type": "box", "size": {x, y, z}}``
 ``cylinder``     ``{"type": "cylinder", "diameter", "height"}``
+``through_hole`` ``{"type": "through_hole", "target", "diameter",
+                 "position"}`` -- the plan's operation-level ``target``
+                 becomes the feature's ``target``, which is where the V1
+                 document already keeps it
 ``position``     the same ``position`` object -- **omitted when absent**, so
                  the contract's own default applies rather than an invented
-                 ``{0,0,0}``
+                 ``{0,0,0}``. A ``through_hole`` always carries one, because
+                 Section C.3 requires it
 ``axis``         the same ``axis`` string, omitted when absent
 ===============  ===========================================================
+
+The translation is almost an identity, and deliberately so: the plan's whole
+difference from the V1 document is a flatter *shape*, not different
+semantics. Nothing here reinterprets a reference, reorders operations,
+renames an id or computes geometry -- so the V1 validator judges exactly
+what the plan said, and rule S6/S7 still decide whether a reference is
+sound.
 """
 
 from __future__ import annotations
 
 from typing import Any, Dict, List
 
-from .plan import BOX, CYLINDER, UNITS, OperationPlan, PlanStatus
+from .plan import BOX, CYLINDER, THROUGH_HOLE, UNITS, OperationPlan, PlanStatus
 
 #: The V1 schema version this adapter writes. It tracks the specification,
 #: and is imported from nowhere else because ``cad_core`` exposes it as the
@@ -100,6 +112,20 @@ def _feature(operation: Any) -> Dict[str, Any]:
         }
         if operation.axis is not None:
             feature["axis"] = operation.axis
+    elif kind == THROUGH_HOLE:
+        # `position` is written unconditionally: Section C.3 requires it, and
+        # the parser has already guaranteed it. It is returned early because
+        # the shared position handling below treats it as optional.
+        feature = {
+            "id": operation.id,
+            "type": THROUGH_HOLE,
+            "target": operation.target,
+            "diameter": operation.diameter,
+            "position": operation.position.to_dict(),
+        }
+        if operation.axis is not None:
+            feature["axis"] = operation.axis
+        return feature
     else:
         raise AdapterError(f"no V1 feature for operation type {kind!r}")
 

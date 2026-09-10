@@ -90,6 +90,14 @@ function showOperations(operations: readonly PlanOperation[]): void {
     id.className = "op-id";
     id.textContent = `  #${operation.id}`;
     heading.append(type, id);
+    if (operation.target !== undefined) {
+      // A modifier acts on a solid; showing which one is the difference
+      // between a readable plan and a list of unattached operations.
+      const target = document.createElement("span");
+      target.className = "op-target";
+      target.textContent = `→ ${operation.target}`;
+      heading.append(target);
+    }
     item.append(heading);
 
     const list = document.createElement("dl");

@@ -20,7 +20,18 @@ from typing import Any, Dict, Optional, Tuple
 #: by the parser rather than passed along to be someone else's problem.
 BOX = "box"
 CYLINDER = "cylinder"
-OPERATION_TYPES: Tuple[str, ...] = (BOX, CYLINDER)
+THROUGH_HOLE = "through_hole"
+OPERATION_TYPES: Tuple[str, ...] = (BOX, CYLINDER, THROUGH_HOLE)
+
+#: Operations that add a solid to the solid set, named by their own id
+#: (specification Section B.4).
+CONSTRUCTIVE_TYPES: Tuple[str, ...] = (BOX, CYLINDER)
+
+#: Operations that act on an existing solid named by their ``target``. A
+#: modifier replaces its target **in place** and the result keeps the
+#: **target's** id -- the modifier's own id never names a solid. So four
+#: holes in a plate all target the plate, and never each other.
+MODIFIER_TYPES: Tuple[str, ...] = (THROUGH_HOLE,)
 
 #: The six signed principal directions, exactly as the V1 contract spells
 #: them (Section A.4). No arbitrary vectors.
@@ -40,9 +51,26 @@ BOX_OPTIONAL: Tuple[str, ...] = ("position",)
 CYLINDER_REQUIRED: Tuple[str, ...] = ("diameter", "height")
 CYLINDER_OPTIONAL: Tuple[str, ...] = ("position", "axis")
 
+#: ``position`` is REQUIRED for a through_hole, unlike box and cylinder: a
+#: hole has no defaulted location, so omitting it would be inventing one
+#: (specification Section C.3).
+THROUGH_HOLE_REQUIRED: Tuple[str, ...] = ("diameter", "position")
+THROUGH_HOLE_OPTIONAL: Tuple[str, ...] = ("axis",)
+
 PARAMETERS: Dict[str, Tuple[Tuple[str, ...], Tuple[str, ...]]] = {
     BOX: (BOX_REQUIRED, BOX_OPTIONAL),
     CYLINDER: (CYLINDER_REQUIRED, CYLINDER_OPTIONAL),
+    THROUGH_HOLE: (THROUGH_HOLE_REQUIRED, THROUGH_HOLE_OPTIONAL),
+}
+
+#: Which operation-level keys each type may carry, beside ``parameters``.
+#: ``target`` belongs at the operation level, as it does in the V1 document,
+#: rather than buried among the parameters: it is a reference, not a
+#: dimension. A ``target`` on a box is an unknown field and is rejected.
+OPERATION_FIELDS: Dict[str, Tuple[str, ...]] = {
+    BOX: ("id", "type", "parameters"),
+    CYLINDER: ("id", "type", "parameters"),
+    THROUGH_HOLE: ("id", "type", "target", "parameters"),
 }
 
 #: Operation ids: the same shape the V1 contract requires of feature ids
@@ -130,6 +158,44 @@ class CylinderOperation:
         return values
 
 
+@dataclass(frozen=True)
+class ThroughHoleOperation:
+    """A cylindrical cut passing completely through ``target``.
+
+    Follows Section C.3 exactly, and invents nothing:
+
+    * the centreline is the infinite line through ``position`` along
+      ``axis``, so the cut always emerges on both sides and there is no
+      depth parameter;
+    * because the cut is unbounded along the axis, the component of
+      ``position`` **along** ``axis`` has no effect -- only the two
+      perpendicular components locate the hole. ``z: 0`` for a ``+Z`` hole
+      is conventional, not meaningful;
+    * ``position`` is required. A hole has no default location.
+
+    ``target`` names the solid to cut. Per Section B.4 the result keeps the
+    target's id, so this operation's own ``id`` is a label for traceability
+    and never names a solid.
+    """
+
+    TYPE = THROUGH_HOLE
+
+    id: str
+    target: str
+    diameter: float
+    position: Point
+    axis: Optional[str] = None
+
+    def parameters(self) -> Dict[str, Any]:
+        values: Dict[str, Any] = {
+            "diameter": self.diameter,
+            "position": self.position.to_dict(),
+        }
+        if self.axis is not None:
+            values["axis"] = self.axis
+        return values
+
+
 #: A parsed operation. A union of exactly the implemented types.
 Operation = Any  # BoxOperation | CylinderOperation (3.9-compatible)
 
@@ -139,13 +205,27 @@ def operation_type(operation: Operation) -> str:
     return operation.TYPE
 
 
+def is_constructive(operation: Operation) -> bool:
+    """True if the operation adds a solid named by its own id."""
+    return operation_type(operation) in CONSTRUCTIVE_TYPES
+
+
+def is_modifier(operation: Operation) -> bool:
+    """True if the operation acts on a solid named by its ``target``."""
+    return operation_type(operation) in MODIFIER_TYPES
+
+
 def operation_to_dict(operation: Operation) -> Dict[str, Any]:
     """Round-trip an operation back to its plan shape."""
-    return {
+    payload: Dict[str, Any] = {
         "id": operation.id,
         "type": operation_type(operation),
-        "parameters": operation.parameters(),
     }
+    target = getattr(operation, "target", None)
+    if target is not None:
+        payload["target"] = target
+    payload["parameters"] = operation.parameters()
+    return payload
 
 
 @dataclass(frozen=True)
@@ -208,6 +288,13 @@ def plan_schema() -> Dict[str, Any]:
                     "properties": {
                         "id": {"type": "string", "pattern": ID_PATTERN},
                         "type": {"type": "string", "enum": list(OPERATION_TYPES)},
+                        # A reference to an earlier constructive operation.
+                        # Required for through_hole, forbidden for the two
+                        # constructive types -- a constraint the parser
+                        # enforces per type, which JSON Schema cannot express
+                        # here without a conditional the model would have to
+                        # reason about.
+                        "target": {"type": "string", "pattern": ID_PATTERN},
                         "parameters": {
                             "type": "object",
                             "properties": {
@@ -235,7 +322,14 @@ def plan_schema() -> Dict[str, Any]:
 __all__ = [
     "AXES",
     "BOX",
+    "CONSTRUCTIVE_TYPES",
     "CYLINDER",
+    "MODIFIER_TYPES",
+    "OPERATION_FIELDS",
+    "THROUGH_HOLE",
+    "ThroughHoleOperation",
+    "is_constructive",
+    "is_modifier",
     "DEFAULT_AXIS",
     "ID_PATTERN",
     "OPERATION_TYPES",

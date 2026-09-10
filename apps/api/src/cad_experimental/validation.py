@@ -23,7 +23,16 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, List, Tuple
 
-from .plan import AXES, BOX, CYLINDER, OperationPlan, PlanStatus
+from .plan import (
+    AXES,
+    BOX,
+    CONSTRUCTIVE_TYPES,
+    CYLINDER,
+    MODIFIER_TYPES,
+    THROUGH_HOLE,
+    OperationPlan,
+    PlanStatus,
+)
 
 #: Plan rule codes. Prefixed ``P`` so they can never be mistaken in a log for
 #: the specification's own ``S``/``E`` codes.
@@ -35,7 +44,21 @@ P5 = "P5"  # the axis is one of the six signed principal directions
 P6 = "P6"  # a position is three finite numbers
 P7 = "P7"  # a non-generated plan explains itself
 
-RULE_CODES: Tuple[str, ...] = (P1, P2, P3, P4, P5, P6, P7)
+# --- reference rules, added with the first modifier (through_hole) ---------
+#
+# These mirror the specification's S6/S7 for the *plan*, so a bad reference
+# is caught before conversion rather than after. They do not replace S6/S7:
+# the V1 validator still runs on the converted document and remains
+# authoritative. Catching it here means a clearer message, sooner.
+P8 = "P8"   # a modifier names a target
+P9 = "P9"   # the target names an operation that exists in the plan
+P10 = "P10"  # the target appears strictly earlier (no forward refs, no cycles)
+P11 = "P11"  # the target is a constructive body, not another modifier
+P12 = "P12"  # the target has not been consumed
+
+RULE_CODES: Tuple[str, ...] = (
+    P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12,
+)
 
 
 @dataclass(frozen=True)
@@ -84,6 +107,20 @@ def validate_plan(plan: OperationPlan) -> PlanValidation:
                 )
             )
 
+    # The solid set of Section B.4, simulated over the plan.
+    #
+    # `declared` is every operation id, with the index where it first
+    # appeared -- used to tell "no such id" from "not yet". `live` is the
+    # ids that actually NAME A SOLID, which is constructive ids only: a
+    # modifier replaces its target in place and the result keeps the
+    # target's id, so a modifier's own id never enters the solid set. That
+    # single fact is what makes a hole-targeting-a-hole plan invalid.
+    declared: Dict[str, int] = {}
+    for index, operation in enumerate(plan.operations):
+        declared.setdefault(operation.id, index)
+    live: Dict[str, int] = {}
+    consumed: Dict[str, int] = {}
+
     seen: Dict[str, int] = {}
     for index, operation in enumerate(plan.operations):
         where = f"operations[{index}]"
@@ -121,12 +158,31 @@ def validate_plan(plan: OperationPlan) -> PlanValidation:
                         f"{where}.axis",
                     )
                 )
+        elif kind == THROUGH_HOLE:
+            _positive(operation.diameter, f"{where}.diameter", problems)
+            if operation.axis is not None and operation.axis not in AXES:
+                problems.append(
+                    PlanProblem(
+                        P5,
+                        f"{operation.axis!r} is not one of {', '.join(AXES)}",
+                        f"{where}.axis",
+                    )
+                )
+            _reference(
+                operation, index, where, declared, live, consumed, problems
+            )
         else:
             # Unreachable through the parser, which rejects unknown types.
             # Kept so a plan built in code cannot bypass the check.
             problems.append(
                 PlanProblem(P3, f"unknown operation type {kind!r}", where)
             )
+
+        # Update the simulated solid set. A constructive operation adds a
+        # solid named by its own id; a modifier adds nothing, because its
+        # result keeps the target's id and the target is already live.
+        if kind in CONSTRUCTIVE_TYPES:
+            live.setdefault(operation.id, index)
 
         position = operation.position
         if position is not None:
@@ -145,6 +201,91 @@ def validate_plan(plan: OperationPlan) -> PlanValidation:
                     )
 
     return PlanValidation(valid=not problems, problems=tuple(problems))
+
+
+def _reference(
+    operation: object,
+    index: int,
+    where: str,
+    declared: Dict[str, int],
+    live: Dict[str, int],
+    consumed: Dict[str, int],
+    problems: List[PlanProblem],
+) -> None:
+    """Judge one modifier's ``target`` against the simulated solid set.
+
+    Reported in order of specificity, and at most one problem per target:
+    telling a caller both "no such id" and "not a body" about the same
+    reference is noise, and the first true statement is the useful one.
+    """
+    target = getattr(operation, "target", None)
+    if not isinstance(target, str) or not target:
+        # The parser requires a target, so this is only reachable from a
+        # plan built in code. Checked anyway: the validator must not depend
+        # on the parser having run.
+        problems.append(
+            PlanProblem(P8, "a modifier must name a `target`", f"{where}.target")
+        )
+        return
+
+    if target == operation.id:
+        problems.append(
+            PlanProblem(
+                P10,
+                f"{target!r} refers to itself; a reference must point to an "
+                "earlier operation",
+                f"{where}.target",
+            )
+        )
+        return
+
+    if target not in declared:
+        known = ", ".join(sorted(declared)) or "nothing"
+        problems.append(
+            PlanProblem(
+                P9,
+                f"{target!r} names no operation in the plan; declared: {known}",
+                f"{where}.target",
+            )
+        )
+        return
+
+    if declared[target] > index:
+        problems.append(
+            PlanProblem(
+                P10,
+                f"{target!r} appears later in the plan (at operations["
+                f"{declared[target]}]); a reference must point strictly "
+                "earlier, so forward references and cycles are impossible",
+                f"{where}.target",
+            )
+        )
+        return
+
+    if target in consumed:
+        problems.append(
+            PlanProblem(
+                P12,
+                f"{target!r} was already consumed at operations["
+                f"{consumed[target]}] and is no longer a solid",
+                f"{where}.target",
+            )
+        )
+        return
+
+    if target not in live:
+        # Declared, earlier, not consumed -- so it is a modifier's id. A
+        # modifier's result keeps its TARGET's id, so its own id never names
+        # a solid, and a hole cannot be drilled into a hole.
+        problems.append(
+            PlanProblem(
+                P11,
+                f"{target!r} does not name a solid: it is a modifier, whose "
+                "result keeps its own target's id. Target the constructive "
+                "operation instead",
+                f"{where}.target",
+            )
+        )
 
 
 def _positive(value: float, where: str, problems: List[PlanProblem]) -> None:
@@ -166,12 +307,17 @@ def _finite(value: object) -> bool:
 
 __all__ = [
     "P1",
+    "P10",
+    "P11",
+    "P12",
     "P2",
     "P3",
     "P4",
     "P5",
     "P6",
     "P7",
+    "P8",
+    "P9",
     "RULE_CODES",
     "PlanProblem",
     "PlanValidation",
