@@ -870,13 +870,126 @@ references are still operation-level, and it still has no `units` field to get
 wrong. But the cheap part of the hypothesis is gone, and **the question can
 only be answered by a live comparison that has never been run.**
 
+## Stage 40: the real Haiku comparison
+
+**The first live Anthropic measurement in this project's history.** Every
+earlier evaluation ran on Gemini or on a stub. The full run, its raw output
+and its diagnosis are preserved under
+`docs/evaluation-baselines/stage40-v1-vs-operation-plan/`.
+
+130 real calls: 13 cases, 5 attempts, both representations, one model
+(`claude-haiku-4-5-20251001`). Everything was frozen and committed before the
+first call.
+
+### The measured result
+
+| Metric | V1 JSON | Operation Plan |
+|---|---:|---:|
+| Model output valid | 100.0% | 100.0% |
+| Parse/structure valid | 0.0% | 0.0% |
+| CAD validation valid | 0.0% | 0.0% |
+| Build success | 0.0% | 0.0% |
+| Semantic correctness | **0.0%** | **0.0%** |
+| RenderModel success | 0.0% | 0.0% |
+| Correct unsupported handling | 0.0% | 0.0% |
+| Prompt characters | 14 943 | 14 685 |
+| Mean latency | 2.69 s | 1.98 s |
+| Provider errors | 0 | 0 |
+
+Every call was answered and every call was rejected at parse. One cause
+dominates: Haiku wrapped its JSON in a markdown fence, and **both** parsers
+refuse a fence by design -- neither repairs model output, deliberately, on
+both sides. The strict transport, not the representation, decided every case.
+
+### Why structured output was unavailable -- a finding in itself
+
+Both representations were designed to be used *with* API structured output,
+which is what makes a strict parser reasonable. Measured against the live
+API:
+
+* the **V1** schema is accepted once `exclusiveMinimum` is stripped: **8**
+  optional properties;
+* the **operation plan** schema is refused outright: **31** optional
+  properties against an API limit of **24**.
+
+The cause is the plan's own shape. Its flat `parameters` object must hold all
+fifteen parameter names of all nine operation types, and every one is
+optional, because which are required depends on the sibling `type` field.
+Sanitising cannot reduce that count -- a test asserts it.
+
+So there is no configuration in which both frozen representations can use
+structured output. Running V1 with it and the plan without would have handed
+V1 a grammar-constrained decoder the plan cannot have, so both ran without
+it. **The flat plan shape that makes the language easy to extend is the same
+thing that makes it incompatible with grammar-constrained decoding.** That is
+a real cost, and it was invisible until something tried to use it.
+
+### Where the failures came from
+
+Replaying the recorded output through the same frozen parsers, validators,
+adapter and build -- after extracting the fenced JSON block, the only leniency
+added -- gives the counterfactual for a fence-tolerant transport:
+
+| | V1 JSON | Operation Plan |
+|---|---:|---:|
+| Would-be correct | 16 / 65 | **56 / 65** |
+| Rate | 24.6% | **86.2%** |
+
+On the eight cases that produce manufacturable geometry the operation plan
+was **40/40** and V1 was **0/40**.
+
+How each answer was framed:
+
+| Shape | V1 | Plan |
+|---|---:|---:|
+| fenced JSON | 22 | **65** |
+| fenced JSON + trailing prose | 21 | 0 |
+| prose only, no JSON at all | **22** | 0 |
+
+V1's failures were about its **envelope**, not about CAD: 22 answers were
+English prose with no JSON, and 16 were a correct-looking document with no
+`status` wrapper. The plan's flatter envelope -- `status` and `operations` at
+the top level -- was followed on all 65 attempts.
+
+The plan's own 9 failures are both traceable to this project's decisions
+rather than to the model:
+
+* **6 refusals of the sketch cases.** The Stage 37/38 prompt says an extrude
+  or revolve "cannot be built" and tells the model not to offer one where a
+  solid operation will do. Haiku read that as *unsupported* and refused --
+  which is a defensible reading of what it was told. Case 10 was refused
+  5/5 for exactly this reason.
+* **3 parse rejections on `"reason": null`.** The model emitted an explicit
+  null beside `status: generated`; the frozen parser accepts a string or an
+  absent key, not a null.
+
+This is a **diagnostic, not a score.** It was computed after the scores were
+seen, it replaces nothing, and no prompt, parser, validator or expectation
+was changed to produce it.
+
+### What Stage 40 settles, and what it does not
+
+Settled: the prompt-size hypothesis is dead either way (14 685 vs 14 943, and
+the shorter prompt scored the same 0%). The plan's *envelope* is markedly
+easier for Haiku to produce than V1's nested one. And the plan cannot use
+structured output at all.
+
+Not settled: whether the plan is better **in a configuration either could
+ship in**. Both need a transport that tolerates a fence, or the plan needs a
+schema shape the API will compile. Until one of those exists, no adoption
+decision has evidence behind it.
+
 ## What is NOT known
 
-**Real Anthropic testing is still postponed.** Stages 33 to 39 were developed
-and tested entirely against the local development provider, which supplies
-developer-written plans and calls no model. No result in this document, in the
-fixtures, in the tests or on the page is a Claude result of any kind, and no
-claim is made about Claude Haiku's quality on any representation.
+**Real Anthropic testing happened at Stage 40, and only there.** Stages 33 to
+39 were developed and tested entirely against the local development provider,
+which supplies developer-written plans and calls no model. No result in this
+document *outside the Stage 40 section* is a Claude result of any kind, and
+the fixtures and tests remain stub-driven.
+
+**One model, one run, 13 cases.** The Stage 40 numbers are Claude Haiku 4.5
+only. Nothing is known about any other model, and the corpus is a seventh the
+size of production's 35-case corpus.
 
 **Nothing is known about how a model handles the new vocabulary.** Six
 operations were added across Stages 33–38 and not one of them has been put to

@@ -92,6 +92,42 @@ SHARED_TIMEOUT_SECONDS = 120.0
 #: What one build asks for. Identical on both arms.
 OUTPUTS: Tuple[str, ...] = ("geometry", "render")
 
+#: JSON-Schema keywords the Anthropic structured-output validator rejects,
+#: measured against the live API rather than recalled. Kept because the two
+#: frozen schemas both use some of them, and because a future run may want
+#: to send a sanitised schema.
+UNSUPPORTED_SCHEMA_KEYWORDS: Tuple[str, ...] = (
+    "exclusiveMinimum", "exclusiveMaximum", "maximum", "minimum",
+    "maxItems", "maxLength", "minLength", "multipleOf",
+)
+
+#: The API's ceiling on optional properties in a structured-output schema,
+#: read from its own error message. Measured 2026-09-10.
+OPTIONAL_PROPERTY_LIMIT = 24
+
+#: Whether API-level structured output is used. It is **off for both arms**,
+#: and not by preference.
+#:
+#: Measured against the live API: the V1 response schema is accepted once
+#: `exclusiveMinimum` is stripped (8 optional properties). The operation-plan
+#: schema is refused outright -- it declares **31** optional properties
+#: against a limit of 24, because its flat `parameters` object must hold all
+#: fifteen parameter names of all nine operation types, every one of them
+#: optional. No sanitising fixes that; it is the shape of the representation.
+#:
+#: So there is no configuration in which BOTH frozen representations can use
+#: structured output. Running V1 with it and the plan without would hand V1 a
+#: grammar-constrained decoder the plan cannot have, which is precisely the
+#: asymmetry the fairness rule forbids. Both therefore run without it, on the
+#: prompt's own instruction to return JSON -- and the fact that only one of
+#: them *could* have used it is reported as a finding rather than hidden in a
+#: configuration.
+#:
+#: This was established before any model output was observed: all 130 calls
+#: of the first attempt were rejected by request validation, so no result was
+#: seen and nothing here is a reaction to a score.
+STRUCTURED_OUTPUT_ENABLED = False
+
 #: Attempts per case per representation. The same on both sides, always.
 DEFAULT_ATTEMPTS = 5
 
@@ -149,6 +185,60 @@ def bridge_credential() -> None:
     os.environ[SDK_KEY_VARIABLE] = key
 
 
+def sanitise_schema(schema: Any) -> Any:
+    """Strip the JSON-Schema keywords the structured-output API rejects.
+
+    Kept for the record and for the tests: it is what *would* be needed to
+    send either schema as a grammar, and it is enough for V1 and not enough
+    for the plan. It removes only bounds -- never a type, an enum, a
+    ``required`` list or ``additionalProperties`` -- so a sanitised schema
+    still describes the same shape, just without its numeric and length
+    limits. Those limits are enforced by the parser regardless, which is
+    where they belong.
+    """
+    if isinstance(schema, dict):
+        out: Dict[str, Any] = {}
+        for key, value in schema.items():
+            if key in UNSUPPORTED_SCHEMA_KEYWORDS:
+                continue
+            if key == "minItems" and isinstance(value, int):
+                # The API accepts only 0 or 1 here.
+                out[key] = 1 if value >= 1 else 0
+                continue
+            out[key] = sanitise_schema(value)
+        return out
+    if isinstance(schema, list):
+        return [sanitise_schema(item) for item in schema]
+    return schema
+
+
+def optional_properties(schema: Any) -> Tuple[str, ...]:
+    """Every optional property in a schema, by path.
+
+    The count is what the structured-output API caps at
+    :data:`OPTIONAL_PROPERTY_LIMIT`, so this is how the two representations'
+    compilability is measured rather than guessed.
+    """
+    found: List[str] = []
+
+    def walk(node: Any, path: str) -> None:
+        if isinstance(node, dict):
+            properties = node.get("properties")
+            if isinstance(properties, dict):
+                required = set(node.get("required") or ())
+                for name in properties:
+                    if name not in required:
+                        found.append(f"{path}.{name}")
+            for key, value in node.items():
+                walk(value, f"{path}.{key}")
+        elif isinstance(node, list):
+            for index, value in enumerate(node):
+                walk(value, f"{path}[{index}]")
+
+    walk(schema, "")
+    return tuple(found)
+
+
 # --- the shared timing / equalising wrapper --------------------------------
 
 
@@ -175,7 +265,12 @@ class _TimedModel:
         equalised = ModelRequest(
             system=request.system,
             user_text=request.user_text,
-            output_schema=request.output_schema,
+            # Dropped for BOTH arms, for the reason recorded at
+            # STRUCTURED_OUTPUT_ENABLED. A `None` schema is how the provider
+            # already expresses "send no output_config".
+            output_schema=(
+                request.output_schema if STRUCTURED_OUTPUT_ENABLED else None
+            ),
             max_output_tokens=SHARED_MAX_OUTPUT_TOKENS,
         )
         self.last_latency_seconds = None
@@ -618,18 +713,32 @@ def _score_geometry(
 # --- the run ---------------------------------------------------------------
 
 
-def _rate(records: Sequence[AttemptRecord], field_name: str) -> Optional[float]:
+#: The stage flags a rate can be taken over, each read by an explicit
+#: accessor. Spelled out rather than reached by a computed attribute name:
+#: nothing in this package looks an attribute up by a name it was handed, so
+#: that a test can assert the absence of the pattern outright.
+_STAGE_FLAGS: Dict[str, Any] = {
+    "model_output_valid": lambda r: r.model_output_valid,
+    "structure_valid": lambda r: r.structure_valid,
+    "cad_valid": lambda r: r.cad_valid,
+    "build_success": lambda r: r.build_success,
+    "render_success": lambda r: r.render_success,
+    "semantically_correct": lambda r: r.semantically_correct,
+}
+
+
+def _rate(records: Sequence[AttemptRecord], flag: str) -> Optional[float]:
     """A success rate over attempts that the provider actually answered.
 
     A provider error is *unmeasured*, not incorrect, and stays out of every
     denominator -- the project's standing rule about not conflating provider
     reliability with model quality.
     """
+    read = _STAGE_FLAGS[flag]
     answered = [r for r in records if r.category != PROVIDER_ERROR]
     if not answered:
         return None
-    hits = sum(1 for r in answered if getattr(r, field_name))
-    return hits / len(answered)
+    return sum(1 for r in answered if read(r)) / len(answered)
 
 
 def summarise(records: Sequence[AttemptRecord]) -> Dict[str, Any]:
@@ -725,6 +834,10 @@ def frozen_state() -> Dict[str, Any]:
     from .prompt import PROMPT_VERSION as PLAN_VERSION
     from .prompt import prompt_fingerprint as plan_fingerprint
 
+    from cad_ai.specification import response_schema
+
+    from .plan import plan_schema
+
     sizes = prompt_sizes()
     return {
         "model": MODEL,
@@ -732,6 +845,12 @@ def frozen_state() -> Dict[str, Any]:
         "corpus_fingerprint": corpus_fingerprint(),
         "shared_max_output_tokens": SHARED_MAX_OUTPUT_TOKENS,
         "shared_timeout_seconds": SHARED_TIMEOUT_SECONDS,
+        "structured_output_enabled": STRUCTURED_OUTPUT_ENABLED,
+        "optional_property_limit": OPTIONAL_PROPERTY_LIMIT,
+        "optional_properties": {
+            V1: len(optional_properties(response_schema())),
+            PLAN: len(optional_properties(plan_schema())),
+        },
         "outputs": list(OUTPUTS),
         V1: {
             "prompt_version": V1_VERSION,
@@ -821,6 +940,11 @@ def format_report(data: Mapping[str, Any]) -> str:
         f"attempts per case    {data['attempts_per_case']}",
         f"cases                {len(data['cases'])}",
         f"max output tokens    {frozen['shared_max_output_tokens']} (both arms)",
+        f"structured output    {frozen['structured_output_enabled']} "
+        f"(both arms; plan schema has "
+        f"{frozen['optional_properties'][PLAN]} optional properties against "
+        f"an API limit of {frozen['optional_property_limit']}, V1 has "
+        f"{frozen['optional_properties'][V1]})",
         "",
         f"{'Metric':<32}{'V1 JSON':>16}{'Operation Plan':>18}",
         "-" * 66,

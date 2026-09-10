@@ -1,0 +1,45 @@
+========================================================================
+FAILURE DIAGNOSIS  (counterfactual: a fence-tolerant transport)
+  NOT the measured result, which is 0% on both arms.
+========================================================================
+
+                                           V1 JSON    Operation Plan
+--------------------------------------------------------------------
+Would-be correct                                16                56
+Attempts                                        65                65
+Would-be correctness rate                    24.6%             86.2%
+
+v1_json: how the answer was framed
+     22  prose only
+     22  fenced json
+     21  fenced json + prose
+v1_json: where it landed
+    --  22  no JSON block at all
+    --  16  JSON, but no `status` envelope
+    ok  16  CORRECT
+    --  10  wrongly refused
+    --   1  asked for clarification
+
+operation_plan: how the answer was framed
+     65  fenced json
+operation_plan: where it landed
+    ok  56  CORRECT
+    --   6  wrongly refused
+    --   3  plan parser rejected: `reason` must be a string
+
+per case (would-be correct / attempts):
+case                            V1      plan
+------------------------------------------------
+01-plate-worded         0/5       5/5       
+02-cylinder-axis        0/5       5/5       
+03-box-dimensional      0/5       5/5       
+04-plate-centre-hole    0/5       5/5       
+05-plate-two-holes      0/5       5/5       
+06-cube-bore            0/5       5/5       
+07-plate-chamfer        0/5       5/5       
+08-plate-fillet         0/5       5/5       
+09-profile-extrude      0/5       1/5       
+10-profile-revolve      5/5       0/5       
+11-sphere               5/5       5/5       
+12-union                3/5       5/5       
+13-engine               3/5       5/5       

@@ -1,0 +1,48 @@
+========================================================================
+V1 JSON vs CAD OPERATION PLAN
+========================================================================
+model                claude-haiku-4-5-20251001
+corpus               1.0.0 (6e15d27042496c43)
+attempts per case    5
+cases                13
+max output tokens    4096 (both arms)
+structured output    False (both arms; plan schema has 31 optional properties against an API limit of 24, V1 has 8)
+
+Metric                                   V1 JSON    Operation Plan
+------------------------------------------------------------------
+Model output valid                        100.0%            100.0%
+Parse/structure valid                       0.0%              0.0%
+CAD validation valid                        0.0%              0.0%
+Build success                               0.0%              0.0%
+Semantic correctness                        0.0%              0.0%
+RenderModel success                         0.0%              0.0%
+Correct unsupported                         0.0%              0.0%
+Mean latency (s)                            2.69              1.98
+Attempts                                      65                65
+Provider errors                                0                 0
+Prompt characters                          14943             14685
+
+v1_json failure categories:
+  -- PARSER_REJECTED                     65
+
+operation_plan failure categories:
+  -- PARSER_REJECTED                     65
+
+per case (correct / answered):
+case                              V1        plan   expectation
+------------------------------------------------------------------------
+01-plate-worded         0/5         0/5          build
+02-cylinder-axis        0/5         0/5          build
+03-box-dimensional      0/5         0/5          build
+04-plate-centre-hole    0/5         0/5          build
+05-plate-two-holes      0/5         0/5          build
+06-cube-bore            0/5         0/5          build
+07-plate-chamfer        0/5         0/5          build
+08-plate-fillet         0/5         0/5          build
+09-profile-extrude      0/5         0/5          unsupported / valid_unexecutable
+10-profile-revolve      0/5         0/5          unsupported / valid_unexecutable
+11-sphere               0/5         0/5          unsupported
+12-union                0/5         0/5          unsupported
+13-engine               0/5         0/5          unsupported
+
+written to /tmp/claude-0/-home-user-AI-assisted-text-to-CAD-application/357c814b-4015-59eb-b6f5-c4f3e073b64e/scratchpad/stage40-live.json

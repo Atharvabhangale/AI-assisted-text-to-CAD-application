@@ -120,9 +120,12 @@ class StubModel:
             raise ProviderError(
                 "unavailable", detail="stub", kind=ProviderErrorKind.RATE_LIMITED
             )
-        # The plan schema advertises `operations`; the V1 schema does not.
-        schema = json.dumps(request.output_schema or {})
-        is_plan = '"operations"' in schema
+        # Told apart by the SYSTEM PROMPT, not the schema: structured output
+        # is disabled for both arms, so `output_schema` is None on both and a
+        # schema-based discriminator would silently answer every call as V1.
+        from cad_experimental.prompt import system_prompt as plan_prompt
+
+        is_plan = request.system == plan_prompt()
         payload = self.plan_payload if is_plan else self.v1_payload
         return ModelResponse(
             text=json.dumps(payload), provider="stub",
@@ -730,6 +733,90 @@ class SafetyTests(unittest.TestCase):
         self.assertIn(f'MODEL = "{rc.MODEL}"', source)
         self.assertEqual(rc.MODEL, "claude-haiku-4-5-20251001")
 
+
+
+# --- 8. schema compatibility, measured against the API's own rules --------
+
+
+class SchemaCompatibilityTests(unittest.TestCase):
+    """Why structured output is off for both arms.
+
+    The numbers here are the reason, and they are computed from the frozen
+    schemas rather than transcribed, so they cannot drift from the claim.
+    """
+
+    def test_the_plan_schema_exceeds_the_api_optional_property_limit(self):
+        from cad_experimental.plan import plan_schema
+
+        count = len(rc.optional_properties(plan_schema()))
+        self.assertGreater(count, rc.OPTIONAL_PROPERTY_LIMIT)
+
+    def test_the_v1_schema_is_within_the_limit(self):
+        from cad_ai.specification import response_schema
+
+        count = len(rc.optional_properties(response_schema()))
+        self.assertLessEqual(count, rc.OPTIONAL_PROPERTY_LIMIT)
+
+    def test_the_cause_is_the_flat_parameters_object(self):
+        """All nine operation types share one optional-keyed parameters bag."""
+        from cad_experimental.plan import OPERATION_TYPES, plan_schema
+
+        parameters = (
+            plan_schema()["properties"]["operations"]["items"]
+            ["properties"]["parameters"]
+        )
+        self.assertGreaterEqual(
+            len(parameters["properties"]), len(OPERATION_TYPES)
+        )
+        self.assertFalse(parameters["additionalProperties"])
+
+    def test_sanitising_does_not_rescue_the_plan_schema(self):
+        """Stripping bounds cannot reduce the optional-property count."""
+        from cad_experimental.plan import plan_schema
+
+        before = len(rc.optional_properties(plan_schema()))
+        after = len(rc.optional_properties(rc.sanitise_schema(plan_schema())))
+        self.assertEqual(before, after)
+        self.assertGreater(after, rc.OPTIONAL_PROPERTY_LIMIT)
+
+    def test_sanitising_removes_only_bounds(self):
+        """Never a type, an enum, a required list or additionalProperties."""
+        schema = {
+            "type": "object",
+            "properties": {"n": {"type": "number", "exclusiveMinimum": 0,
+                                 "maximum": 10}},
+            "required": ["n"],
+            "additionalProperties": False,
+            "items": {"type": "array", "minItems": 2, "maxItems": 9},
+        }
+        out = rc.sanitise_schema(schema)
+        self.assertEqual(out["type"], "object")
+        self.assertEqual(out["required"], ["n"])
+        self.assertFalse(out["additionalProperties"])
+        self.assertEqual(out["properties"]["n"], {"type": "number"})
+        self.assertEqual(out["items"], {"type": "array", "minItems": 1})
+
+    def test_structured_output_is_off_for_both_arms_or_neither(self):
+        """One switch, so it cannot be on for one representation only."""
+        source = (SOURCE / "representation_comparison.py").read_text()
+        self.assertEqual(source.count("STRUCTURED_OUTPUT_ENABLED ="), 1)
+        self.assertFalse(rc.STRUCTURED_OUTPUT_ENABLED)
+
+    def test_no_schema_is_sent_while_structured_output_is_off(self):
+        _, stub = run_offline(V1_PLATE, PLAN_PLATE)
+        for request in stub.requests:
+            self.assertIsNone(request.output_schema)
+
+    def test_the_frozen_state_records_the_reason(self):
+        frozen = rc.frozen_state()
+        self.assertFalse(frozen["structured_output_enabled"])
+        self.assertEqual(
+            frozen["optional_property_limit"], rc.OPTIONAL_PROPERTY_LIMIT
+        )
+        self.assertGreater(
+            frozen["optional_properties"][rc.PLAN],
+            frozen["optional_properties"][rc.V1],
+        )
 
 if __name__ == "__main__":
     unittest.main()

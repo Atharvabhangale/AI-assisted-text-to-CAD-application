@@ -1,0 +1,1264 @@
+{
+  "note": "DIAGNOSTIC ONLY. The frozen measurement is 0% on both arms. This replays the recorded output through the same frozen machinery after extracting a fenced JSON block, to locate where each failure originated.",
+  "per_case": {
+    "01-plate-worded": {
+      "operation_plan": {
+        "correct": 5,
+        "n": 5,
+        "verdicts": {}
+      },
+      "v1_json": {
+        "correct": 0,
+        "n": 5,
+        "verdicts": {
+          "JSON, but no `status` envelope": 5
+        }
+      }
+    },
+    "02-cylinder-axis": {
+      "operation_plan": {
+        "correct": 5,
+        "n": 5,
+        "verdicts": {}
+      },
+      "v1_json": {
+        "correct": 0,
+        "n": 5,
+        "verdicts": {
+          "JSON, but no `status` envelope": 5
+        }
+      }
+    },
+    "03-box-dimensional": {
+      "operation_plan": {
+        "correct": 5,
+        "n": 5,
+        "verdicts": {}
+      },
+      "v1_json": {
+        "correct": 0,
+        "n": 5,
+        "verdicts": {
+          "JSON, but no `status` envelope": 5
+        }
+      }
+    },
+    "04-plate-centre-hole": {
+      "operation_plan": {
+        "correct": 5,
+        "n": 5,
+        "verdicts": {}
+      },
+      "v1_json": {
+        "correct": 0,
+        "n": 5,
+        "verdicts": {
+          "no JSON block at all": 5
+        }
+      }
+    },
+    "05-plate-two-holes": {
+      "operation_plan": {
+        "correct": 5,
+        "n": 5,
+        "verdicts": {}
+      },
+      "v1_json": {
+        "correct": 0,
+        "n": 5,
+        "verdicts": {
+          "no JSON block at all": 5
+        }
+      }
+    },
+    "06-cube-bore": {
+      "operation_plan": {
+        "correct": 5,
+        "n": 5,
+        "verdicts": {}
+      },
+      "v1_json": {
+        "correct": 0,
+        "n": 5,
+        "verdicts": {
+          "JSON, but no `status` envelope": 1,
+          "no JSON block at all": 4
+        }
+      }
+    },
+    "07-plate-chamfer": {
+      "operation_plan": {
+        "correct": 5,
+        "n": 5,
+        "verdicts": {}
+      },
+      "v1_json": {
+        "correct": 0,
+        "n": 5,
+        "verdicts": {
+          "wrongly refused": 5
+        }
+      }
+    },
+    "08-plate-fillet": {
+      "operation_plan": {
+        "correct": 5,
+        "n": 5,
+        "verdicts": {}
+      },
+      "v1_json": {
+        "correct": 0,
+        "n": 5,
+        "verdicts": {
+          "wrongly refused": 5
+        }
+      }
+    },
+    "09-profile-extrude": {
+      "operation_plan": {
+        "correct": 1,
+        "n": 5,
+        "verdicts": {
+          "plan parser rejected: `reason` must be a string": 3,
+          "wrongly refused": 1
+        }
+      },
+      "v1_json": {
+        "correct": 0,
+        "n": 5,
+        "verdicts": {
+          "asked for clarification": 1,
+          "no JSON block at all": 4
+        }
+      }
+    },
+    "10-profile-revolve": {
+      "operation_plan": {
+        "correct": 0,
+        "n": 5,
+        "verdicts": {
+          "wrongly refused": 5
+        }
+      },
+      "v1_json": {
+        "correct": 5,
+        "n": 5,
+        "verdicts": {}
+      }
+    },
+    "11-sphere": {
+      "operation_plan": {
+        "correct": 5,
+        "n": 5,
+        "verdicts": {}
+      },
+      "v1_json": {
+        "correct": 5,
+        "n": 5,
+        "verdicts": {}
+      }
+    },
+    "12-union": {
+      "operation_plan": {
+        "correct": 5,
+        "n": 5,
+        "verdicts": {}
+      },
+      "v1_json": {
+        "correct": 3,
+        "n": 5,
+        "verdicts": {
+          "no JSON block at all": 2
+        }
+      }
+    },
+    "13-engine": {
+      "operation_plan": {
+        "correct": 5,
+        "n": 5,
+        "verdicts": {}
+      },
+      "v1_json": {
+        "correct": 3,
+        "n": 5,
+        "verdicts": {
+          "no JSON block at all": 2
+        }
+      }
+    }
+  },
+  "summary": {
+    "operation_plan": {
+      "correct": 56,
+      "n": 65,
+      "rate": 0.8615384615384616,
+      "shapes": {
+        "fenced json": 65
+      },
+      "verdicts": {
+        "CORRECT": 56,
+        "plan parser rejected: `reason` must be a string": 3,
+        "wrongly refused": 6
+      }
+    },
+    "v1_json": {
+      "correct": 16,
+      "n": 65,
+      "rate": 0.24615384615384617,
+      "shapes": {
+        "fenced json": 22,
+        "fenced json + prose": 21,
+        "prose only": 22
+      },
+      "verdicts": {
+        "CORRECT": 16,
+        "JSON, but no `status` envelope": 16,
+        "asked for clarification": 1,
+        "no JSON block at all": 22,
+        "wrongly refused": 10
+      }
+    }
+  },
+  "verdicts": [
+    {
+      "attempt": 1,
+      "case_id": "01-plate-worded",
+      "correct": false,
+      "representation": "v1_json",
+      "shape": "fenced json + prose",
+      "verdict": "JSON, but no `status` envelope"
+    },
+    {
+      "attempt": 1,
+      "case_id": "01-plate-worded",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 1,
+      "case_id": "02-cylinder-axis",
+      "correct": false,
+      "representation": "v1_json",
+      "shape": "fenced json + prose",
+      "verdict": "JSON, but no `status` envelope"
+    },
+    {
+      "attempt": 1,
+      "case_id": "02-cylinder-axis",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 1,
+      "case_id": "03-box-dimensional",
+      "correct": false,
+      "representation": "v1_json",
+      "shape": "fenced json + prose",
+      "verdict": "JSON, but no `status` envelope"
+    },
+    {
+      "attempt": 1,
+      "case_id": "03-box-dimensional",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 1,
+      "case_id": "04-plate-centre-hole",
+      "correct": false,
+      "representation": "v1_json",
+      "shape": "prose only",
+      "verdict": "no JSON block at all"
+    },
+    {
+      "attempt": 1,
+      "case_id": "04-plate-centre-hole",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 1,
+      "case_id": "05-plate-two-holes",
+      "correct": false,
+      "representation": "v1_json",
+      "shape": "prose only",
+      "verdict": "no JSON block at all"
+    },
+    {
+      "attempt": 1,
+      "case_id": "05-plate-two-holes",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 1,
+      "case_id": "06-cube-bore",
+      "correct": false,
+      "representation": "v1_json",
+      "shape": "prose only",
+      "verdict": "no JSON block at all"
+    },
+    {
+      "attempt": 1,
+      "case_id": "06-cube-bore",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 1,
+      "case_id": "07-plate-chamfer",
+      "correct": false,
+      "representation": "v1_json",
+      "shape": "fenced json + prose",
+      "verdict": "wrongly refused"
+    },
+    {
+      "attempt": 1,
+      "case_id": "07-plate-chamfer",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 1,
+      "case_id": "08-plate-fillet",
+      "correct": false,
+      "representation": "v1_json",
+      "shape": "fenced json",
+      "verdict": "wrongly refused"
+    },
+    {
+      "attempt": 1,
+      "case_id": "08-plate-fillet",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 1,
+      "case_id": "09-profile-extrude",
+      "correct": false,
+      "representation": "v1_json",
+      "shape": "prose only",
+      "verdict": "no JSON block at all"
+    },
+    {
+      "attempt": 1,
+      "case_id": "09-profile-extrude",
+      "correct": false,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "plan parser rejected: `reason` must be a string"
+    },
+    {
+      "attempt": 1,
+      "case_id": "10-profile-revolve",
+      "correct": true,
+      "representation": "v1_json",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 1,
+      "case_id": "10-profile-revolve",
+      "correct": false,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "wrongly refused"
+    },
+    {
+      "attempt": 1,
+      "case_id": "11-sphere",
+      "correct": true,
+      "representation": "v1_json",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 1,
+      "case_id": "11-sphere",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 1,
+      "case_id": "12-union",
+      "correct": false,
+      "representation": "v1_json",
+      "shape": "prose only",
+      "verdict": "no JSON block at all"
+    },
+    {
+      "attempt": 1,
+      "case_id": "12-union",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 1,
+      "case_id": "13-engine",
+      "correct": false,
+      "representation": "v1_json",
+      "shape": "prose only",
+      "verdict": "no JSON block at all"
+    },
+    {
+      "attempt": 1,
+      "case_id": "13-engine",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 2,
+      "case_id": "01-plate-worded",
+      "correct": false,
+      "representation": "v1_json",
+      "shape": "fenced json + prose",
+      "verdict": "JSON, but no `status` envelope"
+    },
+    {
+      "attempt": 2,
+      "case_id": "01-plate-worded",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 2,
+      "case_id": "02-cylinder-axis",
+      "correct": false,
+      "representation": "v1_json",
+      "shape": "fenced json + prose",
+      "verdict": "JSON, but no `status` envelope"
+    },
+    {
+      "attempt": 2,
+      "case_id": "02-cylinder-axis",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 2,
+      "case_id": "03-box-dimensional",
+      "correct": false,
+      "representation": "v1_json",
+      "shape": "fenced json + prose",
+      "verdict": "JSON, but no `status` envelope"
+    },
+    {
+      "attempt": 2,
+      "case_id": "03-box-dimensional",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 2,
+      "case_id": "04-plate-centre-hole",
+      "correct": false,
+      "representation": "v1_json",
+      "shape": "prose only",
+      "verdict": "no JSON block at all"
+    },
+    {
+      "attempt": 2,
+      "case_id": "04-plate-centre-hole",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 2,
+      "case_id": "05-plate-two-holes",
+      "correct": false,
+      "representation": "v1_json",
+      "shape": "prose only",
+      "verdict": "no JSON block at all"
+    },
+    {
+      "attempt": 2,
+      "case_id": "05-plate-two-holes",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 2,
+      "case_id": "06-cube-bore",
+      "correct": false,
+      "representation": "v1_json",
+      "shape": "fenced json + prose",
+      "verdict": "JSON, but no `status` envelope"
+    },
+    {
+      "attempt": 2,
+      "case_id": "06-cube-bore",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 2,
+      "case_id": "07-plate-chamfer",
+      "correct": false,
+      "representation": "v1_json",
+      "shape": "fenced json",
+      "verdict": "wrongly refused"
+    },
+    {
+      "attempt": 2,
+      "case_id": "07-plate-chamfer",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 2,
+      "case_id": "08-plate-fillet",
+      "correct": false,
+      "representation": "v1_json",
+      "shape": "fenced json",
+      "verdict": "wrongly refused"
+    },
+    {
+      "attempt": 2,
+      "case_id": "08-plate-fillet",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 2,
+      "case_id": "09-profile-extrude",
+      "correct": false,
+      "representation": "v1_json",
+      "shape": "prose only",
+      "verdict": "no JSON block at all"
+    },
+    {
+      "attempt": 2,
+      "case_id": "09-profile-extrude",
+      "correct": false,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "wrongly refused"
+    },
+    {
+      "attempt": 2,
+      "case_id": "10-profile-revolve",
+      "correct": true,
+      "representation": "v1_json",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 2,
+      "case_id": "10-profile-revolve",
+      "correct": false,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "wrongly refused"
+    },
+    {
+      "attempt": 2,
+      "case_id": "11-sphere",
+      "correct": true,
+      "representation": "v1_json",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 2,
+      "case_id": "11-sphere",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 2,
+      "case_id": "12-union",
+      "correct": true,
+      "representation": "v1_json",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 2,
+      "case_id": "12-union",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 2,
+      "case_id": "13-engine",
+      "correct": true,
+      "representation": "v1_json",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 2,
+      "case_id": "13-engine",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 3,
+      "case_id": "01-plate-worded",
+      "correct": false,
+      "representation": "v1_json",
+      "shape": "fenced json + prose",
+      "verdict": "JSON, but no `status` envelope"
+    },
+    {
+      "attempt": 3,
+      "case_id": "01-plate-worded",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 3,
+      "case_id": "02-cylinder-axis",
+      "correct": false,
+      "representation": "v1_json",
+      "shape": "fenced json + prose",
+      "verdict": "JSON, but no `status` envelope"
+    },
+    {
+      "attempt": 3,
+      "case_id": "02-cylinder-axis",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 3,
+      "case_id": "03-box-dimensional",
+      "correct": false,
+      "representation": "v1_json",
+      "shape": "fenced json + prose",
+      "verdict": "JSON, but no `status` envelope"
+    },
+    {
+      "attempt": 3,
+      "case_id": "03-box-dimensional",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 3,
+      "case_id": "04-plate-centre-hole",
+      "correct": false,
+      "representation": "v1_json",
+      "shape": "prose only",
+      "verdict": "no JSON block at all"
+    },
+    {
+      "attempt": 3,
+      "case_id": "04-plate-centre-hole",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 3,
+      "case_id": "05-plate-two-holes",
+      "correct": false,
+      "representation": "v1_json",
+      "shape": "prose only",
+      "verdict": "no JSON block at all"
+    },
+    {
+      "attempt": 3,
+      "case_id": "05-plate-two-holes",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 3,
+      "case_id": "06-cube-bore",
+      "correct": false,
+      "representation": "v1_json",
+      "shape": "prose only",
+      "verdict": "no JSON block at all"
+    },
+    {
+      "attempt": 3,
+      "case_id": "06-cube-bore",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 3,
+      "case_id": "07-plate-chamfer",
+      "correct": false,
+      "representation": "v1_json",
+      "shape": "fenced json",
+      "verdict": "wrongly refused"
+    },
+    {
+      "attempt": 3,
+      "case_id": "07-plate-chamfer",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 3,
+      "case_id": "08-plate-fillet",
+      "correct": false,
+      "representation": "v1_json",
+      "shape": "fenced json",
+      "verdict": "wrongly refused"
+    },
+    {
+      "attempt": 3,
+      "case_id": "08-plate-fillet",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 3,
+      "case_id": "09-profile-extrude",
+      "correct": false,
+      "representation": "v1_json",
+      "shape": "prose only",
+      "verdict": "no JSON block at all"
+    },
+    {
+      "attempt": 3,
+      "case_id": "09-profile-extrude",
+      "correct": false,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "plan parser rejected: `reason` must be a string"
+    },
+    {
+      "attempt": 3,
+      "case_id": "10-profile-revolve",
+      "correct": true,
+      "representation": "v1_json",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 3,
+      "case_id": "10-profile-revolve",
+      "correct": false,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "wrongly refused"
+    },
+    {
+      "attempt": 3,
+      "case_id": "11-sphere",
+      "correct": true,
+      "representation": "v1_json",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 3,
+      "case_id": "11-sphere",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 3,
+      "case_id": "12-union",
+      "correct": true,
+      "representation": "v1_json",
+      "shape": "fenced json + prose",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 3,
+      "case_id": "12-union",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 3,
+      "case_id": "13-engine",
+      "correct": false,
+      "representation": "v1_json",
+      "shape": "prose only",
+      "verdict": "no JSON block at all"
+    },
+    {
+      "attempt": 3,
+      "case_id": "13-engine",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 4,
+      "case_id": "01-plate-worded",
+      "correct": false,
+      "representation": "v1_json",
+      "shape": "fenced json + prose",
+      "verdict": "JSON, but no `status` envelope"
+    },
+    {
+      "attempt": 4,
+      "case_id": "01-plate-worded",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 4,
+      "case_id": "02-cylinder-axis",
+      "correct": false,
+      "representation": "v1_json",
+      "shape": "fenced json + prose",
+      "verdict": "JSON, but no `status` envelope"
+    },
+    {
+      "attempt": 4,
+      "case_id": "02-cylinder-axis",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 4,
+      "case_id": "03-box-dimensional",
+      "correct": false,
+      "representation": "v1_json",
+      "shape": "fenced json + prose",
+      "verdict": "JSON, but no `status` envelope"
+    },
+    {
+      "attempt": 4,
+      "case_id": "03-box-dimensional",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 4,
+      "case_id": "04-plate-centre-hole",
+      "correct": false,
+      "representation": "v1_json",
+      "shape": "prose only",
+      "verdict": "no JSON block at all"
+    },
+    {
+      "attempt": 4,
+      "case_id": "04-plate-centre-hole",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 4,
+      "case_id": "05-plate-two-holes",
+      "correct": false,
+      "representation": "v1_json",
+      "shape": "prose only",
+      "verdict": "no JSON block at all"
+    },
+    {
+      "attempt": 4,
+      "case_id": "05-plate-two-holes",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 4,
+      "case_id": "06-cube-bore",
+      "correct": false,
+      "representation": "v1_json",
+      "shape": "prose only",
+      "verdict": "no JSON block at all"
+    },
+    {
+      "attempt": 4,
+      "case_id": "06-cube-bore",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 4,
+      "case_id": "07-plate-chamfer",
+      "correct": false,
+      "representation": "v1_json",
+      "shape": "fenced json",
+      "verdict": "wrongly refused"
+    },
+    {
+      "attempt": 4,
+      "case_id": "07-plate-chamfer",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 4,
+      "case_id": "08-plate-fillet",
+      "correct": false,
+      "representation": "v1_json",
+      "shape": "fenced json",
+      "verdict": "wrongly refused"
+    },
+    {
+      "attempt": 4,
+      "case_id": "08-plate-fillet",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 4,
+      "case_id": "09-profile-extrude",
+      "correct": false,
+      "representation": "v1_json",
+      "shape": "fenced json + prose",
+      "verdict": "asked for clarification"
+    },
+    {
+      "attempt": 4,
+      "case_id": "09-profile-extrude",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 4,
+      "case_id": "10-profile-revolve",
+      "correct": true,
+      "representation": "v1_json",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 4,
+      "case_id": "10-profile-revolve",
+      "correct": false,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "wrongly refused"
+    },
+    {
+      "attempt": 4,
+      "case_id": "11-sphere",
+      "correct": true,
+      "representation": "v1_json",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 4,
+      "case_id": "11-sphere",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 4,
+      "case_id": "12-union",
+      "correct": false,
+      "representation": "v1_json",
+      "shape": "prose only",
+      "verdict": "no JSON block at all"
+    },
+    {
+      "attempt": 4,
+      "case_id": "12-union",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 4,
+      "case_id": "13-engine",
+      "correct": true,
+      "representation": "v1_json",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 4,
+      "case_id": "13-engine",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 5,
+      "case_id": "01-plate-worded",
+      "correct": false,
+      "representation": "v1_json",
+      "shape": "fenced json + prose",
+      "verdict": "JSON, but no `status` envelope"
+    },
+    {
+      "attempt": 5,
+      "case_id": "01-plate-worded",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 5,
+      "case_id": "02-cylinder-axis",
+      "correct": false,
+      "representation": "v1_json",
+      "shape": "fenced json + prose",
+      "verdict": "JSON, but no `status` envelope"
+    },
+    {
+      "attempt": 5,
+      "case_id": "02-cylinder-axis",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 5,
+      "case_id": "03-box-dimensional",
+      "correct": false,
+      "representation": "v1_json",
+      "shape": "fenced json + prose",
+      "verdict": "JSON, but no `status` envelope"
+    },
+    {
+      "attempt": 5,
+      "case_id": "03-box-dimensional",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 5,
+      "case_id": "04-plate-centre-hole",
+      "correct": false,
+      "representation": "v1_json",
+      "shape": "prose only",
+      "verdict": "no JSON block at all"
+    },
+    {
+      "attempt": 5,
+      "case_id": "04-plate-centre-hole",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 5,
+      "case_id": "05-plate-two-holes",
+      "correct": false,
+      "representation": "v1_json",
+      "shape": "prose only",
+      "verdict": "no JSON block at all"
+    },
+    {
+      "attempt": 5,
+      "case_id": "05-plate-two-holes",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 5,
+      "case_id": "06-cube-bore",
+      "correct": false,
+      "representation": "v1_json",
+      "shape": "prose only",
+      "verdict": "no JSON block at all"
+    },
+    {
+      "attempt": 5,
+      "case_id": "06-cube-bore",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 5,
+      "case_id": "07-plate-chamfer",
+      "correct": false,
+      "representation": "v1_json",
+      "shape": "fenced json + prose",
+      "verdict": "wrongly refused"
+    },
+    {
+      "attempt": 5,
+      "case_id": "07-plate-chamfer",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 5,
+      "case_id": "08-plate-fillet",
+      "correct": false,
+      "representation": "v1_json",
+      "shape": "fenced json",
+      "verdict": "wrongly refused"
+    },
+    {
+      "attempt": 5,
+      "case_id": "08-plate-fillet",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 5,
+      "case_id": "09-profile-extrude",
+      "correct": false,
+      "representation": "v1_json",
+      "shape": "prose only",
+      "verdict": "no JSON block at all"
+    },
+    {
+      "attempt": 5,
+      "case_id": "09-profile-extrude",
+      "correct": false,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "plan parser rejected: `reason` must be a string"
+    },
+    {
+      "attempt": 5,
+      "case_id": "10-profile-revolve",
+      "correct": true,
+      "representation": "v1_json",
+      "shape": "fenced json + prose",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 5,
+      "case_id": "10-profile-revolve",
+      "correct": false,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "wrongly refused"
+    },
+    {
+      "attempt": 5,
+      "case_id": "11-sphere",
+      "correct": true,
+      "representation": "v1_json",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 5,
+      "case_id": "11-sphere",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 5,
+      "case_id": "12-union",
+      "correct": true,
+      "representation": "v1_json",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 5,
+      "case_id": "12-union",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 5,
+      "case_id": "13-engine",
+      "correct": true,
+      "representation": "v1_json",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    },
+    {
+      "attempt": 5,
+      "case_id": "13-engine",
+      "correct": true,
+      "representation": "operation_plan",
+      "shape": "fenced json",
+      "verdict": "CORRECT"
+    }
+  ]
+}
