@@ -39,6 +39,13 @@ from .config import (
     credential_available,
 )
 from .generation import OperationPlanService, PlanGenerationResult, PlanOutcome
+from .local_plan_provider import (
+    SOURCE_LABEL,
+    describe_fixtures,
+    fixture_plan,
+    run_fixture,
+    stamp,
+)
 from .parser import PlanParseError, parse_plan
 from .plan import PlanStatus, plan_schema
 from .prompt import PROMPT_VERSION, prompt_fingerprint
@@ -50,6 +57,10 @@ HEALTH_PATH = "/experimental/health"
 GENERATE_PATH = "/experimental/generate-plan"
 VALIDATE_PATH = "/experimental/validate-plan"
 BUILD_PATH = "/experimental/build-plan"
+#: Development only. Runs a developer-supplied plan through the real path.
+#: Never a model result -- every response is stamped LOCAL_DEVELOPMENT_PLAN.
+LOCAL_PLAN_PATH = "/experimental/local-plan"
+LOCAL_FIXTURES_PATH = "/experimental/local-plan/fixtures"
 
 OK_STATUS = 200
 BAD_REQUEST_STATUS = 400
@@ -71,6 +82,14 @@ class PlanBody(BaseModel):
 
     plan: Dict[str, Any]
     name: Optional[str] = Field(default=None, max_length=120)
+
+
+class LocalPlanBody(BaseModel):
+    """A development request: a named fixture, or a plan supplied whole."""
+
+    fixture: Optional[str] = Field(default=None, max_length=120)
+    plan: Optional[Dict[str, Any]] = None
+    build: bool = True
 
 
 def create_app(
@@ -143,6 +162,10 @@ def create_app(
             "model": settings.model,
             "model_configured": credential_available(),
             "build_available": app.state.service is not None,
+            # Development routes are always available: they need no
+            # credential, and they never produce a model result.
+            "local_development_plan_available": True,
+            "local_development_label": SOURCE_LABEL,
         }
 
     @app.get("/experimental/plan-schema")
@@ -268,6 +291,94 @@ def create_app(
         if render is not None:
             payload["render"] = render.to_dict()
         return JSONResponse(status_code=OK_STATUS, content=payload)
+
+    # --- development routes ---------------------------------------------
+    #
+    # These exist because the Anthropic credential is unavailable here, so
+    # the model call is the one step that cannot be exercised. They run a
+    # developer-supplied plan through the real parser, plan validator, V1
+    # adapter, existing validator, CAD engine and RenderModel -- and every
+    # response is stamped LOCAL_DEVELOPMENT_PLAN, so nothing they return can
+    # be read as a Claude result.
+
+    @app.get(LOCAL_FIXTURES_PATH)
+    async def local_fixtures() -> Dict[str, Any]:
+        """The development fixtures, with the geometry each should produce."""
+        return stamp({"fixtures": describe_fixtures()})
+
+    @app.post(LOCAL_PLAN_PATH)
+    async def local_plan(
+        body: LocalPlanBody,
+        service: Optional[CadApplicationService] = Depends(_service),
+    ) -> JSONResponse:
+        """Run a fixture, or a supplied plan, through the whole real path.
+
+        Not a generation route: no model is called and no credential is
+        read. Exactly one of ``fixture`` or ``plan`` is given.
+        """
+        if (body.fixture is None) == (body.plan is None):
+            return JSONResponse(
+                status_code=BAD_REQUEST_STATUS,
+                content=stamp(
+                    {"error": "give exactly one of `fixture` or `plan`"}
+                ),
+            )
+        if body.build and service is None:
+            return JSONResponse(
+                status_code=UNAVAILABLE_STATUS,
+                content=stamp({"error": "no build service is configured"}),
+            )
+
+        plan_payload = body.plan
+        if body.fixture is not None:
+            try:
+                plan_payload = fixture_plan(body.fixture)
+            except KeyError as exc:
+                return JSONResponse(
+                    status_code=BAD_REQUEST_STATUS,
+                    content=stamp({"error": str(exc)}),
+                )
+
+        try:
+            plan = parse_plan(plan_payload)
+        except PlanParseError as exc:
+            return JSONResponse(
+                status_code=OK_STATUS,
+                content=stamp(
+                    {
+                        "parsed": False,
+                        "plan_valid": False,
+                        "error": exc.message,
+                    }
+                ),
+            )
+        verdict = validate_plan(plan)
+        payload: Dict[str, Any] = {
+            "parsed": True,
+            "plan_valid": verdict.valid,
+            "plan": plan.to_dict(),
+            "problems": [problem.to_dict() for problem in verdict.problems],
+        }
+        if not verdict.valid or not body.build:
+            return JSONResponse(status_code=OK_STATUS, content=stamp(payload))
+        if plan.status is not PlanStatus.GENERATED:
+            payload["error"] = f"a `{plan.status.value}` plan has no geometry"
+            return JSONResponse(status_code=OK_STATUS, content=stamp(payload))
+
+        assert service is not None
+        built = build_plan(
+            service, plan, name=body.fixture or "local-development-plan"
+        )
+        payload["v1_document"] = built.document
+        payload["built"] = built.built
+        if built.outcome is None:
+            payload["build_error"] = built.error
+            return JSONResponse(status_code=OK_STATUS, content=stamp(payload))
+        payload["build"] = built.outcome.to_dict()
+        render = built.outcome.render_model
+        if render is not None:
+            payload["render"] = render.to_dict()
+        return JSONResponse(status_code=OK_STATUS, content=stamp(payload))
 
     return app
 

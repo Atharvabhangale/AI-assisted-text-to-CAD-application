@@ -46,7 +46,7 @@ export interface ArtifactRecord {
 }
 
 export interface BuildResponse {
-  readonly build: {
+  readonly build?: {
     readonly succeeded: boolean;
     readonly build_key?: string | null;
     readonly document_hash?: string | null;
@@ -109,12 +109,58 @@ export function buildPlan(plan: unknown): Promise<BuildResponse> {
   return post<BuildResponse>("/experimental/build-plan", { plan });
 }
 
+export interface FixtureRecord {
+  readonly name: string;
+  readonly description: string;
+  readonly expected_bounding_box: Readonly<Record<string, number>>;
+  readonly expected_volume_mm3: number;
+}
+
+/** Every local-development response carries these. Never a model result. */
+export interface LocalStamp {
+  readonly source: string;
+  readonly is_live_model_result: boolean;
+  readonly note: string;
+}
+
+export interface LocalPlanResponse extends LocalStamp, BuildResponse {
+  readonly parsed: boolean;
+  readonly plan_valid: boolean;
+  readonly plan?: {
+    readonly status: string;
+    readonly summary: string;
+    readonly operations: readonly PlanOperation[];
+  };
+  readonly problems?: readonly PlanProblem[];
+  readonly built?: boolean;
+}
+
+export async function localFixtures(): Promise<
+  LocalStamp & { readonly fixtures: readonly FixtureRecord[] }
+> {
+  const response = await fetch(`${API_BASE}/experimental/local-plan/fixtures`);
+  if (!response.ok) {
+    throw new ApiError("the fixtures could not be listed", response.status);
+  }
+  return (await response.json()) as LocalStamp & {
+    readonly fixtures: readonly FixtureRecord[];
+  };
+}
+
+export function runLocalFixture(name: string): Promise<LocalPlanResponse> {
+  return post<LocalPlanResponse>("/experimental/local-plan", {
+    fixture: name,
+  });
+}
+
 export interface Health {
   readonly status: string;
   readonly model: string;
   readonly model_configured: boolean;
   readonly build_available: boolean;
   readonly prompt_version: string;
+  readonly local_development_plan_available?: boolean;
+  readonly local_development_label?: string;
 }
 
 export async function health(): Promise<Health> {

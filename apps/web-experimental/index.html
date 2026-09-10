@@ -37,8 +37,28 @@
           <button id="generate" type="button">Generate</button>
           <span id="generate-status" class="status"></span>
         </div>
+        <div class="local-panel">
+          <div class="local-head">
+            <span class="local-tag">LOCAL DEVELOPMENT PLAN</span>
+            <span class="local-note">no model is called &middot; not a Claude result</span>
+          </div>
+          <p class="local-help">
+            The Anthropic credential is unavailable in this environment, so
+            generation cannot run. These fixtures are
+            <strong>developer-written plans</strong>; everything after the plan
+            &mdash; parser, plan validation, V1 conversion, the existing
+            validator, the CAD engine and the RenderModel &mdash; is the real
+            implementation.
+          </p>
+          <div class="row">
+            <select id="fixture"></select>
+            <button id="run-local" type="button">Run local plan</button>
+            <span id="local-status" class="status"></span>
+          </div>
+        </div>
+
         <div class="examples">
-          <span>Try:</span>
+          <span>Prompts (need a credential):</span>
           <button class="example" type="button" data-text="Create a rectangular plate 100 mm long, 60 mm wide and 10 mm thick.">a plate</button>
           <button class="example" type="button" data-text="Create a cylinder 20 mm in diameter and 50 mm tall along the +Z axis.">a cylinder</button>
           <button class="example" type="button" data-text="Create a sphere with a 20 mm diameter.">a sphere (unsupported)</button>
@@ -47,7 +67,8 @@
       </section>
 
       <section>
-        <h2>2 · Generated operation plan</h2>
+        <h2>2 · Operation plan</h2>
+        <div id="plan-source" class="source-badge" hidden></div>
         <div id="plan-summary" class="summary empty">Nothing generated yet.</div>
         <ol id="operation-tree" class="tree"></ol>
         <details>

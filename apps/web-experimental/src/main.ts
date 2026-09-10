@@ -18,7 +18,10 @@ import {
   buildPlan,
   generatePlan,
   health,
+  localFixtures,
+  runLocalFixture,
   validatePlan,
+  type BuildResponse,
   type PlanOperation,
   type PlanResponse,
 } from "./api";
@@ -45,6 +48,10 @@ const buildStatus = need<HTMLSpanElement>("build-status");
 const measurements = need<HTMLDListElement>("measurements");
 const meshNote = need<HTMLParagraphElement>("mesh-note");
 const canvas = need<HTMLCanvasElement>("viewport");
+const fixtureSelect = need<HTMLSelectElement>("fixture");
+const runLocalButton = need<HTMLButtonElement>("run-local");
+const localStatus = need<HTMLSpanElement>("local-status");
+const planSource = need<HTMLDivElement>("plan-source");
 
 let viewer: Viewer | null = null;
 
@@ -106,6 +113,23 @@ function planPayload(): unknown {
   return JSON.parse(planJson.value);
 }
 
+/**
+ * Say where the displayed plan came from.
+ *
+ * The page must never let a developer-written fixture read as a model
+ * answer, so this is called on every path that puts a plan on screen and
+ * takes the label from the response itself rather than from what the page
+ * happened to request.
+ */
+function showSource(kind: "local" | "model", detail: string): void {
+  planSource.hidden = false;
+  planSource.className = `source-badge ${kind}`;
+  planSource.textContent =
+    kind === "local"
+      ? `LOCAL DEVELOPMENT PLAN — ${detail}`
+      : `MODEL RESULT — ${detail}`;
+}
+
 function showPlan(plan: PlanResponse): void {
   const status = plan.status;
   planSummary.className = "summary";
@@ -151,6 +175,10 @@ generateButton.addEventListener("click", async () => {
   try {
     const plan = await generatePlan(text);
     showPlan(plan);
+    showSource(
+      "model",
+      plan.metadata ? String(plan.metadata["model"]) : "provider result",
+    );
     say(
       generateStatus,
       `${plan.status}${plan.metadata ? ` · ${String(plan.metadata["model"])}` : ""}`,
@@ -205,6 +233,58 @@ function showMeasurements(entries: readonly (readonly [string, string])[]): void
   }
 }
 
+/**
+ * Show a build's measurements and draw its mesh.
+ *
+ * Shared by the model path and the local-development path so the two cannot
+ * drift, and so a fixture is measured by exactly the code that measures a
+ * generated plan.
+ */
+function renderBuild(result: BuildResponse): void {
+  const build = result.build;
+  if (build === undefined) {
+    showMeasurements([]);
+    return;
+  }
+  const geometry = (build.manifest?.artifacts ?? []).find(
+    (artifact) => artifact.kind === "geometry",
+  );
+  const details = (geometry?.details ?? {}) as Record<string, unknown>;
+  const box = (details["bounding_box"] ?? {}) as Record<string, unknown>;
+  const size = (box["size"] ?? {}) as Record<string, unknown>;
+  showMeasurements([
+    ["build key", String(build.build_key ?? "").slice(0, 16)],
+    ["cache hit", String(build.cache_hit ?? false)],
+    ["solids", String(details["solid_count"] ?? "—")],
+    ["volume mm³", String(details["volume_mm3"] ?? "—")],
+    ["faces", String(details["face_count"] ?? "—")],
+    [
+      "size mm",
+      `${String(size["x"] ?? "—")} × ${String(size["y"] ?? "—")} × ${String(size["z"] ?? "—")}`,
+    ],
+  ]);
+
+  if (result.render === undefined || result.render === null) {
+    say(meshNote, "the build returned no render model", "warn");
+    return;
+  }
+  try {
+    const model = assertRenderModel(result.render);
+    if (viewer === null) {
+      viewer = createViewer(canvas);
+    }
+    viewer.show(model);
+    meshNote.className = "status";
+    meshNote.textContent = describeMesh(model);
+  } catch (error) {
+    const message =
+      error instanceof RenderModelError
+        ? `the render model was rejected: ${error.message}`
+        : String(error);
+    say(meshNote, message, "bad");
+  }
+}
+
 buildButton.addEventListener("click", async () => {
   let payload: unknown;
   try {
@@ -217,54 +297,20 @@ buildButton.addEventListener("click", async () => {
   say(buildStatus, "building…");
   try {
     const result = await buildPlan(payload);
-    if (!result.build.succeeded) {
+    // `build` is optional on the shared response type because the
+    // local-development route omits it when nothing was built.
+    if (result.build === undefined || !result.build.succeeded) {
       say(
         buildStatus,
-        result.build.error?.message ?? "the build failed",
+        result.build?.error?.message ?? "the build failed",
         "bad",
       );
       showMeasurements([]);
       return;
     }
 
-    const geometry = (result.build.manifest?.artifacts ?? []).find(
-      (artifact) => artifact.kind === "geometry",
-    );
-    const details = (geometry?.details ?? {}) as Record<string, unknown>;
-    const box = (details["bounding_box"] ?? {}) as Record<string, unknown>;
-    const size = (box["size"] ?? {}) as Record<string, unknown>;
-    showMeasurements([
-      ["build key", String(result.build.build_key ?? "").slice(0, 16)],
-      ["cache hit", String(result.build.cache_hit ?? false)],
-      ["solids", String(details["solid_count"] ?? "—")],
-      ["volume mm³", String(details["volume_mm3"] ?? "—")],
-      ["faces", String(details["face_count"] ?? "—")],
-      [
-        "size mm",
-        `${String(size["x"] ?? "—")} × ${String(size["y"] ?? "—")} × ${String(size["z"] ?? "—")}`,
-      ],
-    ]);
+    renderBuild(result);
     say(buildStatus, "built", "ok");
-
-    if (result.render === undefined || result.render === null) {
-      say(meshNote, "the build returned no render model", "warn");
-      return;
-    }
-    try {
-      const model = assertRenderModel(result.render);
-      if (viewer === null) {
-        viewer = createViewer(canvas);
-      }
-      viewer.show(model);
-      meshNote.className = "status";
-      meshNote.textContent = describeMesh(model);
-    } catch (error) {
-      const message =
-        error instanceof RenderModelError
-          ? `the render model was rejected: ${error.message}`
-          : String(error);
-      say(meshNote, message, "bad");
-    }
   } catch (error) {
     const message =
       error instanceof ApiError
@@ -273,6 +319,58 @@ buildButton.addEventListener("click", async () => {
     say(buildStatus, message, "bad");
   } finally {
     buildButton.disabled = false;
+  }
+});
+
+runLocalButton.addEventListener("click", async () => {
+  const name = fixtureSelect.value;
+  if (name === "") {
+    say(localStatus, "no fixture selected", "warn");
+    return;
+  }
+  runLocalButton.disabled = true;
+  say(localStatus, "running the local plan…");
+  clear(problemList);
+  clear(measurements);
+  try {
+    const result = await runLocalFixture(name);
+
+    // Take the label from the response. A page that decided this for
+    // itself could be wrong; the server is the one that knows.
+    showSource("local", `${name} · no model called`);
+    showPlan({
+      status: result.plan?.status ?? "generated",
+      operations: result.plan?.operations ?? [],
+      summary: result.plan?.summary ?? "",
+    });
+
+    for (const problem of result.problems ?? []) {
+      const item = document.createElement("li");
+      item.textContent = `${problem.code} ${problem.where} ${problem.message}`;
+      problemList.append(item);
+    }
+    say(
+      validateStatus,
+      result.plan_valid ? "the plan is valid" : "the plan is not valid",
+      result.plan_valid ? "ok" : "bad",
+    );
+
+    if (result.built !== true || result.build === undefined) {
+      say(localStatus, "the plan did not build", "bad");
+      say(buildStatus, "not built", "bad");
+      return;
+    }
+    renderBuild(result);
+    say(buildStatus, "built", "ok");
+    say(localStatus, `${name} built · not a Claude result`, "warn");
+  } catch (error) {
+    const message =
+      error instanceof ApiError
+        ? `${error.message} (${error.status})`
+        : String(error);
+    say(localStatus, message, "bad");
+  } finally {
+    runLocalButton.disabled = false;
   }
 });
 
@@ -310,6 +408,24 @@ planJson.addEventListener("input", refreshBuildable);
 refreshBuildable();
 
 void (async () => {
+  try {
+    const listing = await localFixtures();
+    for (const entry of listing.fixtures) {
+      const option = document.createElement("option");
+      option.value = entry.name;
+      option.textContent = `${entry.name} — ${entry.description}`;
+      fixtureSelect.append(option);
+    }
+    say(
+      localStatus,
+      `${listing.fixtures.length} fixtures · ${listing.source}`,
+      "warn",
+    );
+  } catch {
+    say(localStatus, "the fixtures could not be listed", "bad");
+    runLocalButton.disabled = true;
+  }
+
   try {
     const status = await health();
     if (!status.model_configured) {
