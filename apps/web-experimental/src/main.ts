@@ -84,6 +84,19 @@ function describeParameter(name: string, value: unknown): string {
       ? String(selector.select)
       : `${String(selector.select)} ${selector.axis}`;
   }
+  if ((name === "geometry" || name === "constraints") && Array.isArray(value)) {
+    // A sketch's two lists, as `type #id` rather than as a JSON blob. Long
+    // enough to read, and it still says nothing the response did not.
+    if (value.length === 0) {
+      return "none";
+    }
+    return value
+      .map((entry) => {
+        const record = entry as { id?: unknown; type?: unknown };
+        return `${String(record.type)} #${String(record.id)}`;
+      })
+      .join(", ");
+  }
   return typeof value === "object" && value !== null
     ? JSON.stringify(value)
     : String(value);
@@ -118,6 +131,16 @@ function showOperations(operations: readonly PlanOperation[]): void {
       heading.append(target);
     }
     item.append(heading);
+
+    if (operation.type === "sketch") {
+      // A sketch declares a profile, and this backend cannot build one. Saying
+      // so beside the operation is the difference between a page that reads as
+      // a part and a page that tells the truth about what it has.
+      const note = document.createElement("div");
+      note.className = "op-note";
+      note.textContent = "profile — not a solid, and not executable here";
+      item.append(note);
+    }
 
     if (operation.tools !== undefined && operation.tools.length > 0) {
       // A subtract's tools are consumed, so naming them is the difference
@@ -318,6 +341,23 @@ function renderBuild(result: BuildResponse): void {
   }
 }
 
+/**
+ * Whether a rejected build was refused for want of an execution path.
+ *
+ * Read from the response body's own flag, never from the message text or the
+ * status code alone: the page must not decide on the backend's behalf what
+ * kind of refusal it received.
+ */
+function isExecutionUnsupported(error: ApiError): boolean {
+  if (typeof error.body !== "object" || error.body === null) {
+    return false;
+  }
+  return (
+    (error.body as { execution_unsupported?: unknown })
+      .execution_unsupported === true
+  );
+}
+
 buildButton.addEventListener("click", async () => {
   let payload: unknown;
   try {
@@ -345,6 +385,20 @@ buildButton.addEventListener("click", async () => {
     renderBuild(result);
     say(buildStatus, "built", "ok");
   } catch (error) {
+    if (error instanceof ApiError && isExecutionUnsupported(error)) {
+      // Not a failure of the plan, and shown as such: `warn`, not `bad`, no
+      // measurements invented, and no mesh drawn.
+      const body = error.body as { unsupported_types?: readonly string[] };
+      const types = (body.unsupported_types ?? []).join(", ");
+      say(
+        buildStatus,
+        `not executable here — this backend has no build path for ${types}. ` +
+          `The plan is valid; nothing was built.`,
+        "warn",
+      );
+      showMeasurements([]);
+      return;
+    }
     const message =
       error instanceof ApiError
         ? `${error.message} (${error.status})`
@@ -388,6 +442,25 @@ runLocalButton.addEventListener("click", async () => {
       result.plan_valid ? "ok" : "bad",
     );
 
+    if (result.execution_unsupported === true) {
+      // The local route answers 200 with a flag rather than 501, because the
+      // fixture *ran* -- it parsed, validated and then had nowhere to go. It
+      // is still not a build failure, and not shown as one.
+      const types = (result.unsupported_types ?? []).join(", ");
+      say(
+        localStatus,
+        `${name} — valid, and not executable here (${types})`,
+        "warn",
+      );
+      say(
+        buildStatus,
+        `not executable here — no build path for ${types}. ` +
+          `The plan is valid; nothing was built.`,
+        "warn",
+      );
+      showMeasurements([]);
+      return;
+    }
     if (result.built !== true || result.build === undefined) {
       say(localStatus, "the plan did not build", "bad");
       say(buildStatus, "not built", "bad");

@@ -133,3 +133,8 @@ code { font-family: ui-monospace, monospace; color: var(--accent); }
   color: var(--bad); font-family: ui-monospace, monospace;
   font-size: 12px; margin-top: 6px;
 }
+
+/* A sketch: warn-coloured, because it is neither a solid nor buildable. */
+.tree .op-note {
+  color: var(--warn); font-size: 12px; margin-top: 6px;
+}

@@ -65,6 +65,12 @@ LOCAL_FIXTURES_PATH = "/experimental/local-plan/fixtures"
 OK_STATUS = 200
 BAD_REQUEST_STATUS = 400
 UNPROCESSABLE_STATUS = 422
+#: A valid plan this backend has no execution path for. 501 is the accurate
+#: code -- "the server does not support the functionality required" -- and it
+#: is deliberately not 400: the plan is not the problem, the engine is. A
+#: caller must be able to tell "you asked wrongly" from "we cannot do that
+#: yet" without reading prose.
+NOT_IMPLEMENTED_STATUS = 501
 UNAVAILABLE_STATUS = 503
 
 #: A description longer than this is not a part description.
@@ -278,6 +284,19 @@ def create_app(
         result = build_plan(
             service, plan, name=body.name or "experimental-part"
         )
+        if result.execution_unsupported:
+            # Reported before the generic branch, and with no `document`: an
+            # unsupported plan produces no V1 document at all, so there is
+            # nothing to show that could be mistaken for a build.
+            return JSONResponse(
+                status_code=NOT_IMPLEMENTED_STATUS,
+                content={
+                    "error": result.error,
+                    "execution_unsupported": True,
+                    "unsupported_types": list(result.unsupported_types),
+                    "unsupported_operations": list(result.unsupported_ids),
+                },
+            )
         if result.outcome is None:
             return JSONResponse(
                 status_code=BAD_REQUEST_STATUS,
@@ -371,6 +390,12 @@ def create_app(
         )
         payload["v1_document"] = built.document
         payload["built"] = built.built
+        # Always present, true or false, beside `built`. A client should never
+        # have to tell an absent key from a false one to learn which kind of
+        # "not built" it is looking at.
+        payload["execution_unsupported"] = built.execution_unsupported
+        payload["unsupported_types"] = list(built.unsupported_types)
+        payload["unsupported_operations"] = list(built.unsupported_ids)
         if built.outcome is None:
             payload["build_error"] = built.error
             return JSONResponse(status_code=OK_STATUS, content=stamp(payload))

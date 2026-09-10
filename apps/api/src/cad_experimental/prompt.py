@@ -18,7 +18,7 @@ from .plan import AXES, OPERATION_TYPES, PlanStatus
 
 #: Bumped on any change to the text below. A measurement without this is not
 #: reproducible.
-PROMPT_VERSION = "2026-09-10.5"
+PROMPT_VERSION = "2026-09-10.6"
 
 SYSTEM_PROMPT = f"""\
 You turn a description of a mechanical part into a CAD operation plan.
@@ -157,6 +157,50 @@ Identical in shape to `fillet`, with one difference: the length is called
 Everything a fillet says about the selector, about being a modifier, and about
 the engine deciding feasibility applies here unchanged.
 
+## sketch
+A named 2D profile on a principal plane. A sketch is NOT a solid.
+
+  plane        required, one of "XY", "XZ", "YZ".
+  geometry     required, a non-empty list. Each entry is one of:
+               {{"id": "l1", "type": "line",
+                 "start": {{"x": 0, "y": 0}}, "end": {{"x": 50, "y": 0}}}}
+               {{"id": "c1", "type": "circle",
+                 "centre": {{"x": 0, "y": 0}}, "radius": 5}}
+               {{"id": "r1", "type": "rectangle",
+                 "corner": {{"x": 0, "y": 0}}, "width": 100, "height": 60}}
+               `corner` is the rectangle's minimum corner. Points are 2D:
+               `x` and `y` only, never `z`.
+  constraints  optional. Each entry is one of:
+               {{"id": "k1", "type": "horizontal", "geometry": "l1"}}
+               {{"id": "k2", "type": "vertical", "geometry": "l1"}}
+               {{"id": "k3", "type": "length", "geometry": "l1", "value": 50}}
+               {{"id": "k4", "type": "radius", "geometry": "c1", "value": 5}}
+               {{"id": "k5", "type": "coincident", "points": [
+                   {{"geometry": "l1", "point": "end"}},
+                   {{"geometry": "l2", "point": "start"}}]}}
+               A line's points are "start" and "end"; a circle's is "centre";
+               a rectangle's is "corner". No other point names exist.
+
+Constraints are CHECKED, NOT SOLVED. A `length` or `radius` constraint must
+AGREE with the geometry it names -- a length of 80 on a line 50 long is a
+conflict and is rejected. It will not move the line. Write the geometry at the
+size you mean, and add a dimensional constraint only to state that size.
+
+A `horizontal` or `vertical` constraint must likewise agree with the line as
+written. A sketch id namespace is shared: no two pieces of geometry and no two
+constraints in one sketch may share an id.
+
+IMPORTANT -- a sketch cannot be built. This language can express a sketch, and
+this backend cannot turn one into geometry. A plan containing a sketch is
+reported as unexecutable: no solid, no mesh, no export. So do not offer a
+sketch as a way to make a part, and never use one to approximate a shape the
+solid operations cannot express. Produce a sketch only when the description
+asks for a profile, a sketch or 2D geometry as such, and say plainly in the
+`summary` that it is a profile and not a part.
+
+A sketch declares a profile, so its id names no solid: nothing can fillet it,
+chamfer it, drill it, subtract it or use it as a subtract tool.
+
 There are no other operations. Nothing else exists in this language.
 
 # Units
@@ -210,6 +254,15 @@ and a chamfer is the same with `distance`:
   {{"id": "bevel", "type": "chamfer", "target": "plate",
     "parameters": {{"distance": 2, "edges": {{"select": "all"}}}}}}
 
+and a sketch carries its plane, its geometry and any constraints:
+
+  {{"id": "profile", "type": "sketch",
+    "parameters": {{"plane": "XY",
+                  "geometry": [{{"id": "r1", "type": "rectangle",
+                               "corner": {{"x": 0, "y": 0}},
+                               "width": 100, "height": 60}}],
+                  "constraints": []}}}}
+
 An id starts with a letter or underscore and contains only letters, digits,
 underscores and hyphens. Ids are unique within a plan.
 
@@ -225,7 +278,7 @@ that is not a box or a cylinder; blind or partial holes, counterbores,
 countersinks and threads (only a plain hole all the way through exists);
 union; intersection; joining, merging or combining two solids; variable or
 per-edge fillet radii; angled or asymmetric chamfers; naming an individual
-edge; shells; ribs; sketches;
+edge; shells; ribs;
 extrusions; revolves; sweeps; lofts; patterns; mirrors; assemblies;
 tolerances; materials; surface finish; and any dimension given as a formula, a
 range or a tolerance.

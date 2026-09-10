@@ -22,7 +22,7 @@ from cad_core.application_service import (
     CadApplicationService,
 )
 
-from .adapter import AdapterError, plan_to_document
+from .adapter import AdapterError, ExecutionUnsupported, plan_to_document
 from .plan import OperationPlan
 
 #: What an experimental build asks for. The render model is the point (the
@@ -43,6 +43,15 @@ class PlanBuild:
     outcome: Optional[BuildOutcome] = None
     error: Optional[str] = None
 
+    #: Set when the plan is sound but this backend has no execution path for
+    #: some of its operations -- a sketch, today. It is reported separately
+    #: from :attr:`error` because it is a different fact about a different
+    #: thing: ``error`` says the plan is wrong, this says the engine is
+    #: behind. A caller that showed them identically would be telling the
+    #: user their plan was bad when it was not.
+    unsupported_types: Tuple[str, ...] = ()
+    unsupported_ids: Tuple[str, ...] = ()
+
     @property
     def built(self) -> bool:
         """Whether the existing service reports a successful build.
@@ -51,6 +60,15 @@ class PlanBuild:
         anything: success is the build layer's word, not this layer's.
         """
         return self.outcome is not None and self.outcome.succeeded
+
+    @property
+    def execution_unsupported(self) -> bool:
+        """Whether the plan was refused for want of an execution path.
+
+        Never true at the same time as :attr:`built`: an unsupported plan is
+        not built at all, not built approximately.
+        """
+        return bool(self.unsupported_types)
 
 
 def build_plan(
@@ -67,9 +85,21 @@ def build_plan(
     plan that translates into an *invalid* V1 document -- is handed to the
     service, because deciding that is the existing validator's job, not this
     module's.
+
+    A plan whose operations this backend has no execution path for is
+    reported as :attr:`PlanBuild.execution_unsupported`, with the offending
+    types named, and **nothing is built or approximated**. That case is
+    caught before the generic one because it is the more specific fact.
     """
     try:
         document = plan_to_document(plan, name=name)
+    except ExecutionUnsupported as exc:
+        return PlanBuild(
+            document=None,
+            error=str(exc),
+            unsupported_types=exc.operation_types,
+            unsupported_ids=exc.operation_ids,
+        )
     except AdapterError as exc:
         return PlanBuild(document=None, error=str(exc))
 

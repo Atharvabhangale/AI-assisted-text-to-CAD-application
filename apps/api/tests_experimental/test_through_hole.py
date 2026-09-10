@@ -85,9 +85,13 @@ class VocabularyTests(unittest.TestCase):
         self.assertNotIn(THROUGH_HOLE, CONSTRUCTIVE_TYPES)
 
     def test_no_unimplemented_operation_crept_in(self):
-        """Operations no stage has implemented, and none silently should."""
+        """Operations no stage has implemented, and none silently should.
+
+        `chamfer` (Stage 36) and `sketch` (Stage 37) left this list when they
+        were built. Everything still named here is genuinely absent.
+        """
         for absent in (
-            "chamfer", "sketch", "extrude", "revolve", "sweep", "loft",
+            "extrude", "revolve", "sweep", "loft",
             "pattern", "mirror", "union", "assembly",
         ):
             self.assertNotIn(absent, OPERATION_TYPES)

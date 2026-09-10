@@ -20,6 +20,7 @@ Nothing here repairs anything. A problem is reported, never fixed.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from typing import Dict, List, Tuple
 
@@ -37,11 +38,23 @@ from .plan import (
     SELECT_AXIS_PARALLEL,
     SELECT_MODES,
     SELECTOR_AXES,
+    PROFILE_TYPES,
+    SKETCH,
     SUBTRACT,
     THROUGH_HOLE,
     OperationPlan,
     PlanStatus,
     tools_of,
+)
+from .sketch import (
+    CIRCLE,
+    CONSTRAINT_APPLIES_TO,
+    DIMENSIONAL_TYPES,
+    LENGTH,
+    LINE,
+    POINT_HANDLES,
+    RADIUS,
+    RECTANGLE,
 )
 
 #: Plan rule codes. Prefixed ``P`` so they can never be mistaken in a log for
@@ -85,9 +98,21 @@ P15 = "P15"  # the selector is a supported mode
 P16 = "P16"  # the selector's axis is present exactly when required (S18)
 P17 = "P17"  # the selector's axis is one of the unsigned letters
 
+# --- sketch rules, added with the sketch foundation ------------------------
+#
+# A sketch is validated, never solved. A dimensional constraint that
+# disagrees with the geometry it names is reported as a conflict rather than
+# used to move anything -- solving would hide the disagreement and would
+# invent geometry the backend cannot execute anyway.
+P18 = "P18"  # ids are unique within the sketch
+P19 = "P19"  # a constraint names geometry that exists in this sketch
+P20 = "P20"  # the point handle is a real point of that geometry
+P21 = "P21"  # the constraint type applies to that geometry type
+P22 = "P22"  # a dimensional constraint agrees with its geometry
+
 RULE_CODES: Tuple[str, ...] = (
     P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14,
-    P15, P16, P17,
+    P15, P16, P17, P18, P19, P20, P21, P22,
 )
 
 
@@ -150,6 +175,7 @@ def validate_plan(plan: OperationPlan) -> PlanValidation:
         declared.setdefault(operation.id, index)
     live: Dict[str, int] = {}
     consumed: Dict[str, int] = {}
+    profiles: Dict[str, int] = {}
 
     seen: Dict[str, int] = {}
     for index, operation in enumerate(plan.operations):
@@ -200,12 +226,15 @@ def validate_plan(plan: OperationPlan) -> PlanValidation:
                 )
             _reference(
                 operation.target, f"{where}.target", operation.id, index,
-                declared, live, consumed, problems,
+                declared, live, consumed, problems, profiles,
             )
         elif kind == SUBTRACT:
             _subtract(
-                operation, index, where, declared, live, consumed, problems
+                operation, index, where, declared, live, consumed, problems,
+                profiles,
             )
+        elif kind == SKETCH:
+            _sketch(operation, where, problems)
         elif kind in EDGE_MODIFIER_TYPES:
             # One branch for both edge modifiers: they differ only in the
             # name of their length. S16/S17 are decidable from the document;
@@ -218,7 +247,7 @@ def validate_plan(plan: OperationPlan) -> PlanValidation:
             _selector(operation.edges, f"{where}.edges", problems)
             _reference(
                 operation.target, f"{where}.target", operation.id, index,
-                declared, live, consumed, problems,
+                declared, live, consumed, problems, profiles,
             )
         else:
             # Unreachable through the parser, which rejects unknown types.
@@ -232,6 +261,11 @@ def validate_plan(plan: OperationPlan) -> PlanValidation:
         # result keeps the target's id and the target is already live.
         if kind in CONSTRUCTIVE_TYPES:
             live.setdefault(operation.id, index)
+        elif kind in PROFILE_TYPES:
+            # A profile is not a solid: nothing may fillet it, subtract it or
+            # count it toward the single-solid rule. Recorded separately so a
+            # reference to one gets a message that says *why*.
+            profiles.setdefault(operation.id, index)
         elif kind in CONSUMING_TYPES:
             # The history step, and the reason this stage exists. Every tool
             # this subtract legitimately used is gone from here on: a later
@@ -248,7 +282,7 @@ def validate_plan(plan: OperationPlan) -> PlanValidation:
         # looks an attribute up by a computed name.
         position = (
             None
-            if kind in (SUBTRACT, FILLET, CHAMFER)
+            if kind in (SUBTRACT, FILLET, CHAMFER, SKETCH)
             else operation.position
         )
         if position is not None:
@@ -267,6 +301,169 @@ def validate_plan(plan: OperationPlan) -> PlanValidation:
                     )
 
     return PlanValidation(valid=not problems, problems=tuple(problems))
+
+
+def _sketch(
+    operation: object, where: str, problems: List[PlanProblem]
+) -> None:
+    """Judge one sketch: ids, references, handles, types and agreement.
+
+    Declarative, not solved. A ``length`` that disagrees with the line it
+    names is a **conflict** (P22), reported rather than resolved -- a solver
+    would hide the disagreement, and would invent geometry the backend
+    cannot execute anyway.
+    """
+    definition = getattr(operation, "definition", None)
+    geometry = tuple(getattr(definition, "geometry", ()) or ())
+    constraints = tuple(getattr(definition, "constraints", ()) or ())
+
+    # P18: one namespace inside a sketch, so a constraint id cannot shadow
+    # a piece of geometry.
+    seen: Dict[str, str] = {}
+    for item in geometry:
+        if item.id in seen:
+            problems.append(
+                PlanProblem(
+                    P18,
+                    f"duplicate id {item.id!r} inside the sketch",
+                    f"{where}.geometry",
+                )
+            )
+        seen[item.id] = "geometry"
+    for constraint in constraints:
+        if constraint.id in seen:
+            problems.append(
+                PlanProblem(
+                    P18,
+                    f"duplicate id {constraint.id!r} inside the sketch; it "
+                    f"is already used by {seen[constraint.id]}",
+                    f"{where}.constraints",
+                )
+            )
+        seen[constraint.id] = "a constraint"
+
+    types = {item.id: item.TYPE for item in geometry}
+    by_id = {item.id: item for item in geometry}
+
+    for item in geometry:
+        # Spelled out per type rather than looped over field *names*: every
+        # attribute read in this package is a literal, so no string that came
+        # out of a model is ever used to reach an attribute.
+        if item.TYPE == CIRCLE:
+            _positive(
+                item.radius, f"{where}.geometry[{item.id}].radius", problems
+            )
+        elif item.TYPE == RECTANGLE:
+            _positive(
+                item.width, f"{where}.geometry[{item.id}].width", problems
+            )
+            _positive(
+                item.height, f"{where}.geometry[{item.id}].height", problems
+            )
+        elif item.TYPE == LINE and item.start == item.end:
+            problems.append(
+                PlanProblem(
+                    P4,
+                    "a line's start and end are the same point, so it has "
+                    "no length",
+                    f"{where}.geometry[{item.id}]",
+                )
+            )
+
+    for index, constraint in enumerate(constraints):
+        path = f"{where}.constraints[{index}]"
+
+        if constraint.value is not None:
+            _positive(constraint.value, f"{path}.value", problems)
+
+        references = (
+            [handle.geometry for handle in constraint.points]
+            if constraint.points
+            else ([constraint.geometry] if constraint.geometry else [])
+        )
+        for reference in references:
+            if reference not in types:
+                known = ", ".join(sorted(types)) or "nothing"
+                problems.append(
+                    PlanProblem(
+                        P19,
+                        f"{reference!r} names no geometry in this sketch; "
+                        f"declared: {known}",
+                        path,
+                    )
+                )
+
+        for position, handle in enumerate(constraint.points):
+            if handle.geometry not in types:
+                continue  # already reported as P19
+            allowed = POINT_HANDLES[types[handle.geometry]]
+            if handle.point not in allowed:
+                problems.append(
+                    PlanProblem(
+                        P20,
+                        f"{handle.point!r} is not a point of a "
+                        f"{types[handle.geometry]}; it has "
+                        f"{', '.join(allowed)}",
+                        f"{path}.points[{position}]",
+                    )
+                )
+
+        expected = CONSTRAINT_APPLIES_TO.get(constraint.type)
+        if expected is not None and constraint.geometry in types:
+            actual = types[constraint.geometry]
+            if actual not in expected:
+                problems.append(
+                    PlanProblem(
+                        P21,
+                        f"a `{constraint.type}` constraint applies to "
+                        f"{' or '.join(expected)}, but "
+                        f"{constraint.geometry!r} is a {actual}",
+                        path,
+                    )
+                )
+
+        # P22: agreement. Checked, never solved.
+        if (
+            constraint.type in DIMENSIONAL_TYPES
+            and constraint.value is not None
+            and constraint.geometry in by_id
+        ):
+            item = by_id[constraint.geometry]
+            if constraint.type == LENGTH and item.TYPE == LINE:
+                actual_length = math.hypot(
+                    item.end.x - item.start.x, item.end.y - item.start.y
+                )
+                # A tolerance, not equality: the length is computed from the
+                # endpoints, so a constraint of 50 on a line from (0,0) to
+                # (30,40) must agree to floating-point accuracy, not to the
+                # bit.
+                if not math.isclose(
+                    actual_length, constraint.value, rel_tol=1e-9
+                ):
+                    problems.append(
+                        PlanProblem(
+                            P22,
+                            f"the constraint says {constraint.value}, but "
+                            f"{constraint.geometry!r} measures "
+                            f"{actual_length}. Constraints are checked, not "
+                            "solved, so this is a conflict to fix in the plan",
+                            path,
+                        )
+                    )
+            elif constraint.type == RADIUS and item.TYPE == CIRCLE:
+                if not math.isclose(
+                    item.radius, constraint.value, rel_tol=1e-9
+                ):
+                    problems.append(
+                        PlanProblem(
+                            P22,
+                            f"the constraint says {constraint.value}, but "
+                            f"{constraint.geometry!r} has radius "
+                            f"{item.radius}. Constraints are checked, not "
+                            "solved, so this is a conflict to fix in the plan",
+                            path,
+                        )
+                    )
 
 
 def _selector(
@@ -328,6 +525,7 @@ def _subtract(
     live: Dict[str, int],
     consumed: Dict[str, int],
     problems: List[PlanProblem],
+    profiles: Dict[str, int],
 ) -> None:
     """Judge one subtract: its target, its tool list, and every tool.
 
@@ -341,7 +539,7 @@ def _subtract(
     owner_id = getattr(operation, "id", "")
     _reference(
         target, f"{where}.target", owner_id, index,
-        declared, live, consumed, problems,
+        declared, live, consumed, problems, profiles,
     )
 
     tools = tools_of(operation)
@@ -384,7 +582,8 @@ def _subtract(
         seen[tool] = position
 
         _reference(
-            tool, path, owner_id, index, declared, live, consumed, problems
+            tool, path, owner_id, index, declared, live, consumed, problems,
+            profiles,
         )
 
 
@@ -397,6 +596,7 @@ def _reference(
     live: Dict[str, int],
     consumed: Dict[str, int],
     problems: List[PlanProblem],
+    profiles: Dict[str, int],
 ) -> None:
     """Judge one reference against the simulated solid set.
 
@@ -464,18 +664,28 @@ def _reference(
         return
 
     if target not in live:
-        # Declared, earlier, not consumed -- so it is a modifier's id. A
-        # modifier's result keeps its TARGET's id, so its own id never names
-        # a solid, and a hole cannot be drilled into a hole.
-        problems.append(
-            PlanProblem(
-                P11,
-                f"{target!r} does not name a solid: it is a modifier, whose "
-                "result keeps its own target's id. Target the constructive "
-                "operation instead",
-                path,
+        # Declared, earlier, not consumed -- so it names something that is
+        # not a solid. Which one it is changes the advice, so the message
+        # says which.
+        if target in profiles:
+            problems.append(
+                PlanProblem(
+                    P11,
+                    f"{target!r} is a sketch, which declares a profile and "
+                    "not a solid. A solid operation cannot act on a profile",
+                    path,
+                )
             )
-        )
+        else:
+            problems.append(
+                PlanProblem(
+                    P11,
+                    f"{target!r} does not name a solid: it is a modifier, "
+                    "whose result keeps its own target's id. Target the "
+                    "constructive operation instead",
+                    path,
+                )
+            )
 
 
 def _positive(value: float, where: str, problems: List[PlanProblem]) -> None:
@@ -513,6 +723,11 @@ __all__ = [
     "P15",
     "P16",
     "P17",
+    "P18",
+    "P19",
+    "P20",
+    "P21",
+    "P22",
     "RULE_CODES",
     "PlanProblem",
     "PlanValidation",

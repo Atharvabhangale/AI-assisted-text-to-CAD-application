@@ -67,6 +67,15 @@ export interface BuildResponse {
   readonly document?: unknown;
   readonly error?: string;
   readonly problems?: readonly PlanProblem[];
+  /**
+   * Set when the plan is sound and this backend has no execution path for
+   * it. Distinct from `error` on purpose: the plan is not wrong. The server
+   * answers 501 on the build route, so the client reads it off the thrown
+   * error's body rather than a success payload.
+   */
+  readonly execution_unsupported?: boolean;
+  readonly unsupported_types?: readonly string[];
+  readonly unsupported_operations?: readonly string[];
 }
 
 /** A failed request, carrying whatever the server said. */
@@ -74,6 +83,13 @@ export class ApiError extends Error {
   constructor(
     message: string,
     readonly status: number,
+    /**
+     * The decoded error body, when there was one. Carried so a caller can
+     * tell a *kind* of failure apart from its prose -- an unexecutable plan
+     * arrives as 501 with `execution_unsupported`, and reading that off a
+     * message string would be guessing.
+     */
+    readonly body: unknown = null,
   ) {
     super(message);
   }
@@ -93,10 +109,13 @@ async function post<T>(path: string, body: unknown): Promise<T> {
     throw new ApiError("the server did not return JSON", response.status);
   }
   if (!response.ok) {
-    const record = payload as { error?: string } | null;
+    const record = payload as
+      | { error?: string; execution_unsupported?: boolean }
+      | null;
     throw new ApiError(
       record?.error ?? `request failed with ${response.status}`,
       response.status,
+      payload,
     );
   }
   return payload as T;

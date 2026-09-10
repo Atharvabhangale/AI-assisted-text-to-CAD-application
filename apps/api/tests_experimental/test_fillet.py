@@ -109,24 +109,28 @@ def generated(*operations):
 
 
 class VocabularyTests(unittest.TestCase):
-    def test_exactly_five_operations_exist(self):
-        self.assertEqual(
-            set(OPERATION_TYPES),
-            {"box", "cylinder", "through_hole", "subtract", "fillet"},
-        )
+    def test_fillet_is_still_in_the_vocabulary(self):
+        """Was `test_exactly_five_operations_exist` at Stage 35.
+
+        Narrowed rather than deleted when Stage 36 added chamfer and Stage 37
+        added sketch: what this class is entitled to assert is that fillet is
+        there and unchanged, not how many operations exist in total. The
+        current total is pinned once, in the stage that last changed it.
+        """
+        self.assertIn(FILLET, OPERATION_TYPES)
 
     def test_fillet_is_a_modifier_that_consumes_nothing(self):
         self.assertIn(FILLET, MODIFIER_TYPES)
         self.assertNotIn(FILLET, CONSUMING_TYPES)
         self.assertNotIn(FILLET, CONSTRUCTIVE_TYPES)
 
-    def test_chamfer_was_not_added(self):
-        """Stage 35 is fillet alone."""
-        self.assertNotIn("chamfer", OPERATION_TYPES)
-
     def test_no_further_operation_crept_in(self):
+        """`chamfer` and `sketch` left this list when they were built.
+
+        Everything still here is genuinely absent, so the guard still bites.
+        """
         for absent in (
-            "chamfer", "sketch", "extrude", "revolve", "sweep", "loft",
+            "extrude", "revolve", "sweep", "loft",
             "pattern", "mirror", "union", "assembly", "joint", "drawing",
             "material",
         ):

@@ -24,7 +24,20 @@ THROUGH_HOLE = "through_hole"
 SUBTRACT = "subtract"
 FILLET = "fillet"
 CHAMFER = "chamfer"
+SKETCH = "sketch"
 OPERATION_TYPES: Tuple[str, ...] = (
+    BOX, CYLINDER, THROUGH_HOLE, SUBTRACT, FILLET, CHAMFER, SKETCH,
+)
+
+#: Operations that declare a **profile** rather than a solid. A profile is
+#: not a solid: a fillet cannot target one, a subtract cannot consume one,
+#: and it does not count toward the single-solid rule.
+PROFILE_TYPES: Tuple[str, ...] = (SKETCH,)
+
+#: Operations V1 can execute. The rest are represented and validated here
+#: and then refused by the adapter with an explicit unsupported result --
+#: never approximated. See `cad_experimental.sketch` for why.
+EXECUTABLE_TYPES: Tuple[str, ...] = (
     BOX, CYLINDER, THROUGH_HOLE, SUBTRACT, FILLET, CHAMFER,
 )
 
@@ -96,6 +109,11 @@ FILLET_OPTIONAL: Tuple[str, ...] = ()
 CHAMFER_REQUIRED: Tuple[str, ...] = ("distance", "edges")
 CHAMFER_OPTIONAL: Tuple[str, ...] = ()
 
+#: A sketch needs a plane and its geometry; constraints are optional,
+#: because a sketch of fully-dimensioned geometry needs none.
+SKETCH_REQUIRED: Tuple[str, ...] = ("plane", "geometry")
+SKETCH_OPTIONAL: Tuple[str, ...] = ("constraints",)
+
 #: Which length each edge modifier carries. One place, so the parser, the
 #: validator and the adapter cannot disagree about it.
 EDGE_MODIFIER_LENGTH: Dict[str, str] = {FILLET: "radius", CHAMFER: "distance"}
@@ -110,6 +128,7 @@ PARAMETERS: Dict[str, Tuple[Tuple[str, ...], Tuple[str, ...]]] = {
     SUBTRACT: ((), ()),
     FILLET: (FILLET_REQUIRED, FILLET_OPTIONAL),
     CHAMFER: (CHAMFER_REQUIRED, CHAMFER_OPTIONAL),
+    SKETCH: (SKETCH_REQUIRED, SKETCH_OPTIONAL),
 }
 
 #: The keys an edge selector may carry. ``axis`` is present exactly when
@@ -131,6 +150,7 @@ OPERATION_FIELDS: Dict[str, Tuple[str, ...]] = {
     SUBTRACT: ("id", "type", "target", "tools"),
     FILLET: ("id", "type", "target", "parameters"),
     CHAMFER: ("id", "type", "target", "parameters"),
+    SKETCH: ("id", "type", "parameters"),
 }
 
 #: The most tools one subtract may list. A part is not built from hundreds of
@@ -315,6 +335,28 @@ class FilletOperation:
 
 
 @dataclass(frozen=True)
+class SketchOperation:
+    """A named 2D profile on a principal plane.
+
+    Declares a **profile**, not a solid: nothing can fillet it, subtract it
+    or count it toward the single-solid rule. Only a later operation that
+    consumes a profile can turn it into geometry.
+
+    It cannot be executed. See :mod:`cad_experimental.sketch` for why, and
+    :class:`~cad_experimental.adapter.ExecutionUnsupported` for what the
+    adapter says instead.
+    """
+
+    TYPE = SKETCH
+
+    id: str
+    definition: Any  # sketch.SketchDefinition
+
+    def parameters(self) -> Dict[str, Any]:
+        return self.definition.to_dict()
+
+
+@dataclass(frozen=True)
 class ChamferOperation:
     """Bevels selected edges of ``target`` by an equal setback.
 
@@ -388,6 +430,16 @@ def is_modifier(operation: Operation) -> bool:
     return operation_type(operation) in MODIFIER_TYPES
 
 
+def is_profile(operation: Operation) -> bool:
+    """True if the operation declares a profile rather than a solid."""
+    return operation_type(operation) in PROFILE_TYPES
+
+
+def is_executable(operation: Operation) -> bool:
+    """True if V1 and the existing engine can actually build this."""
+    return operation_type(operation) in EXECUTABLE_TYPES
+
+
 def is_consuming(operation: Operation) -> bool:
     """True if the operation consumes the solids it references as tools."""
     return operation_type(operation) in CONSUMING_TYPES
@@ -445,6 +497,13 @@ class OperationPlan:
         if self.questions:
             payload["questions"] = list(self.questions)
         return payload
+
+
+def _sketch_schema() -> Dict[str, Any]:
+    """The sketch parameters, imported late to keep the module order simple."""
+    from .sketch import sketch_schema
+
+    return sketch_schema()
 
 
 def plan_schema() -> Dict[str, Any]:
@@ -505,6 +564,7 @@ def plan_schema() -> Dict[str, Any]:
                                 "position": point,
                                 "radius": {"type": "number"},
                                 "distance": {"type": "number"},
+                                **_sketch_schema(),
                                 "edges": {
                                     "type": "object",
                                     "properties": {
@@ -550,6 +610,12 @@ __all__ = [
     "SELECT_AXIS_PARALLEL",
     "SELECT_MODES",
     "CHAMFER",
+    "EXECUTABLE_TYPES",
+    "PROFILE_TYPES",
+    "SKETCH",
+    "SketchOperation",
+    "is_executable",
+    "is_profile",
     "EDGE_MODIFIER_LENGTH",
     "EDGE_MODIFIER_TYPES",
     "ChamferOperation",

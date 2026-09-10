@@ -530,19 +530,25 @@ class SchemaTests(unittest.TestCase):
         )
 
     def test_the_schema_lists_only_the_implemented_types(self):
-        """Spelled out, not derived: a fourth type must be a deliberate edit."""
+        """Spelled out, not derived: a new type must be a deliberate edit.
+
+        Updated at Stage 36 (chamfer) and Stage 37 (sketch). Deriving this
+        from ``OPERATION_TYPES`` would make it pass for free and stop being
+        a check on what the language grew.
+        """
         schema = plan_schema()
         types = schema["properties"]["operations"]["items"]["properties"]["type"]
         self.assertEqual(
             set(types["enum"]),
-            {"box", "cylinder", "through_hole", "subtract", "fillet"},
+            {"box", "cylinder", "through_hole", "subtract", "fillet",
+             "chamfer", "sketch"},
         )
 
     def test_the_schema_lists_no_unimplemented_operation(self):
         schema = plan_schema()
         types = schema["properties"]["operations"]["items"]["properties"]["type"]
         for absent in (
-            "chamfer", "sketch", "extrude", "revolve",
+            "extrude", "revolve",
             "sweep", "loft", "pattern", "mirror", "union", "assembly",
         ):
             self.assertNotIn(absent, types["enum"])

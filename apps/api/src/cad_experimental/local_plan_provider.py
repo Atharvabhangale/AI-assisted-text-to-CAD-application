@@ -155,6 +155,11 @@ _PLATE_TWO_TOOLS = _PLATE - 2.0 * math.pi * 8.0**2 * 10.0
 BUILDS = "builds"
 PLAN_REJECTED = "plan_rejected"
 BUILD_REJECTED = "build_rejected"
+#: A fixture that is **valid and unexecutable**. It exists to pin the one
+#: honest answer for a sketch: the plan passes every rule and the backend
+#: still refuses to produce geometry. Without a fixture for it, "we say so
+#: explicitly" would be a claim in a docstring rather than a tested fact.
+EXECUTION_UNSUPPORTED = "execution_unsupported"
 
 #: For a geometry with no clean closed form -- a box with all twelve edges
 #: filleted, where the corner blends interact. Recording a *measured* number
@@ -187,6 +192,42 @@ _ALL = {"select": "all"}
 def _axis_parallel(axis: str) -> Dict[str, Any]:
     """An unsigned selector axis -- ``"Z"``, never ``"+Z"`` (Section C.7)."""
     return {"select": "axis_parallel", "axis": axis}
+
+
+def _sketch(
+    ident: str,
+    plane: str,
+    geometry: List[Dict[str, Any]],
+    constraints: Optional[List[Dict[str, Any]]] = None,
+) -> Dict[str, Any]:
+    """A sketch operation. It declares a profile and cannot be built."""
+    parameters: Dict[str, Any] = {"plane": plane, "geometry": geometry}
+    if constraints is not None:
+        parameters["constraints"] = constraints
+    return {"id": ident, "type": "sketch", "parameters": parameters}
+
+
+def _line(ident: str, x1: float, y1: float, x2: float, y2: float) -> Dict[str, Any]:
+    return {
+        "id": ident, "type": "line",
+        "start": {"x": x1, "y": y1}, "end": {"x": x2, "y": y2},
+    }
+
+
+def _circle(ident: str, x: float, y: float, radius: float) -> Dict[str, Any]:
+    return {
+        "id": ident, "type": "circle",
+        "centre": {"x": x, "y": y}, "radius": radius,
+    }
+
+
+def _rectangle(
+    ident: str, x: float, y: float, width: float, height: float
+) -> Dict[str, Any]:
+    return {
+        "id": ident, "type": "rectangle",
+        "corner": {"x": x, "y": y}, "width": width, "height": height,
+    }
 
 
 #: The development fixtures. Hand-written plans, with the geometry each is
@@ -833,6 +874,177 @@ FIXTURES: Mapping[str, Dict[str, Any]] = {
             ],
         },
     },
+    # --- the sketch foundation -------------------------------------------
+    #
+    # Every one of these is a *sketch* fixture, and not one of them builds.
+    # The first is the important one: it is valid by every rule the plan
+    # layer has, and the answer is still "this backend cannot execute it".
+    "sketch-rectangle-profile": {
+        "description": (
+            "a 100 x 60 mm rectangular profile on XY -- a valid plan this "
+            "backend cannot execute"
+        ),
+        "expects": EXECUTION_UNSUPPORTED,
+        "expected_codes": ("sketch",),
+        "plan": {
+            "status": "generated",
+            "summary": "a rectangular profile, 100 x 60 mm, on the XY plane",
+            "operations": [
+                _sketch("profile", "XY", [_rectangle("r1", 0, 0, 100, 60)]),
+            ],
+        },
+    },
+    "sketch-constrained-lines": {
+        "description": (
+            "two lines meeting at a corner, with horizontal, vertical and "
+            "length constraints that all agree"
+        ),
+        "expects": EXECUTION_UNSUPPORTED,
+        "expected_codes": ("sketch",),
+        "plan": {
+            "status": "generated",
+            "summary": "an L of two constrained lines on XY",
+            "operations": [
+                _sketch(
+                    "profile", "XY",
+                    [_line("l1", 0, 0, 50, 0), _line("l2", 50, 0, 50, 30)],
+                    [
+                        {"id": "c1", "type": "horizontal", "geometry": "l1"},
+                        {"id": "c2", "type": "vertical", "geometry": "l2"},
+                        {"id": "c3", "type": "length",
+                         "geometry": "l1", "value": 50},
+                        {"id": "c4", "type": "coincident", "points": [
+                            {"geometry": "l1", "point": "end"},
+                            {"geometry": "l2", "point": "start"},
+                        ]},
+                    ],
+                ),
+            ],
+        },
+    },
+    "sketch-beside-a-solid": {
+        "description": (
+            "a sketch alongside a buildable box -- the whole plan is "
+            "unexecutable, not the executable part of it"
+        ),
+        "expects": EXECUTION_UNSUPPORTED,
+        "expected_codes": ("sketch",),
+        "plan": {
+            "status": "generated",
+            "summary": "a plate and an unused profile",
+            "operations": [
+                _box("plate", 100, 60, 10),
+                _sketch("profile", "XY", [_circle("c1", 0, 0, 5)]),
+            ],
+        },
+    },
+    "reject-sketch-duplicate-id": {
+        "description": "two pieces of sketch geometry sharing an id (rule P18)",
+        "expects": PLAN_REJECTED,
+        "expected_codes": ("P18",),
+        "plan": {
+            "status": "generated",
+            "summary": "a sketch with a duplicate id",
+            "operations": [
+                _sketch("profile", "XY",
+                        [_line("l1", 0, 0, 10, 0), _circle("l1", 5, 5, 2)]),
+            ],
+        },
+    },
+    "reject-sketch-constraint-shadows-geometry": {
+        "description": (
+            "a constraint id that shadows a geometry id -- one namespace "
+            "inside a sketch (rule P18)"
+        ),
+        "expects": PLAN_REJECTED,
+        "expected_codes": ("P18",),
+        "plan": {
+            "status": "generated",
+            "summary": "a constraint named after its geometry",
+            "operations": [
+                _sketch("profile", "XY", [_line("l1", 0, 0, 10, 0)],
+                        [{"id": "l1", "type": "horizontal",
+                          "geometry": "l1"}]),
+            ],
+        },
+    },
+    "reject-sketch-unknown-reference": {
+        "description": "a constraint naming geometry that is not there (P19)",
+        "expects": PLAN_REJECTED,
+        "expected_codes": ("P19",),
+        "plan": {
+            "status": "generated",
+            "summary": "a constraint on absent geometry",
+            "operations": [
+                _sketch("profile", "XY", [_line("l1", 0, 0, 10, 0)],
+                        [{"id": "c1", "type": "horizontal",
+                          "geometry": "l2"}]),
+            ],
+        },
+    },
+    "reject-sketch-bad-point-handle": {
+        "description": "a circle's `end` point, which does not exist (P20)",
+        "expects": PLAN_REJECTED,
+        "expected_codes": ("P20",),
+        "plan": {
+            "status": "generated",
+            "summary": "a coincidence on a point a circle has not got",
+            "operations": [
+                _sketch("profile", "XY",
+                        [_line("l1", 0, 0, 10, 0), _circle("c1", 10, 0, 3)],
+                        [{"id": "k1", "type": "coincident", "points": [
+                            {"geometry": "l1", "point": "end"},
+                            {"geometry": "c1", "point": "end"},
+                        ]}]),
+            ],
+        },
+    },
+    "reject-sketch-wrong-constraint-type": {
+        "description": "a radius constraint on a line -- a category error (P21)",
+        "expects": PLAN_REJECTED,
+        "expected_codes": ("P21",),
+        "plan": {
+            "status": "generated",
+            "summary": "a radius on a line",
+            "operations": [
+                _sketch("profile", "XY", [_line("l1", 0, 0, 10, 0)],
+                        [{"id": "k1", "type": "radius",
+                          "geometry": "l1", "value": 5}]),
+            ],
+        },
+    },
+    "reject-sketch-conflicting-length": {
+        "description": (
+            "a length constraint of 80 on a line that is 50 long -- reported "
+            "as a conflict, never solved (rule P22)"
+        ),
+        "expects": PLAN_REJECTED,
+        "expected_codes": ("P22",),
+        "plan": {
+            "status": "generated",
+            "summary": "a length that disagrees with its line",
+            "operations": [
+                _sketch("profile", "XY", [_line("l1", 0, 0, 50, 0)],
+                        [{"id": "k1", "type": "length",
+                          "geometry": "l1", "value": 80}]),
+            ],
+        },
+    },
+    "reject-sketch-as-a-solid": {
+        "description": (
+            "a fillet targeting a sketch -- a profile is not a solid (P11)"
+        ),
+        "expects": PLAN_REJECTED,
+        "expected_codes": ("P11",),
+        "plan": {
+            "status": "generated",
+            "summary": "a fillet on a profile",
+            "operations": [
+                _sketch("profile", "XY", [_rectangle("r1", 0, 0, 100, 60)]),
+                _fillet("round", "profile", 2, _axis_parallel("Z")),
+            ],
+        },
+    },
     "cylinder-d80-h100-z": {
         "description": "the plan from the Stage 32 brief, verbatim",
         "expected_bounding_box": {"x": 80.0, "y": 80.0, "z": 100.0},
@@ -1107,11 +1319,31 @@ def run_fixture(name: str, *, build: bool = True) -> Dict[str, Any]:
         result["error"] = generation.error
         return stamp(result)
 
-    from .adapter import plan_to_document
+    from .adapter import ExecutionUnsupported, plan_to_document
 
-    document = plan_to_document(generation.plan, name=name)
+    try:
+        document = plan_to_document(generation.plan, name=name)
+    except ExecutionUnsupported as exc:
+        # A valid plan with no execution path. Recorded as its own outcome,
+        # with no document and no geometry of any kind -- not as a build
+        # error, and certainly not as a build.
+        result["v1_conversion"] = EXECUTION_UNSUPPORTED
+        result["v1_document"] = None
+        result["execution_unsupported"] = True
+        result["unsupported_types"] = list(exc.operation_types)
+        result["unsupported_operations"] = list(exc.operation_ids)
+        result["built"] = False
+        result["build_error"] = str(exc)
+        result["rejected"] = True
+        result["observed_codes"] = list(exc.operation_types)
+        result["rejected_for_the_right_reason"] = (
+            expects == EXECUTION_UNSUPPORTED
+            and all(code in exc.operation_types for code in expected_codes)
+        )
+        return stamp(result)
     result["v1_document"] = document
     result["v1_conversion"] = "ok"
+    result["execution_unsupported"] = False
 
     if not build:
         return stamp(result)

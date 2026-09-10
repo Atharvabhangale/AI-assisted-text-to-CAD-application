@@ -46,6 +46,14 @@ plan             V1 document
 ``axis``         the same ``axis`` string, omitted when absent
 ===============  ===========================================================
 
+``sketch`` has **no row in that table, on purpose.** There is no V1
+feature it could become: the contract lists sketches as out of scope and
+requires a validator to reject them, and inventing a mapping (a box the size
+of the profile's bounding rectangle, say) would be a fabrication dressed as a
+build. A plan containing one translates to nothing and raises
+:class:`ExecutionUnsupported` instead -- see that class for why it is a
+distinct answer rather than an error.
+
 The translation is almost an identity, and deliberately so: the plan's whole
 difference from the V1 document is a flatter *shape*, not different
 semantics. Nothing here reinterprets a reference, reorders operations,
@@ -56,12 +64,13 @@ sound.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 from .plan import (
     BOX,
     CHAMFER,
     CYLINDER,
+    EXECUTABLE_TYPES,
     FILLET,
     SUBTRACT,
     THROUGH_HOLE,
@@ -85,6 +94,43 @@ class AdapterError(Exception):
     """A plan that cannot be expressed as a V1 document at all."""
 
 
+class ExecutionUnsupported(AdapterError):
+    """A **valid** plan whose operations this backend cannot execute yet.
+
+    This is deliberately a different answer from every other one in the
+    system, and the distinction matters:
+
+    * a *parse* failure means the model did not produce a plan;
+    * a *plan* failure (P-rules) means the plan is malformed or incoherent;
+    * a *validation* failure (S-rules) means the CAD document is invalid;
+    * a *geometric* failure (E-rules) means the kernel refused the geometry;
+    * **this** means the plan is fine and the backend is not.
+
+    Collapsing it into any of the others would misreport the state of the
+    project: a sketch is not a bad plan, and calling it one would hide the
+    fact that the vocabulary has outgrown the engine. The alternative --
+    approximating a sketch with something buildable -- is worse still, and is
+    exactly the silent substitution the architecture forbids.
+
+    :attr:`operation_types` names the offending types, and
+    :attr:`operation_ids` the offending operations, so a caller can say which
+    part of the plan is unexecutable rather than only that some part is.
+    """
+
+    def __init__(
+        self,
+        operation_types: Tuple[str, ...],
+        operation_ids: Tuple[str, ...],
+    ) -> None:
+        listed = ", ".join(repr(kind) for kind in operation_types)
+        super().__init__(
+            f"this backend cannot execute {listed}: the plan is valid, but "
+            f"the engine implements the V1 feature set only"
+        )
+        self.operation_types = operation_types
+        self.operation_ids = operation_ids
+
+
 def plan_to_document(
     plan: OperationPlan, *, name: str = DEFAULT_PART_NAME
 ) -> Dict[str, Any]:
@@ -104,6 +150,20 @@ def plan_to_document(
         )
     if not plan.operations:
         raise AdapterError("a generated plan with no operations has no geometry")
+
+    # Checked over the whole plan **before** a single feature is emitted, so
+    # a partially translated document can never escape. A plan is executable
+    # or it is not; there is no partial build.
+    unexecutable = tuple(
+        operation
+        for operation in plan.operations
+        if getattr(operation, "TYPE", None) not in EXECUTABLE_TYPES
+    )
+    if unexecutable:
+        raise ExecutionUnsupported(
+            tuple(dict.fromkeys(op.TYPE for op in unexecutable)),
+            tuple(op.id for op in unexecutable),
+        )
 
     features: List[Dict[str, Any]] = [
         _feature(operation) for operation in plan.operations
@@ -193,5 +253,6 @@ __all__ = [
     "DEFAULT_PART_NAME",
     "SCHEMA_VERSION",
     "AdapterError",
+    "ExecutionUnsupported",
     "plan_to_document",
 ]

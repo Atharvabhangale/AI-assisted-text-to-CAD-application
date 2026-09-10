@@ -48,6 +48,7 @@ from .plan import (
     THROUGH_HOLE,
     CHAMFER,
     FILLET,
+    SKETCH,
     BoxOperation,
     ChamferOperation,
     CylinderOperation,
@@ -57,8 +58,31 @@ from .plan import (
     OperationPlan,
     PlanStatus,
     Point,
+    SketchOperation,
     SubtractOperation,
     ThroughHoleOperation,
+)
+from .sketch import (
+    CONSTRAINT_FIELDS,
+    CONSTRAINT_TYPES,
+    DIMENSIONAL_TYPES,
+    GEOMETRY_FIELDS,
+    GEOMETRY_TYPES,
+    MAX_CONSTRAINTS,
+    MAX_GEOMETRY,
+    PLANES,
+    CIRCLE,
+    COINCIDENT,
+    LINE,
+    RECTANGLE,
+    Circle,
+    Constraint,
+    Geometry,
+    Line,
+    Point2D,
+    PointHandle,
+    Rectangle,
+    SketchDefinition,
 )
 
 #: The keys a plan object may carry. Anything else is a rejection.
@@ -228,6 +252,12 @@ def _operation(entry: Any, index: int) -> Operation:
         if name not in parameters:
             raise PlanParseError(f"{where} is missing parameter `{name}`")
 
+    if kind == SKETCH:
+        return SketchOperation(
+            id=identifier,
+            definition=_sketch(parameters, where),
+        )
+
     if kind == FILLET:
         assert target is not None
         return FilletOperation(
@@ -281,6 +311,172 @@ def _operation(entry: Any, index: int) -> Operation:
 
 
 # --- values ----------------------------------------------------------------
+
+
+# --- the sketch reader -----------------------------------------------------
+#
+# Deep, but entirely mechanical: every field is looked up in an allow-list
+# and converted to the one type it may be. There is no expression language
+# and nothing here is ever evaluated.
+
+
+def _sketch(parameters: Mapping[str, Any], where: str) -> SketchDefinition:
+    """Read a sketch's parameters into typed records."""
+    plane = parameters.get("plane")
+    if not isinstance(plane, str) or plane not in PLANES:
+        raise PlanParseError(
+            f"{where} has an unknown sketch `plane`",
+            detail=f"{plane!r}; expected one of {', '.join(PLANES)}",
+        )
+
+    raw_geometry = parameters.get("geometry")
+    if not isinstance(raw_geometry, list) or not raw_geometry:
+        raise PlanParseError(
+            f"{where} `geometry` must be a non-empty list",
+            detail="a sketch with no geometry describes nothing",
+        )
+    if len(raw_geometry) > MAX_GEOMETRY:
+        raise PlanParseError(
+            f"{where} has more geometry than this stage accepts",
+            detail=f"{len(raw_geometry)} items, limit {MAX_GEOMETRY}",
+        )
+    geometry = tuple(
+        _geometry(entry, f"{where} geometry[{index}]")
+        for index, entry in enumerate(raw_geometry)
+    )
+
+    raw_constraints = parameters.get("constraints", [])
+    if raw_constraints is None:
+        raw_constraints = []
+    if not isinstance(raw_constraints, list):
+        raise PlanParseError(f"{where} `constraints` must be a list")
+    if len(raw_constraints) > MAX_CONSTRAINTS:
+        raise PlanParseError(
+            f"{where} has more constraints than this stage accepts",
+            detail=f"{len(raw_constraints)} items, limit {MAX_CONSTRAINTS}",
+        )
+    constraints = tuple(
+        _constraint(entry, f"{where} constraints[{index}]")
+        for index, entry in enumerate(raw_constraints)
+    )
+    return SketchDefinition(
+        plane=plane, geometry=geometry, constraints=constraints
+    )
+
+
+def _geometry(entry: Any, where: str) -> Geometry:
+    mapping = _object(entry, where)
+    for required in ("id", "type"):
+        if required not in mapping:
+            raise PlanParseError(f"{where} is missing `{required}`")
+    identifier = _identifier(mapping["id"], f"{where} id")
+    kind = mapping["type"]
+    if not isinstance(kind, str) or kind not in GEOMETRY_TYPES:
+        raise PlanParseError(
+            f"{where} has an unknown geometry type",
+            detail=f"{kind!r}; this stage implements only "
+                   f"{', '.join(GEOMETRY_TYPES)}",
+        )
+    _reject_unknown(mapping, GEOMETRY_FIELDS[kind], where)
+    for field in GEOMETRY_FIELDS[kind]:
+        if field not in mapping:
+            raise PlanParseError(f"{where} is missing `{field}`")
+
+    if kind == LINE:
+        return Line(
+            id=identifier,
+            start=_point2d(mapping["start"], f"{where}.start"),
+            end=_point2d(mapping["end"], f"{where}.end"),
+        )
+    if kind == CIRCLE:
+        return Circle(
+            id=identifier,
+            centre=_point2d(mapping["centre"], f"{where}.centre"),
+            radius=_number(mapping["radius"], f"{where}.radius"),
+        )
+    return Rectangle(
+        id=identifier,
+        corner=_point2d(mapping["corner"], f"{where}.corner"),
+        width=_number(mapping["width"], f"{where}.width"),
+        height=_number(mapping["height"], f"{where}.height"),
+    )
+
+
+def _constraint(entry: Any, where: str) -> Constraint:
+    mapping = _object(entry, where)
+    for required in ("id", "type"):
+        if required not in mapping:
+            raise PlanParseError(f"{where} is missing `{required}`")
+    identifier = _identifier(mapping["id"], f"{where} id")
+    kind = mapping["type"]
+    if not isinstance(kind, str) or kind not in CONSTRAINT_TYPES:
+        raise PlanParseError(
+            f"{where} has an unknown constraint type",
+            detail=f"{kind!r}; this stage implements only "
+                   f"{', '.join(CONSTRAINT_TYPES)}",
+        )
+    _reject_unknown(mapping, CONSTRAINT_FIELDS[kind], where)
+    for field in CONSTRAINT_FIELDS[kind]:
+        if field not in mapping:
+            raise PlanParseError(f"{where} is missing `{field}`")
+
+    if kind == COINCIDENT:
+        raw = mapping["points"]
+        if not isinstance(raw, list) or len(raw) != 2:
+            raise PlanParseError(
+                f"{where} `points` must be exactly two point handles"
+            )
+        return Constraint(
+            id=identifier,
+            type=kind,
+            points=tuple(
+                _point_handle(handle, f"{where}.points[{index}]")
+                for index, handle in enumerate(raw)
+            ),
+        )
+
+    value = (
+        _number(mapping["value"], f"{where}.value")
+        if kind in DIMENSIONAL_TYPES
+        else None
+    )
+    return Constraint(
+        id=identifier,
+        type=kind,
+        geometry=_identifier(mapping["geometry"], f"{where} geometry"),
+        value=value,
+    )
+
+
+def _point_handle(entry: Any, where: str) -> PointHandle:
+    """A geometry id plus one enumerated point name. Never a dotted path."""
+    mapping = _object(entry, where)
+    _reject_unknown(mapping, ("geometry", "point"), where)
+    for required in ("geometry", "point"):
+        if required not in mapping:
+            raise PlanParseError(f"{where} is missing `{required}`")
+    name = mapping["point"]
+    if not isinstance(name, str) or not name:
+        raise PlanParseError(f"{where} `point` must be a name")
+    # Which names are legal depends on the geometry's type, which only the
+    # validator knows -- it has the whole sketch. Shape only here.
+    return PointHandle(
+        geometry=_identifier(mapping["geometry"], f"{where} geometry"),
+        point=name,
+    )
+
+
+def _point2d(value: Any, where: str) -> Point2D:
+    """A 2D point. Exactly x and y -- a sketch has no z."""
+    mapping = _object(value, where)
+    _reject_unknown(mapping, ("x", "y"), where)
+    for axis in ("x", "y"):
+        if axis not in mapping:
+            raise PlanParseError(f"{where} is missing `{axis}`")
+    return Point2D(
+        x=_number(mapping["x"], f"{where}.x"),
+        y=_number(mapping["y"], f"{where}.y"),
+    )
 
 
 def _selector(value: Any, where: str) -> EdgeSelector:
