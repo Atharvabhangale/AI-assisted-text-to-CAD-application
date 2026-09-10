@@ -1,0 +1,4 @@
+node_modules
+dist
+# Screenshots written by e2e/drive.mjs
+*.png

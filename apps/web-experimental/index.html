@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Experimental — CAD operation plan</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%23e0b341'/%3E%3Ctext x='8' y='12' font-size='11' font-family='sans-serif' text-anchor='middle' fill='%231a1200'%3E%CE%B2%3C/text%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <header>
+      <h1>CAD operation plan <span class="tag">experimental</span></h1>
+      <p class="sub">
+        Describe a part in words. The model answers with an operation plan —
+        <code>box</code> and <code>cylinder</code> are the only operations that
+        exist. The plan is parsed, validated, then built by the same CAD engine
+        the stable application uses.
+      </p>
+      <p class="sub warn">
+        Not the stable text-to-CAD path. That one is on
+        <a href="http://localhost:5173/">port 5173</a> and is unchanged.
+      </p>
+    </header>
+
+    <main>
+      <section>
+        <h2>1 · Describe a part</h2>
+        <textarea
+          id="description"
+          rows="3"
+          placeholder="Create a rectangular plate 100 mm long, 60 mm wide and 10 mm thick."
+        ></textarea>
+        <div class="row">
+          <button id="generate" type="button">Generate</button>
+          <span id="generate-status" class="status"></span>
+        </div>
+        <div class="examples">
+          <span>Try:</span>
+          <button class="example" type="button" data-text="Create a rectangular plate 100 mm long, 60 mm wide and 10 mm thick.">a plate</button>
+          <button class="example" type="button" data-text="Create a cylinder 20 mm in diameter and 50 mm tall along the +Z axis.">a cylinder</button>
+          <button class="example" type="button" data-text="Create a sphere with a 20 mm diameter.">a sphere (unsupported)</button>
+          <button class="example" type="button" data-text="Create a cylinder and a box joined together.">a join (unsupported)</button>
+        </div>
+      </section>
+
+      <section>
+        <h2>2 · Generated operation plan</h2>
+        <div id="plan-summary" class="summary empty">Nothing generated yet.</div>
+        <ol id="operation-tree" class="tree"></ol>
+        <details>
+          <summary>Plan JSON</summary>
+          <textarea id="plan-json" rows="12" spellcheck="false"></textarea>
+        </details>
+      </section>
+
+      <section>
+        <h2>3 · Validation</h2>
+        <div class="row">
+          <button id="validate" type="button">Validate</button>
+          <span id="validate-status" class="status"></span>
+        </div>
+        <ul id="problems" class="problems"></ul>
+      </section>
+
+      <section>
+        <h2>4 · Build</h2>
+        <div class="row">
+          <button id="build" type="button">Build</button>
+          <span id="build-status" class="status"></span>
+        </div>
+        <dl id="measurements" class="measurements"></dl>
+      </section>
+
+      <section class="viewer-section">
+        <h2>5 · Result</h2>
+        <canvas id="viewport" width="900" height="520"></canvas>
+        <p id="mesh-note" class="status"></p>
+      </section>
+    </main>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

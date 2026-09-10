@@ -1,0 +1,13 @@
+{
+  "name": "cad-web-experimental",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Experimental operation-plan page. Not the stable text-to-CAD app.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "e2e": "node e2e/drive.mjs"
+  }
+}

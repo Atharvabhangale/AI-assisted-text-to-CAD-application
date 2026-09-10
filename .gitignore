@@ -1,5 +1,9 @@
 # Dependencies
 node_modules/
+# ...and as a symlink, which the trailing-slash form above does not match.
+# apps/web-experimental links to the stable app's install for local dev, and
+# a machine-specific path must never be committed.
+node_modules
 .pnp/
 .pnp.js
 
