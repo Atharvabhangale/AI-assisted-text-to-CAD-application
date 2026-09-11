@@ -118,18 +118,29 @@ class VocabularyTests(unittest.TestCase):
         for code in (P13, P14):
             self.assertIn(code, RULE_CODES)
 
+    def subtract_branch(self):
+        branches = plan_schema()["properties"]["operations"]["items"]["anyOf"]
+        return next(b for b in branches
+                    if b["properties"]["type"]["const"] == "subtract")
+
     def test_the_schema_describes_tools(self):
-        item = plan_schema()["properties"]["operations"]["items"]
-        self.assertIn("tools", item["properties"])
-        tools = item["properties"]["tools"]
+        branch = self.subtract_branch()
+        self.assertIn("tools", branch["properties"])
+        tools = branch["properties"]["tools"]
         self.assertEqual(tools["type"], "array")
         self.assertEqual(tools["minItems"], 1)
-        self.assertEqual(tools["items"]["type"], "string")
+        self.assertIn("$ref", tools["items"])
 
-    def test_the_schema_no_longer_requires_parameters(self):
-        """A subtract has none, so requiring one would forbid a valid plan."""
-        item = plan_schema()["properties"]["operations"]["items"]
-        self.assertEqual(set(item["required"]), {"id", "type"})
+    def test_the_subtract_branch_carries_no_parameters(self):
+        """A subtract has none, so its branch must not offer one.
+
+        Stage 41 made this sharper than before: the flat schema could only
+        leave `parameters` optional for every type, while the subtract branch
+        omits the key outright.
+        """
+        branch = self.subtract_branch()
+        self.assertNotIn("parameters", branch["properties"])
+        self.assertEqual(set(branch["required"]), {"id", "type", "target", "tools"})
 
 
 class ParseTests(unittest.TestCase):

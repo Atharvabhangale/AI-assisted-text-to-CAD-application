@@ -214,16 +214,35 @@ class VocabularyTests(unittest.TestCase):
                     {"X", "Y", "Z"},
                 )
 
+    def branch(self, kind):
+        return next(
+            b for b in
+            plan_schema()["properties"]["operations"]["items"]["anyOf"]
+            if b["properties"]["type"]["const"] == kind
+        )
+
     def test_the_schema_lists_both_and_their_parameters(self):
-        schema = plan_schema()
-        item = schema["properties"]["operations"]["items"]
-        self.assertIn(EXTRUDE, item["properties"]["type"]["enum"])
-        self.assertIn(REVOLVE, item["properties"]["type"]["enum"])
-        parameters = item["properties"]["parameters"]["properties"]
-        self.assertIn("angle", parameters)
-        self.assertIn("direction", parameters)
-        self.assertEqual(parameters["angle"]["maximum"], FULL_TURN)
-        self.assertEqual(parameters["direction"]["enum"], list(AXES))
+        """Stage 41: one branch each, with their own required parameters."""
+        extrude = self.branch(EXTRUDE)["properties"]["parameters"]
+        self.assertEqual(set(extrude["required"]), {"distance"})
+        self.assertIn("direction", extrude["properties"])
+
+        revolve = self.branch(REVOLVE)["properties"]["parameters"]
+        self.assertEqual(set(revolve["required"]), {"angle", "axis"})
+
+    def test_the_angle_bound_moved_to_the_validator(self):
+        """`maximum` left the schema at Stage 41 -- the structured-output API
+        rejects it -- and P26 still enforces (0, 360]. Nothing was weakened."""
+        parameters = self.branch(REVOLVE)["properties"]["parameters"]
+        self.assertNotIn("maximum", parameters["properties"]["angle"])
+        for bad in (0, -90, FULL_TURN + 1):
+            with self.subTest(angle=bad):
+                self.assertIn(P26, codes_of(plan(
+                    sketch("profile", "XZ"), revolve(angle=bad),
+                )))
+        self.assertEqual(codes_of(plan(
+            sketch("profile", "XZ"), revolve(angle=FULL_TURN),
+        )), [])
 
     def test_no_further_operation_crept_in(self):
         for absent in ("sweep", "loft", "pattern", "mirror", "union",

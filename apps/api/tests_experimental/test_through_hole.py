@@ -98,9 +98,12 @@ class VocabularyTests(unittest.TestCase):
             self.assertNotIn(absent, OPERATION_TYPES)
 
     def test_the_schema_lists_through_hole_and_target(self):
-        item = plan_schema()["properties"]["operations"]["items"]
-        self.assertIn("through_hole", item["properties"]["type"]["enum"])
-        self.assertIn("target", item["properties"])
+        """Stage 41: one branch per type, so `target` is REQUIRED here."""
+        branches = plan_schema()["properties"]["operations"]["items"]["anyOf"]
+        branch = next(b for b in branches
+                      if b["properties"]["type"]["const"] == "through_hole")
+        self.assertIn("target", branch["properties"])
+        self.assertIn("target", branch["required"])
 
     def test_the_reference_rule_codes_are_registered(self):
         for code in (P8, P9, P10, P11, P12):

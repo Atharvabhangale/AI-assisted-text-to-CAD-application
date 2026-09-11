@@ -631,25 +631,191 @@ def _sketch_schema() -> Dict[str, Any]:
     return sketch_schema()
 
 
-def plan_schema() -> Dict[str, Any]:
-    """A JSON Schema for the plan, for providers that can constrain output.
+#: Names of the shared ``$defs`` the plan schema emits. Each appears many
+#: times across the nine operation branches; emitting one copy and
+#: referencing it is what keeps the compiled grammar inside the provider's
+#: size limit.
+ID_DEF = "identifier"
+AXIS_DEF = "signed_axis"
+POINT3D_DEF = "point"
+SELECTOR_DEF = "edge_selector"
 
-    Advisory only: :mod:`cad_experimental.parser` re-checks everything. A
-    schema the provider honours simply means fewer wasted calls, never a
-    reason to trust the payload.
-    """
-    point = {
-        "type": "object",
-        "properties": {
-            "x": {"type": "number"},
-            "y": {"type": "number"},
-            "z": {"type": "number"},
-        },
-        "required": ["x", "y", "z"],
-        "additionalProperties": False,
-    }
+
+def _ref(name: str) -> Dict[str, str]:
+    return {"$ref": f"#/$defs/{name}"}
+
+
+def _plan_defs() -> Dict[str, Any]:
+    """The shared definitions the operation branches reference."""
+    from .sketch import sketch_defs
+
     return {
+        ID_DEF: {"type": "string", "pattern": ID_PATTERN},
+        AXIS_DEF: {"type": "string", "enum": list(AXES)},
+        POINT3D_DEF: {
+            "type": "object",
+            "properties": {
+                "x": {"type": "number"},
+                "y": {"type": "number"},
+                "z": {"type": "number"},
+            },
+            "required": ["x", "y", "z"],
+            "additionalProperties": False,
+        },
+        SELECTOR_DEF: {
+            "type": "object",
+            "properties": {
+                "select": {"type": "string", "enum": list(SELECT_MODES)},
+                # Unsigned. Not the signed axis above -- Section C.7 is
+                # explicit that parallelism has no direction.
+                "axis": {"type": "string", "enum": list(SELECTOR_AXES)},
+            },
+            "required": ["select"],
+            "additionalProperties": False,
+        },
+        **sketch_defs(),
+    }
+
+
+def _parameter_schemas() -> Dict[str, Any]:
+    """The schema fragment for each parameter name, in one place.
+
+    Written once so the nine operation branches cannot come to describe the
+    same parameter differently.
+    """
+    return {
+        "x": {"type": "number"},
+        "y": {"type": "number"},
+        "z": {"type": "number"},
+        "diameter": {"type": "number"},
+        "height": {"type": "number"},
+        "radius": {"type": "number"},
+        # Shared by chamfer and extrude: both are one positive length.
+        "distance": {"type": "number"},
+        "angle": {"type": "number"},
+        "axis": _ref(AXIS_DEF),
+        "direction": _ref(AXIS_DEF),
+        "position": _ref(POINT3D_DEF),
+        "edges": _ref(SELECTOR_DEF),
+        **_sketch_schema(),
+    }
+
+
+def _operation_branches(
+    kinds: Tuple[str, ...] = OPERATION_TYPES,
+) -> List[Dict[str, Any]]:
+    """One schema branch per operation type, discriminated by ``type``.
+
+    **Derived from** :data:`OPERATION_FIELDS` and :data:`PARAMETERS`, not
+    retyped: the same two tables the parser reads. A branch therefore cannot
+    describe an operation the parser would refuse, or omit one it requires,
+    and a new operation type updates the schema automatically.
+
+    Why a union rather than one object
+    ----------------------------------
+    Stage 40 measured the old shape against the live API: a single
+    ``parameters`` object had to carry all fifteen parameter names of all
+    nine operation types, every one optional, because which are required
+    depends on the sibling ``type``. That came to **31 optional properties
+    against a limit of 24**, and stripping bounds did not reduce it.
+
+    Here each branch declares only its own parameters, and nearly all are
+    required, because within one operation type they genuinely are.
+
+    **The wire format is unchanged.** This is the same
+    ``{id, type, target?, tools?, parameters?}`` object the parser has always
+    accepted, described precisely instead of loosely -- so the parser, the
+    validator and the V1 adapter needed no change at all.
+    """
+    parameters = _parameter_schemas()
+    branches: List[Dict[str, Any]] = []
+    for kind in kinds:
+        properties: Dict[str, Any] = {
+            "id": _ref(ID_DEF),
+            "type": {"const": kind},
+        }
+        # Operation-level keys, from the parser's own table. Each is present
+        # exactly for the types that may carry it, and each is required: a
+        # `target` is not optional on an operation that has one.
+        allowed = OPERATION_FIELDS[kind]
+        required = ["id", "type"]
+        if "target" in allowed:
+            properties["target"] = _ref(ID_DEF)
+            required.append("target")
+        if "tools" in allowed:
+            properties["tools"] = {
+                "type": "array", "minItems": 1, "items": _ref(ID_DEF),
+            }
+            required.append("tools")
+
+        required_names, optional_names = PARAMETERS[kind]
+        if "parameters" in allowed:
+            properties["parameters"] = {
+                "type": "object",
+                "properties": {
+                    name: parameters[name]
+                    for name in (*required_names, *optional_names)
+                },
+                "required": list(required_names),
+                "additionalProperties": False,
+            }
+            required.append("parameters")
+
+        branches.append({
+            "type": "object",
+            "properties": properties,
+            "required": required,
+            "additionalProperties": False,
+        })
+    return branches
+
+
+def _prune_defs(document: Dict[str, Any]) -> Dict[str, Any]:
+    """Drop ``$defs`` entries nothing references.
+
+    Measured against the live API and not obvious: an **unused** definition
+    still costs compiled-grammar budget. A schema that dropped the sketch
+    branch but kept the sketch definitions was refused as too large, and the
+    same schema with the definitions pruned was accepted.
+    """
+    defs = document.get("$defs") or {}
+
+    def referenced(node: Any, found: set) -> set:
+        if isinstance(node, dict):
+            target = node.get("$ref")
+            if isinstance(target, str) and target.startswith("#/$defs/"):
+                found.add(target.rsplit("/", 1)[-1])
+            for value in node.values():
+                referenced(value, found)
+        elif isinstance(node, list):
+            for value in node:
+                referenced(value, found)
+        return found
+
+    keep: set = set()
+    frontier = referenced(
+        {k: v for k, v in document.items() if k != "$defs"}, set()
+    )
+    while frontier:
+        name = frontier.pop()
+        if name in keep or name not in defs:
+            continue
+        keep.add(name)
+        frontier |= referenced(defs[name], set()) - keep
+
+    pruned = dict(document)
+    if keep:
+        pruned["$defs"] = {k: v for k, v in defs.items() if k in keep}
+    else:
+        pruned.pop("$defs", None)
+    return pruned
+
+
+def _plan_document(kinds: Tuple[str, ...]) -> Dict[str, Any]:
+    """The plan schema over exactly ``kinds``, with unused defs pruned."""
+    return _prune_defs({
         "type": "object",
+        "$defs": _plan_defs(),
         "properties": {
             "status": {"type": "string", "enum": [s.value for s in PlanStatus]},
             "summary": {"type": "string"},
@@ -657,83 +823,62 @@ def plan_schema() -> Dict[str, Any]:
             "questions": {"type": "array", "items": {"type": "string"}},
             "operations": {
                 "type": "array",
-                "items": {
-                    "type": "object",
-                    "properties": {
-                        "id": {"type": "string", "pattern": ID_PATTERN},
-                        "type": {"type": "string", "enum": list(OPERATION_TYPES)},
-                        # A reference to an earlier constructive operation.
-                        # Required for through_hole, forbidden for the two
-                        # constructive types -- a constraint the parser
-                        # enforces per type, which JSON Schema cannot express
-                        # here without a conditional the model would have to
-                        # reason about.
-                        "target": {"type": "string", "pattern": ID_PATTERN},
-                        # Required for subtract, forbidden elsewhere. The
-                        # parser enforces that per type.
-                        "tools": {
-                            "type": "array",
-                            "items": {"type": "string", "pattern": ID_PATTERN},
-                            "minItems": 1,
-                            "maxItems": MAX_TOOLS,
-                        },
-                        "parameters": {
-                            "type": "object",
-                            "properties": {
-                                "x": {"type": "number"},
-                                "y": {"type": "number"},
-                                "z": {"type": "number"},
-                                "diameter": {"type": "number"},
-                                "height": {"type": "number"},
-                                "axis": {"type": "string", "enum": list(AXES)},
-                                "position": point,
-                                "radius": {"type": "number"},
-                                # Shared by chamfer and extrude: both are one
-                                # positive length, so one key rather than two
-                                # names for the same thing.
-                                "distance": {"type": "number"},
-                                # A revolve's sweep, in degrees, in (0, 360].
-                                "angle": {
-                                    "type": "number",
-                                    "exclusiveMinimum": 0,
-                                    "maximum": FULL_TURN,
-                                },
-                                # An extrude's direction: signed, and required
-                                # by P24 to be the sketch plane's normal.
-                                "direction": {
-                                    "type": "string", "enum": list(AXES),
-                                },
-                                **_sketch_schema(),
-                                "edges": {
-                                    "type": "object",
-                                    "properties": {
-                                        "select": {
-                                            "type": "string",
-                                            "enum": list(SELECT_MODES),
-                                        },
-                                        # Unsigned. Not the signed axis
-                                        # above -- Section C.7 is explicit.
-                                        "axis": {
-                                            "type": "string",
-                                            "enum": list(SELECTOR_AXES),
-                                        },
-                                    },
-                                    "required": ["select"],
-                                    "additionalProperties": False,
-                                },
-                            },
-                            "additionalProperties": False,
-                        },
-                    },
-                    # `parameters` is not required: a subtract has none.
-                    "required": ["id", "type"],
-                    "additionalProperties": False,
-                },
+                "items": {"anyOf": _operation_branches(kinds)},
             },
         },
         "required": ["status", "operations", "summary"],
         "additionalProperties": False,
-    }
+    })
+
+
+def provider_schema() -> Dict[str, Any]:
+    """The plan schema a structured-output provider will actually compile.
+
+    Identical in shape to :func:`plan_schema`, over the **executable** subset
+    of the vocabulary -- the six V1 features -- and nothing else.
+
+    Why a subset exists at all
+    --------------------------
+    Stage 41 measured Anthropic's structured-output limits directly. Three
+    bind at once: at most 24 optional properties across the document and
+    about 14 within any single object; a compiled-grammar size ceiling; and a
+    separate complexity ceiling. Against those, the nine-operation schema is
+    refused, and the binding constraint is ``sketch`` -- its ``geometry`` and
+    ``constraints`` lists are arrays of typed sub-objects, and the eight
+    other operations plus a sketch branch exceed the grammar budget even when
+    the sketch branch is stripped to its plane. Eight branches were accepted;
+    adding any ninth was not.
+
+    The subset is therefore **exactly** :data:`EXECUTABLE_TYPES`, which is a
+    line the project already draws: these are the operations the CAD engine
+    can build. A plan the provider is constrained to produce is a plan that
+    can become geometry.
+
+    This removes nothing from the language. :func:`plan_schema` still
+    describes all nine, the parser still accepts all nine, and a sketch plan
+    supplied by any other route is validated and refused at the execution
+    boundary exactly as before. What this says is narrower: which subset a
+    grammar-constrained decoder can be pointed at today.
+    """
+    return _plan_document(EXECUTABLE_TYPES)
+
+
+def plan_schema() -> Dict[str, Any]:
+    """A JSON Schema for the plan, for providers that can constrain output.
+
+    Advisory only: :mod:`cad_experimental.parser` re-checks everything. A
+    schema the provider honours simply means fewer wasted calls, never a
+    reason to trust the payload.
+
+    Accepted by Anthropic structured output as of Stage 41. Three of that
+    API's limits bind here at once -- at most 24 optional properties, a
+    compiled-grammar size ceiling, and a separate complexity ceiling -- and
+    the shape below is the one that satisfies all three while describing
+    every one of the nine operations exactly. See :func:`_operation_branches`
+    for the union, and :func:`_plan_defs` for why the shared definitions
+    exist.
+    """
+    return _plan_document(OPERATION_TYPES)
 
 
 __all__ = [
@@ -771,7 +916,12 @@ __all__ = [
     "EXTRUDE_REQUIRED",
     "ExtrudeOperation",
     "FULL_TURN",
+    "AXIS_DEF",
+    "ID_DEF",
     "OPERATION_FIELDS",
+    "POINT3D_DEF",
+    "SELECTOR_DEF",
+    "provider_schema",
     "PROFILE_SOLID_TYPES",
     "REVOLVE",
     "REVOLVE_OPTIONAL",

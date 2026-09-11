@@ -745,11 +745,16 @@ class SchemaCompatibilityTests(unittest.TestCase):
     schemas rather than transcribed, so they cannot drift from the claim.
     """
 
-    def test_the_plan_schema_exceeds_the_api_optional_property_limit(self):
+    def test_the_plan_schema_is_now_within_the_optional_property_limit(self):
+        """Stage 40 measured 31 against a limit of 24 and this test asserted
+        the excess. Stage 41 restructured the schema into a discriminated
+        union; the excess is gone, so the assertion is inverted rather than
+        deleted -- the limit it protects is the same one."""
         from cad_experimental.plan import plan_schema
 
         count = len(rc.optional_properties(plan_schema()))
-        self.assertGreater(count, rc.OPTIONAL_PROPERTY_LIMIT)
+        self.assertLessEqual(count, rc.OPTIONAL_PROPERTY_LIMIT)
+        self.assertLess(count, 31, "the Stage 40 count must not return")
 
     def test_the_v1_schema_is_within_the_limit(self):
         from cad_ai.specification import response_schema
@@ -757,27 +762,34 @@ class SchemaCompatibilityTests(unittest.TestCase):
         count = len(rc.optional_properties(response_schema()))
         self.assertLessEqual(count, rc.OPTIONAL_PROPERTY_LIMIT)
 
-    def test_the_cause_is_the_flat_parameters_object(self):
-        """All nine operation types share one optional-keyed parameters bag."""
+    def test_the_flat_parameters_bag_that_caused_it_is_gone(self):
+        """Stage 40's diagnosis was that all nine operation types shared one
+        optional-keyed `parameters` object. Stage 41 replaced it with one
+        branch per type, so no single object carries every parameter name."""
         from cad_experimental.plan import OPERATION_TYPES, plan_schema
 
-        parameters = (
-            plan_schema()["properties"]["operations"]["items"]
-            ["properties"]["parameters"]
-        )
-        self.assertGreaterEqual(
-            len(parameters["properties"]), len(OPERATION_TYPES)
-        )
-        self.assertFalse(parameters["additionalProperties"])
+        item = plan_schema()["properties"]["operations"]["items"]
+        self.assertNotIn("properties", item)
+        self.assertIn("anyOf", item)
+        for branch in item["anyOf"]:
+            parameters = branch["properties"].get("parameters")
+            if parameters is None:
+                continue
+            with self.subTest(kind=branch["properties"]["type"]["const"]):
+                self.assertLess(
+                    len(parameters["properties"]), len(OPERATION_TYPES)
+                )
+                self.assertFalse(parameters["additionalProperties"])
 
-    def test_sanitising_does_not_rescue_the_plan_schema(self):
-        """Stripping bounds cannot reduce the optional-property count."""
+    def test_sanitising_still_cannot_change_the_optional_count(self):
+        """Stripping bounds never affected the optional-property count -- the
+        Stage 40 point -- and still does not. What fixed the count was the
+        restructuring, not the sanitiser."""
         from cad_experimental.plan import plan_schema
 
         before = len(rc.optional_properties(plan_schema()))
         after = len(rc.optional_properties(rc.sanitise_schema(plan_schema())))
         self.assertEqual(before, after)
-        self.assertGreater(after, rc.OPTIONAL_PROPERTY_LIMIT)
 
     def test_sanitising_removes_only_bounds(self):
         """Never a type, an enum, a required list or additionalProperties."""

@@ -25,7 +25,7 @@ from cad_ai.provider import (
 )
 
 from .config import MAX_OUTPUT_TOKENS, ExperimentalConfig
-from .plan import OperationPlan, PlanStatus, plan_schema
+from .plan import OperationPlan, PlanStatus, provider_schema
 from .prompt import PROMPT_VERSION, prompt_fingerprint, system_prompt
 from .parser import PlanParseError, parse_plan_text
 from .validation import PlanValidation, validate_plan
@@ -173,7 +173,14 @@ class OperationPlanService:
         request = ModelRequest(
             system=system_prompt(),
             user_text=text,
-            output_schema=plan_schema(),
+            # The provider-compatible projection, not the full schema:
+            # Anthropic's structured-output grammar cannot compile all
+            # nine operations (Stage 41). `provider_schema` is the same
+            # shape over the executable six, which it does compile. The
+            # parser still accepts every one of the nine, so nothing the
+            # language can express is lost -- only what a constrained
+            # decoder can be pointed at.
+            output_schema=provider_schema(),
             max_output_tokens=MAX_OUTPUT_TOKENS,
         )
 

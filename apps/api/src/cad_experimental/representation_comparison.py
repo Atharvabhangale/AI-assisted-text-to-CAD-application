@@ -126,6 +126,14 @@ OPTIONAL_PROPERTY_LIMIT = 24
 #: This was established before any model output was observed: all 130 calls
 #: of the first attempt were rejected by request validation, so no result was
 #: seen and nothing here is a reaction to a score.
+#:
+#: **Stage 41 update.** The operation-plan schema was restructured and its
+#: executable subset (:func:`cad_experimental.plan.provider_schema`) is now
+#: accepted by the API, so the reason above no longer holds. The flag stays
+#: ``False`` here deliberately: flipping it changes the measurement
+#: conditions, and re-running the comparison is Stage 42's job rather than a
+#: side effect of a schema change. The Stage 40 run this module produced
+#: stays reproducible exactly as it was recorded.
 STRUCTURED_OUTPUT_ENABLED = False
 
 #: Attempts per case per representation. The same on both sides, always.

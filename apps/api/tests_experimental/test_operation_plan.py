@@ -521,44 +521,88 @@ class AdapterTests(unittest.TestCase):
 
 
 class SchemaTests(unittest.TestCase):
+    """The schema became a discriminated union at Stage 41.
+
+    Every assertion below is the same guarantee the flat shape carried,
+    restated for the union: the wire format did not change, so what these
+    tests protect did not change either.
+    """
+
+    def branches(self, schema=None):
+        schema = schema if schema is not None else plan_schema()
+        return schema["properties"]["operations"]["items"]["anyOf"]
+
+    def discriminators(self, schema=None):
+        return {b["properties"]["type"]["const"] for b in self.branches(schema)}
+
     def test_the_schema_admits_a_valid_plan_shape(self):
-        """`target` joined the shape in Stage 33, with through_hole."""
-        schema = plan_schema()
-        self.assertEqual(
-            set(schema["properties"]["operations"]["items"]["properties"]),
-            {"id", "type", "target", "tools", "parameters"},
-        )
+        """The operation keys across all branches are still exactly these."""
+        keys = set()
+        for branch in self.branches():
+            keys |= set(branch["properties"])
+        self.assertEqual(keys, {"id", "type", "target", "tools", "parameters"})
 
     def test_the_schema_lists_only_the_implemented_types(self):
         """Spelled out, not derived: a new type must be a deliberate edit.
 
-        Updated at Stage 36 (chamfer), 37 (sketch) and 38 (extrude,
-        revolve). Deriving this from ``OPERATION_TYPES`` would make it pass
-        for free and stop being a check on what the language grew.
+        Updated at Stage 36 (chamfer), 37 (sketch), 38 (extrude, revolve) and
+        41 (the flat `type` enum became one branch per type). Deriving this
+        from ``OPERATION_TYPES`` would make it pass for free.
         """
-        schema = plan_schema()
-        types = schema["properties"]["operations"]["items"]["properties"]["type"]
         self.assertEqual(
-            set(types["enum"]),
+            self.discriminators(),
             {"box", "cylinder", "through_hole", "subtract", "fillet",
              "chamfer", "sketch", "extrude", "revolve"},
         )
 
+    def test_there_is_exactly_one_branch_per_operation_type(self):
+        from cad_experimental.plan import OPERATION_TYPES
+
+        self.assertEqual(len(self.branches()), len(OPERATION_TYPES))
+        self.assertEqual(self.discriminators(), set(OPERATION_TYPES))
+
     def test_the_schema_lists_no_unimplemented_operation(self):
-        schema = plan_schema()
-        types = schema["properties"]["operations"]["items"]["properties"]["type"]
         for absent in (
             "sweep", "loft", "pattern", "mirror", "union", "assembly",
         ):
-            self.assertNotIn(absent, types["enum"])
+            self.assertNotIn(absent, self.discriminators())
 
     def test_the_schema_forbids_extra_fields(self):
         schema = plan_schema()
         self.assertFalse(schema["additionalProperties"])
-        item = schema["properties"]["operations"]["items"]
-        self.assertFalse(item["additionalProperties"])
-        self.assertFalse(item["properties"]["parameters"]["additionalProperties"])
+        for branch in self.branches(schema):
+            self.assertFalse(branch["additionalProperties"])
+            parameters = branch["properties"].get("parameters")
+            if parameters is not None:
+                self.assertFalse(parameters["additionalProperties"])
 
+    def test_each_branch_requires_its_own_operation_level_keys(self):
+        """`target` is required on the types that have one, not optional."""
+        for branch in self.branches():
+            kind = branch["properties"]["type"]["const"]
+            with self.subTest(kind=kind):
+                self.assertEqual(
+                    set(branch["required"]), set(branch["properties"])
+                )
+
+    def test_each_branch_matches_the_parser_s_own_tables(self):
+        """Derived from OPERATION_FIELDS/PARAMETERS, so it cannot drift."""
+        from cad_experimental.plan import OPERATION_FIELDS, PARAMETERS
+
+        for branch in self.branches():
+            kind = branch["properties"]["type"]["const"]
+            with self.subTest(kind=kind):
+                self.assertEqual(
+                    set(branch["properties"]), set(OPERATION_FIELDS[kind])
+                )
+                parameters = branch["properties"].get("parameters")
+                if parameters is None:
+                    continue
+                required, optional = PARAMETERS[kind]
+                self.assertEqual(set(parameters["required"]), set(required))
+                self.assertEqual(
+                    set(parameters["properties"]), set(required) | set(optional)
+                )
 
 class ServiceTests(unittest.TestCase):
     def service(self, model):

@@ -153,12 +153,19 @@ class VocabularyTests(unittest.TestCase):
         self.assertEqual(set(SELECT_MODES), {"all", "axis_parallel"})
 
     def test_the_schema_describes_the_selector_object(self):
-        properties = (
-            plan_schema()["properties"]["operations"]["items"]
-            ["properties"]["parameters"]["properties"]
+        """Stage 41: per-type branches, and the selector lives in `$defs`."""
+        schema = plan_schema()
+        branch = next(
+            b for b in schema["properties"]["operations"]["items"]["anyOf"]
+            if b["properties"]["type"]["const"] == FILLET
         )
-        self.assertIn("radius", properties)
-        edges = properties["edges"]
+        parameters = branch["properties"]["parameters"]
+        self.assertIn("radius", parameters["properties"])
+        # Both are REQUIRED on a fillet now, not merely available.
+        self.assertEqual(set(parameters["required"]), {"radius", "edges"})
+
+        reference = parameters["properties"]["edges"]["$ref"]
+        edges = schema["$defs"][reference.rsplit("/", 1)[-1]]
         self.assertEqual(edges["type"], "object")
         self.assertEqual(set(edges["properties"]["select"]["enum"]),
                          {"all", "axis_parallel"})

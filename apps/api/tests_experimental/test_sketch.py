@@ -257,11 +257,36 @@ class SketchVocabularyTests(unittest.TestCase):
         for key in ("plane", "geometry", "constraints"):
             self.assertIn(key, text)
 
-    def test_the_sketch_schema_bounds_both_lists(self):
+    def test_the_sketch_schema_requires_at_least_one_shape(self):
         schema = sketch_schema()
-        self.assertEqual(schema["geometry"]["maxItems"], MAX_GEOMETRY)
-        self.assertEqual(schema["constraints"]["maxItems"], MAX_CONSTRAINTS)
         self.assertEqual(schema["geometry"]["minItems"], 1)
+
+    def test_the_upper_bounds_moved_to_the_parser(self):
+        """`maxItems` left the schema at Stage 41 -- the structured-output
+        API rejects it -- and the PARSER still enforces both limits, which is
+        where an authoritative bound belongs. Nothing was weakened."""
+        schema = sketch_schema()
+        self.assertNotIn("maxItems", schema["geometry"])
+        self.assertNotIn("maxItems", schema["constraints"])
+
+        many = [circle(f"c{i}", i, 0, 1) for i in range(MAX_GEOMETRY + 1)]
+        with self.assertRaises(PlanParseError):
+            parse_plan(plan(sketch(geometry=many)))
+        constraints = [
+            {"id": f"k{i}", "type": "horizontal", "geometry": "l1"}
+            for i in range(MAX_CONSTRAINTS + 1)
+        ]
+        with self.assertRaises(PlanParseError):
+            parse_plan(plan(sketch(geometry=[line("l1", 0, 0, 10, 0)],
+                                   constraints=constraints)))
+
+    def test_both_sketch_lists_are_unions_of_required_branches(self):
+        """Which is why the fragment contributes no optional property."""
+        schema = sketch_schema()
+        for key, expected in (("geometry", GEOMETRY_TYPES),
+                              ("constraints", CONSTRAINT_TYPES)):
+            with self.subTest(key=key):
+                self.assertIn("$ref", schema[key]["items"])
 
 
 # --- 2. parsing ------------------------------------------------------------

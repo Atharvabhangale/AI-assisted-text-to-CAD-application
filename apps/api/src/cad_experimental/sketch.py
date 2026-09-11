@@ -256,70 +256,139 @@ class SketchDefinition:
         return {item.id: item.TYPE for item in self.geometry}
 
 
-def sketch_schema() -> Dict[str, Any]:
-    """A JSON Schema fragment for the sketch parameters. Advisory only."""
-    point = {
-        "type": "object",
-        "properties": {"x": {"type": "number"}, "y": {"type": "number"}},
-        "required": ["x", "y"],
-        "additionalProperties": False,
+#: Names of the shared ``$defs`` entries this module contributes. Kept as
+#: constants so the plan schema references them by name rather than by a
+#: string typed twice.
+POINT2D_DEF = "sketch_point"
+HANDLE_DEF = "sketch_point_handle"
+GEOMETRY_DEF = "sketch_geometry"
+CONSTRAINT_DEF = "sketch_constraint"
+
+
+def _ref(name: str) -> Dict[str, str]:
+    return {"$ref": f"#/$defs/{name}"}
+
+
+def _geometry_branches() -> List[Dict[str, Any]]:
+    """One schema branch per geometry type, each with no optional field.
+
+    A single object carrying every geometry type's fields would need seven
+    optional properties; as a union of fully-required branches it needs none.
+    Points are referenced rather than inlined, which is what keeps the
+    compiled grammar small enough for the provider to accept.
+    """
+    point = _ref(POINT2D_DEF)
+    shapes: Dict[str, Dict[str, Any]] = {
+        LINE: {"start": point, "end": point},
+        CIRCLE: {"centre": point, "radius": {"type": "number"}},
+        RECTANGLE: {
+            "corner": point,
+            "width": {"type": "number"},
+            "height": {"type": "number"},
+        },
     }
+    branches: List[Dict[str, Any]] = []
+    for kind in GEOMETRY_TYPES:
+        fields = shapes[kind]
+        branches.append({
+            "type": "object",
+            "properties": {
+                "id": {"type": "string"},
+                "type": {"const": kind},
+                **fields,
+            },
+            "required": ["id", "type", *fields],
+            "additionalProperties": False,
+        })
+    return branches
+
+
+def _constraint_branches() -> List[Dict[str, Any]]:
+    """One schema branch per constraint type, each with no optional field.
+
+    ``coincident`` relates two point handles; every other type names one
+    piece of geometry, and the dimensional ones carry a value. Expressed as a
+    union, the ``geometry``/``points``/``value`` optionals a merged object
+    would need disappear.
+    """
+    branches: List[Dict[str, Any]] = []
+    for kind in CONSTRAINT_TYPES:
+        if kind == COINCIDENT:
+            fields: Dict[str, Any] = {
+                "points": {"type": "array", "items": _ref(HANDLE_DEF)},
+            }
+        else:
+            fields = {"geometry": {"type": "string"}}
+            if kind in DIMENSIONAL_TYPES:
+                fields["value"] = {"type": "number"}
+        branches.append({
+            "type": "object",
+            "properties": {
+                "id": {"type": "string"},
+                "type": {"const": kind},
+                **fields,
+            },
+            "required": ["id", "type", *fields],
+            "additionalProperties": False,
+        })
+    return branches
+
+
+def sketch_defs() -> Dict[str, Any]:
+    """The shared ``$defs`` a sketch needs, for the plan schema to merge in.
+
+    Every one of these appears several times in the schema. Emitting each
+    once and referencing it is the difference between a grammar the provider
+    compiles and one it refuses as too large -- measured, not assumed.
+    """
+    return {
+        POINT2D_DEF: {
+            "type": "object",
+            "properties": {"x": {"type": "number"}, "y": {"type": "number"}},
+            "required": ["x", "y"],
+            "additionalProperties": False,
+        },
+        HANDLE_DEF: {
+            "type": "object",
+            "properties": {
+                "geometry": {"type": "string"},
+                "point": {"type": "string"},
+            },
+            "required": ["geometry", "point"],
+            "additionalProperties": False,
+        },
+        GEOMETRY_DEF: {"anyOf": _geometry_branches()},
+        CONSTRAINT_DEF: {"anyOf": _constraint_branches()},
+    }
+
+
+def sketch_schema() -> Dict[str, Any]:
+    """The sketch parameter fragment. Advisory only.
+
+    Both lists are unions of fully-required branches, so this fragment
+    contributes **no optional properties of its own**. The wire format is
+    unchanged -- the same objects the parser already accepts -- only the way
+    the schema describes them. Requires :func:`sketch_defs` to be merged into
+    the document's ``$defs``.
+    """
     return {
         "plane": {"type": "string", "enum": list(PLANES)},
         "geometry": {
             "type": "array",
             "minItems": 1,
-            "maxItems": MAX_GEOMETRY,
-            "items": {
-                "type": "object",
-                "properties": {
-                    "id": {"type": "string"},
-                    "type": {"type": "string", "enum": list(GEOMETRY_TYPES)},
-                    "start": point, "end": point,
-                    "centre": point, "corner": point,
-                    "radius": {"type": "number"},
-                    "width": {"type": "number"},
-                    "height": {"type": "number"},
-                },
-                "required": ["id", "type"],
-                "additionalProperties": False,
-            },
+            "items": _ref(GEOMETRY_DEF),
         },
-        "constraints": {
-            "type": "array",
-            "maxItems": MAX_CONSTRAINTS,
-            "items": {
-                "type": "object",
-                "properties": {
-                    "id": {"type": "string"},
-                    "type": {
-                        "type": "string", "enum": list(CONSTRAINT_TYPES),
-                    },
-                    "geometry": {"type": "string"},
-                    "value": {"type": "number"},
-                    "points": {
-                        "type": "array",
-                        "minItems": 2, "maxItems": 2,
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "geometry": {"type": "string"},
-                                "point": {"type": "string"},
-                            },
-                            "required": ["geometry", "point"],
-                            "additionalProperties": False,
-                        },
-                    },
-                },
-                "required": ["id", "type"],
-                "additionalProperties": False,
-            },
-        },
+        "constraints": {"type": "array", "items": _ref(CONSTRAINT_DEF)},
     }
 
 
 __all__ = [
     "CIRCLE",
+    "CONSTRAINT_DEF",
+    "GEOMETRY_DEF",
+    "HANDLE_DEF",
+    "POINT2D_DEF",
+    "sketch_defs",
     "PLANE_AXES",
     "PLANE_NORMAL",
     "COINCIDENT",
