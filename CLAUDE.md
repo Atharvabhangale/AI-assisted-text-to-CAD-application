@@ -909,6 +909,10 @@ merge backend changes while a demo is up.
   - `b94d4e9` Stage 30 and the local launcher: the working demo state
   - `950077d` Add Claude Code project handoff context
   - `18eb9ce` Stage 29: separate provider reliability from real model quality
+- **`experiment/cad-operation-graph`** is a *separate* line of work -- an
+  alternative CAD representation and a second CAD backend, forked at
+  `950077d` and never merged. **Its stages are also numbered 32+, and those
+  numbers collide with this branch's.** See §19.
 - **`experiment/haiku-generation-reliability`** holds the same work as its own
   history (its tree is identical to this branch's); it was cherry-picked here,
   not merged, so the SHAs differ. Its worktree, if still present, sits beside
@@ -919,3 +923,110 @@ merge backend changes while a demo is up.
 
 For the current HEAD and state, run `git log --oneline -5` and `git status` —
 they are authoritative, this list is a snapshot.
+
+---
+
+## 19. A second experiment branch: `experiment/cad-operation-graph`
+
+**Read the stage-number warning first.** This branch numbers its own stages
+32–42. The stable branch *also* has a Stage 30, 31 and 32. **They are
+different work and the numbers collide.** "Stage 32" on stable is the Windows
+test fixes; "Stage 32" here is the first commit of an alternative CAD
+representation. Nothing reconciles them — when reading a commit message, check
+which branch it is on.
+
+It **forked at `950077d`**, before Stage 30. So it does **not** contain
+`POST /generate`, the natural-language frontend, `start.ps1`/`stop.ps1`, the
+Windows fixes, or the `gemini-3.6-flash` change. Its stage reports say the
+stable tree is "byte-identical", and that was measured against `950077d` —
+**not** against current stable. Reconciling the two branches is unfinished
+business.
+
+Checked out as a git worktree beside the repo (`git worktree list`). Full
+detail lives on that branch in `docs/experimental-operation-plan.md`; this
+section is the index.
+
+### What it is
+
+Two questions the stable branch cannot ask: **is a flatter CAD representation
+easier for a model to generate correctly than the V1 document?** and **is
+CadQuery the right engine?**
+
+It adds `apps/api/src/cad_experimental/` (an operation-plan language, its
+parser, a plan validator with rules P1–P26, a V1 adapter, its own prompt and
+FastAPI app, and two CAD backends), `apps/api/tests_experimental/`, and
+`apps/web-experimental/` on port 5174. The **operation plan** drops `units`,
+`schema_version` and `features` for a flat ordered `operations` list. Nine
+operation types; **six are executable** — `sketch`, `extrude` and `revolve`
+are represented and validated, then explicitly refused at the execution
+boundary rather than approximated.
+
+### Findings worth not re-deriving
+
+**Anthropic structured output enforces four limits at once**, measured against
+the live API and documented nowhere:
+
+| Rule | Measured |
+|---|---|
+| optional properties, whole document | ≤ 24 |
+| optional properties, **any single object** | ≤ ~14 (a 20-optional object alone is "too complex") |
+| compiled grammar size | 8 operation branches accepted; **any 9th refused**, even stripped to one field |
+| `oneOf` | rejected — `anyOf` only |
+| `additionalProperties: false` | **mandatory on every object** |
+| `exclusiveMinimum`/`maximum`/`maxItems`/`min\|maxLength` | rejected; `minItems` only 0 or 1 |
+| unused `$defs` | still cost grammar budget, and `$ref` does **not** shrink it |
+
+**Live Claude Haiku 4.5, 130 calls.** With structured output unavailable to
+one side and therefore disabled for both, **both representations scored 0%** —
+every answer arrived in a markdown fence and both parsers refuse fences by
+design. Replaying that recorded output with fence tolerance gives V1 **24.6%**
+and the operation plan **86.2%** (40/40 versus 0/40 on the buildable cases) —
+a *diagnostic*, not a score. V1's failures were envelope-shaped: prose, or a
+correct document with no `status` wrapper.
+
+**FreeCAD runs here, but not the obvious way.** No pip distribution, and it is
+**not in Ubuntu 24.04**. It came from the official AppImage (649 MB, extracting
+to 2.4 GB), gives **FreeCAD 1.0.0**, and imports headlessly *alongside*
+CadQuery in one process. Its bundled `libssl` conflicts with the system
+`libcrypto`, so `LD_LIBRARY_PATH` must be set **before Python starts**. Both
+engines produce bit-identical volumes on all six golden parts.
+
+**In Claude Code Web the Anthropic credential arrives as
+`CAD_ANTHROPIC_API_KEY`,** because the platform reserves and strips
+`ANTHROPIC_API_KEY` — which is what `cad_ai` reads. §7's note is right for the
+Windows machine; in the cloud a caller must bridge the value across.
+
+### Commands
+
+```sh
+cd <worktree>/apps/api
+export PYTHONPATH=../../packages/cad-core/src:src:tests_experimental
+
+python3 -m unittest discover -s tests_experimental -t tests_experimental
+python3 -m unittest tests_experimental.test_sketch.SketchParsingTests.test_a_sketch_parses
+
+python3 -m cad_experimental.local_plan_provider --list   # fixtures, no model
+python3 -m cad_experimental.representation_comparison --check
+python3 -m cad_experimental.representation_comparison --live --attempts 5 --out run.json
+
+export CAD_FREECAD_HOME=<extracted-appimage>            # FreeCAD tests SKIP
+export LD_LIBRARY_PATH=$CAD_FREECAD_HOME/usr/lib        # without both of these
+python3 -m unittest tests_experimental.test_cad_backends
+```
+
+**874 tests, 2 skipped** with FreeCAD present. Run the whole suite before
+finishing a stage there: package-wide guard tests in older modules are
+routinely tripped by newer ones, and focused subsets have missed that twice.
+
+### Invariants that branch enforces
+
+- **`CAD_BACKEND` defaults to `cadquery` and stays that way**, and
+  `resolve_backend()` **never falls back** — a caller who asked for one engine
+  and silently got another cannot know which engine built their part.
+- **Neither parser strips markdown fences and neither repairs output.** A
+  deliberate measurement decision on both sides.
+- **`comparison_corpus.py` is a frozen instrument.** Fix the prompt or the
+  code and re-measure; never edit an expectation after seeing a score.
+- A known prompt bug is **deliberately unfixed**: the wording tells the model
+  an extrude "cannot be built" and Haiku reads that as *unsupported*, refusing
+  5/5 on the revolve case. Fixing it is its own stage, so the cause stays clean.
