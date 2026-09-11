@@ -907,8 +907,20 @@ class EngineAuthorityTests(unittest.TestCase):
 
         import cad_experimental
 
+        # Stage 42 added two CAD backends, and translating a selector into a
+        # kernel is exactly their job -- `freecad_backend` must implement
+        # `select_edges`, because FreeCAD has no `cad_core.edge_selection` to
+        # delegate to. They are excluded here and covered by their own tests,
+        # which assert the translation adds no nearest-edge rule and no seam
+        # special case. What this guard protects is unchanged: the PLAN layer
+        # -- parser, validator, adapter, plan, sketch -- must not implement
+        # edge geometry.
+        backends = {"cad_backend.py", "cadquery_backend.py",
+                    "freecad_backend.py"}
         root = pathlib.Path(cad_experimental.__file__).resolve().parent
         for path in root.rglob("*.py"):
+            if path.name in backends:
+                continue
             tree = ast.parse(path.read_text(encoding="utf-8"))
             names = set()
             for node in ast.walk(tree):

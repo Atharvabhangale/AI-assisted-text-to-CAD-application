@@ -8,6 +8,12 @@ unbuilt, unverified or unmeasured, it says so — that is the point of the file.
 `docs/cad-specification.md` is the source of truth for the CAD contract. This
 file summarizes; it never overrides.
 
+**Sections 1–15 describe the stable branch.** A second branch,
+`experiment/cad-operation-graph`, carries Stages 32–42 — an alternative CAD
+representation and a second CAD backend — and is checked out as a worktree at
+`/home/user/cad-experiment`. It is never merged. **See §17 before assuming
+this file describes everything that exists.**
+
 ---
 
 ## 1. Project purpose
@@ -227,6 +233,16 @@ estimated.
 | Frontend (`vitest`) | **87 passed** (3 files) |
 | Frontend typecheck (`tsc --noEmit`) | **clean** |
 
+On the **experiment branch** there is a fourth, separate suite:
+`tests_experimental`, **874 passed / 2 skipped** with FreeCAD present (the two
+skips are its unavailable-only cases; without FreeCAD, 33 skip instead). It
+never runs as part of the three above. See §17.
+
+Run the **full** experimental suite before finishing a stage there, not just
+the modules you touched: package-wide guard tests in older modules are
+routinely tripped by new ones, and focused subsets have missed that more than
+once.
+
 **The 2 skips are deliberate and must stay skipped by default.** They are the
 live-provider tests, gated behind `CAD_AI_LIVE_TESTS`. They exist so that the
 mere presence of an API key can never cause the ordinary test suite to spend
@@ -316,8 +332,10 @@ measured **20 of 35 cases**.
 
 History, from the evaluation results and git log:
 
-- **Anthropic: never run live.** `ANTHROPIC_API_KEY` has not been available in
-  any session. There is **no Anthropic quality data at all.**
+- **Anthropic: run live at Stage 40, on the experiment branch** (§17). Before
+  that it never had been. The *production* 35-case corpus has still never been
+  run on Anthropic — Stage 40 used its own 13-case corpus — so there is still
+  no Anthropic number comparable to the Gemini figures below.
 - **Gemini `gemini-2.5-pro` (the current code default): 404.** The API replied
   that the model "is no longer available to new users". The default in
   `config.py` is therefore **not usable as-is** — see §7.
@@ -353,7 +371,14 @@ Saved runs are preserved under `docs/evaluation-baselines/`.
 
 ## 7. Gemini status
 
-- **Environment variable: `GEMINI_API_KEY`.** (Anthropic: `ANTHROPIC_API_KEY`.)
+- **Environment variable: `GEMINI_API_KEY`.**
+- **Anthropic: the code reads `ANTHROPIC_API_KEY`, but this platform reserves
+  that name and strips it.** A key supplied by the operator arrives as
+  **`CAD_ANTHROPIC_API_KEY`** instead. Nothing in `cad_ai` reads that name, so
+  a caller must bridge it into `ANTHROPIC_API_KEY` for the process it starts;
+  `cad_experimental.representation_comparison.bridge_credential()` is the one
+  place that does, and it never returns or logs the value. Verified working
+  against `https://api.anthropic.com` with `claude-haiku-4-5-20251001`.
 - **How availability is checked:** `cad_ai.config.credential_available()` reads
   only whether the variable is *present and non-empty*. The value is never
   returned, stored, logged, compared or printed. `AiConfig` has no credential
@@ -491,7 +516,9 @@ Stage 29, plus the commit that added this file) and the docs. Verify against
 **IN PROGRESS**
 
 - **Real model evaluation.** Partial: 20/35 on `gemini-2.5-flash`. Categories
-  F and G are unmeasured. Anthropic is entirely unmeasured.
+  F and G are unmeasured. Anthropic is unmeasured *on this corpus* (it was
+  measured on the experiment branch's own 13-case corpus — §17).
+- **Stages 32–42 run on the experiment branch**, not here. §17.
 
 **NEXT**
 
@@ -647,6 +674,8 @@ cd apps/web && npm run dev
 Optional install extras: `ai` (Anthropic SDK), `ai-gemini` (google-genai).
 Neither is needed for the core or the HTTP transport.
 
+The experiment branch has its own suite and its own commands — §17.
+
 ---
 
 ## 15. Repository structure
@@ -689,15 +718,31 @@ Neither is needed for the core or the HTTP transport.
 └── tests/                        reserved for integration / e2e
 ```
 
+On the **experiment branch** only, three more trees exist:
+`apps/api/src/cad_experimental/`, `apps/api/tests_experimental/` and
+`apps/web-experimental/`. See §17.
+
 ---
 
 ## 16. Git / branch state
 
-- **Branch:** `claude/text-to-cad-skeleton-r946xr`
-- **Tracks:** `origin/claude/text-to-cad-skeleton-r946xr`
-  (`https://github.com/Atharvabhangale/AI-assisted-text-to-CAD-application`)
-- **History:** 35 implementation commits, Stage 0 → Stage 29, all on this
-  branch, plus the commit that added this handoff.
+**Two branches, and they are kept apart deliberately.**
+
+- **`claude/text-to-cad-skeleton-r946xr`** — the stable MVP. Stages 0–29 plus
+  this handoff. Everything described in §1–§15 is this branch.
+- **`experiment/cad-operation-graph`** — Stages 32–42, an alternative CAD
+  representation and a second CAD backend. See **§17**. It is **never merged**
+  into stable, and every stage has verified that stable stays byte-identical.
+
+Both are on
+`https://github.com/Atharvabhangale/AI-assisted-text-to-CAD-application`.
+
+The experiment is checked out as a **git worktree** at `/home/user/cad-experiment`,
+so both branches are on disk at once. `git worktree list` shows them.
+
+- **History:** 35 implementation commits, Stage 0 → Stage 29, all on the stable
+  branch, plus the commit that added this handoff; 13 more on the experiment
+  branch.
 - **Recent commits** (newest last; the handoff commit sits on top of these):
   - `18eb9ce` Stage 29: separate provider reliability from real model quality
   - `bf8518f` Stage 28A: complete and gate the Gemini provider; defer the live benchmark
@@ -707,3 +752,118 @@ Neither is needed for the core or the HTTP transport.
 
 For the current HEAD and state, run `git log --oneline -5` and `git status` —
 they are authoritative, this list is a snapshot.
+
+---
+
+## 17. The experiment branch: `experiment/cad-operation-graph`
+
+Stages 32–42. **Not merged, and not to be merged** — every stage verifies that
+`packages/`, `apps/api/src/cad_api`, `apps/api/src/cad_ai`, `apps/api/tests`
+and `apps/web/` stay byte-identical to stable. It is checked out as a worktree
+at `/home/user/cad-experiment`.
+
+It asks two questions the stable branch cannot: **is a different CAD
+representation easier for a model to generate correctly?** and **is CadQuery
+the right engine?**
+
+Full detail: `docs/experimental-operation-plan.md` (~1100 lines, current).
+
+### What it adds
+
+| Path | What |
+|---|---|
+| `apps/api/src/cad_experimental/` | the operation-plan language, its parser, plan validator (P1–P26), V1 adapter, prompt, FastAPI app, harness, and both CAD backends |
+| `apps/api/tests_experimental/` | its tests, run separately from the production suite |
+| `apps/web-experimental/` | a second Vite app on port 5174, reusing the stable viewer by import |
+| `docs/evaluation-baselines/stage40-*/` | the live Haiku run, raw output and diagnosis |
+
+The **CAD operation plan** is a flatter alternative to the V1 document: no
+`units`, no `schema_version`, no `features` — just ordered `operations`, each
+`{id, type, target?, tools?, parameters?}`. Nine operation types; **six are
+executable** (the V1 features). `sketch`, `extrude` and `revolve` are
+represented and validated and then explicitly refused at the execution
+boundary (`adapter.ExecutionUnsupported`) — never approximated.
+
+### Findings that cost real money or hours to establish
+
+**Anthropic structured output has four limits at once** (Stage 41, measured
+against the live API, not documented anywhere):
+
+| Rule | Measured |
+|---|---|
+| optional properties, whole document | ≤ 24 |
+| optional properties, **any single object** | ≤ ~14 (a 20-optional object alone is "too complex") |
+| compiled grammar size | 8 operation branches accepted; **any 9th refused**, even stripped to one field |
+| `oneOf` | rejected — `anyOf` only |
+| `additionalProperties: false` | **mandatory on every object**; an open object cannot be expressed |
+| `exclusiveMinimum`/`maximum`/`maxItems`/`min\|maxLength` | rejected; `minItems` only 0 or 1 |
+| unused `$defs` | still cost grammar budget; `$ref` does **not** shrink it |
+
+Consequence: `plan.plan_schema()` (all nine) is refused; `plan.provider_schema()`
+(the executable six) is accepted and is what `generation.py` sends.
+
+**Live Claude Haiku 4.5, 130 calls** (Stage 40): with structured output
+unavailable to one side and therefore disabled for both, **both representations
+scored 0%** — every answer came back in a markdown fence, and both parsers
+refuse fences by design. Replaying that recorded output through the same frozen
+machinery with fence tolerance gives V1 **24.6%** and the plan **86.2%** (40/40
+vs 0/40 on the buildable cases) — a *diagnostic*, not a score. V1's failures
+were envelope-shaped (prose, or a document with no `status` wrapper).
+
+**FreeCAD is installable here, but not the obvious way** (Stage 42): there is
+no pip distribution and it is **not in Ubuntu 24.04**. It came from the
+official AppImage (649 MB, extracts to 2.4 GB), gives **FreeCAD 1.0.0**, and
+imports headlessly into this project's Python *alongside* CadQuery. Its
+bundled `libssl` conflicts with the system `libcrypto`, so `LD_LIBRARY_PATH`
+must be set **before Python starts** — it cannot be fixed from inside a
+process. Both engines produce **bit-identical volumes** on all six golden
+parts.
+
+### Commands
+
+```sh
+cd /home/user/cad-experiment/apps/api
+export PYTHONPATH=../../packages/cad-core/src:src:tests_experimental
+
+# the experimental suite (production's suite is separate and unaffected)
+python3 -m unittest discover -s tests_experimental -t tests_experimental
+python3 -m unittest tests_experimental.test_sketch                 # one module
+python3 -m unittest tests_experimental.test_sketch.SketchParsingTests.test_a_sketch_parses
+
+# fixtures, built for real by the CAD engine; calls no model
+python3 -m cad_experimental.local_plan_provider --list
+python3 -m cad_experimental.local_plan_provider
+
+# the frozen V1-vs-plan comparison. --live spends money and is required
+python3 -m cad_experimental.representation_comparison --check
+python3 -m cad_experimental.representation_comparison --live --attempts 5 --out run.json
+python3 -m cad_experimental.comparison_diagnosis run.json
+
+# the FreeCAD half of the backend tests (they SKIP without these two vars)
+export CAD_FREECAD_HOME=/home/user/freecad/squashfs-root
+export LD_LIBRARY_PATH=$CAD_FREECAD_HOME/usr/lib
+python3 -m unittest tests_experimental.test_cad_backends
+
+# the experimental stack: backend 8001, frontend 5174 (stable keeps 8000/5173)
+CAD_EXPERIMENTAL_CACHE_ROOT=/tmp/exp-cache python3 -m uvicorn \
+  --factory cad_experimental.app:app_from_environment --port 8001
+cd ../web-experimental && npx vite --port 5174 --strictPort
+```
+
+### Invariants specific to the experiment
+
+- **`CAD_BACKEND` defaults to `cadquery` and stays that way.** FreeCAD is
+  experimental. `resolve_backend()` **never falls back** — an unavailable
+  backend raises, because a caller who asked for one engine and silently got
+  another cannot know which engine built their part.
+- **Neither parser strips markdown fences and neither repairs output.** That
+  is a deliberate measurement decision on both sides, not an oversight.
+- **The corpus, expected documents and scoring in `comparison_corpus.py` are a
+  frozen instrument.** Fix the prompt or the code, then re-measure; never edit
+  an expectation after seeing a score.
+- Stage 40's harness keeps structured output **off** on purpose so its recorded
+  run stays reproducible, even though Stage 41 made it available.
+- A known prompt bug is **deliberately unfixed**: the Stage 37/38 wording tells
+  the model an extrude "cannot be built", and Haiku reads that as *unsupported*
+  and refuses (5/5 on the revolve case). Fixing it is its own stage, so the
+  cause stays clean.
