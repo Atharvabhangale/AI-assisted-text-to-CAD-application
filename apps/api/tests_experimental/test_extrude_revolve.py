@@ -992,7 +992,19 @@ class NoSecondCadPathTests(unittest.TestCase):
                     self.fail(f"{path.name} looks up a computed attribute")
 
     def test_no_module_imports_a_kernel_outside_the_build_layer(self):
-        allowed = {"build.py", "app.py", "local_plan_provider.py"}
+        """A kernel belongs to the build layer and to the backends alone.
+
+        Stage 42 added `cadquery_backend.py` and `freecad_backend.py`, whose
+        entire job is to talk to a kernel, so they join the allow-list. The
+        guard was widened rather than relaxed: it now covers FreeCAD's
+        modules too, so neither kernel can leak into the parser, the
+        validator, the plan, the sketch layer or the adapter -- which is what
+        it exists to protect.
+        """
+        allowed = {
+            "build.py", "app.py", "local_plan_provider.py",
+            "cadquery_backend.py", "freecad_backend.py",
+        }
         for path, tree in self.modules():
             if path.name in allowed:
                 continue
@@ -1003,7 +1015,7 @@ class NoSecondCadPathTests(unittest.TestCase):
                 elif isinstance(node, ast.ImportFrom) and node.module:
                     imported.add(node.module.split(".")[0])
             with self.subTest(module=path.name):
-                for forbidden in ("cadquery", "OCP"):
+                for forbidden in ("cadquery", "OCP", "FreeCAD", "Part"):
                     self.assertNotIn(forbidden, imported)
 
     def test_cad_core_still_knows_nothing_of_these_operations(self):

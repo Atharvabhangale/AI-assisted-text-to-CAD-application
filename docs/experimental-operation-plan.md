@@ -979,6 +979,176 @@ ship in**. Both need a transport that tolerates a fence, or the plan needs a
 schema shape the API will compile. Until one of those exists, no adoption
 decision has evidence behind it.
 
+## Stage 41: making the plan schema provider-compatible
+
+Stage 40 left the operation plan unable to use Anthropic structured output at
+all. Stage 41 restructured the schema and measured the provider's real
+constraints, which are four rules acting at once rather than the one
+documented:
+
+| Rule | Measured |
+|---|---|
+| Optional properties, whole document | at most 24 |
+| Optional properties, **any single object** | at most ~14 |
+| Compiled grammar size | 8 operation branches accepted; any 9th refused |
+| `oneOf` | rejected; `anyOf` accepted |
+| `additionalProperties: false` | required on every object |
+| `exclusiveMinimum` / `maximum` / `maxItems` | rejected; `minItems` only 0 or 1 |
+| Unused `$defs` | still cost grammar budget |
+
+`plan_schema()` became a **discriminated union**, one branch per operation
+type, each branch derived from `OPERATION_FIELDS` and `PARAMETERS` -- the same
+tables the parser reads, so schema and parser cannot drift. Optional
+properties fell from **31 to 9**, and the wire format did not change at all,
+so the parser, the plan validator and the V1 adapter needed no edit.
+
+The nine-operation schema is still refused on grammar size, and `sketch` is
+what breaks it. `provider_schema()` is therefore the same shape over exactly
+`EXECUTABLE_TYPES` -- the six buildable operations -- and **is** accepted.
+That takes nothing from the language: `plan_schema()` still describes all
+nine and the parser still accepts all nine.
+
+Live, on real Claude Haiku 4.5 with structured output on: a plate with a
+centred d20 hole came back unfenced, parsed, validated, adapted, built, and
+measured `56858.407346410204` against a closed form of the same -- with a
+RenderModel of 520 triangles. Two further cases (a d20x50 cylinder, a
+chamfered plate) also built to their exact closed forms. That is Stage 40's
+markdown-fence blocker resolved for the executable subset.
+
+Three advisory bounds left the schema because the API rejects them
+(`maxItems` on tools and the sketch lists, `maximum` on a revolve angle).
+None was a weakening: `MAX_TOOLS`, `MAX_GEOMETRY` and `MAX_CONSTRAINTS` are
+enforced by the parser, and the angle range by rule P26.
+
+## Stage 42: a second CAD backend (FreeCAD), for comparison
+
+**CadQuery remains the default and the baseline.** FreeCAD is an experimental
+second backend, added so the project can eventually answer *which engine is
+better for the mechanical work we want to build* with evidence rather than
+preference. Nothing about the stable application changed, and FreeCAD is
+never selected implicitly.
+
+### Availability, measured
+
+FreeCAD is **not** a pip package and is **not** in Ubuntu 24.04 (`apt-cache
+search freecad` returns nothing on noble). It was installed from the official
+AppImage and extracted:
+
+```sh
+curl -sSL -o FreeCAD.AppImage \
+  https://github.com/FreeCAD/FreeCAD/releases/download/1.0.0/FreeCAD_1.0.0-conda-Linux-x86_64-py311.AppImage
+chmod +x FreeCAD.AppImage && ./FreeCAD.AppImage --appimage-extract   # ~2.4 GB
+```
+
+| | |
+|---|---|
+| Version | **FreeCAD 1.0.0**, revision 39109, build 2024/11/18 |
+| Python module | `FreeCAD` and `Part` import into the project's own Python 3.11 |
+| Headless | yes -- no GUI, no `FreeCADGui`, no `App.Document`, no recompute |
+| Alongside CadQuery | yes -- both kernels load in **one process**, which is what makes the cross-backend tests possible |
+
+One real environmental constraint: FreeCAD's bundled `libssl` conflicts with
+the system `libcrypto` once the latter is loaded, so its `usr/lib` must be on
+the dynamic linker's path **before Python starts**. That cannot be fixed from
+inside a running process, and the backend says so precisely rather than
+failing vaguely.
+
+### How to enable it
+
+```sh
+export CAD_FREECAD_HOME=/path/to/squashfs-root
+export LD_LIBRARY_PATH=$CAD_FREECAD_HOME/usr/lib
+export CAD_BACKEND=freecad          # default is `cadquery`, and stays so
+```
+
+`CAD_FREECAD_HOME` is read as a **filesystem location only** -- nothing there
+is executed, no subprocess is spawned.
+
+### Architecture
+
+```
+Operation Plan -> V1 adapter -> CAD backend interface -> RenderModel
+                                  |-- CadQueryBackend  (default, baseline)
+                                  `-- FreeCadBackend   (experimental)
+```
+
+`cad_backend.py` holds the interface, the neutral `Measurement` and
+`Selector` types, and `resolve_backend()`. `cadquery_backend.py` is a **thin
+adapter over the existing engine** -- it delegates selection, the RenderModel
+and STEP to `cad_core` rather than reimplementing them, so the baseline stays
+exactly what it has always been. `freecad_backend.py` implements the same
+Section C semantics against FreeCAD's `Part` API.
+
+**There is no fallback.** A FreeCAD failure raises `BackendUnavailable`; it
+never becomes a CadQuery result. A caller that asked for one engine and
+silently received another would have no way to know which engine produced
+the part it is about to manufacture.
+
+### Supported operations
+
+Exactly the six V1 features: `box`, `cylinder`, `through_hole`, `subtract`,
+`fillet`, `chamfer`. Sketch, extrude and revolve are **not** implemented on
+either backend -- no engine here executes them -- and the interface has no
+methods for them.
+
+### Cross-backend results
+
+Same inputs, two engines, measured the same way:
+
+| Part | CadQuery volume | FreeCAD volume | rel. diff | solids | faces |
+|---|---:|---:|---:|:--:|:--:|
+| box 100x60x10 | 60000.000000000 | 60000.000000000 | 0.00e+00 | 1/1 | 6/6 |
+| cylinder d20 h50 | 15707.963267949 | 15707.963267949 | 0.00e+00 | 1/1 | 3/3 |
+| plate + d20 through hole | 56858.407346410 | 56858.407346410 | 0.00e+00 | 1/1 | 7/7 |
+| plate - d20 cylinder | 56858.407346410 | 56858.407346410 | 0.00e+00 | 1/1 | 7/7 |
+| plate, fillet r2 on Z edges | 59965.663706144 | 59965.663706144 | 0.00e+00 | 1/1 | 10/10 |
+| plate, chamfer d2 on Z edges | 59920.000000000 | 59920.000000000 | 0.00e+00 | 1/1 | 10/10 |
+
+Both agree with the **closed form** for every part, and with each other to a
+relative difference of zero. Comparison is geometric: volume, solid count,
+bounding box and topology counts within explicit tolerances. Topology
+identifiers, face and edge numbering and internal OpenCascade structure are
+deliberately **not** compared -- two kernels may reach the same solid by
+different routes.
+
+STEP interoperates in both directions: a FreeCAD STEP file re-imports in
+CadQuery to the same volume, and a CadQuery STEP file re-imports in FreeCAD
+to the same volume. Export is verified by re-reading and re-measuring, never
+by the file merely existing.
+
+### RenderModel
+
+FreeCAD produces **the existing** `cad_core.render_model.RenderModel` -- the
+same class, the same `format_version`, `units`, `coordinate_system`,
+`winding` and `normal_binding`, all imported from the existing module rather
+than retyped. There is deliberately no second render format, and the frontend
+cannot tell which engine produced a mesh.
+
+The tessellations differ, as two tessellators will: for the drilled plate,
+CadQuery gives 530 vertices / 520 triangles and FreeCAD 466 / 932. Both are
+valid meshes of the same solid; render bounds agree within the deflection.
+
+### Timing
+
+Coarse, one run, no warm-up -- orders of magnitude only. Every operation on
+these parts is single-digit milliseconds on both engines; FreeCAD's
+tessellation was somewhat faster on this sample. No benchmark was run and
+none should be read into these numbers.
+
+### Known limitations
+
+* FreeCAD requires a 2.4 GB extracted AppImage and an `LD_LIBRARY_PATH` set
+  before process start. It is not a dependency of anything, and is not in any
+  requirements file.
+* Only the six V1 operations are implemented. Sketch, extrude and revolve
+  remain unexecutable on **both** backends.
+* The Operation Plan pipeline still runs through `cad_core` -- this stage
+  added the backend boundary and proved parity, it did not reroute the
+  application.
+* Six parts is a small sample. Agreement here says nothing about how the two
+  engines diverge on the harder geometry this project ultimately wants.
+* **FreeCAD is not production-ready here, and is not proposed as such.**
+
 ## What is NOT known
 
 **Real Anthropic testing happened at Stage 40, and only there.** Stages 33 to
