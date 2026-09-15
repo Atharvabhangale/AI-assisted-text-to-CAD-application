@@ -24,12 +24,12 @@ import math
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
+from .history import walk
 from .plan import (
     AXES,
     BOX,
     CONSTRUCTIVE_TYPES,
     CHAMFER,
-    CONSUMING_TYPES,
     CYLINDER,
     EDGE_MODIFIER_LENGTH,
     EDGE_MODIFIER_TYPES,
@@ -39,11 +39,9 @@ from .plan import (
     MODIFIER_TYPES,
     PROFILE_SOLID_TYPES,
     REVOLVE,
-    SOLID_DECLARING_TYPES,
     SELECT_AXIS_PARALLEL,
     SELECT_MODES,
     SELECTOR_AXES,
-    PROFILE_TYPES,
     SKETCH,
     SUBTRACT,
     THROUGH_HOLE,
@@ -180,24 +178,27 @@ def validate_plan(plan: OperationPlan) -> PlanValidation:
                 )
             )
 
-    # The solid set of Section B.4, simulated over the plan.
+    # The solid set of Section B.4, walked over the plan.
     #
-    # `declared` is every operation id, with the index where it first
+    # The walk itself lives in `cad_experimental.history` and is shared with
+    # the dependency graph, so there is exactly one answer to what "live",
+    # "consumed" and "a profile" mean. It yields the state as it stood
+    # BEFORE each operation, which is precisely what a reference must be
+    # judged against.
+    #
+    # `declared` is every operation id with the index where it first
     # appeared -- used to tell "no such id" from "not yet". `live` is the
-    # ids that actually NAME A SOLID, which is constructive ids only: a
-    # modifier replaces its target in place and the result keeps the
-    # target's id, so a modifier's own id never enters the solid set. That
-    # single fact is what makes a hole-targeting-a-hole plan invalid.
-    declared: Dict[str, int] = {}
-    for index, operation in enumerate(plan.operations):
-        declared.setdefault(operation.id, index)
-    live: Dict[str, int] = {}
-    consumed: Dict[str, int] = {}
-    profiles: Dict[str, int] = {}
-
+    # ids that actually NAME A SOLID: a modifier replaces its target in
+    # place and the result keeps the target's id, so a modifier's own id
+    # never enters the solid set. That single fact is what makes a
+    # hole-targeting-a-hole plan invalid.
     seen: Dict[str, int] = {}
-    for index, operation in enumerate(plan.operations):
+    for index, operation, state in walk(plan.operations):
         where = f"operations[{index}]"
+        declared = state.declared
+        live = state.solids
+        consumed = state.consumed
+        profiles = state.profiles
 
         if operation.id in seen:
             problems.append(
@@ -279,31 +280,10 @@ def validate_plan(plan: OperationPlan) -> PlanValidation:
                 PlanProblem(P3, f"unknown operation type {kind!r}", where)
             )
 
-        # Update the simulated solid set. A constructive operation adds a
-        # solid named by its own id; a modifier adds nothing, because its
-        # result keeps the target's id and the target is already live.
-        if kind in SOLID_DECLARING_TYPES:
-            # A box or cylinder makes a solid from nothing; an extrude or
-            # revolve makes one from a profile. Either way the new solid is
-            # named by the operation's OWN id, so a later fillet can target
-            # it -- and the profile it came from is untouched and still a
-            # profile.
-            live.setdefault(operation.id, index)
-        elif kind in PROFILE_TYPES:
-            # A profile is not a solid: nothing may fillet it, subtract it or
-            # count it toward the single-solid rule. Recorded separately so a
-            # reference to one gets a message that says *why*.
-            profiles.setdefault(operation.id, index)
-        elif kind in CONSUMING_TYPES:
-            # The history step, and the reason this stage exists. Every tool
-            # this subtract legitimately used is gone from here on: a later
-            # operation naming it gets P12, not a second chance. Only tools
-            # that actually resolved are consumed -- consuming an unresolved
-            # one would invent a second, misleading problem downstream.
-            for tool in tools_of(operation):
-                if tool in live and tool != operation.target:
-                    live.pop(tool, None)
-                    consumed[tool] = index
+        # The solid set is advanced by the walk, not here: a second copy of
+        # Section B.4 in this function is exactly how the validator and the
+        # dependency graph would come to disagree about what a subtract
+        # consumed.
 
         # A subtract has no position: it is entirely references. Checked by
         # type rather than a defaulted `getattr`, so nothing in this package

@@ -1433,6 +1433,153 @@ nothing built. The structural matcher it uses is checked against four negative
 cases first, so a matcher that said yes to everything would fail loudly rather
 than make the module vacuous.
 
+## Stage 45: the plan as a dependency and history graph
+
+### What was already there
+
+Chained multi-feature plans **already worked**, and that is worth stating
+plainly before describing what changed. Measured against the real machinery
+before anything was edited:
+
+```
+box "body" -> cylinder "cutter" -> subtract(body, [cutter]) -> fillet(body)
+```
+
+parses, validates with **zero problems**, converts to a V1 document whose
+features are `box, cylinder, subtract, fillet` in that order, and that
+document passes the V1 validator. The dependency semantics were built
+incrementally across Stages 33–38 and are complete:
+
+| Semantic | Where |
+|---|---|
+| a reference must name an operation that exists | P9 |
+| a reference must appear **strictly earlier** — so no forward references and no cycles | P10 |
+| a modifier's target must be a solid | P11 |
+| a consumed id may never be named again | P12 |
+| a tool is neither the target nor a repeat | P13, P14 |
+| a profile-solid operation's target must be a **sketch** | P23 |
+| a modifier replaces its target in place and the result keeps the **target's** id | the solid-set walk |
+| a subtract **consumes** its tools | the solid-set walk |
+| a profile is **not** consumed by being swept | the solid-set walk |
+
+### What was missing
+
+The walk that enforces all of it lived inside `validate_plan` as four local
+dictionaries. So a plan was *judged* as a history and could then only ever be
+*reported* as a flat list. Three consequences:
+
+1. **Nothing could answer "what is this solid made of".** The derivation of a
+   part — the operations whose effect it carries, including tools that no
+   longer exist — was computed and thrown away on every validation.
+2. **A leftover solid in a profile chain is reported by nobody.** A plan that
+   makes a solid and never consumes it is caught by S9 on the converted
+   document. But a plan containing a `sketch`, an `extrude` or a `revolve` is
+   refused by the adapter *before* any document exists, so S9 never runs.
+   Measured: `sketch -> extrude -> box` validates clean, raises
+   `ExecutionUnsupported`, and the orphan box is never mentioned.
+3. **The prompt described nine operations and never the sequence.** Each
+   section was written in isolation; nothing told the model how a part is
+   assembled from them.
+
+### The increment
+
+**The walk became a module.** `cad_experimental/history.py` holds one
+implementation of Section B.4's solid set, and `validation.py` *consumes* it
+rather than keeping a copy. That is the architectural point: a second walk
+would be a second opinion about what "consumed" means, and the two would
+drift the first time an operation type was added. The consumption rule is now
+written once, in `_consumed_by`, and a test asserts the validator no longer
+advances the solid set itself.
+
+`walk(operations)` yields, before each operation, the state a reference must
+be judged against — `declared`, `solids`, `profiles`, `consumed`, each mapping
+an id to the index that put it there. That is exactly what P9–P14 and P23
+already needed, so the validator's checks were not touched.
+
+`plan_history(plan)` builds the typed graph on top of it:
+
+| | |
+|---|---|
+| `OperationStep.depends_on` | the ids this operation names — target first, then a subtract's tools **in list order**, because Section C.4 removes them in that order |
+| `.consumes` | what this step took out of the solid set |
+| `.declares_solid` / `.declares_profile` | what it brought into being, named by its own id |
+| `.modifies` | the solid it replaced in place — the result keeps **this** id, which is why a modifier declares nothing |
+| `.solids_before` / `.solids_after` | the set either side of the step |
+| `PlanHistory.terminal_solids` | what is left at the end |
+| `.consumed`, `.profiles` | ids taken, ids that are profiles |
+| `.dependents(id)` | the reverse edges |
+| `.producers(id)` | the indices that declared or changed one solid — its edit history |
+| `.derivation(id)` | the transitive closure backwards: every operation whose effect is present in that solid |
+| `.depth` | the longest chain any one result rests on |
+
+`derivation` is the field that makes this a history rather than a list. For
+the chain above it returns `("body", "cutter", "cut", "edges")` — **the cutter
+is part of what `body` is made of**, though it was consumed two steps earlier
+and names nothing now.
+
+`depth` measures chaining, which a count of operations does not: four
+unrelated boxes have depth 1 and four operations; the chain above has depth 3
+and the same four operations.
+
+**Exposed through the existing boundary.** `POST /experimental/validate-plan`
+now returns a `history` object beside `valid`, `plan` and `problems`. Nothing
+else changed shape.
+
+**The prompt gained a sequence section** (`2026-09-15.2`, was `2026-09-15.1`).
+It states the three rules a chain lives by — earlier-only references, a
+modifier keeps its target's id, a subtract consumes its tools — adds the one
+rule about how a plan ends (exactly one solid left; a solid you make and never
+subtract is a leftover, not a second body), and gives the shape of nearly
+every part: make the body, make what you want removed, remove it, then round
+or bevel what is left. The worked example is a bracket with a slot, chosen so
+it is not any corpus case; **a test parses that example out of the prompt,
+validates it and converts it**, so the prompt cannot come to teach a plan the
+validator rejects.
+
+### Reported, never enforced
+
+`terminal_solids` of length two is a **fact**, not a verdict. Stage 45 adds no
+rule and no P-code: a two-solid plan is still a coherent plan and an invalid
+V1 part, and S9 on the converted document is still what says so. The
+alternative — a P27 mirroring S9 — was rejected for two reasons. It would
+duplicate a rule that can drift from the one it copies, and it contradicts
+deliberate existing behaviour: a profile may legitimately be swept twice, and
+`test_a_profile_may_be_both_extruded_and_revolved` asserts that the resulting
+two solids are S9's problem and not the plan validator's.
+
+What changed is that the fact is now *visible*, including in the one case
+where S9 never gets to rule on it.
+
+### What did NOT change
+
+- **No new operation, and no pattern/instance feature.** The vocabulary is
+  still nine types. A `pattern` operation would be new CAD capability, new
+  validation and new adapter work; it is not this increment.
+- **The boundaries.** Parser → validator → adapter → backend is untouched.
+  `history.py` imports no kernel, no `cad_core`, and computes no geometry; a
+  test asserts all of that.
+- **Every existing rule.** P1–P26 are unchanged, and the validator's checks
+  were not edited — only where it gets the state from.
+- **Stage 40 and Stage 43 methodology.** The corpus, the scoring and the
+  recorded baselines are untouched.
+
+### The next limitation
+
+**`MAX_OPERATIONS` is 32, and a real mechanical part will reach it.** Bolt
+circles, rib arrays and hole patterns are where chained plans get long, and
+today each instance is a separate operation: eight holes is eight operations
+plus their tools. That is the honest argument for a `pattern` operation — not
+that the language cannot express a repeated feature, but that expressing one
+costs a linear number of operations and the model has to keep the arithmetic
+straight across all of them. That is the next increment, and it is a real
+feature with its own validation, adapter and execution-boundary questions.
+
+Two smaller ones behind it: **the corpus is single-part and shallow**, so
+nothing is measured about how either representation behaves as chains get
+longer — the deepest case in it is depth 2; and **`depth` is a description,
+not a budget** — nothing bounds how deep a plan may be, only how many
+operations it may hold.
+
 ## What is NOT known
 
 **Real Anthropic testing happened at Stage 40, and only there.** Stages 33 to

@@ -1133,8 +1133,9 @@ class PromptTests(unittest.TestCase):
 
         `2026-09-10.7` was Stages 38-43. `2026-09-15.1` is Stage 44, which
         stopped telling the model that a profile operation cannot be built.
+        `2026-09-15.2` is Stage 45, which added the sequence section.
         """
-        self.assertEqual(self.version, "2026-09-15.1")
+        self.assertEqual(self.version, "2026-09-15.2")
         self.assertEqual(len(self.fingerprint), 64)
 
 

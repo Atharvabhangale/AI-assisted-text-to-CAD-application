@@ -1045,8 +1045,9 @@ easier for a model to generate correctly than the V1 document?** and **is
 CadQuery the right engine?**
 
 It adds `apps/api/src/cad_experimental/` (an operation-plan language, its
-parser, a plan validator with rules P1–P26, a V1 adapter, its own prompt and
-FastAPI app, and two CAD backends), `apps/api/tests_experimental/`, and
+parser, a plan validator with rules P1–P26, a shared solid-set walk and
+dependency graph, a V1 adapter, its own prompt and FastAPI app, and two CAD
+backends), `apps/api/tests_experimental/`, and
 `apps/web-experimental/` on port 5174. The **operation plan** drops `units`,
 `schema_version` and `features` for a flat ordered `operations` list. Nine
 operation types; **six are executable** — `sketch`, `extrude` and `revolve`
@@ -1201,11 +1202,57 @@ try, and it still admits every profile operation.
 
 1. **Re-run the frozen Stage 43 comparison** once the schema is verified. The
    corpus, prompts and scoring must stay exactly as they are.
-2. **Then chained multi-feature operations** — the corpus is single-part and
-   shallow, and nothing is known about how either representation behaves as
-   feature chains get longer.
+2. **Then a `pattern` operation** — see Stage 45's next limitation.
 
 Read `docs/experimental-operation-plan.md` → *Stage 44* for the full detail.
+
+### Stage 45: the plan as a dependency and history graph
+
+**Chained plans already worked.** `box → cylinder → subtract → fillet` parsed,
+validated with zero problems and converted to a valid V1 document before this
+stage existed; P9–P14 and P23 have always judged references against a walked
+solid set. What was missing was anywhere to *see* the chain — the walk lived
+inside `validate_plan` as four local dictionaries, so a plan was judged as a
+history and then only ever reported as a flat list.
+
+`cad_experimental/history.py` is now the **one** implementation of Section
+B.4's solid set, and `validation.py` consumes it rather than keeping a copy —
+a second walk would be a second opinion about what "consumed" means.
+`plan_history(plan)` builds a typed graph on it: per step `depends_on`,
+`consumes`, `declares_solid`/`declares_profile`, `modifies` and the solid set
+either side; per plan `terminal_solids`, `consumed`, `profiles`,
+`dependents()`, `producers()`, `derivation()` and `depth`.
+
+`derivation()` is what makes it a history rather than a list: for the chain
+above it returns `("body", "cutter", "cut", "edges")` — **the cutter is part
+of what `body` is made of** although it was consumed two steps earlier.
+`depth` measures chaining, which an operation count does not: four unrelated
+boxes have depth 1, that chain has depth 3.
+
+**Reported, never enforced.** `terminal_solids` of length two is a fact, not a
+verdict; S9 on the converted document still rules on it. No P-code was added.
+This matters in one case: a plan containing a profile operation is refused by
+the adapter before a document exists, **so S9 never runs and a leftover solid
+is otherwise invisible**. The graph is its only witness.
+
+`POST /experimental/validate-plan` returns a `history` object. Prompt
+`2026-09-15.2` gained a sequence section stating the three chain rules and
+that exactly one solid must be left; a test parses its worked example out of
+the prompt and validates it, so the prompt cannot teach a plan the validator
+rejects.
+
+**No new operation was added** — no pattern, no instance. The vocabulary is
+still nine types, `history.py` imports no kernel and computes no geometry, and
+P1–P26 are unchanged.
+
+**Next limitation:** `MAX_OPERATIONS` is 32 and a real part will reach it.
+Bolt circles and hole patterns are where chains get long, and today each
+instance is its own operation. That is the argument for a `pattern`
+operation — not that a repeated feature is inexpressible, but that expressing
+one costs a linear number of operations and the model must keep the
+arithmetic straight across all of them.
+
+Read `docs/experimental-operation-plan.md` → *Stage 45* for the full detail.
 
 **FreeCAD runs here, but not the obvious way.** No pip distribution, and it is
 **not in Ubuntu 24.04**. It came from the official AppImage (649 MB, extracting
@@ -1253,7 +1300,7 @@ The POSIX forms remain correct on Linux/macOS, where `python3` and a
 `CAD_FREECAD_HOME` plus `LD_LIBRARY_PATH=$CAD_FREECAD_HOME/usr/lib` set
 **before Python starts**, or `test_cad_backends` skips.
 
-**938 tests, 2 skipped** with FreeCAD present on Linux, as of Stage 44 (at
+**984 tests, 2 skipped** with FreeCAD present on Linux, as of Stage 45 (at
 Stage 43 that was 897 tests, 33 skipped on the Windows environment, where the
 extra skips are the FreeCAD backend). Run the whole suite before finishing a
 stage here: package-wide guard tests in older modules are routinely tripped

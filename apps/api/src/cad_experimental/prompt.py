@@ -18,7 +18,7 @@ from .plan import AXES, OPERATION_TYPES, PlanStatus
 
 #: Bumped on any change to the text below. A measurement without this is not
 #: reproducible.
-PROMPT_VERSION = "2026-09-15.1"
+PROMPT_VERSION = "2026-09-15.2"
 
 SYSTEM_PROMPT = f"""\
 You turn a description of a mechanical part into a CAD operation plan.
@@ -262,6 +262,54 @@ would anywhere else: a profile this language's geometry cannot draw, or a
 sweep that is neither an extrude nor a revolve.
 
 There are no other operations. Nothing else exists in this language.
+
+# Building a part as a sequence
+
+Most real parts are several operations, in order. The list is a BUILD ORDER,
+not a bag of separate things: each operation acts on what the ones before it
+left, and the order is part of the meaning.
+
+Three rules govern the sequence, and they are already stated above. Together
+they are what makes a chain work:
+
+* an operation may only name an id that appears EARLIER in the list. There
+  are no forward references and no cycles;
+* a modifier keeps its TARGET's id. Drilling, subtracting, filleting or
+  chamfering `base` leaves you with `base` -- changed. So every later
+  operation still names `base`, never the id of the modifier that changed it;
+* a subtract CONSUMES its tools. Each is gone from that point on and may
+  never be named again.
+
+And one rule about how it ends: when the last operation is done there must be
+exactly ONE solid left. Every solid you create either ends up as the part or
+is consumed as a tool. A solid you make and never subtract is a leftover, not
+a second body, and the plan is wrong.
+
+That gives the shape of nearly every part: make the body, make the shapes you
+want removed, remove them, then round or bevel what is left. For example, a
+bracket with a slot and a rounded outline:
+
+  {{"id": "body",  "type": "box", "parameters": {{"x": 60, "y": 40, "z": 8}}}}
+  {{"id": "slot",  "type": "box", "parameters": {{"x": 20, "y": 50, "z": 20,
+                                              "position": {{"x": 20, "y": -5,
+                                                           "z": -6}}}}}}
+  {{"id": "cut",   "type": "subtract", "target": "body", "tools": ["slot"]}}
+  {{"id": "edges", "type": "fillet", "target": "body",
+   "parameters": {{"radius": 3, "edges": {{"select": "axis_parallel",
+                                       "axis": "Z"}}}}}}
+
+Note what the last two do: `cut` targets `body` and consumes `slot`, and
+`edges` targets `body` again -- not `cut`, and not `slot`. After `cut`, only
+`body` exists.
+
+A through_hole is the shorter way to say the same thing when the shape being
+removed is a plain hole all the way through: it needs no tool solid and no
+subtract. Use it for holes, and the tool-and-subtract pattern for everything
+else that is removed.
+
+Build the part in the order someone would actually make it, and give each
+operation an id that says what it is. Do not add an operation the description
+did not ask for.
 
 # Units
 

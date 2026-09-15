@@ -48,6 +48,7 @@ from .local_plan_provider import (
 )
 from .parser import PlanParseError, parse_plan
 from .plan import PlanStatus, plan_schema
+from .history import plan_history
 from .prompt import PROMPT_VERSION, prompt_fingerprint
 from .validation import validate_plan
 
@@ -243,6 +244,13 @@ def create_app(
                 "parsed": True,
                 "plan": plan.to_dict(),
                 "problems": [p.to_dict() for p in verdict.problems],
+                # The dependency and history graph, derived from the plan
+                # alone. A chained plan's most useful question -- what is
+                # this solid made of, and did anything get left behind --
+                # cannot be answered from a flat list of operations. It is
+                # reported, never enforced: `terminal_solids` of length two
+                # is a fact, and S9 is the V1 validator's to rule on.
+                "history": plan_history(plan).to_dict(),
             },
         )
 
