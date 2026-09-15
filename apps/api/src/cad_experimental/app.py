@@ -48,6 +48,7 @@ from .local_plan_provider import (
 )
 from .parser import PlanParseError, parse_plan
 from .plan import PlanStatus, plan_schema
+from .graph import feature_graph
 from .history import plan_history
 from .prompt import PROMPT_VERSION, prompt_fingerprint
 from .validation import validate_plan
@@ -251,6 +252,11 @@ def create_app(
                 # reported, never enforced: `terminal_solids` of length two
                 # is a fact, and S9 is the V1 validator's to rule on.
                 "history": plan_history(plan).to_dict(),
+                # The structure beside the state: nodes, role-tagged edges,
+                # the deterministic execution order, and any cycle. What an
+                # agent needs to answer "why was this rejected" without
+                # re-deriving the plan's shape for itself.
+                "graph": feature_graph(plan).to_dict(),
             },
         )
 

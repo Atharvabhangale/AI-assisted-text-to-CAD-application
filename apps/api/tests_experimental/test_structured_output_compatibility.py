@@ -288,18 +288,37 @@ class CoverageTests(unittest.TestCase):
         self.assertLessEqual(len(self.branches(provider_schema())),
                              PROVIDER_BRANCH_LIMIT)
 
-    def test_only_fillet_and_chamfer_share_a_branch(self):
-        """The one merge, and no creeping second one. Every other type keeps
-        its own branch and so its own exact `required` list."""
+    def test_the_merged_branches_are_exactly_the_declared_groups(self):
+        """No creeping merge. A branch carries more than one type only when
+        `MERGED_SCHEMA_GROUPS` says so, and every other type keeps its own
+        branch and so its own exact `required` list.
+
+        Two groups since Stage 46 added a tenth operation type: `fillet` with
+        `chamfer`, and `extrude` with `revolve`. Both pairs share their
+        operation-level shape and differ only in their parameters.
+        """
+        from cad_experimental.plan import MERGED_SCHEMA_GROUPS
+
         merged = [self.types_of(b) for b in self.branches(provider_schema())
                   if "enum" in b["properties"]["type"]]
-        self.assertEqual(merged, [list(EDGE_MODIFIER_TYPES)])
+        self.assertEqual(
+            merged, [list(group) for group in MERGED_SCHEMA_GROUPS]
+        )
+        self.assertIn(list(EDGE_MODIFIER_TYPES), merged)
 
-    def test_the_executable_schema_covers_exactly_the_buildable_six(self):
+    def test_the_executable_schema_covers_exactly_the_six_v1_features(self):
         """Kept under its own name so the Stage 43 instrument still exists
-        and still means what it meant."""
+        and still means what it meant.
+
+        Pinned to `V1_FEATURE_TYPES`, not `EXECUTABLE_TYPES`: Stage 46 made
+        `pattern` executable, and a recorded measurement must stay
+        attributable to the instrument that produced it.
+        """
+        from cad_experimental.plan import V1_FEATURE_TYPES
+
         self.assertEqual(self.kinds(executable_schema()),
-                         list(EXECUTABLE_TYPES))
+                         list(V1_FEATURE_TYPES))
+        self.assertNotEqual(set(EXECUTABLE_TYPES), set(V1_FEATURE_TYPES))
 
     def test_the_unmerged_provider_branches_match_the_full_schema(self):
         """A branch that was not merged must be identical in both, so the

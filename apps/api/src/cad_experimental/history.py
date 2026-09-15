@@ -37,12 +37,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Dict, Iterator, List, Mapping, Optional, Tuple
 
+from .graph import modified_body, references_of
 from .plan import (
     CONSUMING_TYPES,
-    MODIFIER_TYPES,
     PROFILE_TYPES,
     SOLID_DECLARING_TYPES,
-    TARGETED_TYPES,
     OperationPlan,
     tools_of,
 )
@@ -136,6 +135,51 @@ class OperationStep:
 
 
 @dataclass(frozen=True)
+class Body:
+    """One solid, and the features that shaped it.
+
+    Groundwork rather than assembly support. Nothing in this project builds
+    more than one body today -- rule S9 requires a plan to end with exactly
+    one -- but nothing here *assumes* one either: bodies are a tuple, a
+    feature names the body it belongs to, and "the part" is a query rather
+    than a fact. When assemblies arrive, the question they ask first is
+    which body a feature belongs to, and that is answered here.
+
+    The body's :attr:`id` is the id of the operation that created it, and
+    stays that id for life: every modifier keeps its target's id, so a body
+    that has been drilled, cut and filleted is still the same body with the
+    same name. That is why :attr:`origin` and :attr:`id` agree today and are
+    still recorded separately -- a later stage that copies or splits a body
+    would need them to differ.
+    """
+
+    id: str
+    origin: str
+    origin_index: int
+
+    #: The operations that shaped this body, in order, starting with the one
+    #: that created it. Feature ownership, explicitly.
+    features: Tuple[str, ...] = ()
+
+    #: Whether the body still exists at the end of the plan. A tool consumed
+    #: by a subtract does not.
+    live: bool = True
+
+    #: The subtract that consumed it, when it was.
+    consumed_by: Optional[str] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "origin": self.origin,
+            "origin_index": self.origin_index,
+            "features": list(self.features),
+            "live": self.live,
+            "consumed_by": self.consumed_by,
+        }
+
+
+@dataclass(frozen=True)
 class PlanHistory:
     """The whole chain: every step, and what the plan ended up holding."""
 
@@ -157,6 +201,32 @@ class PlanHistory:
 
     profiles: Tuple[str, ...] = ()
     consumed: Tuple[str, ...] = ()
+
+    #: Every body the plan ever created, in creation order, live or not.
+    bodies: Tuple[Body, ...] = ()
+
+    @property
+    def live_bodies(self) -> Tuple[Body, ...]:
+        """The bodies still standing. Length one for a finished V1 part."""
+        return tuple(body for body in self.bodies if body.live)
+
+    def body(self, body_id: str) -> Optional[Body]:
+        for body in self.bodies:
+            if body.id == body_id:
+                return body
+        return None
+
+    def owner_of(self, operation_id: str) -> Optional[str]:
+        """Which body this operation belongs to, if any.
+
+        A constructive operation owns the body it created; a modifier belongs
+        to the body it changed; a pattern belongs to the body its source
+        belongs to. A sketch belongs to none -- a profile is not a body.
+        """
+        for body in self.bodies:
+            if operation_id in body.features:
+                return body.id
+        return None
 
     def step(self, operation_id: str) -> Optional[OperationStep]:
         """The step for one operation id, or ``None``.
@@ -248,6 +318,7 @@ class PlanHistory:
             "profiles": list(self.profiles),
             "consumed": list(self.consumed),
             "depth": self.depth,
+            "bodies": [body.to_dict() for body in self.bodies],
         }
 
 
@@ -258,22 +329,16 @@ def _ordered(mapping: Mapping[str, int]) -> Tuple[str, ...]:
     )
 
 
-def _references(operation: object, kind: str) -> Tuple[str, ...]:
-    """The ids one operation names, target first, then tools in list order.
+def _references(operation: object, kind: Optional[str]) -> Tuple[str, ...]:
+    """The ids one operation names, in edge order, without duplicates.
 
-    Read from :data:`cad_experimental.plan.TARGETED_TYPES` and
-    :func:`cad_experimental.plan.tools_of` -- the same tables the parser and
-    the validator read, so the graph cannot come to disagree with them about
-    which operations have an edge.
+    Delegated to :func:`cad_experimental.graph.references_of` rather than
+    re-derived: which key on which operation type is a reference is the
+    graph's table to own, and a second answer here would be a second answer.
     """
-    names: List[str] = []
-    if kind in TARGETED_TYPES:
-        target = getattr(operation, "target", None)
-        if isinstance(target, str) and target:
-            names.append(target)
-    if kind in CONSUMING_TYPES:
-        names.extend(tools_of(operation))
-    return tuple(names)
+    return tuple(dict.fromkeys(
+        reference.id for reference in references_of(operation, kind)
+    ))
 
 
 def walk(
@@ -366,10 +431,14 @@ def plan_history(plan: OperationPlan) -> PlanHistory:
     """
     records: List[Dict[str, Any]] = []
     last_state: Optional[HistoryState] = None
+    by_id = {operation.id: operation for operation in plan.operations}
+    bodies: List[Dict[str, Any]] = []
+    body_index: Dict[str, int] = {}
 
     for index, operation, state in walk(plan.operations):
         last_state = state
         kind = _kind(operation)
+        changed = modified_body(operation, kind, by_id)
         before = _ordered(state.solids)
         # Each step's outcome is the NEXT step's starting point, so the
         # "after" view is filled in on the following turn -- and after the
@@ -388,13 +457,32 @@ def plan_history(plan: OperationPlan) -> PlanHistory:
             "declares_profile": (
                 operation.id if kind in PROFILE_TYPES else None
             ),
-            "modifies": (
-                getattr(operation, "target", None)
-                if kind in MODIFIER_TYPES else None
-            ),
+            "modifies": changed,
             "solids_before": before,
             "solids_after": (),
         })
+
+        # Body bookkeeping, in the same single pass. A constructive or
+        # profile-solid operation starts a body; anything that changes one
+        # joins its feature list; a consumed body stops being live and
+        # remembers what took it.
+        if kind in SOLID_DECLARING_TYPES and operation.id not in body_index:
+            body_index[operation.id] = len(bodies)
+            bodies.append({
+                "id": operation.id,
+                "origin": operation.id,
+                "origin_index": index,
+                "features": [operation.id],
+                "live": True,
+                "consumed_by": None,
+            })
+        elif changed is not None and changed in body_index:
+            bodies[body_index[changed]]["features"].append(operation.id)
+        for taken in _consumed_by(operation, kind, state.solids):
+            if taken in body_index:
+                record = bodies[body_index[taken]]
+                record["live"] = False
+                record["consumed_by"] = operation.id
 
     # The state is yielded BEFORE each operation, and the mappings inside it
     # belong to the walk. By the time the loop ends the walk has advanced
@@ -411,10 +499,22 @@ def plan_history(plan: OperationPlan) -> PlanHistory:
         terminal_solids=final_solids,
         profiles=_ordered(last_state.profiles),
         consumed=_ordered(last_state.consumed),
+        bodies=tuple(
+            Body(
+                id=record["id"],
+                origin=record["origin"],
+                origin_index=record["origin_index"],
+                features=tuple(record["features"]),
+                live=record["live"],
+                consumed_by=record["consumed_by"],
+            )
+            for record in bodies
+        ),
     )
 
 
 __all__ = [
+    "Body",
     "HistoryState",
     "OperationStep",
     "PlanHistory",

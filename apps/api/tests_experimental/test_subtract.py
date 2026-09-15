@@ -104,12 +104,12 @@ class VocabularyTests(unittest.TestCase):
         self.assertEqual(CONSUMING_TYPES, (SUBTRACT,))
 
     def test_no_unimplemented_operation_crept_in(self):
-        """`chamfer` (36), `sketch` (37), `extrude` and `revolve` (38) left
-        this list when they were built. Everything still named here is
+        """`chamfer` (36), `sketch` (37), `extrude` and `revolve` (38) and `pattern` (46)
+        left this list when they were built. Everything still named here is
         genuinely absent, so the guard still bites."""
         for absent in (
             "sweep",
-            "loft", "pattern", "mirror", "union", "intersect", "assembly",
+            "loft", "mirror", "union", "intersect", "assembly",
             "joint", "drawing", "material",
         ):
             self.assertNotIn(absent, OPERATION_TYPES)

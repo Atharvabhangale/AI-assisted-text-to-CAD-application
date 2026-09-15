@@ -1580,6 +1580,242 @@ longer — the deepest case in it is depth 2; and **`depth` is a description,
 not a budget** — nothing bounds how deep a plan may be, only how many
 operations it may hold.
 
+## Stage 46: the feature graph, and `pattern`
+
+The plan had reference and history semantics from Stage 33 onward and a
+materialised history from Stage 45. What it still lacked was **structure**:
+edges were re-derived in three modules, execution order was the list's rather
+than the graph's, and repetition could only be written out by hand.
+
+### Diagnosis, measured before changing anything
+
+Two chains were traced plan → parse → validate → adapter → execution:
+
+| Chain | Result |
+|---|---|
+| `box → cylinder → subtract` | valid, 3 features, **built**, one solid, closed form `43716.81` |
+| `box → through_hole → fillet` | valid, 3 features, adapter fine, **kernel refused E5** |
+
+The second failure is correct and is not this stage's: `axis_parallel Z`
+matches a cylindrical hole's parameterisation seam, and the kernel refuses to
+blend it. `docs/edge-selection.md` records the seam question as unresolved.
+The chain itself was sound.
+
+**What already qualified as graph semantics:** node identity (P2), typed
+references (P11 solid / P23 profile), consumption (P12–P14), output identity
+(a modifier keeps its target's id), and a single shared state walk with
+derivation, dependents and depth.
+
+**What was still sequence semantics:**
+
+1. **Execution order was the list's, asserted rather than derived.** P10
+   guarantees every reference appears strictly earlier, which makes list order
+   *a* topological order — but nothing computed one, nothing checked the list
+   against the edges, and there was no cycle detection at all.
+2. **No explicit edge model.** Which key on which type is a reference was
+   re-decided in `validation`, in `history` and in the adapter. **Roles** were
+   implicit, so "the target must be a solid" and "the target must be a sketch"
+   were two hand-written branches rather than one table.
+3. **No body identity.** `live` was a flat id→index map, with nowhere to put
+   feature ownership or a second body.
+4. **Repetition was not expressible.** Four mounting holes meant four
+   operations with hand-computed positions.
+
+### The graph
+
+`cad_experimental/graph.py` holds structure and nothing else — no state, no
+geometry, no verdict, no kernel import. Every function is total, so it
+describes a broken plan rather than refusing to, which is the point: a
+diagnostic is wanted for exactly the plans that are wrong.
+
+**Nodes** carry index, id, type, what they **produce** (`solid` / `profile` /
+`nothing`) and which **body** they change.
+
+**Edges come in two kinds, and keeping them apart is the design.**
+
+*Declared* edges are what the plan says, each tagged with a **role**:
+
+| Role | Names | Must be |
+|---|---|---|
+| `target` | a modifier's subject | a solid |
+| `target` | an extrude's or revolve's subject | a profile |
+| `tool` | a subtract's inputs, **ordered** | a solid |
+| `source` | a pattern's subject | a repeatable feature |
+
+The `expectation(kind, role)` table replaced the per-operation category
+branches: adding an operation now means answering that question once, in one
+place, instead of editing three modules and hoping they agree. `EXPECT_FEATURE`
+is a third answer alongside solid and profile, and exists because a pattern is
+the first operation in this language whose input is another **operation**.
+
+*Derived* edges — `FeatureNode.after` — are the per-body feature history, and
+they were not in the plan until this stage. **They fix a real bug the declared
+edges could not express.** Given
+
+```
+plate → bore → mount → mounts(pattern) → break(chamfer)
+```
+
+every one of `bore`, `mount` and `break` names only `plate`. A topological sort
+over declared edges alone therefore releases all three at once and produces
+
+```
+plate, bore, mount, break, mounts     ← chamfered before the holes: a different part
+```
+
+A modifier depends on its target's **state**, not merely on its identity.
+Each node that changes a body now also follows whatever last changed that
+body, and the order comes out right:
+
+```
+plate, bore, mount, mounts, break
+```
+
+Only the immediate predecessor is stored; the rest follows by transitivity.
+A test constructs the declared-edges-only graph and pins the wrong order, so
+the bug cannot silently return.
+
+Consequently `topological_order()` equals the list order for every valid plan
+— and `is_list_order()` now **checks** that rather than assuming it. Cycles
+are impossible through the parser (a cycle needs a reference that is not
+strictly earlier, which is P10) and are detected anyway, because the graph
+must not depend on the validator having run and because P10 is a rule a later
+stage may relax. A self-loop is a cycle of one.
+
+Queries, all in plan order: `dependencies` / `dependents` (declared),
+`predecessors` / `successors` (everything that orders), `ancestors` /
+`descendants` (transitive), `topological_order`, `is_list_order`, `cycles`.
+`POST /experimental/validate-plan` returns the whole thing beside the history.
+
+### `pattern`
+
+The tenth operation type, and the first that is graph-native: its input is a
+feature, not a body.
+
+```json
+{"id": "mounts", "type": "pattern", "source": "mount",
+ "parameters": {"count": 4,
+                "placement": {"kind": "radial", "axis": "+Z",
+                              "centre": {"x": 50, "y": 50, "z": 0}}}}
+```
+
+**`source`, not `target`.** Every other reference in the language names a body
+or a profile; this one names the operation whose effect is repeated. Reusing
+`target` would have hidden that in the wire format and in the schema, and the
+roles exist precisely to keep it visible.
+
+**Semantics, stated exactly:**
+
+- **`count` includes the source.** Four mounting holes is `"count": 4`. The
+  source is instance 0, is not moved, and is not consumed.
+- **A pattern inherits its source's semantics.** Repeating a modifier is
+  modifying: every instance acts on the same body, the body keeps its id, the
+  pattern's own id names no solid, and S9 is untouched however many instances
+  there are. Nothing can target a pattern (P11 refuses it, for free).
+- **Placement is a discriminated object**, `linear` or `radial` — not a flat
+  bag of optional fields, which would need every field optional and could not
+  say which combination is meant. `PLACEMENT_FIELDS` is the table the parser,
+  the validator and the schema all read.
+- **Radial `angle` is the step between consecutive instances**, and omitting
+  it means `360 / count` — a full circle divided evenly, which is what a bolt
+  circle is and is the division a model most easily gets wrong by hand.
+- **What may be repeated is a table**, `PATTERNABLE_TYPES`, today
+  `(through_hole,)`. A pattern varies *where* a feature goes, so the feature
+  must have a position. Widening it is one line with one place to audit.
+
+**Placement arithmetic lives in `pattern.py`, not the adapter**, because where
+an instance goes is a fact about the representation rather than about any
+engine. Instance *k* is computed from the source and *k* alone, never from
+instance *k−1*: accumulating a rotation would let error grow along the pattern
+and make the eighth hole depend on how the first seven were computed. A test
+repeats a 360° step eight times and lands exactly back on the source.
+
+Rotation is right-handed about the **signed** axis, verified on all three
+(`+Z`: X→Y, `+X`: Y→Z, `+Y`: Z→X), and `-Z` mirrors `+Z`.
+
+**New rules.** P27 the source is repeatable; P28 the count is a whole number
+in `[2, 64]`; P29 the placement is coherent **and expressible**; P30 the
+derived instance ids do not collide; P31 the graph is acyclic. P9, P10 and P12
+apply to a `source` unchanged — "is this declared, earlier and still
+available" is the same question whatever the answer must *be*, and `_resolve`
+asks it once for every role.
+
+P29's expressibility check is the interesting one. A radial pattern must turn
+its source about an axis the source is already parallel to: turning a `+Z`
+hole about `+X` would tilt it onto a direction V1 has no word for, so the
+instance could not be **written down** at all. That is a representation limit,
+decided here; whether the fourth hole still meets material is E1's and the
+kernel's, exactly as for a single hole.
+
+**Execution.** The adapter expands a pattern into one V1 feature per extra
+instance, with ids `{pattern-id}-{k}` from `instance_id` — the same function
+P30 checks against, so the validator and the adapter cannot spell it
+differently. Instance 0 is not re-emitted; the source already wrote it.
+
+Measured: a 100×100×10 plate with a Ø20 bore and four Ø6 holes on a 35 mm bolt
+circle built to `95727.43399111787` mm³ against a closed form of
+`95727.43399111788` — agreement to 1 ULP, one solid.
+
+`pattern` is **executable but is not a V1 feature**, and Stage 46 split those
+two ideas apart: `V1_FEATURE_TYPES` is the six that become exactly one feature
+with the same id, `EXECUTABLE_TYPES` is what the adapter can translate at all.
+`executable_schema()` stays pinned to the first, so Stage 43's recorded
+fingerprint `54759d1e16cfe634` is unchanged and re-running Stage 43 still
+reproduces Stage 43. A test asserts that fingerprint.
+
+The schema now carries **ten operation types in eight branches** —
+`MERGED_SCHEMA_GROUPS` gained `PROFILE_SOLID_TYPES` alongside
+`EDGE_MODIFIER_TYPES`. Provider acceptance remains **unverified**, exactly as
+Stage 44 left it.
+
+**No backend learned the word `pattern`.** It is expanded in the adapter and
+never reaches an engine; a test asserts no backend has such a method and that
+`graph.py`, `pattern.py` and `history.py` import no kernel and no `cad_core`.
+
+### Multi-body groundwork
+
+`PlanHistory.bodies` is a tuple of `Body` records — id, origin, origin index,
+the ordered features that shaped it, whether it is still live, and what
+consumed it. `owner_of(feature)` answers feature ownership; `live_bodies`
+answers what is standing.
+
+Nothing here **assumes** one body. Rule S9 still requires a plan to end with
+exactly one, and that rule is the V1 validator's, unchanged and unweakened.
+What changed is that "the part" is now a query rather than an assumption, that
+features on different bodies are not sequenced against each other, and that a
+consumed tool is a body with a history rather than a vanished id. Assemblies
+are **not** implemented and are not started.
+
+### Deliberately deferred
+
+- **Assemblies, and cross-body references.** Groundwork only.
+- **Patterning anything but a `through_hole`.** Repeating a constructive
+  primitive creates one body per instance, which is multi-body work and needs
+  the single-solid question answered first.
+- **A pattern of a pattern**, mirrors, and patterns along a curve: P27 refuses
+  the first explicitly.
+- **Relaxing P10** so a plan may be written out of order and sorted. The
+  machinery now exists; the rule has not changed.
+- **Verifying the provider compiles the ten-type schema.** One live call, on a
+  machine with a credential.
+
+### Known limitations
+
+- **The seam problem still bites any edge operation on a drilled solid.** A
+  fillet or chamfer after a hole selects the hole's parameterisation seam and
+  the kernel refuses it (E5). This is why the execution tests put a hole after
+  a pattern rather than a chamfer, and it is unresolved — see
+  `docs/edge-selection.md`.
+- **`MAX_OPERATIONS` is still 32**, though a pattern now buys a great deal of
+  that budget back: four holes cost one operation instead of four.
+- **Sequencing is conservative.** Two disjoint holes in one plate are ordered
+  against each other although the geometry is order-independent. The IR cannot
+  know they are disjoint, the spec evaluates features in order, and a
+  conservative order is the honest one.
+- **Nothing is measured.** No model has been asked to produce a pattern. The
+  prompt gained a section (`2026-09-15.3`) telling it to repeat rather than
+  duplicate, and words in a prompt are a hypothesis.
+
 ## What is NOT known
 
 **Real Anthropic testing happened at Stage 40, and only there.** Stages 33 to

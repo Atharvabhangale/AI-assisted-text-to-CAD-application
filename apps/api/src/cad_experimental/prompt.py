@@ -18,7 +18,7 @@ from .plan import AXES, OPERATION_TYPES, PlanStatus
 
 #: Bumped on any change to the text below. A measurement without this is not
 #: reproducible.
-PROMPT_VERSION = "2026-09-15.2"
+PROMPT_VERSION = "2026-09-15.3"
 
 SYSTEM_PROMPT = f"""\
 You turn a description of a mechanical part into a CAD operation plan.
@@ -261,6 +261,54 @@ Only say "{PlanStatus.UNSUPPORTED.value}" here for the same reasons you
 would anywhere else: a profile this language's geometry cannot draw, or a
 sweep that is neither an extrude nor a revolve.
 
+## pattern
+Repeats an earlier feature at several places, so one description of a feature
+serves for all of them.
+
+This operation has a `source` field BESIDE `id` and `type`, not inside
+`parameters`, and NOT called `target`. Every other reference in this language
+names a solid or a profile; a pattern's names a FEATURE -- the operation whose
+effect is repeated.
+
+  source  the id of an earlier feature to repeat. Today that is a
+          `through_hole` and nothing else: a pattern varies WHERE a feature
+          goes, so the feature must have a position.
+
+parameters:
+  count      required, a whole number from 2 to 64. It INCLUDES the source.
+             Four mounting holes is `"count": 4`, not 3 -- the source is the
+             first of the four.
+  placement  required, an OBJECT saying where the repeats go. One of exactly
+             two shapes:
+
+  {{"kind": "linear", "axis": "+X", "spacing": 25}}
+      Instance k sits k x spacing from the source along that signed axis.
+
+  {{"kind": "radial", "axis": "+Z", "centre": {{"x": 50, "y": 50, "z": 0}}}}
+      Instances turned about the axis through `centre`. Omit `angle` and they
+      are spread evenly round a full circle -- which is what a bolt circle
+      is, and is almost always what is wanted. Give
+      `"angle": 45` instead to set the turn BETWEEN consecutive instances.
+
+A radial pattern must turn its source about an axis the source is already
+parallel to: turning a +Z hole about +Z keeps it a +Z hole, and turning it
+about +X would tilt it onto a direction this language cannot name.
+
+A pattern inherits its source's semantics. Repeating a hole is still cutting
+the same solid, so the solid keeps its id, the pattern's own id names no
+solid, and a later fillet or chamfer still targets the SOLID -- never the
+hole and never the pattern.
+
+Use a pattern whenever a description says several of the same feature
+arranged in a regular way: four mounting holes on a bolt circle, a row of
+holes at a fixed pitch. Write the feature once and repeat it. Do not emit
+several near-identical holes with hand-computed positions -- that is the same
+part said at more length, and it is easier to get wrong.
+
+If the features are NOT regular -- different sizes, or positions that follow
+no single rule -- write them out separately. A pattern is for repetition, not
+for grouping.
+
 There are no other operations. Nothing else exists in this language.
 
 # Building a part as a sequence
@@ -286,7 +334,8 @@ is consumed as a tool. A solid you make and never subtract is a leftover, not
 a second body, and the plan is wrong.
 
 That gives the shape of nearly every part: make the body, make the shapes you
-want removed, remove them, then round or bevel what is left. For example, a
+want removed, remove them, repeat any feature that is regular, then round or
+bevel what is left. For example, a
 bracket with a slot and a rounded outline:
 
   {{"id": "body",  "type": "box", "parameters": {{"x": 60, "y": 40, "z": 8}}}}
@@ -369,6 +418,13 @@ and an extrude and a revolve carry `target` and their parameters:
 
   {{"id": "body", "type": "revolve", "target": "profile",
     "parameters": {{"angle": 360, "axis": "+Z"}}}}
+
+and a pattern carries `source` and its count and placement:
+
+  {{"id": "mounts", "type": "pattern", "source": "mount",
+    "parameters": {{"count": 4,
+                  "placement": {{"kind": "radial", "axis": "+Z",
+                               "centre": {{"x": 50, "y": 50, "z": 0}}}}}}}}
 
 and a sketch carries its plane, its geometry and any constraints:
 

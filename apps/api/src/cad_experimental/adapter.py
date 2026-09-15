@@ -66,9 +66,13 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Tuple
 
+from .pattern import instance_positions
 from .plan import (
     BOX,
     CHAMFER,
+    PATTERN,
+    PATTERNABLE_TYPES,
+    instance_id,
     CYLINDER,
     EXECUTABLE_TYPES,
     FILLET,
@@ -165,15 +169,68 @@ def plan_to_document(
             tuple(op.id for op in unexecutable),
         )
 
-    features: List[Dict[str, Any]] = [
-        _feature(operation) for operation in plan.operations
-    ]
+    # Flat-mapped, not mapped: most operations become exactly one feature,
+    # and a `pattern` becomes one per instance. Which is why the document's
+    # feature list is no longer the same length as the plan's operation
+    # list, and why an operation's id is no longer always a feature's id.
+    by_id = {operation.id: operation for operation in plan.operations}
+    features: List[Dict[str, Any]] = []
+    for operation in plan.operations:
+        features.extend(_features(operation, by_id))
     return {
         "schema_version": SCHEMA_VERSION,
         "units": UNITS,
         "name": name,
         "features": features,
     }
+
+
+def _features(
+    operation: Any, by_id: Dict[str, Any]
+) -> List[Dict[str, Any]]:
+    """The V1 features one operation becomes. Usually one; a pattern, many.
+
+    ``by_id`` is the plan's own operations, needed only by a pattern, whose
+    input is another operation rather than a body. Every other type is
+    translated from itself alone.
+    """
+    if getattr(operation, "TYPE", None) != PATTERN:
+        return [_feature(operation)]
+
+    source = by_id.get(operation.source)
+    if source is None or getattr(source, "TYPE", None) not in PATTERNABLE_TYPES:
+        # Unreachable from a validated plan: P9 catches a source that names
+        # nothing and P27 one that names something unrepeatable. Checked so
+        # the adapter cannot be made to invent a feature by a plan built in
+        # code.
+        raise AdapterError(
+            f"pattern {operation.id!r} repeats {operation.source!r}, which is "
+            "not a repeatable feature in this plan"
+        )
+
+    positions = instance_positions(
+        operation.placement, source.position, operation.count
+    )
+
+    # Instance 0 IS the source, which the plan already emitted as its own
+    # feature a moment ago. Re-emitting it here would drill the same hole
+    # twice -- harmless to the geometry and a lie about the document.
+    features: List[Dict[str, Any]] = []
+    for index, position in enumerate(positions[1:], start=1):
+        instance = {
+            "id": instance_id(operation.id, index),
+            "type": source.TYPE,
+            "target": source.target,
+            "diameter": source.diameter,
+            "position": position.to_dict(),
+        }
+        if source.axis is not None:
+            # Every instance keeps the source's own axis. A radial pattern
+            # about a parallel axis cannot change it, and rule P29 refuses
+            # the patterns where it would have had to.
+            instance["axis"] = source.axis
+        features.append(instance)
+    return features
 
 
 def _feature(operation: Any) -> Dict[str, Any]:

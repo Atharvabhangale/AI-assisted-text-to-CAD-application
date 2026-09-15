@@ -1045,8 +1045,8 @@ easier for a model to generate correctly than the V1 document?** and **is
 CadQuery the right engine?**
 
 It adds `apps/api/src/cad_experimental/` (an operation-plan language, its
-parser, a plan validator with rules P1–P26, a shared solid-set walk and
-dependency graph, a V1 adapter, its own prompt and FastAPI app, and two CAD
+parser, a plan validator with rules P1–P31, a feature graph with role-tagged
+edges and a shared solid-set walk, a V1 adapter, its own prompt and FastAPI app, and two CAD
 backends), `apps/api/tests_experimental/`, and
 `apps/web-experimental/` on port 5174. The **operation plan** drops `units`,
 `schema_version` and `features` for a flat ordered `operations` list. Nine
@@ -1202,7 +1202,7 @@ try, and it still admits every profile operation.
 
 1. **Re-run the frozen Stage 43 comparison** once the schema is verified. The
    corpus, prompts and scoring must stay exactly as they are.
-2. **Then a `pattern` operation** — see Stage 45's next limitation.
+2. **Then resolve seam selection** — see Stage 46's next limitation.
 
 Read `docs/experimental-operation-plan.md` → *Stage 44* for the full detail.
 
@@ -1245,14 +1245,72 @@ rejects.
 still nine types, `history.py` imports no kernel and computes no geometry, and
 P1–P26 are unchanged.
 
-**Next limitation:** `MAX_OPERATIONS` is 32 and a real part will reach it.
-Bolt circles and hole patterns are where chains get long, and today each
-instance is its own operation. That is the argument for a `pattern`
-operation — not that a repeated feature is inexpressible, but that expressing
-one costs a linear number of operations and the model must keep the
-arithmetic straight across all of them.
-
 Read `docs/experimental-operation-plan.md` → *Stage 45* for the full detail.
+
+### Stage 46: the feature graph, and `pattern`
+
+`cad_experimental/graph.py` holds **structure** — no state, no geometry, no
+verdict, no kernel import, every function total so it describes a broken plan
+rather than refusing to. Nodes carry what they produce (`solid` / `profile` /
+`nothing`) and which body they change. Edges come in two kinds and keeping
+them apart is the design:
+
+- **Declared** edges are what the plan says, each tagged with a **role**:
+  `target` (a solid, or a profile for a sweep), `tool` (ordered), `source` (a
+  pattern's feature). One `expectation(kind, role)` table replaced the
+  per-operation category branches, so adding an operation is one answer in one
+  place instead of edits to three modules.
+- **Derived** edges (`FeatureNode.after`) are the **per-body feature
+  history**, and they fix a real bug the declared edges could not express. In
+  `plate → bore → mount → mounts → break`, all three modifiers name only
+  `plate`, so a sort over declared edges alone yields `plate, bore, mount,
+  break, mounts` — chamfered before the holes, a different part. **A modifier
+  depends on its target's state, not merely on its identity.** A test pins the
+  wrong order so the bug cannot return.
+
+`topological_order()` therefore equals the list order for every valid plan,
+and `is_list_order()` now *checks* that rather than assuming it. Cycles are
+unreachable through the parser (P10) and detected anyway; a self-loop is a
+cycle of one, reported as **P31** naming its members.
+
+**`pattern`** is the tenth type and the first graph-native one: its input is a
+feature, not a body. `count` **includes the source**; the source is instance
+0, unmoved and unconsumed. A pattern **inherits its source's semantics** — so
+repeating a modifier is modifying, the body keeps its id, and S9 is untouched.
+Placement is a discriminated object, `linear` or `radial`; radial `angle` is
+the step between instances and omitting it means `360 / count`. What may be
+repeated is a table (`PATTERNABLE_TYPES`, today `through_hole` only).
+
+The arithmetic lives in `pattern.py`, **not** the adapter: where an instance
+goes is a fact about the representation, not about an engine. Instance *k* is
+computed from the source and *k* alone — accumulating a rotation would let
+error grow along the pattern. New rules **P27** (source repeatable), **P28**
+(count in `[2, 64]`), **P29** (placement coherent *and expressible* — a radial
+pattern must turn its source about an axis it is already parallel to, or the
+instance could not be written down in V1 at all), **P30** (derived ids do not
+collide).
+
+Measured: a plate with a Ø20 bore and four Ø6 holes on a 35 mm bolt circle
+built to `95727.43399111787` mm³ against a closed form of `95727.43399111788`
+— 1 ULP, one solid.
+
+`pattern` is **executable but is not a V1 feature**. Stage 46 split those:
+`V1_FEATURE_TYPES` is the six that become one feature each;
+`EXECUTABLE_TYPES` is what the adapter can translate. `executable_schema()`
+stays pinned to the first, so Stage 43's fingerprint `54759d1e16cfe634` is
+unchanged — a test asserts it. The schema now carries **ten types in eight
+branches**; provider acceptance is still unverified.
+
+**Multi-body groundwork:** `PlanHistory.bodies` gives every body an id, an
+origin, its ordered features, whether it is live and what consumed it, plus
+`owner_of()` and `live_bodies`. Nothing assumes one body; S9 still requires
+one and is unweakened. Assemblies are **not** started.
+
+**Next limitation:** the seam problem still bites — any fillet or chamfer
+after a hole selects the hole's parameterisation seam and the kernel refuses
+it (E5). It blocks the most ordinary mechanical chain there is (drill, then
+break the edges), and resolving it means deciding selector semantics in
+`docs/edge-selection.md`, not adding a feature.
 
 **FreeCAD runs here, but not the obvious way.** No pip distribution, and it is
 **not in Ubuntu 24.04**. It came from the official AppImage (649 MB, extracting
@@ -1300,7 +1358,7 @@ The POSIX forms remain correct on Linux/macOS, where `python3` and a
 `CAD_FREECAD_HOME` plus `LD_LIBRARY_PATH=$CAD_FREECAD_HOME/usr/lib` set
 **before Python starts**, or `test_cad_backends` skips.
 
-**984 tests, 2 skipped** with FreeCAD present on Linux, as of Stage 45 (at
+**1107 tests, 2 skipped** with FreeCAD present on Linux, as of Stage 46 (at
 Stage 43 that was 897 tests, 33 skipped on the Windows environment, where the
 extra skips are the FreeCAD backend). Run the whole suite before finishing a
 stage here: package-wide guard tests in older modules are routinely tripped

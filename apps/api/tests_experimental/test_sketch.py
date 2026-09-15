@@ -159,7 +159,10 @@ class SketchVocabularyTests(unittest.TestCase):
         one category -- so the list of categories was extended rather than
         the assertion weakened.
         """
-        from cad_experimental.plan import PROFILE_SOLID_TYPES
+        from cad_experimental.plan import (
+            PROFILE_SOLID_TYPES,
+            REPEATING_TYPES,
+        )
 
         for kind in OPERATION_TYPES:
             categories = [
@@ -167,17 +170,33 @@ class SketchVocabularyTests(unittest.TestCase):
                 kind in MODIFIER_TYPES,
                 kind in PROFILE_TYPES,
                 kind in PROFILE_SOLID_TYPES,
+                # Stage 46. A pattern names a FEATURE, not a body, so it is
+                # not a modifier; the list of categories was extended rather
+                # than the invariant weakened.
+                kind in REPEATING_TYPES,
             ]
             self.assertEqual(
                 sum(categories), 1, f"{kind} is in {sum(categories)} categories"
             )
 
     def test_executable_types_are_exactly_the_six_v1_features(self):
-        """The engine's vocabulary, not the language's -- they now differ."""
+        """The engine's vocabulary, not the language's -- they now differ.
+
+        Stage 46 split the two ideas that had been one tuple. A V1 FEATURE
+        type becomes exactly one feature with the same id; an EXECUTABLE
+        type is one the adapter can translate at all. `pattern` is the
+        second and not the first: it expands into one feature per instance
+        and has no feature of its own.
+        """
+        from cad_experimental.plan import PATTERN, V1_FEATURE_TYPES
+
         self.assertEqual(
-            set(EXECUTABLE_TYPES),
+            set(V1_FEATURE_TYPES),
             {"box", "cylinder", "through_hole", "subtract", "fillet",
              "chamfer"},
+        )
+        self.assertEqual(
+            set(EXECUTABLE_TYPES), set(V1_FEATURE_TYPES) | {PATTERN}
         )
         self.assertNotIn(SKETCH, EXECUTABLE_TYPES)
 

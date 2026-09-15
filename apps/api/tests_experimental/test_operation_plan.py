@@ -536,23 +536,31 @@ class SchemaTests(unittest.TestCase):
         return {b["properties"]["type"]["const"] for b in self.branches(schema)}
 
     def test_the_schema_admits_a_valid_plan_shape(self):
-        """The operation keys across all branches are still exactly these."""
+        """The operation keys across all branches are still exactly these.
+
+        `source` joined them at Stage 46 with `pattern`, and is deliberately
+        not `target`: every other reference names a body or a profile, and a
+        pattern's names a feature.
+        """
         keys = set()
         for branch in self.branches():
             keys |= set(branch["properties"])
-        self.assertEqual(keys, {"id", "type", "target", "tools", "parameters"})
+        self.assertEqual(
+            keys, {"id", "type", "target", "tools", "source", "parameters"}
+        )
 
     def test_the_schema_lists_only_the_implemented_types(self):
         """Spelled out, not derived: a new type must be a deliberate edit.
 
-        Updated at Stage 36 (chamfer), 37 (sketch), 38 (extrude, revolve) and
-        41 (the flat `type` enum became one branch per type). Deriving this
-        from ``OPERATION_TYPES`` would make it pass for free.
+        Updated at Stage 36 (chamfer), 37 (sketch), 38 (extrude, revolve),
+        41 (the flat `type` enum became one branch per type) and 46
+        (pattern). Deriving this from ``OPERATION_TYPES`` would make it pass
+        for free.
         """
         self.assertEqual(
             self.discriminators(),
             {"box", "cylinder", "through_hole", "subtract", "fillet",
-             "chamfer", "sketch", "extrude", "revolve"},
+             "chamfer", "sketch", "extrude", "revolve", "pattern"},
         )
 
     def test_there_is_exactly_one_branch_per_operation_type(self):
@@ -563,7 +571,7 @@ class SchemaTests(unittest.TestCase):
 
     def test_the_schema_lists_no_unimplemented_operation(self):
         for absent in (
-            "sweep", "loft", "pattern", "mirror", "union", "assembly",
+            "sweep", "loft", "mirror", "union", "assembly",
         ):
             self.assertNotIn(absent, self.discriminators())
 

@@ -24,10 +24,20 @@ import math
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
+from .graph import REPEATABLE, feature_graph
 from .history import walk
 from .plan import (
     AXES,
     BOX,
+    PARAMETERS,
+    DEFAULT_AXIS,
+    MAX_PATTERN_COUNT,
+    MIN_PATTERN_COUNT,
+    PATTERN,
+    PATTERNABLE_TYPES,
+    LinearPlacement,
+    RadialPlacement,
+    instance_id,
     CONSTRUCTIVE_TYPES,
     CHAMFER,
     CYLINDER,
@@ -125,10 +135,33 @@ P24 = "P24"  # an extrude's direction is normal to the sketch's plane
 P25 = "P25"  # a revolve's axis lies in the sketch's plane
 P26 = "P26"  # a revolve's angle is in (0, 360]
 
+# --- pattern rules, added with the first graph-native operation ------------
+#
+# A pattern's `source` is the first reference in this language that names an
+# **operation** rather than a body or a profile, so it needs its own
+# category rule rather than reusing P11's or P23's. P9, P10 and P12 apply to
+# it unchanged: the question "does this name something declared, earlier and
+# still available" is the same question whatever the answer must BE, and
+# `_resolve` asks it once for every role.
+P27 = "P27"  # the source names a feature this stage can repeat
+P28 = "P28"  # the count is a whole number within its bounds
+P29 = "P29"  # the placement is coherent, and expressible for that source
+P30 = "P30"  # a derived instance id does not collide with an operation id
+
+# --- graph rules -----------------------------------------------------------
+#
+# Reported against the plan rather than one operation, because a cycle is a
+# property of the graph and blaming any single member of it would be a
+# guess. Unreachable through the parser today -- a cycle needs a reference
+# that is not strictly earlier, which is P10 -- and checked anyway, because
+# the validator must not depend on the parser having run and because P10 is
+# a rule a later stage may want to relax.
+P31 = "P31"  # the dependency graph is acyclic
+
 RULE_CODES: Tuple[str, ...] = (
     P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14,
     P15, P16, P17, P18, P19, P20, P21, P22,
-    P23, P24, P25, P26,
+    P23, P24, P25, P26, P27, P28, P29, P30, P31,
 )
 
 
@@ -252,6 +285,11 @@ def validate_plan(plan: OperationPlan) -> PlanValidation:
                 operation, index, where, declared, live, consumed, problems,
                 profiles,
             )
+        elif kind == PATTERN:
+            _pattern(
+                operation, index, where, plan.operations,
+                declared, live, consumed, profiles, problems,
+            )
         elif kind == SKETCH:
             _sketch(operation, where, problems)
         elif kind in PROFILE_SOLID_TYPES:
@@ -285,15 +323,13 @@ def validate_plan(plan: OperationPlan) -> PlanValidation:
         # dependency graph would come to disagree about what a subtract
         # consumed.
 
-        # A subtract has no position: it is entirely references. Checked by
-        # type rather than a defaulted `getattr`, so nothing in this package
-        # looks an attribute up by a computed name.
-        position = (
-            None
-            if kind in (SUBTRACT, FILLET, CHAMFER, SKETCH, EXTRUDE,
-                        REVOLVE)
-            else operation.position
-        )
+        # Not every operation has a position -- a subtract is entirely
+        # references, a pattern carries its own placement. Which types do is
+        # read from PARAMETERS, the parser's own table, rather than from a
+        # list of exceptions that every new operation type has to be added
+        # to. Still an explicit attribute read, not a computed one: nothing
+        # in this package looks an attribute up by a name built at runtime.
+        position = operation.position if _has_position(kind) else None
         if position is not None:
             for name, value in (
                 ("x", position.x),
@@ -309,7 +345,235 @@ def validate_plan(plan: OperationPlan) -> PlanValidation:
                         )
                     )
 
+    _acyclic(plan, problems)
     return PlanValidation(valid=not problems, problems=tuple(problems))
+
+
+def _has_position(kind: object) -> bool:
+    """Whether an operation of this type carries a ``position`` parameter."""
+    if kind not in PARAMETERS:
+        return False
+    required, optional = PARAMETERS[kind]
+    return "position" in required or "position" in optional
+
+
+def _acyclic(plan: OperationPlan, problems: List[PlanProblem]) -> None:
+    """Report any cycle in the dependency graph, naming its members.
+
+    The graph, not this module, decides what a cycle is: one topological
+    order, one definition. Reported once per cyclic group with the group
+    spelled out, because "there is a cycle" is not a diagnostic an agent can
+    act on and "a, b and c form a cycle" is.
+    """
+    for group in feature_graph(plan).cycles():
+        problems.append(
+            PlanProblem(
+                P31,
+                "these operations depend on each other and cannot be "
+                f"ordered: {', '.join(repr(name) for name in group)}",
+                "operations",
+            )
+        )
+
+
+def _pattern(
+    operation: object,
+    index: int,
+    where: str,
+    operations: Tuple[object, ...],
+    declared: Dict[str, int],
+    live: Dict[str, int],
+    consumed: Dict[str, int],
+    profiles: Dict[str, int],
+    problems: List[PlanProblem],
+) -> None:
+    """Judge one pattern: its source, its count, and its placement.
+
+    The source goes through :func:`_resolve` like every other reference --
+    declared, strictly earlier, not consumed -- and then through the one
+    check that is a pattern's own: it must name a **feature this stage can
+    repeat**, which is a different question from P11's "is it a solid" and
+    P23's "is it a profile".
+
+    The placement is judged as *data plus expressibility*. Whether the
+    instances collide, or whether a hole still meets material at the fourth
+    position, is E1's and the kernel's, exactly as for a single hole. What is
+    decided here is whether every instance could be WRITTEN at all: a radial
+    pattern of a hole whose axis is not parallel to the pattern axis would
+    need a hole pointing in a direction V1 has no word for, and no amount of
+    geometry would rescue it.
+    """
+    source = _resolve(
+        operation.source, f"{where}.source", operation.id, index,
+        declared, consumed, problems,
+    )
+
+    _count(operation.count, f"{where}.count", problems)
+    _instance_ids(operation, where, declared, problems)
+
+    if source is None:
+        return
+
+    # What may stand at the far end of a `source` edge is the graph's table,
+    # so the rule and the graph's own reachability answer cannot diverge.
+    kind = getattr(operations[declared[source]], "TYPE", None)
+    if kind not in REPEATABLE:
+        described = (
+            "a solid" if source in live
+            else "a profile" if source in profiles
+            else f"a {kind}"
+        )
+        problems.append(
+            PlanProblem(
+                P27,
+                f"{source!r} is {described}, which this stage cannot repeat. "
+                f"A pattern repeats a positional feature: "
+                f"{', '.join(PATTERNABLE_TYPES)}",
+                f"{where}.source",
+            )
+        )
+        return
+
+    _placement(operation, operations[declared[source]], where, problems)
+
+
+def _count(value: object, path: str, problems: List[PlanProblem]) -> None:
+    """A whole number of instances, including the source, within bounds."""
+    if isinstance(value, bool) or not isinstance(value, int):
+        problems.append(
+            PlanProblem(P28, "a count must be a whole number", path)
+        )
+        return
+    if value < MIN_PATTERN_COUNT:
+        problems.append(
+            PlanProblem(
+                P28,
+                f"a count of {value} repeats nothing: the count includes the "
+                f"source feature, so the minimum is {MIN_PATTERN_COUNT}",
+                path,
+            )
+        )
+    elif value > MAX_PATTERN_COUNT:
+        problems.append(
+            PlanProblem(
+                P28,
+                f"a count of {value} exceeds the maximum of "
+                f"{MAX_PATTERN_COUNT}; a pattern expands into one feature per "
+                "instance",
+                path,
+            )
+        )
+
+
+def _instance_ids(
+    operation: object,
+    where: str,
+    declared: Dict[str, int],
+    problems: List[PlanProblem],
+) -> None:
+    """The ids the adapter will derive must not already be taken.
+
+    Checked here, against the same :func:`~cad_experimental.plan.instance_id`
+    the adapter will use, so a collision is a plan problem with a path rather
+    than an adapter failure halfway through a translation.
+    """
+    if not isinstance(operation.count, int) or isinstance(operation.count, bool):
+        return
+    for index in range(1, min(operation.count, MAX_PATTERN_COUNT + 1)):
+        derived = instance_id(operation.id, index)
+        if derived in declared:
+            problems.append(
+                PlanProblem(
+                    P30,
+                    f"this pattern's instance {index} would be named "
+                    f"{derived!r}, which operations[{declared[derived]}] "
+                    "already uses. Rename one of them",
+                    f"{where}.id",
+                )
+            )
+
+
+def _placement(
+    operation: object,
+    source: object,
+    where: str,
+    problems: List[PlanProblem],
+) -> None:
+    """Judge a placement as data, and against the feature it will move."""
+    placement = operation.placement
+    path = f"{where}.placement"
+
+    if isinstance(placement, LinearPlacement):
+        _positive(placement.spacing, f"{path}.spacing", problems)
+        return
+
+    if not isinstance(placement, RadialPlacement):
+        # Unreachable through the parser, which rejects an unknown kind.
+        problems.append(
+            PlanProblem(P29, "unknown placement", path)
+        )
+        return
+
+    if placement.angle is not None:
+        _step(placement.angle, f"{path}.angle", problems)
+
+    for name, value in (
+        ("x", placement.centre.x),
+        ("y", placement.centre.y),
+        ("z", placement.centre.z),
+    ):
+        if not _finite(value):
+            problems.append(
+                PlanProblem(
+                    P6,
+                    "a position component must be a finite number",
+                    f"{path}.centre.{name}",
+                )
+            )
+
+    # Expressibility, not geometry. Turning a hole about an axis it is not
+    # parallel to would tilt it, and V1 has only the six signed principal
+    # directions -- there is no word for the result, so the instance could
+    # not be written down at all.
+    source_axis = getattr(source, "axis", None) or DEFAULT_AXIS
+    if placement.axis in AXES and source_axis[1:] != placement.axis[1:]:
+        problems.append(
+            PlanProblem(
+                P29,
+                f"a radial pattern about {placement.axis!r} would turn "
+                f"{operation.source!r}, whose axis is {source_axis!r}, onto a "
+                "direction this language cannot name. Revolve a feature about "
+                "its own axis, or use a linear pattern",
+                f"{path}.axis",
+            )
+        )
+
+
+def _step(value: object, path: str, problems: List[PlanProblem]) -> None:
+    """The turn between consecutive radial instances: finite, in (0, 360]."""
+    if not _finite(value):
+        problems.append(
+            PlanProblem(P29, "an angle must be a finite number", path)
+        )
+        return
+    if value <= 0:
+        problems.append(
+            PlanProblem(
+                P29,
+                f"a step of {value} puts every instance on top of the source; "
+                "it must be > 0. The axis sign chooses the direction",
+                path,
+            )
+        )
+    elif value > FULL_TURN:
+        problems.append(
+            PlanProblem(
+                P29,
+                f"a step of {value} is more than a full turn; the maximum is "
+                f"{FULL_TURN}",
+                path,
+            )
+        )
 
 
 def _sketch(
@@ -877,6 +1141,11 @@ def _finite(value: object) -> bool:
 
 
 __all__ = [
+    "P31",
+    "P30",
+    "P29",
+    "P28",
+    "P27",
     "P1",
     "P10",
     "P11",

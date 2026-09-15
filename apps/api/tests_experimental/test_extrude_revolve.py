@@ -39,6 +39,7 @@ from cad_experimental.plan import (
     MODIFIER_TYPES,
     OPERATION_TYPES,
     PROFILE_SOLID_TYPES,
+    REPEATING_TYPES,
     PROFILE_TYPES,
     REVOLVE,
     SOLID_DECLARING_TYPES,
@@ -150,6 +151,10 @@ class VocabularyTests(unittest.TestCase):
                 kind in MODIFIER_TYPES,
                 kind in PROFILE_TYPES,
                 kind in PROFILE_SOLID_TYPES,
+                # Stage 46. A pattern names a FEATURE, not a body, so it is
+                # not a modifier; the list of categories was extended rather
+                # than the invariant weakened.
+                kind in REPEATING_TYPES,
             ]
             with self.subTest(kind=kind):
                 self.assertEqual(sum(categories), 1)
@@ -245,7 +250,7 @@ class VocabularyTests(unittest.TestCase):
         )), [])
 
     def test_no_further_operation_crept_in(self):
-        for absent in ("sweep", "loft", "pattern", "mirror", "union",
+        for absent in ("sweep", "loft", "mirror", "union",
                        "intersect", "assembly", "shell", "rib", "thread"):
             self.assertNotIn(absent, OPERATION_TYPES)
 
@@ -1133,9 +1138,10 @@ class PromptTests(unittest.TestCase):
 
         `2026-09-10.7` was Stages 38-43. `2026-09-15.1` is Stage 44, which
         stopped telling the model that a profile operation cannot be built.
-        `2026-09-15.2` is Stage 45, which added the sequence section.
+        `2026-09-15.2` is Stage 45, which added the sequence section, and
+        `2026-09-15.3` is Stage 46, which added `pattern`.
         """
-        self.assertEqual(self.version, "2026-09-15.2")
+        self.assertEqual(self.version, "2026-09-15.3")
         self.assertEqual(len(self.fingerprint), 64)
 
 

@@ -30,6 +30,13 @@ import re
 from typing import Any, Dict, List, Mapping, Optional, Tuple
 
 from .plan import (
+    PATTERN,
+    PATTERN_KINDS,
+    PATTERN_LINEAR,
+    PLACEMENT_FIELDS,
+    LinearPlacement,
+    PatternOperation,
+    RadialPlacement,
     AXES,
     BOX,
     CONSUMING_TYPES,
@@ -99,7 +106,9 @@ PLAN_KEYS = frozenset(
 #: The keys any operation may carry. Which of them a *particular* type may
 #: carry is narrower -- see :data:`~cad_experimental.plan.OPERATION_FIELDS`.
 #: ``target`` on a box is rejected as an unknown field for that type.
-OPERATION_KEYS = frozenset({"id", "type", "target", "tools", "parameters"})
+OPERATION_KEYS = frozenset(
+    {"id", "type", "target", "tools", "source", "parameters"}
+)
 
 #: The keys a position may carry.
 POINT_KEYS = frozenset({"x", "y", "z"})
@@ -231,6 +240,15 @@ def _operation(entry: Any, index: int) -> Operation:
     # `target` on a box is an error rather than a field quietly ignored.
     _reject_unknown(mapping, OPERATION_FIELDS[kind], f"a {kind} operation")
 
+    source: Optional[str] = None
+    if kind == PATTERN:
+        if "source" not in mapping:
+            raise PlanParseError(
+                f"{where} is missing `source`",
+                detail="a pattern repeats an earlier feature and must name it",
+            )
+        source = _identifier(mapping["source"], f"{where} source")
+
     target: Optional[str] = None
     if kind in TARGETED_TYPES:
         if "target" not in mapping:
@@ -325,6 +343,19 @@ def _operation(entry: Any, index: int) -> Operation:
             axis=_optional_axis(parameters.get("axis"), where),
         )
 
+    if kind == PATTERN:
+        assert source is not None
+        return PatternOperation(
+            id=identifier,
+            source=source,
+            # An integer, and not a float that happens to be whole: a count
+            # of 4.0 is a category error, and coercing it would be the
+            # parser inventing a meaning. `_integer` also refuses a bool,
+            # which is an int in Python and is never a count.
+            count=_integer(parameters["count"], f"{where}.count"),
+            placement=_placement(parameters["placement"], where),
+        )
+
     if kind == BOX:
         return BoxOperation(
             id=identifier,
@@ -342,6 +373,60 @@ def _operation(entry: Any, index: int) -> Operation:
             axis=_optional_axis(parameters.get("axis"), where),
         )
     raise PlanParseError(f"{where} has an unknown type", detail=repr(kind))
+
+
+def _placement(value: Any, where: str) -> Any:
+    """Read a pattern's placement into one of the typed records.
+
+    Discriminated on ``kind``, and narrowed to that kind's own fields, so a
+    linear placement carrying a ``centre`` is an error rather than a field
+    quietly ignored -- the same treatment every other object in this parser
+    gets.
+    """
+    path = f"{where}.placement"
+    mapping = _object(value, path)
+    kind = mapping.get("kind")
+    if not isinstance(kind, str) or kind not in PATTERN_KINDS:
+        raise PlanParseError(
+            f"{path} has an unknown kind",
+            detail=f"{kind!r}; this stage implements {', '.join(PATTERN_KINDS)}",
+        )
+
+    required, optional = PLACEMENT_FIELDS[kind]
+    _reject_unknown(mapping, frozenset(required) | frozenset(optional), path)
+    for name in required:
+        if name not in mapping:
+            raise PlanParseError(f"{path} is missing `{name}`")
+
+    if kind == PATTERN_LINEAR:
+        return LinearPlacement(
+            axis=_axis(mapping["axis"], path),
+            spacing=_number(mapping["spacing"], f"{path}.spacing"),
+        )
+
+    centre = _optional_point(mapping["centre"], path)
+    if centre is None:
+        # Unreachable: `centre` is required above and an explicit `null` is
+        # rejected by `_optional_point`'s object check.
+        raise PlanParseError(f"{path} has no centre")
+    angle = mapping.get("angle")
+    return RadialPlacement(
+        axis=_axis(mapping["axis"], path),
+        centre=centre,
+        # Absent means evenly spaced round a full circle. Read as `None`
+        # rather than filled in here, so the default stays one documented
+        # fact in one place instead of a value the parser invents.
+        angle=None if angle is None else _number(angle, f"{path}.angle"),
+    )
+
+
+def _integer(value: Any, where: str) -> int:
+    """A whole number, and nothing that merely resembles one."""
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise PlanParseError(
+            f"{where} must be an integer", detail=f"got {type(value).__name__}"
+        )
+    return value
 
 
 # --- values ----------------------------------------------------------------

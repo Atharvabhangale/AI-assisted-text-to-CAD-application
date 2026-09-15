@@ -27,9 +27,10 @@ CHAMFER = "chamfer"
 SKETCH = "sketch"
 EXTRUDE = "extrude"
 REVOLVE = "revolve"
+PATTERN = "pattern"
 OPERATION_TYPES: Tuple[str, ...] = (
     BOX, CYLINDER, THROUGH_HOLE, SUBTRACT, FILLET, CHAMFER, SKETCH,
-    EXTRUDE, REVOLVE,
+    EXTRUDE, REVOLVE, PATTERN,
 )
 
 #: Operations that declare a **profile** rather than a solid. A profile is
@@ -48,12 +49,39 @@ PROFILE_TYPES: Tuple[str, ...] = (SKETCH,)
 #: ``subtract``, whose tools are consumed.
 PROFILE_SOLID_TYPES: Tuple[str, ...] = (EXTRUDE, REVOLVE)
 
-#: Operations V1 can execute. The rest are represented and validated here
-#: and then refused by the adapter with an explicit unsupported result --
-#: never approximated. See `cad_experimental.sketch` for why.
-EXECUTABLE_TYPES: Tuple[str, ...] = (
+#: The operations that map **one to one** onto a V1 feature. The adapter
+#: writes exactly one feature for each, with the same id.
+#:
+#: Kept as its own name because it is the schema Stages 41-43 sent: see
+#: :func:`executable_schema`. A recorded measurement must stay attributable
+#: to the instrument that produced it, so this tuple is frozen at those six
+#: and :data:`EXECUTABLE_TYPES` is what grows.
+V1_FEATURE_TYPES: Tuple[str, ...] = (
     BOX, CYLINDER, THROUGH_HOLE, SUBTRACT, FILLET, CHAMFER,
 )
+
+#: Operations the adapter can translate at all. The rest are represented and
+#: validated here and then refused with an explicit unsupported result --
+#: never approximated. See `cad_experimental.sketch` for why.
+#:
+#: Wider than :data:`V1_FEATURE_TYPES` since ``pattern``, which is not a V1
+#: feature and has no id of its own in the document: it EXPANDS into one
+#: feature per instance. "Executable" is a question about the adapter, not
+#: about how many features come out the other side.
+EXECUTABLE_TYPES: Tuple[str, ...] = V1_FEATURE_TYPES + (PATTERN,)
+
+#: Operations a ``pattern`` may repeat.
+#:
+#: A repeated feature must be **positional** -- repetition is a rule about
+#: where a feature goes, so a feature with no position has nothing to vary.
+#: Today that is ``through_hole`` and nothing else: a fillet's selector is
+#: not a position, a subtract's input is a reference, and a box or cylinder
+#: would make a new body per instance, which is real multi-body work rather
+#: than a pattern (see `docs/experimental-operation-plan.md`).
+#:
+#: A table rather than a predicate, so widening it is one line with one place
+#: to audit.
+PATTERNABLE_TYPES: Tuple[str, ...] = (THROUGH_HOLE,)
 
 #: The two edge-selecting modifiers. They differ only in the name and
 #: meaning of their one length: a fillet's ``radius`` rounds, a chamfer's
@@ -79,7 +107,9 @@ EDGE_MODIFIER_TYPES: Tuple[str, ...] = (FILLET, CHAMFER)
 #: whole cost -- and the parser still requires exactly the right one, from
 #: :data:`PARAMETERS`, as it always has. Nothing else is loosened, and no
 #: other pair would merge this cheaply.
-MERGED_SCHEMA_GROUPS: Tuple[Tuple[str, ...], ...] = (EDGE_MODIFIER_TYPES,)
+MERGED_SCHEMA_GROUPS: Tuple[Tuple[str, ...], ...] = (
+    EDGE_MODIFIER_TYPES, PROFILE_SOLID_TYPES,
+)
 
 #: Operations that add a solid to the solid set, named by their own id
 #: (specification Section B.4).
@@ -106,6 +136,14 @@ MODIFIER_TYPES: Tuple[str, ...] = (
 #: C.4). Only ``subtract`` does this, and it is the whole reason this stage
 #: exists -- it is the first operation with history.
 CONSUMING_TYPES: Tuple[str, ...] = (SUBTRACT,)
+
+#: Operations that repeat an earlier **feature**. Their own category, and
+#: not a modifier: a modifier names the body it changes, and a pattern names
+#: the feature it repeats -- one hop further from the geometry. Keeping it
+#: separate is what lets :data:`TARGETED_TYPES` stay the set of operations
+#: with a ``target``, and it preserves the invariant the tests check: every
+#: operation type is in exactly one category.
+REPEATING_TYPES: Tuple[str, ...] = (PATTERN,)
 
 #: Every operation that carries a ``target``. The two groups differ in what
 #: the target must BE -- a modifier's is a solid (P11), a profile-solid
@@ -177,6 +215,40 @@ EXTRUDE_OPTIONAL: Tuple[str, ...] = ("direction",)
 REVOLVE_REQUIRED: Tuple[str, ...] = ("angle", "axis")
 REVOLVE_OPTIONAL: Tuple[str, ...] = ()
 
+#: A pattern needs how many instances and where to put them. Its `source`
+#: is an operation-level key, not a parameter, for the same reason a
+#: modifier's `target` is: it is a reference, not a dimension.
+PATTERN_REQUIRED: Tuple[str, ...] = ("count", "placement")
+PATTERN_OPTIONAL: Tuple[str, ...] = ()
+
+#: How a pattern places its instances. A discriminated sub-object rather
+#: than a flat bag of optional fields: a linear pattern has no centre and a
+#: radial one has no spacing, and a shape that admitted both would need every
+#: field optional and could not say which combination is meant.
+PATTERN_LINEAR = "linear"
+PATTERN_RADIAL = "radial"
+PATTERN_KINDS: Tuple[str, ...] = (PATTERN_LINEAR, PATTERN_RADIAL)
+
+#: Fields per placement kind, required then optional. Read by the parser,
+#: the validator and the schema, exactly as :data:`PARAMETERS` is.
+PLACEMENT_FIELDS: Dict[str, Tuple[Tuple[str, ...], Tuple[str, ...]]] = {
+    PATTERN_LINEAR: (("kind", "axis", "spacing"), ()),
+    # `angle` is the step BETWEEN consecutive instances. Omitted it means a
+    # full circle divided evenly -- `FULL_TURN / count` -- which is the
+    # common case and the one a model most easily gets wrong by hand.
+    PATTERN_RADIAL: (("kind", "axis", "centre"), ("angle",)),
+}
+
+#: The fewest instances a pattern may declare. One instance is the source
+#: feature on its own, which is not a pattern; the plan should just say the
+#: feature.
+MIN_PATTERN_COUNT = 2
+
+#: The most. A pattern expands into this many features, so it is bounded for
+#: the same reason :data:`MAX_TOOLS` is: an unbounded expansion is free
+#: denial of service against the kernel.
+MAX_PATTERN_COUNT = 64
+
 #: A full revolution, in degrees. The angle is in (0, FULL_TURN]: zero
 #: sweeps nothing and more than a full turn would overlap the material it
 #: already made.
@@ -199,6 +271,7 @@ PARAMETERS: Dict[str, Tuple[Tuple[str, ...], Tuple[str, ...]]] = {
     SKETCH: (SKETCH_REQUIRED, SKETCH_OPTIONAL),
     EXTRUDE: (EXTRUDE_REQUIRED, EXTRUDE_OPTIONAL),
     REVOLVE: (REVOLVE_REQUIRED, REVOLVE_OPTIONAL),
+    PATTERN: (PATTERN_REQUIRED, PATTERN_OPTIONAL),
 }
 
 #: The keys an edge selector may carry. ``axis`` is present exactly when
@@ -226,6 +299,12 @@ OPERATION_FIELDS: Dict[str, Tuple[str, ...]] = {
     # -- and rule P23 decides which category the answer must be in.
     EXTRUDE: ("id", "type", "target", "parameters"),
     REVOLVE: ("id", "type", "target", "parameters"),
+    # `source`, not `target`. Every other reference in this language names a
+    # BODY or a PROFILE -- something geometry is made of. A pattern's names
+    # a FEATURE: the operation whose effect is repeated. Reusing `target`
+    # would have made that distinction invisible in the wire format and in
+    # the schema, and the graph's reference roles exist precisely to keep it.
+    PATTERN: ("id", "type", "source", "parameters"),
 }
 
 #: The most tools one subtract may list. A part is not built from hundreds of
@@ -493,6 +572,129 @@ class RevolveOperation:
 
 
 @dataclass(frozen=True)
+class LinearPlacement:
+    """Instances evenly spaced along one signed principal direction.
+
+    Instance ``k`` sits ``k * spacing`` from the source along ``axis``, for
+    ``k`` from 1 to ``count - 1``. The source itself is instance 0 and is not
+    moved: a pattern ADDS the repeats, it does not replace what it repeats.
+    """
+
+    KIND = PATTERN_LINEAR
+
+    axis: str
+    spacing: float
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {"kind": self.KIND, "axis": self.axis, "spacing": self.spacing}
+
+
+@dataclass(frozen=True)
+class RadialPlacement:
+    """Instances turned about an axis through ``centre``.
+
+    Instance ``k`` is the source rotated by ``k * angle`` degrees about the
+    line through :attr:`centre` along :attr:`axis`, right-handed about the
+    signed direction. The source is instance 0 and is not moved.
+
+    :attr:`angle` is the step **between consecutive instances**, not the span
+    they cover. Absent it is ``FULL_TURN / count`` -- instances spread evenly
+    around a closed circle, which is the bolt-circle case and the one a
+    division by hand most easily gets wrong.
+
+    The axis is signed, and the sign is not decoration: the same centre,
+    count and step about ``+Z`` and about ``-Z`` put the instances in mirrored
+    places.
+    """
+
+    KIND = PATTERN_RADIAL
+
+    axis: str
+    centre: Point
+    angle: Optional[float] = None
+
+    def step(self, count: int) -> float:
+        """The degrees between consecutive instances.
+
+        The default lives here rather than in the parser, so "evenly spaced"
+        is one documented fact in one place instead of a value some layer
+        invents.
+        """
+        if self.angle is not None:
+            return self.angle
+        return FULL_TURN / count if count else FULL_TURN
+
+    def to_dict(self) -> Dict[str, Any]:
+        payload: Dict[str, Any] = {
+            "kind": self.KIND,
+            "axis": self.axis,
+            "centre": self.centre.to_dict(),
+        }
+        if self.angle is not None:
+            payload["angle"] = self.angle
+        return payload
+
+
+#: Either placement. A union rather than one type with everything optional.
+Placement = Any
+
+
+@dataclass(frozen=True)
+class PatternOperation:
+    """Repeats an earlier feature, ``count`` times including the original.
+
+    The first operation in this language whose input is another
+    **operation** rather than a body or a profile. That is the whole reason
+    the feature graph tags its edges with a role: ``source`` is not a
+    ``target``, and a layer that could not tell them apart would have to
+    guess.
+
+    Semantics, stated exactly:
+
+    * ``count`` **includes the source**. A count of 4 means four features in
+      total -- the source plus three repeats -- so "four mounting holes" is
+      ``count: 4`` and not ``count: 3``;
+    * the source is **not consumed and not moved**. It remains in the
+      history as itself, and the pattern adds instances beside it;
+    * a pattern **inherits the source's own semantics**. Repeating a
+      modifier is a modifier: every instance acts on the same body the
+      source acted on, the body keeps its id, and the pattern's own id names
+      no solid. So the single-solid rule is untouched however many instances
+      there are;
+    * the instances exist as features only after the adapter expands them.
+      Their ids are derived from this operation's id (see
+      :func:`instance_id`), which is why those ids must not collide with an
+      operation's.
+    """
+
+    TYPE = PATTERN
+
+    id: str
+    source: str
+    count: int
+    placement: Placement
+
+    def parameters(self) -> Dict[str, Any]:
+        return {"count": self.count, "placement": self.placement.to_dict()}
+
+
+def instance_id(pattern_id: str, index: int) -> str:
+    """The id of one derived instance, as the adapter will write it.
+
+    Deterministic and derived from the pattern's own id, so the same plan
+    always produces the same document and a downstream reader can tell which
+    pattern a feature came from. Exposed rather than inlined because the
+    validator has to check the same ids for collisions that the adapter will
+    later write, and two spellings of this rule would be one spelling too
+    many.
+
+    ``index`` is the instance number, from 1: instance 0 is the source
+    itself, which keeps its own id.
+    """
+    return f"{pattern_id}-{index}"
+
+
+@dataclass(frozen=True)
 class ChamferOperation:
     """Bevels selected edges of ``target`` by an equal setback.
 
@@ -608,6 +810,9 @@ def operation_to_dict(operation: Operation) -> Dict[str, Any]:
     tools = getattr(operation, "tools", None)
     if tools is not None:
         payload["tools"] = list(tools)
+    source = getattr(operation, "source", None)
+    if source is not None:
+        payload["source"] = source
     parameters = operation.parameters()
     # A subtract has none, and writing `"parameters": {}` would invent a
     # second valid shape for it.
@@ -660,6 +865,7 @@ ID_DEF = "identifier"
 AXIS_DEF = "signed_axis"
 POINT3D_DEF = "point"
 SELECTOR_DEF = "edge_selector"
+PLACEMENT_DEF = "pattern_placement"
 
 
 def _ref(name: str) -> Dict[str, str]:
@@ -694,8 +900,39 @@ def _plan_defs() -> Dict[str, Any]:
             "required": ["select"],
             "additionalProperties": False,
         },
+        PLACEMENT_DEF: {"anyOf": _placement_branches()},
         **sketch_defs(),
     }
+
+
+def _placement_branches() -> List[Dict[str, Any]]:
+    """One branch per placement kind, derived from :data:`PLACEMENT_FIELDS`.
+
+    The same discriminated-union shape as the operation branches, for the
+    same reason: a single object carrying every placement's fields would
+    have to make them all optional and could not say which combination is
+    meant.
+    """
+    shapes: Dict[str, Dict[str, Any]] = {
+        "kind": {"type": "string"},
+        "axis": _ref(AXIS_DEF),
+        "spacing": {"type": "number"},
+        "centre": _ref(POINT3D_DEF),
+        "angle": {"type": "number"},
+    }
+    branches: List[Dict[str, Any]] = []
+    for placement, (required, optional) in PLACEMENT_FIELDS.items():
+        properties = {
+            name: ({"const": placement} if name == "kind" else shapes[name])
+            for name in (*required, *optional)
+        }
+        branches.append({
+            "type": "object",
+            "properties": properties,
+            "required": list(required),
+            "additionalProperties": False,
+        })
+    return branches
 
 
 def _parameter_schemas() -> Dict[str, Any]:
@@ -718,6 +955,11 @@ def _parameter_schemas() -> Dict[str, Any]:
         "direction": _ref(AXIS_DEF),
         "position": _ref(POINT3D_DEF),
         "edges": _ref(SELECTOR_DEF),
+        # No `minimum`: the structured-output API rejects that keyword
+        # (Stage 41). The bound is rule P28's, enforced by the validator,
+        # which is where it was always going to be enforced anyway.
+        "count": {"type": "integer"},
+        "placement": _ref(PLACEMENT_DEF),
         **_sketch_schema(),
     }
 
@@ -788,6 +1030,9 @@ def _branch(
             "type": "array", "minItems": 1, "items": _ref(ID_DEF),
         }
         required.append("tools")
+    if "source" in allowed:
+        properties["source"] = _ref(ID_DEF)
+        required.append("source")
 
     if "parameters" in allowed:
         names: List[str] = []
@@ -1009,10 +1254,14 @@ def executable_schema() -> Dict[str, Any]:
 
     A grammar-constrained model pointed at this one **cannot express a
     profile at all**, so it is not a way to ask whether the model would
-    choose one. Use it only to constrain a model to plans that are certain to
-    build.
+    choose one.
+
+    Pinned to :data:`V1_FEATURE_TYPES` rather than to
+    :data:`EXECUTABLE_TYPES`, which has since grown a ``pattern``. A recorded
+    measurement must stay attributable to the instrument that produced it:
+    re-running Stage 43 must reproduce Stage 43, fingerprint included.
     """
-    return _plan_document(EXECUTABLE_TYPES)
+    return _plan_document(V1_FEATURE_TYPES)
 
 
 def plan_schema() -> Dict[str, Any]:
@@ -1032,6 +1281,20 @@ def plan_schema() -> Dict[str, Any]:
 
 
 __all__ = [
+    "REPEATING_TYPES",
+    "instance_id",
+    "V1_FEATURE_TYPES",
+    "RadialPlacement",
+    "MIN_PATTERN_COUNT",
+    "MAX_PATTERN_COUNT",
+    "PLACEMENT_FIELDS",
+    "PATTERN_RADIAL",
+    "PATTERN_LINEAR",
+    "PATTERN_KINDS",
+    "PATTERNABLE_TYPES",
+    "PATTERN",
+    "PatternOperation",
+    "LinearPlacement",
     "AXES",
     "BOX",
     "CONSTRUCTIVE_TYPES",

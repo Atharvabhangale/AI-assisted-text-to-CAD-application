@@ -111,10 +111,10 @@ class VocabularyTests(unittest.TestCase):
         )
 
     def test_no_unimplemented_operation_crept_in(self):
-        """`sketch` (37) and `extrude`/`revolve` (38) left this list when
-        they were built. The rest is genuinely absent."""
+        """`sketch` (37), `extrude`/`revolve` (38) and `pattern` (46)
+        left this list when they were built. The rest is genuinely absent."""
         for absent in (
-            "sweep", "loft", "pattern",
+            "sweep", "loft",
             "mirror", "union", "assembly",
         ):
             self.assertNotIn(absent, OPERATION_TYPES)

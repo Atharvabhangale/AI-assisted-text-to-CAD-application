@@ -170,7 +170,10 @@ class TheMatcherItselfTests(unittest.TestCase):
         self.assertEqual(admitting_branches(provider_schema(), operation), [])
 
     def test_it_rejects_an_operation_missing_a_required_parameter(self):
-        operation = dict(EXTRUDE_OF_PROFILE, parameters={})
+        """A box, not an extrude: Stage 46 merged extrude with revolve, and a
+        merged branch requires only what both members require -- which for
+        that pair is nothing. A box branch still requires its three sizes."""
+        operation = {"id": "b", "type": "box", "parameters": {"x": 1.0}}
         self.assertEqual(admitting_branches(provider_schema(), operation), [])
 
     def test_it_rejects_a_target_on_a_type_that_takes_none(self):
