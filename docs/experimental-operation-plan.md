@@ -2014,6 +2014,76 @@ No model has been asked to produce a semantic selector. The prompt
 corners" and "break the edge of the hole", and warns that a seam exists
 without naming a kernel -- but words in a prompt are a hypothesis.
 
+## Measurement readiness, as of Stage 47
+
+Stages 44-47 are complete, and **none of them has been put to a model.** This
+section records what a live measurement would and would not tell you, so that
+the next person does not run the wrong thing and believe the number.
+
+### What is frozen and verified unchanged
+
+Checked against the repository, not recalled:
+
+| | |
+|---|---|
+| corpus fingerprint | `6e15d27042496c43`, identical to the recorded Stage 43 baseline |
+| corpus version / size | `1.0.0`, 13 cases; `comparison_corpus.py` last touched at Stage 40's freeze commit |
+| model | `claude-haiku-4-5-20251001` |
+| scoring, parsers, validators | `representation_comparison.py` last touched at Stage 41; `comparison_diagnosis.py` at Stage 40 |
+| preserved baselines | `docs/evaluation-baselines/` last touched by Stage 43's own commit |
+| Stage 43's plan schema | `54759d1e16cfe634`, identical to the baseline's recorded fingerprint |
+
+Stage 44 changed one line of `stage43_structured_comparison.py`: it pinned
+`plan_schema_for_provider()` to `executable_schema()` rather than letting it
+follow `provider_schema()`, **so that the module keeps sending what it sent**.
+That is the opposite of a methodology change, and the fingerprint above is the
+proof.
+
+### What has deliberately moved
+
+| | Stage 43 recorded | now |
+|---|---|---|
+| plan prompt | `2026-09-10.7` / `5ef08dd09893b689` | `2026-09-15.4` / `dd833a30f90f269f` |
+| plan vocabulary | 9 types, 6 executable | 10 types, 7 executable |
+| `provider_schema()` | 6 types, 6 branches | 10 types, 8 branches |
+| selectors | `all`, `axis_parallel` | those two plus `straight`, `circular` |
+
+### Why the existing harness cannot measure this
+
+**`stage43_structured_comparison --live` would send the old six-type grammar
+with the new prompt.** The prompt now tells the model to use `pattern`,
+`straight`, `circular` and sketch-to-extrude chains; the pinned schema admits
+none of them. That is precisely Stage 43's own failure -- a grammar that
+cannot express the answer the prompt asks for -- repeated in a worse form,
+and it would score *below* Stage 43 for reasons that say nothing about the
+representation.
+
+**The corpus does not exercise the new capability either.** Its 13 cases are
+Stage 40's: no pattern, no semantic selector, no multi-feature chain. Even
+with the right schema, it would measure the six operations that were already
+measured.
+
+**And the open schema question is not reachable from a CLI.** Stage 44 left
+"does the provider compile the widened schema?" unanswered, needing one live
+call. `--probe-live` probes `schema_for(arm)`, which is `executable_schema()`
+-- already known-accepted. Nothing sends `provider_schema()`.
+
+### What the next stage therefore is
+
+Not a run: **a Stage 48 harness**, which should
+
+1. send `provider_schema()` (falling back to `compact_provider_schema()` only
+   if the provider refuses it, explicitly and recorded -- never silently);
+2. reuse Stage 40's frozen corpus, scoring, attempts-per-case, model, token
+   limit and timeout **unchanged**, so the two runs remain comparable on the
+   axes that did not move;
+3. extend the corpus, as its own deliberate step and in its own commit, with
+   cases that actually exercise a pattern, a semantic selector and a chain --
+   authored before any score is seen, never adjusted after.
+
+Until then the honest statement is: **Stages 44-47 are built, tested and
+unmeasured.**
+
 ## What is NOT known
 
 **Real Anthropic testing happened at Stage 40, and only there.** Stages 33 to

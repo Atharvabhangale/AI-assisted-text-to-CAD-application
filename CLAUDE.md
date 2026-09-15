@@ -1038,6 +1038,50 @@ Checked out as a git worktree beside the repo (`git worktree list`). Full
 detail lives on that branch in `docs/experimental-operation-plan.md`; this
 section is the index.
 
+### Where this branch stands, and what is next
+
+Stages 32–47 are complete and pushed. The subsections below are the index, in
+order; the four most recent are:
+
+| Stage | What it settled |
+|---|---|
+| **44** | The Stage 43 profile refusals were **forced, not chosen** — the schema had no `sketch`/`extrude`/`revolve` branch, so the model could not emit one. `provider_schema()` now covers the whole vocabulary. |
+| **45** | The plan's dependency and history graph made visible: one shared solid-set walk, `derivation()`, `depth`, terminal solids. |
+| **46** | A real feature graph — role-tagged edges, derived per-body sequencing, deterministic topological order — and `pattern` as its first graph-native operation. |
+| **47** | Semantic edge selection: `straight` and `circular`, the seam told apart from the rim by topology, and a graph-driven executor. |
+
+**Everything built since Stage 43 is unmeasured.** No model has been asked to
+produce a sketch chain, a `pattern`, or a semantic selector. The next step is
+therefore **real-model measurement on the local machine**, with the real
+credential, and it is not merely a matter of running the existing harness.
+
+**Two things block a meaningful run, and neither is a bug in the code:**
+
+1. **No harness sends `provider_schema()`.** `stage43_structured_comparison`
+   is deliberately pinned to `executable_schema()` — the six V1 features —
+   so that re-running Stage 43 reproduces Stage 43 (fingerprint
+   `54759d1e16cfe634`, which a test asserts). Running it today would send the
+   **old six-type grammar** with the **new prompt**, which tells the model to
+   use `pattern`, `straight`, `circular` and profile chains that the grammar
+   forbids. That is Stage 43's own failure mode repeated, and the numbers
+   would mean nothing. **A new harness — a Stage 48 — is needed**, reusing
+   Stage 40's frozen corpus, scoring, attempts and model, and changing only
+   the schema and the prompt. That is a stage of work, not run preparation.
+2. **The corpus does not exercise the new capability.** `comparison_corpus.py`
+   is frozen at 13 cases from Stage 40 and contains no pattern, no semantic
+   selector and no multi-feature chain. Measuring Stages 44–47 against it
+   would measure nothing about them. Extending it is a deliberate
+   re-baselining stage and must never be done by editing expectations after
+   seeing a score.
+
+What *can* be answered with one live call today is the open question Stage 44
+left: **does the provider compile the widened schema?** No CLI sends it —
+`--probe-live` probes `executable_schema()`, which is already known-accepted —
+so that too needs a few lines of new code before it can be asked.
+
+The credential is `CAD_ANTHROPIC_API_KEY` (§7 and the Commands block below).
+**Nothing in Claude Code Web may use or request it.**
+
 ### What it is
 
 Two questions the stable branch cannot ask: **is a flatter CAD representation
@@ -1050,10 +1094,12 @@ edges, a shared solid-set walk, semantic edge selection and a graph-driven
 executor, a V1 adapter, its own prompt and FastAPI app, and two CAD
 backends), `apps/api/tests_experimental/`, and
 `apps/web-experimental/` on port 5174. The **operation plan** drops `units`,
-`schema_version` and `features` for a flat ordered `operations` list. Nine
-operation types; **six are executable** — `sketch`, `extrude` and `revolve`
+`schema_version` and `features` for a flat ordered `operations` list. **Ten**
+operation types; **seven are executable** — `sketch`, `extrude` and `revolve`
 are represented and validated, then explicitly refused at the execution
-boundary rather than approximated.
+boundary rather than approximated. Of the seven, six map one-to-one onto a V1
+feature (`V1_FEATURE_TYPES`) and `pattern` expands into one feature per
+instance.
 
 ### Findings worth not re-deriving
 
@@ -1199,12 +1245,10 @@ can only be measured by sending it — one live call, on a machine with a
 credential. If it is refused, `compact_provider_schema()` is the next thing to
 try, and it still admits every profile operation.
 
-**Next**, in order:
-
-1. **Re-run the frozen Stage 43 comparison** once the schema is verified. The
-   corpus, prompts and scoring must stay exactly as they are.
-2. **Then measure the semantic selectors and `pattern`** — Stage 47 built
-   them; nothing has asked a model to use them.
+*(What Stage 44 thought came next — re-running Stage 43 once the schema was
+verified — is superseded. Stages 45–47 changed the prompt and the schema, so
+the Stage 43 harness can no longer be re-run as a measurement of them: see
+**Where this branch stands** above.)*
 
 Read `docs/experimental-operation-plan.md` → *Stage 44* for the full detail.
 
