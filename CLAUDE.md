@@ -1027,7 +1027,7 @@ they are authoritative, this list is a snapshot.
 ## 19. A second experiment branch: `experiment/cad-operation-graph`
 
 **Read the stage-number warning first.** This branch numbers its own stages
-32–43. The stable branch *also* has a Stage 30, 31 and 32. **They are
+32–49. The stable branch *also* has a Stage 30, 31 and 32. **They are
 different work and the numbers collide.** "Stage 32" on stable is the Windows
 test fixes; "Stage 32" here is the first commit of an alternative CAD
 representation. Nothing reconciles them — when reading a commit message, check
@@ -1425,6 +1425,58 @@ The prompt names the four kinds and which to use for "round the corners" and
 Stage 48 built the instrument that can measure it — cases `F1`–`F4` — and it
 has not been run live. (The prompt is `2026-09-15.5` since Stage 48; it was
 `2026-09-15.4` here.)
+
+### Stages 48–49: the provider's compiled-grammar ceiling blocks measurement
+
+**Stage 48 exists and cannot run.** Its instrument is complete; the provider
+refuses the operation-plan grammar. Measured by a five-call diagnostic probe,
+in the provider's own words on all four plan requests:
+
+> `400 invalid_request_error` — *"The compiled grammar is too large, which
+> would cause performance issues. Simplify your tool schemas or reduce the
+> number of strict tools."*
+
+The `v1_json` control was accepted in the same run, which rules out model
+availability, credential, transport and outage; two different descriptions
+failed identically, which rules out the request text. **`--plan-schema
+compact`, the documented fallback, was refused too.**
+
+**Serialized size is only a proxy — measure the inlined schema.** The limit
+is on the *compiled* grammar; a `$ref` does not shrink it and unused `$defs`
+still cost budget, so a definition referenced five times is compiled five
+times. `compact` is 19% smaller than `provider` in bytes and was refused
+just the same. Measured bounds, inlined: **accepted 3622, refused 6190**.
+
+**One capability dominates.** Marginal cost against the six-type base:
+`sketch` **+2653**, `pattern` +1014, `extrude` +459, `revolve` +455,
+semantic selectors +150 — of which sketch's `constraints` alone are +1161.
+Sketch is 73% of the growth; Stage 46's and 47's additions are nearly free.
+**The six types plus sketch alone already measure 6275 — above the refused
+point** — so no grammar carrying a full-fidelity sketch is expected to
+compile.
+
+**`cad_experimental.schema_ladder` (Stage 49)** builds variants between the
+two measured points so the ceiling can be found one call at a time. `L0`
+reproduces `executable_schema()` and `C2` reproduces
+`compact_provider_schema()` exactly, both test-asserted, so the metric is
+anchored to the two points the provider has ruled on. Only three variants sit
+in the unknown band: `C6-sketch-floor` (4551), `C4-profiles-no-sketch`
+(4698) and `C5-minimal-profiles` (5010).
+
+**The provider schema is an encoding of the IR, not the IR.** It constrains
+what a model may *say*; the parser and validator decide what a plan *means*
+and never see it. Omitting a sketch's `constraints` from a grammar does not
+make constraints illegal — a plan carrying them still parses, and a test
+asserts it. **Do not redesign the operation plan to fit one provider's
+grammar budget**; a different provider needs a different encoding, not a
+different IR.
+
+```powershell
+# offline, calls nothing
+python -m cad_experimental.schema_ladder --list
+# ONE variant, ONE call. There is deliberately no --probe-all.
+python -m cad_experimental.schema_ladder --probe C5-minimal-profiles
+```
 
 **FreeCAD runs here, but not the obvious way.** No pip distribution, and it is
 **not in Ubuntu 24.04**. It came from the official AppImage (649 MB, extracting

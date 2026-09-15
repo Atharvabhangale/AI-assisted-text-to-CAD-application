@@ -231,13 +231,74 @@ Call budget at `--attempts 5`: 13 legacy cases × 2 arms (26) + 17 capability
 cases × 1 arm (17) = **43 calls per attempt, 215 in total**, plus 3 for the
 probe.
 
+## MEASURED: the provider refuses both plan schemas
+
+**Stage 48 is blocked, and the cause is no longer a hypothesis.** The
+five-call diagnostic probe (`--probe-diagnostic`) returned, on **every** plan
+request and in the provider's own words:
+
+> `400 invalid_request_error` — *"The compiled grammar is too large, which
+> would cause performance issues. Simplify your tool schemas or reduce the
+> number of strict tools."*
+
+| Request | Result |
+|---|---|
+| `v1_json` / box | **ACCEPTED**, structured output on |
+| `operation_plan` / **provider** schema / box | refused, `BadRequestError` |
+| `operation_plan` / **provider** schema / profile | refused, `BadRequestError` |
+| `operation_plan` / **compact** schema / box | refused, `BadRequestError` |
+| `operation_plan` / **compact** schema / profile | refused, `BadRequestError` |
+
+The V1 control was accepted in the same run on the same model and credential,
+which rules out model availability, authentication, transport and outage. Two
+different descriptions failed identically on each schema, which rules out the
+request text. **The documented `--plan-schema compact` fallback does not
+work either** — that is the new fact, and it is why this is a schema problem
+rather than a flag problem.
+
+### Serialized size is only a proxy — measure the inlined form
+
+The limit is on the **compiled** grammar. Stage 41 measured that a `$ref`
+does not shrink it and that unused `$defs` still cost budget, so the honest
+proxy is the schema with every `$ref` **inlined**: a definition referenced
+five times is compiled five times. `compact` is 19% smaller than `provider`
+in bytes and was refused just the same.
+
+Measured bounds, inlined: **accepted at 3622**, **refused at 6190**.
+
+### Where the size actually goes
+
+Marginal cost of each capability, measured against the six-type base:
+
+| capability added | inlined | nodes |
+|---|---:|---:|
+| `sketch` | **+2653** | +73 |
+| `pattern` | +1014 | +24 |
+| `extrude` | +459 | +9 |
+| `revolve` | +455 | +9 |
+| semantic edge selectors | +150 | +2 |
+| *(of which sketch's `constraints` alone)* | *+1161* | *+33* |
+
+**One capability dominates.** `sketch` is 73% of the growth, and its
+`constraints` are 44% of `sketch`. Stages 46–47's additions are nearly free
+by comparison. Critically, **the six types plus `sketch` alone already
+measures 6275 inlined — above the refused point** — so no rung carrying a
+full-fidelity sketch can be expected to compile.
+
+### The schema ladder
+
+`cad_experimental.schema_ladder` builds variants between the two measured
+points so the ceiling can be located one call at a time. It changes nothing:
+every variant comes from the canonical plan's own `_plan_document` through
+its existing knobs, and the parser and validator remain authoritative over
+all of them. See `docs/experimental-operation-plan.md` → *Stage 49*.
+
 ## Limitations
 
 - **No Stage 48 number exists yet.** Everything here is the instrument.
-- **Provider acceptance of the widened schema is still unverified.** Every
-  offline limit is satisfied and asserted, but compiled-grammar size can only
-  be measured by sending it. That is what `--probe-live` is for, and it has
-  not been run.
+- **Provider acceptance of the widened schema is no longer unverified — it
+  is refused.** See above. The blocker is compiled-grammar size, stated by
+  the provider, and both available plan schemas exceed it.
 - **The corpus is 30 cases, not a survey.** It is built to exercise each
   capability at least once, not to characterise a distribution.
 - **`pattern` is `through_hole` only** (`PATTERNABLE_TYPES`), so E and F4

@@ -1165,5 +1165,362 @@ class ResultMetadataTests(unittest.TestCase):
         )
 
 
+# --- the baseline digest is line-ending independent, and nothing else -------
+
+
+class BaselineDigestTests(unittest.TestCase):
+    """The protection must survive a CRLF checkout and nothing weaker.
+
+    ``core.autocrlf=true`` is the default on a Windows checkout and is set on
+    this project's development machine, so git rewrites LF to CRLF on the way
+    out. Hashing the working-tree bytes compared committed content against
+    translated content and reported six intact baselines as modified. These
+    tests pin both halves of the fix: the translation is tolerated, and
+    everything else still fails.
+    """
+
+    CONTENT = b'{"run": 1, "note": "a baseline"}\nsecond line\nthird line\n'
+
+    def digest(self, data: bytes) -> str:
+        return stage48.committed_content_digest(data)
+
+    def test_the_same_content_hashes_the_same_with_either_newline(
+        self,
+    ) -> None:
+        crlf = self.CONTENT.replace(b"\n", b"\r\n")
+        self.assertNotEqual(self.CONTENT, crlf)
+        self.assertEqual(self.digest(self.CONTENT), self.digest(crlf))
+
+    def test_changing_one_byte_changes_the_digest(self) -> None:
+        modified = self.CONTENT.replace(b'"run": 1', b'"run": 2')
+        self.assertNotEqual(self.digest(self.CONTENT), self.digest(modified))
+
+    def test_adding_a_line_changes_the_digest(self) -> None:
+        self.assertNotEqual(
+            self.digest(self.CONTENT), self.digest(self.CONTENT + b"extra\n")
+        )
+
+    def test_removing_a_line_changes_the_digest(self) -> None:
+        shorter = self.CONTENT.replace(b"second line\n", b"")
+        self.assertNotEqual(self.digest(self.CONTENT), self.digest(shorter))
+
+    def test_a_modification_is_caught_even_when_newlines_also_change(
+        self,
+    ) -> None:
+        """Re-ending a file must not smuggle an edit past the check."""
+        tampered = self.CONTENT.replace(b'"run": 1', b'"run": 999')
+        self.assertNotEqual(
+            self.digest(self.CONTENT),
+            self.digest(tampered.replace(b"\n", b"\r\n")),
+        )
+
+    def test_the_digest_is_the_lf_form_so_it_matches_the_commit(self) -> None:
+        import hashlib
+
+        self.assertEqual(
+            self.digest(self.CONTENT.replace(b"\n", b"\r\n")),
+            hashlib.sha256(self.CONTENT).hexdigest(),
+        )
+
+
+class BaselineCheckTests(unittest.TestCase):
+    """The same three outcomes, through the check the run actually calls."""
+
+    def setUp(self) -> None:
+        self.root = tempfile.mkdtemp()
+        self.relative = next(iter(sorted(stage48.BASELINE_DIGESTS)))
+        self.path = os.path.join(self.root, self.relative)
+        os.makedirs(os.path.dirname(self.path), exist_ok=True)
+        self.content = b"a protected baseline\nwith two lines\n"
+        self.digests = {
+            self.relative: stage48.committed_content_digest(self.content)
+        }
+
+    def write(self, data: bytes) -> None:
+        with open(self.path, "wb") as handle:
+            handle.write(data)
+
+    def check(self):
+        original = stage48.BASELINE_DIGESTS
+        try:
+            stage48.BASELINE_DIGESTS = self.digests  # type: ignore[assignment]
+            return stage48._baseline_check(repository_root=self.root)
+        finally:
+            stage48.BASELINE_DIGESTS = original  # type: ignore[assignment]
+
+    def test_an_lf_checkout_is_accepted(self) -> None:
+        self.write(self.content)
+        result = self.check()
+        self.assertTrue(result["intact"], result["files"])
+        self.assertFalse(result["files"][self.relative]["crlf_on_disk"])
+
+    def test_a_crlf_checkout_of_unchanged_content_is_accepted(self) -> None:
+        """The false positive that blocked Stage 48. It must not return."""
+        self.write(self.content.replace(b"\n", b"\r\n"))
+        result = self.check()
+        self.assertTrue(result["intact"], result["files"])
+        self.assertTrue(result["files"][self.relative]["crlf_on_disk"])
+
+    def test_a_modified_baseline_is_rejected(self) -> None:
+        self.write(self.content.replace(b"two", b"ten"))
+        result = self.check()
+        self.assertFalse(result["intact"])
+        self.assertFalse(result["files"][self.relative]["matches"])
+
+    def test_a_modified_baseline_is_rejected_in_crlf_form_too(self) -> None:
+        self.write(self.content.replace(b"two", b"ten").replace(b"\n", b"\r\n"))
+        result = self.check()
+        self.assertFalse(result["intact"])
+
+    def test_a_missing_baseline_is_rejected(self) -> None:
+        result = self.check()
+        self.assertFalse(result["intact"])
+        self.assertFalse(result["files"][self.relative]["present"])
+        self.assertFalse(result["files"][self.relative]["matches"])
+
+    def test_an_empty_file_is_rejected(self) -> None:
+        self.write(b"")
+        result = self.check()
+        self.assertFalse(result["intact"])
+
+
+class RealBaselinesStayProtectedTests(unittest.TestCase):
+    """The committed Stage 40 and Stage 43 records, as they are on disk."""
+
+    def test_all_seven_committed_baselines_are_intact(self) -> None:
+        check = stage48._baseline_check()
+        self.assertTrue(check["intact"], check["files"])
+        self.assertEqual(len(check["files"]), 7)
+
+    def test_both_protected_directories_are_covered(self) -> None:
+        for directory in stage48.PROTECTED_BASELINE_DIRECTORIES:
+            covered = [
+                name for name in stage48.BASELINE_DIGESTS if directory in name
+            ]
+            self.assertTrue(covered, f"{directory} has no protected file")
+
+    def test_stage_40_keeps_five_files_and_stage_43_two(self) -> None:
+        def count(directory: str) -> int:
+            return sum(
+                1 for name in stage48.BASELINE_DIGESTS if directory in name
+            )
+
+        self.assertEqual(count("stage40-v1-vs-operation-plan"), 5)
+        self.assertEqual(count("stage43-structured-output"), 2)
+
+    def test_a_changed_digest_still_stops_a_run(self) -> None:
+        """The guard is still armed after the hashing change."""
+        original = dict(stage48.BASELINE_DIGESTS)
+        try:
+            stage48.BASELINE_DIGESTS = dict(  # type: ignore[assignment]
+                original,
+                **{
+                    "docs/evaluation-baselines/stage43-structured-output/"
+                    "README.md": "0" * 64
+                },
+            )
+            with self.assertRaises(stage48.BaselineMissing):
+                stage48.run(live=False, model_factory=lambda: object())
+        finally:
+            stage48.BASELINE_DIGESTS = original  # type: ignore[assignment]
+
+
+# --- the diagnostic probe keeps evidence, and keeps secrets out ------------
+
+
+class RedactionTests(unittest.TestCase):
+    """Provider text is kept for diagnosis, but never a credential."""
+
+    def test_an_anthropic_key_is_removed(self) -> None:
+        text = "BadRequestError: auth sk-ant-api03-AAAABBBBCCCCDDDD failed"
+        out = stage48.redact(text)
+        self.assertNotIn("sk-ant-api03", out)
+        self.assertIn("[redacted-api-key]", out)
+
+    def test_an_authorization_header_is_removed(self) -> None:
+        out = stage48.redact("x-api-key: abcd1234efgh5678 rejected")
+        self.assertNotIn("abcd1234efgh5678", out)
+
+    def test_a_bearer_token_is_removed(self) -> None:
+        out = stage48.redact("Authorization: Bearer abcdefghijklmnop")
+        self.assertNotIn("abcdefghijklmnop", out)
+
+    def test_a_long_opaque_token_is_removed(self) -> None:
+        token = "A" * 60
+        self.assertNotIn(token, stage48.redact(f"trace {token} end"))
+
+    def test_the_useful_part_of_the_message_survives(self) -> None:
+        out = stage48.redact(
+            "BadRequestError: schema is too complex to compile"
+        )
+        self.assertIn("too complex", out)
+        self.assertIn("BadRequestError", out)
+
+    def test_long_text_is_truncated(self) -> None:
+        out = stage48.redact("word " * 2000)
+        self.assertLessEqual(
+            len(out), stage48.MAX_DETAIL_CHARACTERS + 32
+        )
+
+
+class DiagnosticShapeTests(unittest.TestCase):
+    """The five calls vary one thing at a time, and only five are made."""
+
+    def test_exactly_five_probes_are_defined(self) -> None:
+        self.assertEqual(len(stage48.DIAGNOSTIC_PROBES), 5)
+
+    def test_the_control_is_v1_and_the_rest_are_the_plan(self) -> None:
+        representations = [p[0] for p in stage48.DIAGNOSTIC_PROBES]
+        self.assertEqual(representations[0], stage48.V1)
+        self.assertTrue(
+            all(r == stage48.PLAN for r in representations[1:])
+        )
+
+    def test_both_plan_schemas_are_tried_on_both_shapes(self) -> None:
+        pairs = {
+            (choice, shape)
+            for rep, choice, _, shape in stage48.DIAGNOSTIC_PROBES
+            if rep == stage48.PLAN
+        }
+        self.assertEqual(
+            pairs,
+            {("provider", "box"), ("provider", "profile"),
+             ("compact", "box"), ("compact", "profile")},
+        )
+
+    def test_the_error_class_is_read_from_the_detail(self) -> None:
+        from cad_ai.provider import ProviderError, ProviderErrorKind
+
+        error = ProviderError(
+            "the interpretation service is unavailable",
+            detail="BadRequestError: schema too complex",
+            kind=ProviderErrorKind.INVALID_REQUEST,
+        )
+        self.assertEqual(stage48._error_class(error), "BadRequestError")
+
+
+class DiagnosisReadingTests(unittest.TestCase):
+    """The stated rule, pinned, so a result cannot be read into a wish."""
+
+    def build(self, provider_ok: bool, compact_ok: bool,
+              control_ok: bool = True, split_shapes: bool = False):
+        probes = [{
+            "representation": stage48.V1, "schema_choice": "executable",
+            "request_shape": "box", "accepted": control_ok,
+            "error_class": None if control_ok else "BadRequestError",
+        }]
+        for choice, ok in (("provider", provider_ok), ("compact", compact_ok)):
+            for index, shape in enumerate(("box", "profile")):
+                accepted = ok
+                if split_shapes and choice == "provider":
+                    accepted = index == 0
+                probes.append({
+                    "representation": stage48.PLAN, "schema_choice": choice,
+                    "request_shape": shape, "accepted": accepted,
+                    "error_class": None if accepted else "BadRequestError",
+                })
+        return stage48.diagnose_probe({"probes": probes})
+
+    def test_provider_fails_and_compact_passes_supports_grammar_size(
+        self,
+    ) -> None:
+        reading = self.build(provider_ok=False, compact_ok=True)
+        self.assertEqual(
+            reading["verdict"], "grammar_size_strongly_supported"
+        )
+
+    def test_both_failing_does_not_establish_grammar_size(self) -> None:
+        reading = self.build(provider_ok=False, compact_ok=False)
+        self.assertEqual(
+            reading["verdict"], "grammar_size_not_established"
+        )
+        self.assertIn("NOT established", reading["conclusion"])
+
+    def test_a_failing_control_blocks_every_schema_conclusion(self) -> None:
+        reading = self.build(
+            provider_ok=False, compact_ok=False, control_ok=False
+        )
+        self.assertEqual(reading["verdict"], "control_failed")
+
+    def test_one_shape_failing_points_at_request_construction(self) -> None:
+        reading = self.build(
+            provider_ok=False, compact_ok=True, split_shapes=True
+        )
+        self.assertEqual(reading["verdict"], "shape_dependent")
+
+    def test_everything_accepted_reproduces_no_rejection(self) -> None:
+        reading = self.build(provider_ok=True, compact_ok=True)
+        self.assertEqual(reading["verdict"], "no_rejection_reproduced")
+
+    def test_a_stated_cause_outranks_the_shape_of_the_results(self) -> None:
+        """Measured: both schemas refused, and the provider said why.
+
+        The shape rule alone would call this 'not established'. The provider
+        named the cause in every refusal, which is stronger evidence than an
+        inference from which calls failed, so the stated cause wins.
+        """
+        probes = [
+            {"representation": stage48.V1, "schema_choice": "executable",
+             "request_shape": "box", "accepted": True},
+        ]
+        for choice in ("provider", "compact"):
+            for shape in ("box", "profile"):
+                probes.append({
+                    "representation": stage48.PLAN,
+                    "schema_choice": choice, "request_shape": shape,
+                    "accepted": False, "error_class": "BadRequestError",
+                    "detail": (
+                        "BadRequestError: Error code: 400 - The compiled "
+                        "grammar is too large, which would cause "
+                        "performance issues."
+                    ),
+                })
+        reading = stage48.diagnose_probe({"probes": probes})
+        self.assertEqual(
+            reading["verdict"], "grammar_size_stated_by_provider"
+        )
+        self.assertTrue(reading["cause_stated_by_provider"])
+
+    def test_without_a_stated_cause_the_shape_rule_still_governs(
+        self,
+    ) -> None:
+        """No message, both refused -- the honest answer stays 'unknown'."""
+        reading = self.build(provider_ok=False, compact_ok=False)
+        self.assertEqual(reading["verdict"], "grammar_size_not_established")
+        self.assertFalse(reading["cause_stated_by_provider"])
+
+    def test_a_stated_cause_does_not_override_a_failed_control(self) -> None:
+        probes = [
+            {"representation": stage48.V1, "schema_choice": "executable",
+             "request_shape": "box", "accepted": False,
+             "error_class": "BadRequestError", "detail": "x"},
+            {"representation": stage48.PLAN, "schema_choice": "provider",
+             "request_shape": "box", "accepted": False,
+             "error_class": "BadRequestError",
+             "detail": "The compiled grammar is too large"},
+        ]
+        reading = stage48.diagnose_probe({"probes": probes})
+        self.assertEqual(reading["verdict"], "control_failed")
+
+
+class DiagnosticIsNotABaselineTests(unittest.TestCase):
+    """A diagnostic must never be mistaken for, or written over, a result."""
+
+    def test_it_refuses_to_write_into_a_protected_baseline(self) -> None:
+        for path in (
+            "docs/evaluation-baselines/stage40-v1-vs-operation-plan/x.json",
+            "docs/evaluation-baselines/stage43-structured-output/x.json",
+        ):
+            self.assertTrue(stage48.writes_into_a_baseline(path), path)
+
+    def test_its_kind_is_distinct_from_every_result_kind(self) -> None:
+        self.assertNotEqual(
+            "stage48-provider-diagnostic-probe", stage48.RESULT_KIND
+        )
+
+    def test_the_cli_refuses_five_calls_without_the_flag(self) -> None:
+        self.assertEqual(stage48.main([]), 2)
+
+
 if __name__ == "__main__":
     unittest.main()

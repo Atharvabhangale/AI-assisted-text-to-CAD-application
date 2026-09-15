@@ -2415,3 +2415,125 @@ about this harness and **says nothing about any model.**
   case.
 - **FreeCAD is not exercised**, and a second-backend comparison is its own
   stage.
+
+## Stage 49: the provider's compiled-grammar ceiling
+
+Stage 48 could not run. The provider refused **both** plan schemas, and said
+why in its own words, on all four plan requests of the five-call diagnostic
+probe:
+
+> `400 invalid_request_error` — *"The compiled grammar is too large, which
+> would cause performance issues. Simplify your tool schemas or reduce the
+> number of strict tools."*
+
+The `v1_json` control was accepted in the same run, on the same model and
+credential, which rules out availability, authentication, transport and
+outage; two different descriptions failed identically on each schema, which
+rules out the request text. **The documented `--plan-schema compact` fallback
+was refused too** — that is the new fact, and it turns a flag problem into a
+schema problem.
+
+### Serialized size is only a proxy
+
+The limit is on the **compiled** grammar, not the payload. Stage 41 measured
+that a `$ref` does not shrink it and that unused `$defs` still cost budget,
+so the honest proxy is the schema with every `$ref` **inlined**: a definition
+referenced five times is compiled five times. Measuring the referenced form
+flatters a schema in exactly the way that led to sending two grammars the
+provider could not compile — `compact` is 19% smaller than `provider` in
+bytes and was refused just the same.
+
+Measured bounds, inlined: **accepted at 3622**, **refused at 6190**. The
+ceiling lies in between and nothing narrower is known.
+
+### Where the grammar actually goes
+
+Marginal cost of each capability, against the six-type base:
+
+| capability added | inlined | nodes |
+|---|---:|---:|
+| `sketch` | **+2653** | +73 |
+| `pattern` | +1014 | +24 |
+| `extrude` | +459 | +9 |
+| `revolve` | +455 | +9 |
+| semantic edge selectors | +150 | +2 |
+| *(of which sketch's `constraints`)* | *+1161* | *+33* |
+
+**`sketch` is 73% of the growth** from the accepted grammar to the full
+vocabulary, and its `constraints` are 44% of `sketch`. Stage 46's `pattern`
+and Stage 47's selectors are nearly free by comparison — the selectors cost
+about 150 inlined characters, roughly 2% of the budget.
+
+Sketch's cost is structural, not incidental: `sketch_defs` contributes three
+geometry branches and five constraint branches, and each is inlined wherever
+referenced.
+
+### The ladder
+
+`cad_experimental.schema_ladder` builds variants between the two measured
+points. Every variant is produced by the canonical plan's own
+`_plan_document` through its existing knobs — **no operation is redefined and
+nothing is written back into `plan.py`.**
+
+| variant | inlined | branches | capabilities | prediction |
+|---|---:|---:|---|---|
+| `L0-executable` | 3622 | 6 | the V1 six | at/below accepted |
+| `L1-sketch` | 6275 | 7 | + sketch | **at/above refused** |
+| `L2-extrude` | 6734 | 8 | + extrude | at/above refused |
+| `L3-revolve` | 7189 | 9 | + revolve | at/above refused |
+| `L4-pattern` | 8203 | 10 | + pattern | at/above refused |
+| `L5-selectors` | 8353 | 10 | + semantic selectors | at/above refused |
+| `C1-merged` | 7351 | 8 | all ten | at/above refused |
+| `C2-no-constraints` | 6190 | 8 | all ten | **refused (measured)** |
+| `C3-lean-sketch` | 6115 | 8 | all ten | unknown |
+| `C4-profiles-no-sketch` | 4698 | 7 | nine, no sketch | unknown |
+| `C5-minimal-profiles` | 5010 | 7 | eight | unknown |
+| `C6-sketch-floor` | 4551 | 6 | seven | unknown |
+
+`L0` reproduces `executable_schema()` exactly and `C2` reproduces
+`compact_provider_schema()` exactly, both asserted by tests — so the metric
+is anchored to the two points the provider has actually ruled on.
+
+**The ladder's headline is that `L1` is already above the refused point.** A
+full-fidelity sketch cannot be bought at any rung. Only three variants land
+in the unknown band, and only two of those carry a sketch at all.
+
+### Canonical IR versus provider encoding
+
+The provider schema is an **encoding** of the operation plan, not the plan.
+It says what a model may *say*; the parser and validator decide what a plan
+*means*, and they never see the schema. That is what makes a narrow encoding
+safe: omitting a sketch's `constraints` from a grammar does not make
+constraints illegal — a plan carrying them still parses, which a test
+asserts. Expressiveness is lost; rigour is not.
+
+This matters beyond one provider. A different model with a different
+structured-output limit needs a different encoding, and none of them should
+reach back into the IR. Do **not** redesign the operation plan to fit a
+grammar budget.
+
+### Commands
+
+```powershell
+# offline: measure every variant, call nothing
+& "$repo\.venv\Scripts\python.exe" -u -m cad_experimental.schema_ladder --list
+
+# one variant, ONE real call. There is deliberately no --probe-all.
+& "$repo\.venv\Scripts\python.exe" -u -m cad_experimental.schema_ladder `
+    --probe C5-minimal-profiles --out "<local-scratch>\probe.json"
+```
+
+A live probe needs `CAD_ANTHROPIC_API_KEY` exported into that process (§7).
+The probe writes only where asked and refuses any path inside a protected
+baseline directory.
+
+### What is not known
+
+- **Where the ceiling is.** Two points bound it; the band between them is
+  unmeasured, and no variant in that band has been sent.
+- **Whether the limit tracks characters, nodes or alternatives.** All are
+  reported because a proxy that correlated once is not a model of the limit.
+- **Whether a lean sketch is affordable at all.** `C6-sketch-floor` (4551) is
+  the cheapest grammar that can express a sketch; if it is refused, no
+  sketch-carrying grammar fits and the question becomes whether profiles can
+  be reached another way.

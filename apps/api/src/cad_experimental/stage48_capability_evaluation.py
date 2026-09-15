@@ -546,6 +546,37 @@ def _group_check() -> Dict[str, Any]:
     }
 
 
+def committed_content_digest(data: bytes) -> str:
+    """The SHA-256 of ``data`` as git stores it: newlines normalised to LF.
+
+    :data:`BASELINE_DIGESTS` records the digest of each baseline's
+    **committed** content, which git keeps with LF newlines. What is on disk
+    is not always those bytes: with ``core.autocrlf=true`` -- the default on
+    a Windows checkout, and set on this project's development machine -- git
+    rewrites LF to CRLF on checkout and back on commit. Hashing the
+    working-tree bytes therefore compares against the wrong thing, and
+    reported all six CRLF-translated baselines as modified on a clean tree
+    whose content was provably identical to the commit.
+
+    Undoing that one translation before hashing compares committed content
+    with committed content, which is what the invariant is about: *a
+    protected baseline may run only if the committed baseline content is
+    unchanged.*
+
+    This does **not** weaken the check. Only the line-ending translation git
+    performs itself is undone; every other byte still participates, so any
+    edit to a value, a digit, a key or a word changes the digest and the run
+    is refused. Nor can it be fooled by re-ending a file: LF and CRLF forms
+    of the same content are *the same commit*, which is exactly the
+    equivalence git enforces and the one being asserted here.
+
+    Raw CR-LF pairs in these files are only ever line separators -- a
+    newline inside a JSON string is escaped as ``\\r\\n`` and never appears
+    as raw bytes -- so nothing inside the recorded data is affected.
+    """
+    return hashlib.sha256(data.replace(b"\r\n", b"\n")).hexdigest()
+
+
 def _baseline_check(repository_root: Optional[str] = None) -> Dict[str, Any]:
     """That the Stage 40 and Stage 43 baselines are present and untouched.
 
@@ -554,6 +585,10 @@ def _baseline_check(repository_root: Optional[str] = None) -> Dict[str, Any]:
     or that finds either changed, is refused: a baseline that cost real
     money and cannot be regenerated is not something to discover the loss of
     afterwards.
+
+    Hashing is :func:`committed_content_digest`, so a checkout that differs
+    only in git's own line-ending translation is accepted and any change to
+    the content itself is not.
     """
     root = repository_root or _repository_root()
     results: Dict[str, Any] = {}
@@ -565,10 +600,14 @@ def _baseline_check(repository_root: Optional[str] = None) -> Dict[str, Any]:
             intact = False
             continue
         with open(path, "rb") as handle:
-            digest = hashlib.sha256(handle.read()).hexdigest()
+            raw = handle.read()
+        digest = committed_content_digest(raw)
         matches = digest == expected
         results[relative] = {
             "present": True, "matches": matches, "digest": digest,
+            # Recorded so a future failure can tell "the content changed"
+            # from "this checkout uses different newlines" without guessing.
+            "crlf_on_disk": b"\r\n" in raw,
         }
         intact = intact and matches
     return {
@@ -1847,6 +1886,346 @@ def _parses(text: str) -> bool:
     return True
 
 
+# --- the diagnostic probe: why was a request refused? ----------------------
+
+#: Patterns redacted out of any provider text before it is shown or written.
+#: The provider's own message is the point of this probe, so it is kept --
+#: but it is vendor text that may carry a header, a request id or, if a
+#: caller ever misconfigured one, a credential. Nothing here is trusted to be
+#: safe merely because it is not expected to be sensitive.
+_REDACTIONS: Tuple[Tuple[str, str], ...] = (
+    (r"sk-ant-[A-Za-z0-9_\-]+", "[redacted-api-key]"),
+    # To end of line, not to the next whitespace: a header value may contain
+    # spaces (``Authorization: Bearer <token>``), and stopping at the first
+    # token leaves the credential itself in the text. Losing the rest of a
+    # header line costs nothing a diagnosis needs.
+    (r"(?i)\b(x-api-key|authorization|api[_-]?key)\b\s*[:=].*",
+     r"\1: [redacted]"),
+    (r"(?i)\bbearer\s+\S+", "bearer [redacted]"),
+    # Any remaining long opaque run of key-ish characters.
+    (r"\b[A-Za-z0-9_\-]{40,}\b", "[redacted-long-token]"),
+)
+
+#: How much provider text is kept. Enough to read a reason; not a transcript.
+MAX_DETAIL_CHARACTERS = 2000
+
+#: The provider's own words when it refuses a schema for grammar size, as
+#: measured. :func:`diagnose_probe` looks for it so that a stated cause is
+#: reported as stated rather than re-derived from which calls failed.
+GRAMMAR_TOO_LARGE_MARKER = "compiled grammar is too large"
+
+
+def redact(text: str) -> str:
+    """Remove anything credential-shaped from provider text.
+
+    Applied to every provider string before it is printed or written. The
+    order matters: the specific named forms go first so that the catch-all
+    for long opaque tokens cannot mask what a field was called.
+    """
+    import re
+
+    cleaned = text
+    for pattern, replacement in _REDACTIONS:
+        cleaned = re.sub(pattern, replacement, cleaned)
+    if len(cleaned) > MAX_DETAIL_CHARACTERS:
+        cleaned = cleaned[:MAX_DETAIL_CHARACTERS] + " …[truncated]"
+    return cleaned
+
+
+def _error_class(error: BaseException) -> str:
+    """The provider SDK's own exception class name.
+
+    :class:`~cad_ai.provider.ProviderError` puts it at the front of
+    ``detail`` as ``"ClassName: message"``. It is read back rather than
+    re-derived, because the neutral ``kind`` deliberately collapses
+    ``BadRequestError``, ``NotFoundError`` and ``UnprocessableEntityError``
+    onto one value and this probe exists to tell them apart.
+    """
+    detail = getattr(error, "detail", None)
+    if isinstance(detail, str) and ":" in detail:
+        head = detail.split(":", 1)[0].strip()
+        if head and head.replace("_", "").isalnum():
+            return head
+    return type(error).__name__
+
+
+#: The five requests the diagnostic sends, in order. Fixed, because the
+#: comparison only means something if every arm differs in exactly one
+#: stated way. Two schemas × two shapes for the plan, plus the V1 control
+#: that proves the model, the credential and the transport are all working.
+DIAGNOSTIC_PROBES: Tuple[Tuple[str, str, str, str], ...] = (
+    (V1, "executable", PROBE_DESCRIPTION, "box"),
+    (PLAN, "provider", PROBE_DESCRIPTION, "box"),
+    (PLAN, "provider", PROBE_PROFILE_DESCRIPTION, "profile"),
+    (PLAN, "compact", PROBE_DESCRIPTION, "box"),
+    (PLAN, "compact", PROBE_PROFILE_DESCRIPTION, "profile"),
+)
+
+
+def probe_diagnostic() -> Dict[str, Any]:
+    """Why is a request refused? **Five real calls, and not a benchmark.**
+
+    :func:`probe_live` records that a request was refused but not why: it
+    keeps the neutral ``kind`` and the fixed public message, and drops
+    ``ProviderError.detail`` -- the only field carrying the provider's own
+    words. That is right for a payload and wrong for a diagnosis, and it left
+    a refusal that could equally have been grammar size, a malformed request
+    or model availability with no way to tell which.
+
+    This keeps the detail, redacted, locally. It changes nothing about
+    :class:`~cad_ai.provider.ProviderError`, publishes nothing, and writes
+    only where a caller asks -- never into a protected baseline.
+
+    The five calls vary **one thing at a time**:
+
+    ==============================  ==========================================
+    ``v1_json`` / box               the control: a grammar already known to
+                                    compile, so a failure here would mean the
+                                    model, credential or transport, not a
+                                    schema
+    ``operation_plan`` / provider   the widened schema, on two request shapes
+    ``operation_plan`` / compact    the documented fallback, on the same two
+    ==============================  ==========================================
+
+    Reading it is :func:`diagnose_probe`'s job, and deliberately not this
+    one's: the shape of the evidence decides the conclusion, and a probe that
+    argued for a conclusion would be choosing it.
+    """
+    if not credential_present():
+        raise CredentialUnavailable(
+            f"{OPERATOR_KEY_VARIABLE} is not set; the diagnostic probe "
+            "cannot run, and no other credential or provider may be "
+            "substituted"
+        )
+    model = real_model()
+    prompts = _system_prompts()
+    results: List[Dict[str, Any]] = []
+    for representation, choice, description, shape in DIAGNOSTIC_PROBES:
+        schema = (
+            v1_schema() if representation == V1 else plan_schema_for(choice)
+        )
+        facts = schema_facts(schema)
+        started = time.monotonic()
+        record: Dict[str, Any] = {
+            "representation": representation,
+            "schema_choice": choice,
+            "request_shape": shape,
+            "description": description,
+            "schema_fingerprint": facts["fingerprint"],
+            "schema_characters": facts["serialized_characters"],
+            "schema_optional_properties": facts["optional_properties"],
+        }
+        try:
+            response = model.generate(
+                ModelRequest(
+                    system=prompts[representation],
+                    user_text=description,
+                    output_schema=schema,
+                    max_output_tokens=SHARED_MAX_OUTPUT_TOKENS,
+                )
+            )
+        except ProviderError as error:
+            record.update({
+                "accepted": False,
+                "error_kind": getattr(
+                    getattr(error, "kind", None), "value",
+                    str(getattr(error, "kind", "unknown")),
+                ),
+                "error_class": _error_class(error),
+                "public_message": str(error),
+                # The whole reason this probe exists.
+                "detail": redact(str(getattr(error, "detail", "") or "")),
+                "latency_seconds": round(time.monotonic() - started, 3),
+            })
+        else:
+            text = response.text or ""
+            record.update({
+                "accepted": True,
+                "structured_output_reported": response.structured_output,
+                "latency_seconds": round(time.monotonic() - started, 3),
+                "usage": dict(response.usage or {}),
+                "response_characters": len(text),
+                "contains_fence": "```" in text,
+                "parses_as_json": _parses(text.strip()),
+            })
+        results.append(record)
+    return {
+        "stage": STAGE,
+        "kind": "stage48-provider-diagnostic-probe",
+        "model": MODEL,
+        "calls": len(DIAGNOSTIC_PROBES),
+        "probes": results,
+        "all_accepted": all(item.get("accepted") for item in results),
+        "note": (
+            "A diagnosis of why requests were refused. Not a benchmark, not "
+            "a measurement of model quality, and not comparable with any "
+            "Stage 40, 43 or 48 result."
+        ),
+    }
+
+
+def diagnose_probe(data: Mapping[str, Any]) -> Dict[str, Any]:
+    """What the five results do and do not establish.
+
+    The rule is stated up front so that a result cannot be read into the
+    conclusion someone hoped for:
+
+    * ``executable`` compiles, ``provider`` refused, ``compact`` compiles
+      -- **grammar size is strongly supported**: the only thing that varied
+      between the accepted and refused calls is how much grammar the schema
+      compiles to.
+    * ``provider`` **and** ``compact`` both refused -- grammar size is *not*
+      established. Both differ from the control in more than size, so
+      request construction or another provider constraint remains open.
+    * only one request *shape* refused -- not a schema property at all,
+      since the schema is identical across shapes. Trace request
+      construction before concluding anything.
+    """
+    probes = list(data.get("probes") or ())
+
+    # Direct evidence outranks the shape of the results. The inference rules
+    # below exist for the case where all that is known is which calls were
+    # refused; when the provider states the cause in its own message, that
+    # is the stronger evidence and reasoning around it would be perverse.
+    stated = sorted({
+        str(item.get("detail") or "") for item in probes
+        if not item.get("accepted")
+        and GRAMMAR_TOO_LARGE_MARKER in str(item.get("detail") or "").lower()
+    })
+
+    def accepted(choice: str, representation: str = PLAN) -> Optional[bool]:
+        seen = [
+            item for item in probes
+            if item.get("schema_choice") == choice
+            and item.get("representation") == representation
+        ]
+        if not seen:
+            return None
+        return all(bool(item.get("accepted")) for item in seen)
+
+    control = accepted("executable", V1)
+    provider_ok = accepted("provider")
+    compact_ok = accepted("compact")
+
+    shapes_disagree = any(
+        len({bool(item.get("accepted")) for item in probes
+             if item.get("schema_choice") == choice}) > 1
+        for choice in ("provider", "compact")
+    )
+
+    if stated and control is not False:
+        verdict = "grammar_size_stated_by_provider"
+        conclusion = (
+            "The provider named the cause itself: the compiled grammar is "
+            "too large. This is not an inference from which calls failed -- "
+            "it is the provider's own message, on every refused call, with "
+            "the V1 control accepted in the same run. Both plan schemas "
+            "exceed the limit, so the fix is a smaller compiled grammar, "
+            "not a different request."
+        )
+    elif control is False:
+        verdict = "control_failed"
+        conclusion = (
+            "The V1 control was refused, so the model, credential or "
+            "transport is at fault and nothing can be concluded about "
+            "either plan schema from this run."
+        )
+    elif shapes_disagree:
+        verdict = "shape_dependent"
+        conclusion = (
+            "One request shape was refused and another accepted on the same "
+            "schema. A schema property cannot vary by request shape, so "
+            "this is request construction and must be traced before any "
+            "conclusion about grammar size."
+        )
+    elif provider_ok is False and compact_ok is True:
+        verdict = "grammar_size_strongly_supported"
+        conclusion = (
+            "executable compiles, compact compiles, provider does not. The "
+            "accepted and refused schemas differ in compiled grammar size "
+            "and in nothing else the offline checks can see, so grammar "
+            "size is strongly supported."
+        )
+    elif provider_ok is False and compact_ok is False:
+        verdict = "grammar_size_not_established"
+        conclusion = (
+            "Both plan schemas were refused while V1 was accepted. Grammar "
+            "size alone is NOT established: request construction or another "
+            "provider constraint specific to the plan arm remains equally "
+            "consistent with this evidence."
+        )
+    elif provider_ok:
+        verdict = "no_rejection_reproduced"
+        conclusion = (
+            "Every request was accepted. The earlier rejection did not "
+            "reproduce, so it was transient or environmental and no schema "
+            "conclusion follows."
+        )
+    else:
+        verdict = "inconclusive"
+        conclusion = "The probe set does not match any decidable pattern."
+
+    return {
+        "verdict": verdict,
+        "conclusion": conclusion,
+        "cause_stated_by_provider": bool(stated),
+        "control_accepted": control,
+        "provider_schema_accepted": provider_ok,
+        "compact_schema_accepted": compact_ok,
+        "error_classes": sorted({
+            str(item.get("error_class")) for item in probes
+            if not item.get("accepted")
+        }),
+    }
+
+
+def format_diagnostic(data: Mapping[str, Any]) -> str:
+    """The diagnostic probe and its reading, as text."""
+    lines = [
+        "=" * 72,
+        f"STAGE {data['stage']} PROVIDER DIAGNOSTIC PROBE "
+        f"({data['calls']} real calls)",
+        "=" * 72,
+        f"model  {data['model']}",
+        "",
+    ]
+    for item in data.get("probes") or ():
+        lines.append(
+            f"--- {item['representation']} / {item['schema_choice']} / "
+            f"{item['request_shape']}"
+        )
+        lines.append(
+            f"  schema            {item['schema_fingerprint'][:16]}  "
+            f"{item['schema_characters']} chars, "
+            f"{item['schema_optional_properties']} optional"
+        )
+        if item.get("accepted"):
+            lines.append("  ACCEPTED          YES")
+            lines.append(
+                f"  structured output {item.get('structured_output_reported')}"
+            )
+            lines.append(f"  latency (s)       {item.get('latency_seconds')}")
+            lines.append(f"  fence / json      "
+                         f"{item.get('contains_fence')} / "
+                         f"{item.get('parses_as_json')}")
+        else:
+            lines.append("  ACCEPTED          NO")
+            lines.append(f"  error kind        {item.get('error_kind')}")
+            lines.append(f"  error class       {item.get('error_class')}")
+            lines.append(f"  latency (s)       {item.get('latency_seconds')}")
+            lines.append(f"  provider said     {item.get('detail')}")
+        lines.append("")
+    reading = data.get("diagnosis") or {}
+    if reading:
+        lines.extend([
+            "-" * 72,
+            f"verdict: {reading.get('verdict')}",
+            "",
+            reading.get("conclusion", ""),
+        ])
+    return "\n".join(lines)
+
+
 # --- the run ----------------------------------------------------------------
 
 #: Attempts per case per arm. Stage 40's, so a per-case rate means the same
@@ -2249,6 +2628,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser.add_argument("--probe-live", action="store_true",
                         help="ask the provider to compile each schema "
                              "(THREE real calls; not a benchmark)")
+    parser.add_argument("--probe-diagnostic", action="store_true",
+                        help="find out WHY a request was refused: the two "
+                             "plan schemas on two request shapes, plus a V1 "
+                             "control (FIVE real calls; not a benchmark). "
+                             "Keeps the provider's own message, redacted")
     parser.add_argument("--live", action="store_true",
                         help="run the full evaluation (spends quota)")
     parser.add_argument("--attempts", type=int, default=DEFAULT_ATTEMPTS,
@@ -2326,11 +2710,27 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             _write(arguments.out, data)
         return 0 if data["all_accepted"] else 1
 
+    if arguments.probe_diagnostic:
+        # No offline gate here: this probe exists precisely for the case
+        # where the offline checks pass and the provider refuses anyway.
+        try:
+            data = dict(probe_diagnostic())
+        except CredentialUnavailable as error:
+            print(f"STAGE {STAGE} DIAGNOSTIC: NOT RUN -- {error}")
+            return 1
+        data["diagnosis"] = diagnose_probe(data)
+        print(format_diagnostic(data))
+        if arguments.out:
+            _write(arguments.out, data)
+            print(f"\nwritten to {arguments.out}")
+        return 0 if data["all_accepted"] else 1
+
     if not arguments.live:
         print("refusing to run: pass --live to make real model calls.")
-        print("  --check       offline preflight, free")
-        print("  --list        print the corpus, free")
-        print("  --probe-live  three calls, schema acceptance only")
+        print("  --check             offline preflight, free")
+        print("  --list              print the corpus, free")
+        print("  --probe-live        three calls, schema acceptance only")
+        print("  --probe-diagnostic  five calls, why a request was refused")
         print(f"credential present: {credential_present()}")
         return 2
 
@@ -2400,6 +2800,7 @@ def _write(path: str, data: Any) -> None:
 
 __all__ = [
     "BASELINE_DIGESTS",
+    "committed_content_digest",
     "ExecutionUnsupported",
     "SelectorNotExpressible",
     "ReferencePlanStub",
@@ -2439,6 +2840,10 @@ __all__ = [
     "plan_schema_for",
     "preflight",
     "probe_live",
+    "probe_diagnostic",
+    "diagnose_probe",
+    "format_diagnostic",
+    "redact",
     "real_model",
     "run",
     "run_plan_attempt",
