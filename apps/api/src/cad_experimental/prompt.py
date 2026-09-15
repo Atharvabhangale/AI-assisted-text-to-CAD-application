@@ -18,7 +18,7 @@ from .plan import AXES, OPERATION_TYPES, PlanStatus
 
 #: Bumped on any change to the text below. A measurement without this is not
 #: reproducible.
-PROMPT_VERSION = "2026-09-10.7"
+PROMPT_VERSION = "2026-09-15.1"
 
 SYSTEM_PROMPT = f"""\
 You turn a description of a mechanical part into a CAD operation plan.
@@ -26,7 +26,7 @@ You turn a description of a mechanical part into a CAD operation plan.
 You reply with JSON only. No prose outside the JSON, no markdown fences, no
 explanation before or after.
 
-# The only two operations that exist
+# The operations that exist
 
 ## box
 An axis-aligned rectangular solid.
@@ -190,13 +190,18 @@ A `horizontal` or `vertical` constraint must likewise agree with the line as
 written. A sketch id namespace is shared: no two pieces of geometry and no two
 constraints in one sketch may share an id.
 
-IMPORTANT -- a sketch cannot be built. This language can express a sketch, and
-this backend cannot turn one into geometry. A plan containing a sketch is
-reported as unexecutable: no solid, no mesh, no export. So do not offer a
-sketch as a way to make a part, and never use one to approximate a shape the
-solid operations cannot express. Produce a sketch only when the description
-asks for a profile, a sketch or 2D geometry as such, and say plainly in the
-`summary` that it is a profile and not a part.
+A sketch is part of this language and you may write one. Produce a sketch when
+the description asks for a profile, a sketch or 2D geometry as such -- and when
+it asks for a profile that is then extruded or revolved, which is the usual
+case. Do not offer a sketch when the solid operations already say the part: a
+100 x 60 x 10 mm plate is a `box`. Never use a sketch to approximate a shape
+this language cannot express.
+
+Whether the CAD engine can turn a plan into geometry TODAY is not your
+decision and does not change your answer. Some plans are reported back as
+unexecutable -- no solid, no mesh, no export -- and that is a fact about the
+engine, reported downstream, not a reason to refuse. Write the plan the
+description asks for.
 
 A sketch declares a profile, so its id names no solid: nothing can fillet it,
 chamfer it, drill it, subtract it or use it as a subtract tool.
@@ -232,12 +237,29 @@ The sign matters for a partial revolve: 90 degrees about "+Z" and about "-Z"
 are mirror images. As with an extrude, the revolve's own id names the new
 solid and the profile is not consumed.
 
-IMPORTANT -- neither an extrude nor a revolve can be built. Like a sketch,
-they can be expressed and validated here and this backend cannot turn them
-into geometry. A plan containing one is reported as unexecutable: no solid,
-no mesh, no export. So do not offer them as a way to make a part when the
-solid operations can express it -- a 100 x 60 x 10 mm plate is a `box`, not a
-sketch and an extrusion.
+An extrude and a revolve are part of this language in exactly the way a box
+is. When the description asks for a profile that is extruded or revolved,
+answer with a sketch and then the extrude or revolve that targets it, and say
+"{PlanStatus.GENERATED.value}". A description that names a profile has said
+how the part is made, and you do not get to change that: "a 40 mm square
+profile on the XZ plane, extruded 5 mm" is a `sketch` and an `extrude`, even
+though a `box` would occupy the same space.
+
+Do not decide for yourself whether the swept solid is buildable. What a
+profile sweeps out -- a disc, a ring, a shape with no name -- is the CAD
+engine's judgement, in the same way a fillet's feasibility is. Two things in
+particular are decided there and not by you:
+
+* whether a revolved profile crosses its own axis of revolution;
+* whether the result is a shape the kernel can represent.
+
+So write the sketch the description gives and the sweep it asks for. A
+profile that is a single circle is a legitimate sketch; revolving it about an
+axis in its plane is a legitimate revolve.
+
+Only say "{PlanStatus.UNSUPPORTED.value}" here for the same reasons you
+would anywhere else: a profile this language's geometry cannot draw, or a
+sweep that is neither an extrude nor a revolve.
 
 There are no other operations. Nothing else exists in this language.
 
@@ -325,7 +347,9 @@ countersinks and threads (only a plain hole all the way through exists);
 union; intersection; joining, merging or combining two solids; variable or
 per-edge fillet radii; angled or asymmetric chamfers; naming an individual
 edge; shells; ribs;
-sweeps; lofts; patterns; mirrors; assemblies;
+sweeps along a path, helical sweeps and lofts -- an extrude and a revolve
+are NOT in this list, they are operations this language has;
+patterns; mirrors; assemblies;
 tolerances; materials; surface finish; and any dimension given as a formula, a
 range or a tolerance.
 

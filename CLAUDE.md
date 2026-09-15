@@ -1147,20 +1147,65 @@ Stage 14.1.
 
 **The operation plan's whole remaining gap is sketches.** Its 10 wrong
 refusals are exactly `09-profile-extrude` (5/5) and `10-profile-revolve`
-(5/5) — nothing else. This is consistent with the deliberately-unfixed prompt
-bug recorded below, which tells the model an extrude "cannot be built".
-
-**Immediate next development target**, in order:
-
-1. **Make profile / extrude / revolve model-addressable.** They are already
-   represented and validated; they are refused at the execution boundary, and
-   the prompt's wording invites the model to refuse them outright. Closing
-   this closes the entire measured gap.
-2. **Then move toward chained multi-feature operations** — the corpus is
-   single-part and shallow, and nothing is known about how either
-   representation behaves as feature chains get longer.
+(5/5) — nothing else. **Stage 44 found those 10 were not the model's
+judgement at all**: see below.
 
 Read `docs/experimental-operation-plan.md` → *Stage 43* for the full detail.
+
+### Stage 44: the profile refusals were forced, not chosen
+
+Two things stood between the model and a profile plan, **either one
+sufficient on its own**:
+
+1. **The grammar had no such branch.** `provider_schema()` returned the
+   schema over `EXECUTABLE_TYPES` — the six buildable operations. Stage 41
+   built that subset because the nine-branch schema is refused on grammar
+   size, and it was harmless there because Stage 41 ran *without* structured
+   output. Stage 43 turned structured output on and kept it. A decoder
+   constrained by a union with no `sketch`, `extrude` or `revolve` branch
+   **cannot emit one**, so refusing was the only reachable answer and no
+   prompt could have changed it.
+2. **The prompt said to refuse** — *"neither an extrude nor a revolve can be
+   built […] do not offer them as a way to make a part"*. The recorded output
+   quotes it back as the model's `reason`.
+
+The lesson worth keeping: **a schema is what the model may SAY; the execution
+boundary is what the engine can BUILD.** Narrowing the first to match the
+second looks conservative and is silent — it removes an answer from the
+model's reach and then scores the model for not giving it.
+
+The plan layer was innocent: the parser accepts all nine types, the validator
+returns `valid=True` on both profile plans, and the adapter raises
+`ExecutionUnsupported` exactly as Stages 37–38 designed. None of it changed.
+
+**The fix.** `provider_schema()` now covers all nine types in **eight
+branches** — the measured ceiling — by merging `fillet` and `chamfer`, the one
+pair that differs only in the name of its single length. The cost is confined
+to the grammar (both lengths become grammatically optional; `target` and
+`edges` stay required) and the parser still enforces the real requirement, as
+a test proves. Four schemas now exist, each named for its job:
+`plan_schema()` (9 branches, the faithful description), `provider_schema()`
+(the default), `compact_provider_schema()` (smaller, drops a sketch's optional
+`constraints`) and `executable_schema()` (what Stages 41–43 sent). **Nothing
+selects a variant automatically.** Prompt `2026-09-15.1` stops calling profile
+operations unbuildable and leaves buildability to the engine, in the same
+words the fillet section already used.
+
+**Unverified, and it matters:** that the provider *compiles* the new schema.
+Every offline limit is satisfied and asserted, but the compiled-grammar size
+can only be measured by sending it — one live call, on a machine with a
+credential. If it is refused, `compact_provider_schema()` is the next thing to
+try, and it still admits every profile operation.
+
+**Next**, in order:
+
+1. **Re-run the frozen Stage 43 comparison** once the schema is verified. The
+   corpus, prompts and scoring must stay exactly as they are.
+2. **Then chained multi-feature operations** — the corpus is single-part and
+   shallow, and nothing is known about how either representation behaves as
+   feature chains get longer.
+
+Read `docs/experimental-operation-plan.md` → *Stage 44* for the full detail.
 
 **FreeCAD runs here, but not the obvious way.** No pip distribution, and it is
 **not in Ubuntu 24.04**. It came from the official AppImage (649 MB, extracting
@@ -1208,9 +1253,9 @@ The POSIX forms remain correct on Linux/macOS, where `python3` and a
 `CAD_FREECAD_HOME` plus `LD_LIBRARY_PATH=$CAD_FREECAD_HOME/usr/lib` set
 **before Python starts**, or `test_cad_backends` skips.
 
-**897 tests, 33 skipped** on this Windows environment (the skips are the
-FreeCAD backend, absent here; with FreeCAD present on Linux the earlier
-figure was 874 tests, 2 skipped). Run the whole suite before finishing a
+**938 tests, 2 skipped** with FreeCAD present on Linux, as of Stage 44 (at
+Stage 43 that was 897 tests, 33 skipped on the Windows environment, where the
+extra skips are the FreeCAD backend). Run the whole suite before finishing a
 stage here: package-wide guard tests in older modules are routinely tripped
 by newer ones, and focused subsets have missed that twice.
 
@@ -1228,6 +1273,13 @@ output, not the exit code.
   deliberate measurement decision on both sides.
 - **`comparison_corpus.py` is a frozen instrument.** Fix the prompt or the
   code and re-measure; never edit an expectation after seeing a score.
-- A known prompt bug is **deliberately unfixed**: the wording tells the model
-  an extrude "cannot be built" and Haiku reads that as *unsupported*, refusing
-  5/5 on the revolve case. Fixing it is its own stage, so the cause stays clean.
+- **A schema is what the model may say, not what the engine can build.**
+  Conflating the two is what made Stage 43 record a forced refusal as the
+  model's choice. `provider_schema()` covers the whole vocabulary;
+  `ExecutionUnsupported` is where buildability is decided.
+- **No schema variant is ever selected automatically.** `provider_schema()`,
+  `compact_provider_schema()` and `executable_schema()` are chosen explicitly
+  and recorded, for the same reason `resolve_backend()` never falls back.
+- **Stage 43's module is pinned to `executable_schema()`** and does not follow
+  `provider_schema()`. A recorded result must stay attributable to the
+  instrument that produced it: re-running Stage 43 must reproduce Stage 43.

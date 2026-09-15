@@ -1058,12 +1058,32 @@ class PromptTests(unittest.TestCase):
         self.assertIn("## extrude", self.text)
         self.assertIn("## revolve", self.text)
 
-    def test_the_prompt_says_neither_can_be_built(self):
+    def test_the_prompt_tells_the_model_to_write_them(self):
+        """Stage 44. This replaces `test_the_prompt_says_neither_can_be_built`.
+
+        That wording was the soft half of the Stage 43 refusal: the model
+        quoted it back as its `reason` for answering `unsupported` on the
+        profile cases. Whether the engine can build a plan is reported
+        downstream and is not the model's call, so the prompt must now say
+        `generated` is the answer.
+        """
         section = self.text.split("## extrude", 1)[1].split("There are no", 1)[0]
-        self.assertIn(
-            "neither an extrude nor a revolve can be built", section
-        )
-        self.assertIn("reported as unexecutable", section)
+        self.assertIn("generated", section)
+        self.assertNotIn("cannot be built", section)
+        self.assertNotIn("do not offer them", section)
+
+    def test_the_prompt_leaves_buildability_to_the_engine(self):
+        """The same division of labour the fillet section already states:
+        feasibility is the kernel's judgement, not the model's."""
+        section = self.text.split("## extrude", 1)[1].split("There are no", 1)[0]
+        self.assertIn("engine's judgement", section)
+        self.assertIn("crosses its own axis of revolution", section)
+
+    def test_the_prompt_says_a_named_profile_is_not_a_box(self):
+        """The Stage 43 case-09 failure mode in one line: a description that
+        says how the part is made must not be answered with a primitive."""
+        section = self.text.split("## extrude", 1)[1].split("There are no", 1)[0]
+        self.assertIn("`sketch` and an `extrude`", section)
 
     def test_the_prompt_says_the_target_is_a_sketch(self):
         section = self.text.split("## extrude", 1)[1]
@@ -1089,8 +1109,15 @@ class PromptTests(unittest.TestCase):
 
     def test_sweeps_and_lofts_are_still_unsupported(self):
         after = self.text.split("# When to say unsupported", 1)[1]
-        self.assertIn("sweeps", after)
+        self.assertIn("sweeps along a path", after)
         self.assertIn("lofts", after)
+
+    def test_the_unsupported_list_exempts_extrude_and_revolve(self):
+        """`sweeps` on its own read as a refusal of both. The list has to
+        say which sweeps it means, or it contradicts the two sections above
+        it."""
+        after = self.text.split("# When to say unsupported", 1)[1]
+        self.assertIn("an extrude and a revolve\nare NOT in this list", after)
 
     def test_the_prompt_discourages_using_them_where_a_box_would_do(self):
         self.assertIn("is a `box`", self.text)
@@ -1100,7 +1127,14 @@ class PromptTests(unittest.TestCase):
         self.assertNotIn("{'", self.text)
 
     def test_the_version_moved_with_the_vocabulary(self):
-        self.assertEqual(self.version, "2026-09-10.7")
+        """A change detector, not a claim the prompt is right. When the
+        prompt changes on purpose, update this and re-measure -- the pin is
+        here so nobody can move the prompt and keep an old number.
+
+        `2026-09-10.7` was Stages 38-43. `2026-09-15.1` is Stage 44, which
+        stopped telling the model that a profile operation cannot be built.
+        """
+        self.assertEqual(self.version, "2026-09-15.1")
         self.assertEqual(len(self.fingerprint), 64)
 
 

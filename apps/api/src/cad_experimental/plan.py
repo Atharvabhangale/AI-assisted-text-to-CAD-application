@@ -60,6 +60,27 @@ EXECUTABLE_TYPES: Tuple[str, ...] = (
 #: ``distance`` sets back on both adjoining faces.
 EDGE_MODIFIER_TYPES: Tuple[str, ...] = (FILLET, CHAMFER)
 
+#: Operation types that share ONE schema branch, rather than one each.
+#:
+#: A provider that compiles a schema into a decoding grammar has a ceiling on
+#: how many branches a union may hold, and Stage 41 measured this one at
+#: **eight**: eight operation branches were accepted and a ninth was refused
+#: even when stripped to a single field. Nine operation types therefore do
+#: not fit one-per-branch, and Stage 43 paid for that -- the schema it sent
+#: covered only the six executable types, so a grammar-constrained model
+#: could not emit a ``sketch``, an ``extrude`` or a ``revolve`` at all, and
+#: refusing was the only answer left to it.
+#:
+#: ``fillet`` and ``chamfer`` are the one pair that can share a branch
+#: without describing anything new: they carry the same operation-level keys
+#: and the same required ``edges`` selector, and differ only in the NAME of
+#: their one length (:data:`EDGE_MODIFIER_LENGTH`). Merging them makes
+#: ``radius`` and ``distance`` both optional *in the grammar*, which is the
+#: whole cost -- and the parser still requires exactly the right one, from
+#: :data:`PARAMETERS`, as it always has. Nothing else is loosened, and no
+#: other pair would merge this cheaply.
+MERGED_SCHEMA_GROUPS: Tuple[Tuple[str, ...], ...] = (EDGE_MODIFIER_TYPES,)
+
 #: Operations that add a solid to the solid set, named by their own id
 #: (specification Section B.4).
 CONSTRUCTIVE_TYPES: Tuple[str, ...] = (BOX, CYLINDER)
@@ -701,10 +722,110 @@ def _parameter_schemas() -> Dict[str, Any]:
     }
 
 
+def _schema_groups(
+    kinds: Tuple[str, ...],
+    merged: Tuple[Tuple[str, ...], ...],
+) -> List[Tuple[str, ...]]:
+    """``kinds``, with the members of each :data:`MERGED_SCHEMA_GROUPS` group
+    collapsed to one entry at the position of the group's first member.
+
+    Order is preserved, every kind appears exactly once, and a group whose
+    members are not all in ``kinds`` contributes only the members that are --
+    so a narrower schema stays correct without a second code path.
+    """
+    groups: List[Tuple[str, ...]] = []
+    placed: set = set()
+    for kind in kinds:
+        if kind in placed:
+            continue
+        group = next((g for g in merged if kind in g), (kind,))
+        present = tuple(k for k in group if k in kinds)
+        placed.update(present)
+        groups.append(present)
+    return groups
+
+
+def _branch(
+    group: Tuple[str, ...],
+    parameters: Dict[str, Any],
+    omit: Tuple[str, ...],
+) -> Dict[str, Any]:
+    """One schema branch describing every operation type in ``group``.
+
+    A one-member group is discriminated by ``{"const": kind}``; a merged
+    group by ``{"enum": [...]}``. Everything else is read out of
+    :data:`OPERATION_FIELDS` and :data:`PARAMETERS`, so a branch cannot
+    describe an operation the parser would refuse.
+
+    For a merged group the parameter properties are the UNION of its members'
+    parameters and the ``required`` list is their INTERSECTION -- the only
+    sound answer, because the grammar cannot condition one property on the
+    value of a sibling. That is the entire cost of merging, it is confined to
+    the grammar, and the parser re-derives the exact per-type requirement
+    from :data:`PARAMETERS` regardless.
+    """
+    shapes = {OPERATION_FIELDS[kind] for kind in group}
+    if len(shapes) != 1:
+        raise ValueError(
+            "a merged schema group must share one operation-level shape; "
+            f"{group!r} does not"
+        )
+    allowed = OPERATION_FIELDS[group[0]]
+
+    properties: Dict[str, Any] = {
+        "id": _ref(ID_DEF),
+        "type": (
+            {"const": group[0]} if len(group) == 1
+            else {"enum": list(group)}
+        ),
+    }
+    required = ["id", "type"]
+    if "target" in allowed:
+        properties["target"] = _ref(ID_DEF)
+        required.append("target")
+    if "tools" in allowed:
+        properties["tools"] = {
+            "type": "array", "minItems": 1, "items": _ref(ID_DEF),
+        }
+        required.append("tools")
+
+    if "parameters" in allowed:
+        names: List[str] = []
+        per_kind_required: List[Tuple[str, ...]] = []
+        for kind in group:
+            kind_required, kind_optional = PARAMETERS[kind]
+            for name in (*kind_required, *kind_optional):
+                if name not in omit and name not in names:
+                    names.append(name)
+            per_kind_required.append(
+                tuple(n for n in kind_required if n not in omit)
+            )
+        properties["parameters"] = {
+            "type": "object",
+            "properties": {name: parameters[name] for name in names},
+            "required": [
+                name for name in names
+                if all(name in one for one in per_kind_required)
+            ],
+            "additionalProperties": False,
+        }
+        required.append("parameters")
+
+    return {
+        "type": "object",
+        "properties": properties,
+        "required": required,
+        "additionalProperties": False,
+    }
+
+
 def _operation_branches(
     kinds: Tuple[str, ...] = OPERATION_TYPES,
+    *,
+    merged: Tuple[Tuple[str, ...], ...] = (),
+    omit_parameters: Tuple[str, ...] = (),
 ) -> List[Dict[str, Any]]:
-    """One schema branch per operation type, discriminated by ``type``.
+    """The schema branches for ``kinds``, discriminated by ``type``.
 
     **Derived from** :data:`OPERATION_FIELDS` and :data:`PARAMETERS`, not
     retyped: the same two tables the parser reads. A branch therefore cannot
@@ -722,52 +843,23 @@ def _operation_branches(
     Here each branch declares only its own parameters, and nearly all are
     required, because within one operation type they genuinely are.
 
+    Why some branches carry two types
+    ---------------------------------
+    ``merged`` names groups that share one branch, to fit the provider's
+    eight-branch ceiling -- see :data:`MERGED_SCHEMA_GROUPS`. It is empty by
+    default, so :func:`plan_schema` still describes one type per branch.
+
     **The wire format is unchanged.** This is the same
     ``{id, type, target?, tools?, parameters?}`` object the parser has always
     accepted, described precisely instead of loosely -- so the parser, the
     validator and the V1 adapter needed no change at all.
     """
     parameters = _parameter_schemas()
-    branches: List[Dict[str, Any]] = []
-    for kind in kinds:
-        properties: Dict[str, Any] = {
-            "id": _ref(ID_DEF),
-            "type": {"const": kind},
-        }
-        # Operation-level keys, from the parser's own table. Each is present
-        # exactly for the types that may carry it, and each is required: a
-        # `target` is not optional on an operation that has one.
-        allowed = OPERATION_FIELDS[kind]
-        required = ["id", "type"]
-        if "target" in allowed:
-            properties["target"] = _ref(ID_DEF)
-            required.append("target")
-        if "tools" in allowed:
-            properties["tools"] = {
-                "type": "array", "minItems": 1, "items": _ref(ID_DEF),
-            }
-            required.append("tools")
+    return [
+        _branch(group, parameters, omit_parameters)
+        for group in _schema_groups(kinds, merged)
+    ]
 
-        required_names, optional_names = PARAMETERS[kind]
-        if "parameters" in allowed:
-            properties["parameters"] = {
-                "type": "object",
-                "properties": {
-                    name: parameters[name]
-                    for name in (*required_names, *optional_names)
-                },
-                "required": list(required_names),
-                "additionalProperties": False,
-            }
-            required.append("parameters")
-
-        branches.append({
-            "type": "object",
-            "properties": properties,
-            "required": required,
-            "additionalProperties": False,
-        })
-    return branches
 
 
 def _prune_defs(document: Dict[str, Any]) -> Dict[str, Any]:
@@ -811,7 +903,12 @@ def _prune_defs(document: Dict[str, Any]) -> Dict[str, Any]:
     return pruned
 
 
-def _plan_document(kinds: Tuple[str, ...]) -> Dict[str, Any]:
+def _plan_document(
+    kinds: Tuple[str, ...],
+    *,
+    merged: Tuple[Tuple[str, ...], ...] = (),
+    omit_parameters: Tuple[str, ...] = (),
+) -> Dict[str, Any]:
     """The plan schema over exactly ``kinds``, with unused defs pruned."""
     return _prune_defs({
         "type": "object",
@@ -823,7 +920,13 @@ def _plan_document(kinds: Tuple[str, ...]) -> Dict[str, Any]:
             "questions": {"type": "array", "items": {"type": "string"}},
             "operations": {
                 "type": "array",
-                "items": {"anyOf": _operation_branches(kinds)},
+                "items": {
+                    "anyOf": _operation_branches(
+                        kinds,
+                        merged=merged,
+                        omit_parameters=omit_parameters,
+                    )
+                },
             },
         },
         "required": ["status", "operations", "summary"],
@@ -832,51 +935,98 @@ def _plan_document(kinds: Tuple[str, ...]) -> Dict[str, Any]:
 
 
 def provider_schema() -> Dict[str, Any]:
-    """The plan schema a structured-output provider will actually compile.
+    """The plan schema a structured-output provider is pointed at.
 
-    Identical in shape to :func:`plan_schema`, over the **executable** subset
-    of the vocabulary -- the six V1 features -- and nothing else.
+    Covers the **whole vocabulary** -- all nine operation types, sketches,
+    extrudes and revolves included -- in **eight branches**, by merging
+    ``fillet`` and ``chamfer`` into one. See :data:`MERGED_SCHEMA_GROUPS` for
+    why that pair and no other.
 
-    Why a subset exists at all
-    --------------------------
-    Stage 41 measured Anthropic's structured-output limits directly. Three
-    bind at once: at most 24 optional properties across the document and
-    about 14 within any single object; a compiled-grammar size ceiling; and a
-    separate complexity ceiling. Against those, the nine-operation schema is
-    refused, and the binding constraint is ``sketch`` -- its ``geometry`` and
-    ``constraints`` lists are arrays of typed sub-objects, and the eight
-    other operations plus a sketch branch exceed the grammar budget even when
-    the sketch branch is stripped to its plane. Eight branches were accepted;
-    adding any ninth was not.
+    Why this is not the executable subset any more
+    ----------------------------------------------
+    Until Stage 44 this returned :func:`executable_schema`: the six types the
+    CAD engine can build. That looked like a conservative choice and was in
+    fact a silent one. Stage 43 ran with structured output on, so the model
+    decoded against this grammar -- and a grammar with no ``sketch``,
+    ``extrude`` or ``revolve`` branch cannot emit one. On both profile cases
+    the model answered ``unsupported`` 5/5, which the run scored as the
+    model's judgement. It was not: the representation had removed the answer
+    from the model's reach, and no prompt could have put it back.
 
-    The subset is therefore **exactly** :data:`EXECUTABLE_TYPES`, which is a
-    line the project already draws: these are the operations the CAD engine
-    can build. A plan the provider is constrained to produce is a plan that
-    can become geometry.
+    A schema is what the model may SAY, not what the engine can BUILD. Those
+    are different questions and conflating them made a measurement of the
+    second look like a measurement of the first. The execution boundary still
+    exists and is unchanged: a plan containing a profile operation parses,
+    validates, and is then refused by
+    :class:`cad_experimental.adapter.ExecutionUnsupported` -- explicitly,
+    with the offending ids, and never approximated.
 
-    This removes nothing from the language. :func:`plan_schema` still
-    describes all nine, the parser still accepts all nine, and a sketch plan
-    supplied by any other route is validated and refused at the execution
-    boundary exactly as before. What this says is narrower: which subset a
-    grammar-constrained decoder can be pointed at today.
+    What is still unverified
+    ------------------------
+    That the provider COMPILES this. Stage 41 measured the ceiling at eight
+    branches, and this has eight -- but the eight it measured did not include
+    ``sketch``, whose ``$defs`` are the largest part of the schema. Verifying
+    that costs one live call and cannot be done without a credential, so it
+    has not been done here. :func:`compact_provider_schema` is the smaller
+    variant to try if this one is refused; nothing selects it automatically.
+    """
+    return _plan_document(OPERATION_TYPES, merged=MERGED_SCHEMA_GROUPS)
+
+
+def compact_provider_schema() -> Dict[str, Any]:
+    """:func:`provider_schema` without a sketch's optional ``constraints``.
+
+    The same eight branches over the same nine types, about a fifth smaller,
+    because dropping ``constraints`` drops the two largest shared
+    definitions with it. Offered for one reason: if the provider refuses
+    :func:`provider_schema` on grammar size, this is the next thing to try
+    without giving up profile operations altogether.
+
+    It costs the model nothing it needs to describe a solid. A sketch's
+    constraints are CHECKED, never solved -- rule P21 requires a dimensional
+    constraint to AGREE with the geometry it names -- so they can only
+    restate what the geometry already says, or conflict with it. Geometry
+    written at the size it means needs none.
+
+    **Nothing selects this automatically.** A caller that asked for one
+    schema and silently got another could not know what its numbers mean,
+    which is the same reason :func:`cad_experimental.cad_backend.resolve_backend`
+    never falls back to a different engine.
+    """
+    return _plan_document(
+        OPERATION_TYPES,
+        merged=MERGED_SCHEMA_GROUPS,
+        omit_parameters=("constraints",),
+    )
+
+
+def executable_schema() -> Dict[str, Any]:
+    """The plan schema over the six types the CAD engine can build.
+
+    What :func:`provider_schema` returned in Stages 41-43, kept under its own
+    name so the Stage 43 instrument stays exactly what it was: a run that
+    reports this schema's fingerprint must have sent this schema.
+
+    A grammar-constrained model pointed at this one **cannot express a
+    profile at all**, so it is not a way to ask whether the model would
+    choose one. Use it only to constrain a model to plans that are certain to
+    build.
     """
     return _plan_document(EXECUTABLE_TYPES)
 
 
 def plan_schema() -> Dict[str, Any]:
-    """A JSON Schema for the plan, for providers that can constrain output.
+    """A JSON Schema for the plan: one branch per operation type.
+
+    The faithful description of the language, and the one the experimental
+    API publishes. Every type is discriminated by its own ``const`` and
+    carries exactly its own required parameters, so nothing here is loosened
+    for a decoder's benefit -- which is also why it is nine branches and a
+    provider will not compile it.
 
     Advisory only: :mod:`cad_experimental.parser` re-checks everything. A
     schema the provider honours simply means fewer wasted calls, never a
     reason to trust the payload.
-
-    Accepted by Anthropic structured output as of Stage 41. Three of that
-    API's limits bind here at once -- at most 24 optional properties, a
-    compiled-grammar size ceiling, and a separate complexity ceiling -- and
-    the shape below is the one that satisfies all three while describing
-    every one of the nine operations exactly. See :func:`_operation_branches`
-    for the union, and :func:`_plan_defs` for why the shared definitions
-    exist.
     """
     return _plan_document(OPERATION_TYPES)
 
@@ -894,7 +1044,9 @@ __all__ = [
     "SELECT_AXIS_PARALLEL",
     "SELECT_MODES",
     "CHAMFER",
+    "EDGE_MODIFIER_TYPES",
     "EXECUTABLE_TYPES",
+    "MERGED_SCHEMA_GROUPS",
     "PROFILE_TYPES",
     "SKETCH",
     "SketchOperation",
@@ -921,6 +1073,8 @@ __all__ = [
     "OPERATION_FIELDS",
     "POINT3D_DEF",
     "SELECTOR_DEF",
+    "compact_provider_schema",
+    "executable_schema",
     "provider_schema",
     "PROFILE_SOLID_TYPES",
     "REVOLVE",

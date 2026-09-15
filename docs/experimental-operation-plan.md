@@ -1239,6 +1239,200 @@ environment can build them** (deterministic fixtures pass). Which
 representation Claude Haiku handles better is **still unmeasured** — that is
 the run this stage prepares and deliberately did not start.
 
+## Stage 44: why the model refused every profile case
+
+Stage 43 measured both representations with structured output on, and the
+operation plan answered `unsupported` **5/5 on both profile cases** (09
+`profile-extrude`, 10 `profile-revolve`). The run recorded that as the model's
+judgement. It was not one, and the recorded output is what shows it.
+
+### The root cause
+
+Two separate things stood between the model and a profile plan. **Either one
+alone was sufficient**, which is why fixing only the obvious one would have
+changed nothing.
+
+**1. The grammar did not contain the answer.** `provider_schema()` returned
+the schema over `EXECUTABLE_TYPES` — the six buildable operations. Stage 41
+built that subset for a good reason (the nine-branch schema is refused on
+grammar size) and it was correct for Stage 41, which ran *without* structured
+output. Stage 43 turned structured output on and kept the same schema. A
+decoder constrained by a union with no `sketch`, `extrude` or `revolve` branch
+**cannot emit one**: refusing was the only reachable answer, and no wording in
+the prompt could have produced a different one.
+
+This is the finding worth keeping: **a schema is what the model may SAY; the
+execution boundary is what the engine can BUILD.** They are different
+questions. Narrowing the first to match the second looked conservative and was
+in fact a silent one — it removed an answer from the model's reach and then
+scored the model for not giving it.
+
+**2. The prompt instructed the refusal.** Two paragraphs said so outright:
+
+> IMPORTANT -- a sketch cannot be built. […] So do not offer a sketch as a way
+> to make a part
+>
+> IMPORTANT -- neither an extrude nor a revolve can be built. […] So do not
+> offer them as a way to make a part
+
+The model quoted that back almost verbatim. Attempt 1 on case 09:
+
+> "Extrude operations are not executable. This language can express a sketch
+> and an extrude, but the backend cannot turn them into geometry. […] Use a
+> box operation instead"
+
+It read *unexecutable* as *unsupported*, which is exactly what it was told.
+`CLAUDE.md` §19 had flagged this wording as a known bug left deliberately
+unfixed so that Stage 40's cause would stay clean; this is the stage that
+fixes it.
+
+A third, smaller contributor showed up on case 10 only: the "when to say
+unsupported" list named `sweeps`, with no exemption, two sections after
+describing an extrude and a revolve as sweeps.
+
+### What was NOT the cause
+
+Measured before anything was changed, by putting both profile plans through
+the real machinery:
+
+| Layer | Behaviour | Verdict |
+|---|---|---|
+| `parser` | accepts `sketch`, `extrude`, `revolve` | correct |
+| `validation` (P18–P26) | `valid=True`, no problems | correct |
+| `adapter` | raises `ExecutionUnsupported('sketch','extrude')` | correct |
+
+The plan layer built in Stages 37–38 was doing exactly its job. Nothing in it
+was changed.
+
+### The fix
+
+**`provider_schema()` now covers the whole vocabulary — all nine operation
+types — in eight branches**, by merging `fillet` and `chamfer` into one.
+
+Nine types do not fit one-per-branch: Stage 41 measured the ceiling at eight
+branches, and a ninth was refused even stripped to a single field. That pair
+is the one that merges without describing anything new — same operation-level
+keys, same required `edges` selector, differing only in the **name** of their
+one length (`EDGE_MODIFIER_LENGTH`, a table that already existed because the
+parser, validator and adapter all needed it).
+
+The cost is stated exactly, and it is confined to the grammar: in a merged
+branch the parameter properties are the **union** of the members' and
+`required` is their **intersection**, because a grammar cannot condition one
+property on a sibling's value. So `radius` and `distance` both become
+grammatically optional, while `target` and `edges` stay required. The parser
+re-derives the exact per-type requirement from `PARAMETERS` as it always has,
+and a test proves the gap is real and closed: a `fillet` carrying a chamfer's
+`distance` satisfies the merged branch and the parser still refuses it.
+
+Four schemas now exist, each with one job:
+
+| Function | Types | Branches | Chars | Purpose |
+|---|---|---|---|---|
+| `plan_schema()` | 9 | 9 | 6423 | the faithful description; what the API publishes. Merges nothing, so a provider will not compile it |
+| `provider_schema()` | 9 | 8 | 6067 | **the default**: what a constrained decoder is pointed at |
+| `compact_provider_schema()` | 9 | 8 | 4788 | the same, minus a sketch's optional `constraints` |
+| `executable_schema()` | 6 | 6 | 3105 | what Stages 41–43 sent, kept under its own name |
+
+**Nothing selects a variant automatically.** A caller that asked for one
+schema and silently got another could not know what its numbers mean — the
+same reason `resolve_backend()` never falls back to a different CAD engine.
+
+And the prompt (`2026-09-15.1`, was `2026-09-10.7`) stopped telling the model
+that profile operations cannot be built. It now:
+
+- says a sketch, an extrude and a revolve are part of the language, and that a
+  description naming a profile is answered with one — *"a 40 mm square profile
+  on the XZ plane, extruded 5 mm" is a `sketch` and an `extrude`*;
+- states plainly that **whether the engine can build a plan today is not the
+  model's decision and does not change its answer**;
+- leaves what a profile sweeps out to the kernel, in the same words the fillet
+  section already used for feasibility — *"whether a revolved profile crosses
+  its own axis of revolution"* is the engine's judgement. This is case 10's
+  failure mode: the model reasoned its way to "that would be a torus, which is
+  not supported" and refused;
+- exempts an extrude and a revolve from the `sweeps` line in the unsupported
+  list;
+- keeps every existing refusal — spheres, unions, lofts, assemblies, *"do not
+  approximate"* — and keeps *"do not offer a sketch when the solid operations
+  already say the part: a 100 x 60 x 10 mm plate is a `box`"*.
+
+The prompt's worked example deliberately does **not** reuse a corpus case's
+wording. Nothing about the benchmark is encoded in production behaviour.
+
+Stage 43's module is pinned to `executable_schema()` and does not follow
+`provider_schema()`. Re-running Stage 43 must reproduce Stage 43: its recorded
+plan-schema fingerprint `54759d1e16cfe634` still matches what the module
+sends. The corpus, the scoring and the recorded baselines are untouched.
+
+### What Stage 44 does NOT change
+
+- **The execution boundary is exactly where it was.** A profile plan parses,
+  validates, and is refused by `ExecutionUnsupported` with the offending types
+  and ids named. Nothing is built, nothing is approximated, and `build_plan`
+  reaches that answer without touching the application service at all.
+- **No validation was weakened.** P18–P26 are unchanged. The one loosening is
+  in the advisory grammar, is named above, and is covered by a test that shows
+  the parser still catches what the grammar now lets through.
+- **No CAD feature was added.** The engine still builds six operations.
+
+### The limitation this stage cannot close
+
+**It is not verified that the provider compiles `provider_schema()`.** Stage
+41 measured the ceiling at eight branches and this has eight — but the eight
+it measured did not include `sketch`, whose `$defs` are the largest part of
+the schema (2560 of the 6423 characters). Every offline-measurable limit is
+satisfied and asserted by tests: 9 optional properties against 24, worst
+single object 2 against ~14, no `oneOf`, `additionalProperties: false`
+everywhere, no rejected keyword, `minItems` only 1, no unused `$defs`. The
+compiled-grammar size is the one limit that can only be measured by sending
+it, which costs a credential and one live call — neither available where this
+was written.
+
+If the provider refuses it, `compact_provider_schema()` is the next thing to
+try: a fifth smaller, because dropping a sketch's optional `constraints` drops
+`sketch_constraint` and `sketch_point_handle` with it. That costs the model
+nothing it needs to describe a solid — constraints are *checked, never solved*
+(P21 requires a dimensional constraint to agree with the geometry it names),
+so they can only restate the geometry or conflict with it. It still admits
+every profile operation; a test asserts that, so the fallback can never become
+a fallback to the Stage 43 behaviour.
+
+To check, locally, with a credential:
+
+```python
+from cad_experimental.plan import provider_schema
+# send one minimal request with output_schema=provider_schema();
+# a 400 at request validation is the refusal, and names the reason.
+```
+
+### What is still unmeasured
+
+**Whether the model now chooses a profile operation.** Everything above makes
+it *possible* and *asked for*; only a live run shows what it does. The Stage
+43 numbers (plan 61.5% build, 84.6% semantic) were measured with profile cases
+forced to fail, so a re-run on the same frozen corpus is the measurement —
+and the corpus, the prompts' independence and the scoring must stay exactly as
+they are for it to mean anything.
+
+**Whether merging `fillet` and `chamfer` costs accuracy.** The grammar no
+longer stops a model from writing a `fillet` with a `distance`. The parser
+catches it, so it becomes a parse failure rather than a wrong solid, but it is
+a new way for a call to be wasted and it has not been observed.
+
+### Tests
+
+`tests_experimental/test_stage44_profile_addressability.py`, 31 tests, covers
+the model-facing path the plan layer's own tests could not reach: that the
+grammar admits a sketch, an extrude and a revolve (and that the Stage 43
+schema admitted none of them), that the prompt documents exactly the types the
+grammar admits, that a stub model's profile plan comes back `GENERATED` and
+valid through `OperationPlanService`, that valid and invalid references land
+on P9/P10/P23, and that the result is still explicitly unexecutable with
+nothing built. The structural matcher it uses is checked against four negative
+cases first, so a matcher that said yes to everything would fail loudly rather
+than make the module vacuous.
+
 ## What is NOT known
 
 **Real Anthropic testing happened at Stage 40, and only there.** Stages 33 to
@@ -1253,7 +1447,9 @@ size of production's 35-case corpus.
 
 **Nothing is known about how a model handles the new vocabulary.** Six
 operations were added across Stages 33–38 and not one of them has been put to
-a real model. In particular it is unmeasured whether a model offers a sketch
+a real model. *Superseded in part by Stages 40 and 43 for the six executable
+operations; still true of `sketch`, `extrude` and `revolve`, whose Stage 43
+refusals were forced by the schema rather than chosen — see Stage 44.* In particular it is unmeasured whether a model offers a sketch
 where a `box` would do, whether it gets `P24`/`P25` plane compatibility right,
 and whether it writes dimensional constraints that agree with their geometry —
 all three are things the prompt now spends words on, and words in a prompt are

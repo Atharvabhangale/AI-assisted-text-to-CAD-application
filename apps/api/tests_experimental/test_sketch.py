@@ -1309,8 +1309,25 @@ class SketchPromptTests(unittest.TestCase):
     def test_the_sketch_section_exists(self):
         self.assertIn("## sketch", self.text)
 
-    def test_the_prompt_says_a_sketch_cannot_be_built(self):
-        self.assertIn("cannot be built", self.text)
+    def test_the_prompt_lets_the_model_write_a_sketch(self):
+        """Stage 44. This replaces `test_the_prompt_says_a_sketch_cannot_be_built`.
+
+        Telling the model a sketch "cannot be built" invited it to read
+        unexecutable as unsupported, and on the Stage 43 profile cases it
+        did exactly that. The distinction the prompt must now draw is
+        between what the language can SAY and what the engine can BUILD.
+        """
+        section = self.text.split("## sketch", 1)[1].split("## extrude", 1)[0]
+        self.assertNotIn("cannot be built", section)
+        self.assertIn("is part of this language", section)
+        self.assertIn("not a reason to refuse", section)
+
+    def test_the_prompt_still_refuses_a_sketch_as_an_approximation(self):
+        """Loosening the refusal must not loosen this: a sketch is still
+        never a way to fake a shape the language lacks."""
+        section = self.text.split("## sketch", 1)[1].split("## extrude", 1)[0]
+        self.assertIn("Never use a sketch to approximate", section)
+        self.assertIn("is a `box`", section)
 
     def test_the_prompt_says_constraints_are_not_solved(self):
         self.assertIn("CHECKED, NOT SOLVED", self.text)

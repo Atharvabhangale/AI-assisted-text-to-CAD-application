@@ -174,12 +174,13 @@ class OperationPlanService:
             system=system_prompt(),
             user_text=text,
             # The provider-compatible projection, not the full schema:
-            # Anthropic's structured-output grammar cannot compile all
-            # nine operations (Stage 41). `provider_schema` is the same
-            # shape over the executable six, which it does compile. The
-            # parser still accepts every one of the nine, so nothing the
-            # language can express is lost -- only what a constrained
-            # decoder can be pointed at.
+            # Anthropic's structured-output grammar has a branch ceiling and
+            # will not compile nine (Stage 41). `provider_schema` covers all
+            # nine TYPES in eight branches by merging fillet and chamfer
+            # (Stage 44), so a constrained decoder can still emit a sketch,
+            # an extrude and a revolve -- which under the Stage 43 schema it
+            # could not, making refusal its only reachable answer. The parser
+            # re-derives every per-type requirement regardless.
             output_schema=provider_schema(),
             max_output_tokens=MAX_OUTPUT_TOKENS,
         )

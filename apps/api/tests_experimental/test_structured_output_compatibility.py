@@ -35,11 +35,18 @@ import unittest
 from cad_ai.specification import response_schema
 
 from cad_experimental.plan import (
+    EDGE_MODIFIER_TYPES,
     EXECUTABLE_TYPES,
     OPERATION_TYPES,
+    compact_provider_schema,
+    executable_schema,
     plan_schema,
     provider_schema,
 )
+
+#: The branch ceiling Stage 41 measured: eight operation branches were
+#: accepted and a ninth refused, even stripped to one field.
+PROVIDER_BRANCH_LIMIT = 8
 
 #: The documented whole-document ceiling, and the one Stage 40 hit.
 OPTIONAL_LIMIT = 24
@@ -210,50 +217,142 @@ class DefinitionTests(unittest.TestCase):
         schema = provider_schema()
         self.assertEqual(set(schema.get("$defs") or {}), referenced_defs(schema))
 
-    def test_the_provider_schema_drops_the_sketch_definitions(self):
-        """The proof that pruning happens: it has fewer defs than the full
-        schema, because no branch references the sketch's geometry."""
+    def test_the_executable_schema_drops_the_sketch_definitions(self):
+        """The proof that pruning happens: the executable subset has fewer
+        defs than the full schema, because no branch of it references the
+        sketch's geometry."""
         self.assertLess(
-            len(provider_schema().get("$defs") or {}),
+            len(executable_schema().get("$defs") or {}),
             len(plan_schema().get("$defs") or {}),
         )
+
+    def test_the_compact_schema_drops_the_constraint_definitions(self):
+        """Dropping a sketch's optional `constraints` must take the two
+        definitions only a constraint reaches with it -- that is the whole
+        point of the variant, and an unpruned def still costs budget."""
+        full = set(provider_schema().get("$defs") or {})
+        compact = set(compact_provider_schema().get("$defs") or {})
+        self.assertTrue(compact < full)
+        self.assertEqual(full - compact,
+                         {"sketch_constraint", "sketch_point_handle"})
 
 
 class CoverageTests(unittest.TestCase):
     """What each schema covers, so a silent narrowing fails here."""
 
+    def branches(self, schema):
+        return schema["properties"]["operations"]["items"]["anyOf"]
+
+    def types_of(self, branch):
+        discriminator = branch["properties"]["type"]
+        if "const" in discriminator:
+            return [discriminator["const"]]
+        return list(discriminator["enum"])
+
     def kinds(self, schema):
-        return [
-            b["properties"]["type"]["const"]
-            for b in schema["properties"]["operations"]["items"]["anyOf"]
-        ]
+        """Every operation type a schema admits, in order.
+
+        A branch names one type with `const` or several with `enum`, so this
+        flattens both: what matters is which types a decoder may emit, not
+        how many branches carry them.
+        """
+        names = []
+        for branch in self.branches(schema):
+            names.extend(self.types_of(branch))
+        return names
 
     def test_the_plan_schema_still_describes_all_nine_operations(self):
         self.assertEqual(self.kinds(plan_schema()), list(OPERATION_TYPES))
 
-    def test_the_provider_schema_covers_exactly_the_executable_subset(self):
-        self.assertEqual(self.kinds(provider_schema()), list(EXECUTABLE_TYPES))
+    def test_the_plan_schema_gives_each_type_its_own_branch(self):
+        """The faithful description merges nothing: nine types, nine
+        branches, each discriminated by its own `const`."""
+        self.assertEqual(len(self.branches(plan_schema())),
+                         len(OPERATION_TYPES))
+        for branch in self.branches(plan_schema()):
+            self.assertIn("const", branch["properties"]["type"])
 
-    def test_the_provider_subset_is_a_subset_and_not_a_different_shape(self):
-        """Each shared branch must be identical in both schemas."""
+    def test_the_provider_schema_covers_the_whole_vocabulary(self):
+        """Stage 44. A schema is what the model may SAY; the execution
+        boundary is what the engine can BUILD. Narrowing the first to the
+        second is what made Stage 43 record a forced refusal as a choice:
+        with no sketch, extrude or revolve branch in the grammar, the model
+        had no way to answer those cases except by refusing.
+        """
+        self.assertEqual(sorted(self.kinds(provider_schema())),
+                         sorted(OPERATION_TYPES))
+
+    def test_the_provider_schema_fits_the_measured_branch_ceiling(self):
+        """Eight branches were accepted and a ninth refused (Stage 41), so
+        nine types must travel in at most eight branches."""
+        self.assertLessEqual(len(self.branches(provider_schema())),
+                             PROVIDER_BRANCH_LIMIT)
+
+    def test_only_fillet_and_chamfer_share_a_branch(self):
+        """The one merge, and no creeping second one. Every other type keeps
+        its own branch and so its own exact `required` list."""
+        merged = [self.types_of(b) for b in self.branches(provider_schema())
+                  if "enum" in b["properties"]["type"]]
+        self.assertEqual(merged, [list(EDGE_MODIFIER_TYPES)])
+
+    def test_the_executable_schema_covers_exactly_the_buildable_six(self):
+        """Kept under its own name so the Stage 43 instrument still exists
+        and still means what it meant."""
+        self.assertEqual(self.kinds(executable_schema()),
+                         list(EXECUTABLE_TYPES))
+
+    def test_the_unmerged_provider_branches_match_the_full_schema(self):
+        """A branch that was not merged must be identical in both, so the
+        provider schema is the same description and not a second one."""
         full = {b["properties"]["type"]["const"]: b
-                for b in plan_schema()["properties"]["operations"]["items"]["anyOf"]}
-        subset = {b["properties"]["type"]["const"]: b
-                  for b in provider_schema()["properties"]["operations"]["items"]["anyOf"]}
-        self.assertTrue(set(subset) < set(full))
-        for kind, branch in subset.items():
+                for b in self.branches(plan_schema())}
+        for branch in self.branches(provider_schema()):
+            if "enum" in branch["properties"]["type"]:
+                continue
+            kind = branch["properties"]["type"]["const"]
             with self.subTest(kind=kind):
                 self.assertEqual(branch, full[kind])
 
-    def test_the_omitted_operations_are_exactly_the_unbuildable_ones(self):
-        missing = set(OPERATION_TYPES) - set(EXECUTABLE_TYPES)
-        self.assertEqual(missing, {"sketch", "extrude", "revolve"})
-        self.assertEqual(
-            missing, set(OPERATION_TYPES) - set(self.kinds(provider_schema()))
-        )
+    def test_the_merged_branch_requires_only_what_both_types_require(self):
+        """The whole cost of merging, stated: `target` and `edges` stay
+        required, and only the choice between `radius` and `distance` leaves
+        the grammar."""
+        from cad_experimental.plan import PARAMETERS
+
+        branch = next(b for b in self.branches(provider_schema())
+                      if "enum" in b["properties"]["type"])
+        self.assertIn("target", branch["required"])
+        parameters = branch["properties"]["parameters"]
+        self.assertEqual(parameters["required"], ["edges"])
+        self.assertEqual(sorted(parameters["properties"]),
+                         ["distance", "edges", "radius"])
+        for kind in EDGE_MODIFIER_TYPES:
+            self.assertIn("edges", PARAMETERS[kind][0])
+
+    def test_the_merged_grammar_is_looser_than_the_parser(self):
+        """Proof the loosening is confined to the grammar: a fillet carrying
+        a chamfer's length satisfies the merged branch, and the parser
+        refuses it anyway."""
+        from cad_experimental.parser import PlanParseError, parse_plan
+
+        branch = next(b for b in self.branches(provider_schema())
+                      if "enum" in b["properties"]["type"])
+        self.assertNotIn("radius",
+                         branch["properties"]["parameters"]["required"])
+        with self.assertRaises(PlanParseError):
+            parse_plan({
+                "status": "generated", "summary": "s",
+                "operations": [
+                    {"id": "plate", "type": "box",
+                     "parameters": {"x": 10, "y": 10, "z": 10}},
+                    {"id": "r", "type": "fillet", "target": "plate",
+                     "parameters": {"distance": 1,
+                                    "edges": {"select": "all"}}},
+                ],
+            })
 
     def test_the_parser_still_accepts_every_one_of_the_nine(self):
-        """The narrowing is the provider's, not the language's."""
+        """The parser is authoritative, and no schema choice changes it."""
         from cad_experimental.parser import parse_plan
 
         payload = {

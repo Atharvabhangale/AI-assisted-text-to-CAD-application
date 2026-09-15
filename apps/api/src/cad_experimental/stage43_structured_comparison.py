@@ -58,7 +58,7 @@ from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
 from cad_ai.provider import ModelRequest, ModelResponse, ProviderError
 
-from .plan import provider_schema
+from .plan import executable_schema
 from .representation_comparison import (
     CASES,
     MODEL,
@@ -125,14 +125,26 @@ def v1_schema() -> Dict[str, Any]:
 
 
 def plan_schema_for_provider() -> Dict[str, Any]:
-    """The operation-plan schema Stage 41 built to be provider-compatible.
+    """The operation-plan schema Stage 43 actually sent.
+
+    Pinned to :func:`~cad_experimental.plan.executable_schema` -- the six
+    buildable types -- because that is what ``provider_schema()`` returned
+    when this ran, and a recorded result must stay attributable to the
+    instrument that produced it. Stage 44 widened ``provider_schema()`` to
+    the whole vocabulary, and this module deliberately does **not** follow
+    it: re-running Stage 43 must reproduce Stage 43.
+
+    That pin is also the finding. This schema has no ``sketch``, ``extrude``
+    or ``revolve`` branch, so the grammar it compiles to cannot emit one --
+    which is why both profile cases came back ``unsupported`` 5/5, and why
+    that 5/5 says nothing about what the model would have chosen.
 
     Sent as it is. It is passed through :func:`sanitise_schema` only so that
     a regression which reintroduced a rejected keyword could not reach the
     API disguised as an unrelated failure -- on a compliant schema the call
     is an identity, and :func:`preflight` asserts that it is.
     """
-    return sanitise_schema(provider_schema())
+    return sanitise_schema(executable_schema())
 
 
 ARMS: Tuple[str, ...] = (V1, PLAN)
