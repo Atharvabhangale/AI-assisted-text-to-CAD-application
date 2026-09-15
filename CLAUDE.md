@@ -2,6 +2,32 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Which branch are you on? Run `git branch --show-current` first.
+
+**This file is carried identically on both branches** (commit `6f32ce8`), but
+it is written from the stable branch's point of view. Read it accordingly:
+
+- **Sections 1–18 describe `claude/text-to-cad-skeleton-r946xr`** (stable).
+- **Section 19 governs `experiment/cad-operation-graph`**, which forked at
+  `950077d` and is a different tree with its own stage numbering.
+
+On `experiment/cad-operation-graph` these sections of 1–18 are **wrong as
+written**, and §19 is authoritative instead:
+
+- **`start.ps1` and `stop.ps1` do not exist on this branch.** §14 presents
+  them as "the normal way in"; they arrived on stable after the fork. Use the
+  manual `uvicorn` / `npm run dev` sequence, or §19's commands.
+- **§5's test counts are stable's.** On this branch the measured figures are
+  **cad-core 1481 run with 6 pre-existing errors** and **`tests_experimental`
+  897 passed, 33 skipped** (see §5's own note and §19). §5's "no known
+  failing tests" is a statement about stable only.
+- **§17's structure map omits this branch's three experimental trees**:
+  `apps/api/src/cad_experimental/`, `apps/api/tests_experimental/` and
+  `apps/web-experimental/`. They exist here and are described in §19.
+
+Everything else in 1–18 — the CAD contract, the architectural principles, the
+invariants in §12, and the Windows traps in §15 — applies to both branches.
+
 ## Project handoff
 
 This file exists so a new session can continue the project without re-deriving
@@ -248,8 +274,27 @@ mere presence of an API key can never cause the ordinary test suite to spend
 money on real provider calls. This gate was added after an accidental live run
 during Stage 28A; do not remove it.
 
-There are no known failing tests, and no test is quarantined, skipped or
-weakened to make the suite pass.
+**On stable** there are no known failing tests, and no test is quarantined,
+skipped or weakened to make the suite pass.
+
+**On `experiment/cad-operation-graph` the numbers above are stable's, and six
+cad-core tests fail.** Measured on this branch: cad-core runs **1481 tests
+with 6 errors**, and `tests_experimental` is **897 passed, 33 skipped** (the
+skips are the FreeCAD backend, which is absent on Windows). The six errors
+are **pre-existing, in test code, and unrelated to CAD** — they are two of
+§15's own traps, in a branch that forked before the stable branch's Stage 32
+Windows fixes and so never received them:
+
+- **three layering tests** call `Path.read_text()` with no explicit encoding
+  against `edge_selection.py`, whose docstring diagram has box-drawing
+  characters that cp1252 cannot decode;
+- **three isolation tests** use `os.kill(pid, 0)` as a liveness probe, which
+  on Windows fails with `WinError 87` whether or not the process exists.
+
+Both were fixed on stable and the fixes have not been carried across. They
+are strictly fewer than before `2f4fea7` — verified by stashing that commit's
+changes and re-running the same subset — so they are not a regression from
+it. No test here is quarantined or weakened.
 
 The AI/evaluation tests are part of the 547 and live in
 `apps/api/tests/test_text_to_cad_ai.py`, `test_ai_evaluation.py` and
@@ -418,6 +463,22 @@ Saved runs are preserved under `docs/evaluation-baselines/`.
   only whether the variable is *present and non-empty*. The value is never
   returned, stored, logged, compared or printed. `AiConfig` has no credential
   field at all, so a config dump cannot leak one.
+- **Nothing in the repository loads `apps/api/.env`.** `cad_ai/config.py` says
+  so in its own module docstring, and every layer reads `os.environ` only.
+  The file exists and holds the real key, but it is inert: **the caller must
+  export it into the process** before a live run. On stable `start.ps1` does
+  that; on `experiment/cad-operation-graph` there is no launcher, so the
+  process that runs the benchmark has to set the variable itself. A key
+  present in your own interactive shell does **not** reach a spawned tool
+  process. Budget for this — it is the most common reason a live run reports
+  "credential absent" while the file plainly contains one.
+- **Local live Anthropic runs use the real key** from that file, against
+  `claude-haiku-4-5-20251001`. **Claude Code Web does not**: there the
+  experimental work runs on `cad_experimental.local_plan_provider`, the
+  clearly labelled **local development provider**, which serves
+  developer-written fixture plans and calls no model at all. Never describe a
+  local-development-provider result as a Haiku result, or as a model result
+  of any kind — it says nothing about model quality.
 - **Secrets are never committed.** No key appears in source, tests, docs or
   saved evaluation results; the saved results were scanned to confirm it.
   Tests use an obviously synthetic placeholder. `.env*` is gitignored.
@@ -808,6 +869,19 @@ CAD code.
   `os._exit(0)` once they have proved their point. A bare `python -c` that
   imports `cad_core` may also "segfault" after printing — the output is still
   valid.
+
+  **On `experiment/cad-operation-graph` this was also a production bug, and
+  is now fixed (`2f4fea7`).** The isolated worker's entrypoint ran
+  `sys.exit(main())`, so every *successful* isolated build on Windows was
+  followed by the teardown abort. The host classifies on the response first
+  and the exit code second, so the mismatch surfaced as `the child reported
+  'succeeded' but exited with 3221226356` — a protocol error on a correct
+  build. `isolated_worker.py` now flushes `stdout`/`stderr` and calls
+  `os._exit(code)` with the code `main` chose, skipping finalisation. This is
+  safe because nothing in `cad_core` registers an `atexit` hook, a `__del__`
+  or a finaliser, and the response is already published with `os.replace`
+  before `main` returns: finalisation had no work left to do, only a way to
+  fail. **Do not "restore" the `sys.exit` form.**
 - **`os.kill(pid, 0)` is not a liveness probe here.** `os.kill` maps onto
   `TerminateProcess` and rejects signal 0 with `WinError 87` whether or not
   the process exists. `test_isolated_execution.process_is_running()` does it
@@ -820,6 +894,24 @@ CAD code.
   CadQuery's exporters import at module scope — raises *"Could not determine
   home directory"* from `Path("~").expanduser()`. Use
   `_minimal_child_environment()` in `test_http_api.py`.
+
+  **On `experiment/cad-operation-graph` this was a production bug in the
+  isolated worker, not merely a test concern, and is now fixed (`2f4fea7`).**
+  `INHERITED_ENVIRONMENT_NAMES` in `isolated_execution.py` is an allowlist,
+  and it did not include the home variables — so the CAD kernel's own child
+  process hit exactly this failure and **every isolated build on Windows
+  failed**, reported as `the worker failed with an unhandled internal error`
+  before any geometry was touched. It went unnoticed because POSIX falls back
+  to the `pwd` database when `HOME` is unset, so Linux was unaffected; Windows
+  has no such fallback. `HOME`, `USERPROFILE`, `HOMEDRIVE` and `HOMEPATH` are
+  now inherited on the same terms as `PATH` and `SYSTEMROOT`. A path to the
+  user's profile is not a credential, and the allowlist still drops
+  everything else, so no key can reach the child.
+
+  Diagnostic worth reusing: **committed local fixtures failed identically to
+  model-driven runs.** When a whole pipeline fails, run the deterministic
+  fixtures with no model involved — if they fail the same way, the problem is
+  the environment, and no amount of model output will show you that.
 - **Never watch the shared `%TEMP%` in a test.** Any other process writing
   there fails it. Redirect `tempfile.tempdir` to a private directory instead.
 - **Vite binds `::1` only; uvicorn binds `127.0.0.1`.** An IPv4-only port
@@ -929,7 +1021,7 @@ they are authoritative, this list is a snapshot.
 ## 19. A second experiment branch: `experiment/cad-operation-graph`
 
 **Read the stage-number warning first.** This branch numbers its own stages
-32–42. The stable branch *also* has a Stage 30, 31 and 32. **They are
+32–43. The stable branch *also* has a Stage 30, 31 and 32. **They are
 different work and the numbers collide.** "Stage 32" on stable is the Windows
 test fixes; "Stage 32" here is the first commit of an alternative CAD
 representation. Nothing reconciles them — when reading a commit message, check
@@ -963,8 +1055,9 @@ boundary rather than approximated.
 
 ### Findings worth not re-deriving
 
-**Anthropic structured output enforces four limits at once**, measured against
-the live API and documented nowhere:
+**Anthropic structured output enforces several limits at once**, measured
+against the live API and documented nowhere. These are the *rules*, and they
+still hold:
 
 | Rule | Measured |
 |---|---|
@@ -976,13 +1069,98 @@ the live API and documented nowhere:
 | `exclusiveMinimum`/`maximum`/`maxItems`/`min\|maxLength` | rejected; `minItems` only 0 or 1 |
 | unused `$defs` | still cost grammar budget, and `$ref` does **not** shrink it |
 
-**Live Claude Haiku 4.5, 130 calls.** With structured output unavailable to
-one side and therefore disabled for both, **both representations scored 0%** —
-every answer arrived in a markdown fence and both parsers refuse fences by
-design. Replaying that recorded output with fence tolerance gives V1 **24.6%**
-and the operation plan **86.2%** (40/40 versus 0/40 on the buildable cases) —
-a *diagnostic*, not a score. V1's failures were envelope-shaped: prose, or a
-correct document with no `status` wrapper.
+**Both schemas now satisfy every one of those rules.** The "31 optional
+properties against a limit of 24" that blocked the operation plan at Stage 40
+is **obsolete**: Stage 41 restructured the schema, and Stage 43 verified the
+current state both offline and against the live API.
+
+| | V1 JSON | Operation Plan |
+|---|---:|---:|
+| Optional properties (document) | **8** | **7** |
+| Worst single object | 4 | 2 |
+| Rejected keywords in the **raw** schema | `exclusiveMinimum`, `minLength` | none |
+| **Accepted by the live API** | **yes** | **yes** |
+
+Those counts are of the schemas **actually sent to the API**, which is the
+only count that decides whether a grammar compiles. (`plan_schema()`'s own
+internal counter reports 9 for the plan; it walks the schema slightly
+differently. Both numbers are far under 24, and the difference is in the
+counting, not in the schema — `sanitise_schema` provably removes no property
+from either arm.)
+
+V1's raw schema must be passed through Stage 40's `sanitise_schema` to
+compile; the plan's is already clean. Sanitising removes **only** numeric and
+length bounds — 29 and 47 properties identical before and after, `required`
+lists unchanged, no property lost — and those bounds are still enforced by the
+parser and the validator downstream.
+
+**Stage 40, live Claude Haiku 4.5, 130 calls, structured output OFF.** With
+structured output unavailable to one side and therefore disabled for both,
+**both representations scored 0%** — every answer arrived in a markdown fence
+and both parsers refuse fences by design. Replaying that recorded output with
+fence tolerance gives V1 **24.6%** and the operation plan **86.2%** — a
+*diagnostic*, not a score. V1's failures were envelope-shaped: prose, or a
+correct document with no `status` wrapper. This run was reproduced exactly on
+Windows before Stage 43 began.
+
+**Stage 43, same 130 calls, structured output ON — see the stage index below
+for the result.** Native structured output produced **valid, unfenced JSON on
+both arms, 0/130 fenced**, which removed the transport contamination entirely
+and let the two representations actually be compared.
+
+### Stage 43: the comparison Stage 40 could not make
+
+**The one intended difference from Stage 40 is structured output.** The model
+(`claude-haiku-4-5-20251001`), both prompts, the 13-case corpus, 5 attempts
+per case per arm, both parsers, both validators, the adapter, the build and
+every scoring rule are Stage 40's, imported and used unchanged —
+`representation_comparison.STRUCTURED_OUTPUT_ENABLED` is still `False` and the
+saved Stage 40 baseline is untouched. Prompt and corpus fingerprints in the
+Stage 43 result match Stage 40's exactly. Nothing strips a fence, repairs,
+retries or re-prompts on either side.
+
+Stage 43 also fixed the two production Windows bugs that made geometry
+scoring meaningless on this machine (§15), because until then the operation
+plan's builds failed for reasons that had nothing to do with the model.
+
+**Live result, 130 calls, 0 provider errors, 0/130 fenced answers:**
+
+| Metric | V1 JSON | Operation Plan |
+|---|---:|---:|
+| Build success | 15/65 = **23.1%** | 40/65 = **61.5%** |
+| Semantic correctness | 40/65 = **61.5%** | 55/65 = **84.6%** |
+| Wrongly refused | **25/65** | **10/65** |
+| Correct refusals | 25/65 | 15/65 |
+
+**Conclusion: this is strong evidence that the operation plan is the better
+model-facing intermediate representation for executable CAD planning.** It
+beats V1 on both axes at once — nearly triple the build success and a
+23-point lead on semantic correctness — on the same model, prompt discipline,
+cases and scoring, with the transport contamination that decided Stage 40
+removed. The operation plan was **5/5 on all eight buildable cases (40/40)**.
+
+**V1's failure mode is refusal, not error.** All 25 of its wrong refusals are
+the modifier cases — `04-plate-centre-hole`, `05-plate-two-holes`,
+`06-cube-bore`, `07-plate-chamfer`, `08-plate-fillet`, each 5/5. It refused
+every part carrying a modifier, despite the engine having built those since
+Stage 14.1.
+
+**The operation plan's whole remaining gap is sketches.** Its 10 wrong
+refusals are exactly `09-profile-extrude` (5/5) and `10-profile-revolve`
+(5/5) — nothing else. This is consistent with the deliberately-unfixed prompt
+bug recorded below, which tells the model an extrude "cannot be built".
+
+**Immediate next development target**, in order:
+
+1. **Make profile / extrude / revolve model-addressable.** They are already
+   represented and validated; they are refused at the execution boundary, and
+   the prompt's wording invites the model to refuse them outright. Closing
+   this closes the entire measured gap.
+2. **Then move toward chained multi-feature operations** — the corpus is
+   single-part and shallow, and nothing is known about how either
+   representation behaves as feature chains get longer.
+
+Read `docs/experimental-operation-plan.md` → *Stage 43* for the full detail.
 
 **FreeCAD runs here, but not the obvious way.** No pip distribution, and it is
 **not in Ubuntu 24.04**. It came from the official AppImage (649 MB, extracting
@@ -998,25 +1176,48 @@ Windows machine; in the cloud a caller must bridge the value across.
 
 ### Commands
 
-```sh
-cd <worktree>/apps/api
-export PYTHONPATH=../../packages/cad-core/src:src:tests_experimental
+**Windows is the primary development machine, so these are the Windows
+forms.** `PYTHONPATH` must be **`;`-separated** and the interpreter is the
+venv's `python.exe` — a `:`-separated value is silently ignored here and the
+imports then resolve to the editable installs, which means a suite can run
+green against a completely different checkout (§15).
 
-python3 -m unittest discover -s tests_experimental -t tests_experimental
-python3 -m unittest tests_experimental.test_sketch.SketchParsingTests.test_a_sketch_parses
+```powershell
+$repo = "C:\Users\AtharvaBhangale\Desktop\AI-assisted-text-to-CAD-application"
+$env:PYTHONPATH = "$repo\packages\cad-core\src;$repo\apps\api\src;$repo\apps\api\tests_experimental"
 
-python3 -m cad_experimental.local_plan_provider --list   # fixtures, no model
-python3 -m cad_experimental.representation_comparison --check
-python3 -m cad_experimental.representation_comparison --live --attempts 5 --out run.json
+# the whole experimental suite — run from tests_experimental
+Set-Location "$repo\apps\api\tests_experimental"
+& "$repo\.venv\Scripts\python.exe" -u -m unittest discover -s . -t .
 
-export CAD_FREECAD_HOME=<extracted-appimage>            # FreeCAD tests SKIP
-export LD_LIBRARY_PATH=$CAD_FREECAD_HOME/usr/lib        # without both of these
-python3 -m unittest tests_experimental.test_cad_backends
+# one class, or one test
+& "$repo\.venv\Scripts\python.exe" -u -m unittest test_sketch.SketchParsingTests.test_a_sketch_parses
+
+# fixtures and free checks — none of these call a model
+Set-Location "$repo\apps\api"
+& "$repo\.venv\Scripts\python.exe" -u -m cad_experimental.local_plan_provider --list
+& "$repo\.venv\Scripts\python.exe" -u -m cad_experimental.representation_comparison --check
+& "$repo\.venv\Scripts\python.exe" -u -m cad_experimental.stage43_structured_comparison --check
 ```
 
-**874 tests, 2 skipped** with FreeCAD present. Run the whole suite before
-finishing a stage there: package-wide guard tests in older modules are
-routinely tripped by newer ones, and focused subsets have missed that twice.
+A live run additionally needs the credential exported into *that* process
+(§7) as `CAD_ANTHROPIC_API_KEY`, which is what the harness reads.
+
+The POSIX forms remain correct on Linux/macOS, where `python3` and a
+`:`-separated `PYTHONPATH` are right, and where FreeCAD needs
+`CAD_FREECAD_HOME` plus `LD_LIBRARY_PATH=$CAD_FREECAD_HOME/usr/lib` set
+**before Python starts**, or `test_cad_backends` skips.
+
+**897 tests, 33 skipped** on this Windows environment (the skips are the
+FreeCAD backend, absent here; with FreeCAD present on Linux the earlier
+figure was 874 tests, 2 skipped). Run the whole suite before finishing a
+stage here: package-wide guard tests in older modules are routinely tripped
+by newer ones, and focused subsets have missed that twice.
+
+Note that a `python.exe` run which imports `cad_core` may exit non-zero
+(`139`, `116`, `5`) *after* printing a correct result — that is §15's
+OpenCascade teardown abort in the host process, not a failure. Read the
+output, not the exit code.
 
 ### Invariants that branch enforces
 
