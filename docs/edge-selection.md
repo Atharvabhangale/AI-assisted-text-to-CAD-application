@@ -377,3 +377,61 @@ not one for this layer; the full measurement table is in
 
 **None of this changed the selector.** It returns exactly the edges it returned
 in Stage 12, in the same order, for every geometry tested.
+
+
+---
+
+## Stage 47 (experimental branch): semantic selectors, and the seam answered
+
+**This section describes `experiment/cad-operation-graph` only.** Nothing in
+`cad_core` changed: `select_edges` returns exactly the edges it returned in
+Stage 12, in the same order, for every geometry above. The V1 contract and
+Section C.7 are untouched.
+
+### The open question this closes
+
+Stage 13 left it explicitly: *"Whether V1 should gain a way to express 'the
+corners, not the seam' is a Section C.7 question, not one for this layer."*
+The experimental branch answered it for itself, above `cad_core`, and left
+the question open for V1.
+
+### What separates a seam from a rim
+
+Measured on the drilled plate above, with the kernel's own predicate
+`BRepTools::IsReallyClosed(edge, face)` -- true for an edge that closes a
+periodic face, appearing twice in that one face's traversal:
+
+| edge | curve | `IsReallyClosed` | adjacent surfaces |
+|---|---|---|---|
+| outer corner | `GeomAbs_Line`, 10 mm along Z | no | plane, plane |
+| **cavity seam** | `GeomAbs_Line`, 10 mm along Z | **yes** | **cylinder only** |
+| hole rim (x2) | `GeomAbs_Circle`, r 10 | no | cylinder, plane |
+
+The seam and an outer corner are indistinguishable by curve type, direction
+and length. They are distinguishable **topologically**, and by nothing else.
+
+Two further measurements, on the same shapes:
+
+* a rim's circle normal is **not** a reliable end marker -- on this plate the
+  bottom rim reports `(0,0,1)` and the top rim `(0,0,-1)`. Which end a rim is
+  at is its **centre** coordinate along the axis, not its normal's sign;
+* filleting or chamfering the rims **succeeds** (`IsDone` true for both rims,
+  for one rim alone, and for a chamfer), as does filleting the four corners
+  once the seam is excluded. The kernel was never the obstacle.
+
+### The experimental vocabulary
+
+Four selector kinds: `all` and `axis_parallel` exactly as documented above,
+plus `straight` (axis-parallel lines, **seams excluded**) and `circular`
+(circular edges about an axis, optionally narrowed to `"position": "top"` or
+`"bottom"`). A seam can be named only by `all` or `axis_parallel`, and both
+report it as resolution code `R2` rather than passing it to a blend.
+
+Resolution happens in `cad_experimental.edge_semantics`, which imports no
+kernel: a backend reports plain `EdgeFacts` and the resolver decides. Ordering
+is geometric -- defining point along the axis, then radius -- with the
+backend's index used only to settle coincident edges, so the answer does not
+depend on the kernel's enumeration order.
+
+Full detail, including the ambiguity policy and the two build paths, is in
+`docs/experimental-operation-plan.md` under *Stage 47*.

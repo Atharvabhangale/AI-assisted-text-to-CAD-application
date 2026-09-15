@@ -18,7 +18,7 @@ from .plan import AXES, OPERATION_TYPES, PlanStatus
 
 #: Bumped on any change to the text below. A measurement without this is not
 #: reproducible.
-PROMPT_VERSION = "2026-09-15.3"
+PROMPT_VERSION = "2026-09-15.4"
 
 SYSTEM_PROMPT = f"""\
 You turn a description of a mechanical part into a CAD operation plan.
@@ -115,19 +115,50 @@ radius and an edge selector.
           no variable radius and no per-edge radius.
   edges   required. An OBJECT saying which edges to round. Not a string.
 
-The edge selector is one of exactly two shapes:
+The edge selector is an object. Say which KIND of edge you mean, not where
+you think it happens to lie. There are four:
+
+  {{"select": "straight", "axis": "Z"}}
+      every straight edge running along that axis -- the corners of a plate,
+      the vertical edges of a block. THE ONE TO USE for "round the corners".
+
+  {{"select": "circular", "axis": "Z"}}
+      every circular edge about that axis -- a drilled hole's RIM, a
+      cylinder's cap. THE ONE TO USE for "round the hole", "break the bore
+      edge", "chamfer the rim".
+
+  {{"select": "circular", "axis": "Z", "position": "top"}}
+      the same, narrowed to one end of the axis. `"top"` is the end at the
+      greatest coordinate along the axis and `"bottom"` the least. A hole
+      through a plate has a rim at each end; this is how to name one of them.
+      `position` is for `circular` only, and needs an `axis` to measure along.
 
   {{"select": "all"}}
-      every edge of the target.
+      every edge of the target. Blunt, and usually not what a description
+      means.
 
-  {{"select": "axis_parallel", "axis": "Z"}}
-      every STRAIGHT edge parallel to that axis. Curved edges never match, so
-      this does not touch a hole's circular rim.
+There is also `{{"select": "axis_parallel", "axis": "Z"}}`, which is
+`straight` from before this language could tell a real edge from a seam. It
+is still accepted and still means what it meant, but prefer `straight`: a
+cylindrical face has an internal SEAM edge that looks exactly like a straight
+edge and that no fillet or chamfer can touch, `axis_parallel` selects it, and
+the whole operation then fails. `straight` leaves it out.
+
+Do not try to work around the seam by choosing a different axis or a
+narrower selection. Say which kind of edge you mean and the system finds it.
 
 The selector axis is UNSIGNED: "X", "Y" or "Z". This is deliberately
 different from a cylinder's axis, which is signed. Writing "+Z" here is an
-error, not another way of writing "Z". `axis` is required for
-`axis_parallel` and must be left out for `all`.
+error, not another way of writing "Z". `axis` is required for `straight` and
+`axis_parallel`, optional for `circular` (omit it to mean circular edges
+about any axis), and must be left out for `all`.
+
+So, for a plate with a hole through it:
+
+  "round the outside corners"      -> {{"select": "straight", "axis": "Z"}}
+  "break the edge of the hole"     -> {{"select": "circular", "axis": "Z"}}
+  "chamfer the top of the bore"    -> {{"select": "circular", "axis": "Z",
+                                      "position": "top"}}
 
 A fillet is a modifier: the result replaces the target and keeps the
 TARGET's id, so the fillet's own id never names a solid.
@@ -344,7 +375,7 @@ bracket with a slot and a rounded outline:
                                                            "z": -6}}}}}}
   {{"id": "cut",   "type": "subtract", "target": "body", "tools": ["slot"]}}
   {{"id": "edges", "type": "fillet", "target": "body",
-   "parameters": {{"radius": 3, "edges": {{"select": "axis_parallel",
+   "parameters": {{"radius": 3, "edges": {{"select": "straight",
                                        "axis": "Z"}}}}}}
 
 Note what the last two do: `cut` targets `body` and consumes `slot`, and
@@ -404,7 +435,7 @@ and a fillet carries `target`, a radius and an edge selector:
 
   {{"id": "round", "type": "fillet", "target": "plate",
     "parameters": {{"radius": 2,
-                  "edges": {{"select": "axis_parallel", "axis": "Z"}}}}}}
+                  "edges": {{"select": "straight", "axis": "Z"}}}}}}
 
 and a chamfer is the same with `distance`:
 

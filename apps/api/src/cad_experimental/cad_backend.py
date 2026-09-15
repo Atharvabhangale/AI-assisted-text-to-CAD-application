@@ -219,6 +219,52 @@ class CadBackend:
         """Section C.6. An equal setback on both adjoining faces."""
         raise NotImplementedError
 
+    # --- semantic edge selection (Stage 47) ------------------------------
+    #
+    # The division of labour, and the reason the graph can stay
+    # backend-neutral: a backend DISCOVERS facts about edges and ACTS on
+    # edges it is handed back. It never decides which edges a selector
+    # means -- `cad_experimental.edge_semantics` does that, on plain numbers,
+    # with no kernel anywhere near it.
+
+    def describe_edges(self, shape: Any) -> Tuple[Any, ...]:
+        """Every edge of ``shape`` as :class:`~edge_semantics.EdgeFacts`.
+
+        Plain numbers and strings: curve type, direction or centre and
+        normal, radius, length, whether the edge is a **parameterisation
+        seam**, and the neutral names of the surfaces meeting there. No
+        kernel object crosses this boundary.
+
+        ``EdgeFacts.index`` is this backend's own handle for the edge and is
+        opaque to everything above: the resolver orders by geometry and uses
+        the index only to settle edges that are geometrically identical.
+        :meth:`edges_at` turns handles back into whatever the backend
+        actually operates on.
+        """
+        raise NotImplementedError
+
+    def edges_at(self, shape: Any, indices: Sequence[int]) -> Tuple[Any, ...]:
+        """The backend's own edge objects for these handles, in this order."""
+        raise NotImplementedError
+
+    def fillet_edges(
+        self, target: Any, radius: float, edges: Sequence[Any]
+    ) -> Any:
+        """Blend exactly these edges. All of them, or none.
+
+        Separate from :meth:`fillet` because the selection has already been
+        made: this takes edges, not a selector, so the same kernel call
+        serves a Section C.7 selector and a semantic one without the backend
+        learning a second selector vocabulary.
+        """
+        raise NotImplementedError
+
+    def chamfer_edges(
+        self, target: Any, distance: float, edges: Sequence[Any]
+    ) -> Any:
+        """Bevel exactly these edges. All of them, or none."""
+        raise NotImplementedError
+
     # --- reading out -----------------------------------------------------
 
     def measure(self, shape: Any) -> Measurement:

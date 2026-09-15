@@ -23,6 +23,7 @@ from cad_core.application_service import (
 )
 
 from .adapter import AdapterError, ExecutionUnsupported, plan_to_document
+from .executor import execute_plan, plan_needs_executor
 from .plan import OperationPlan
 
 #: What an experimental build asks for. The render model is the point (the
@@ -52,6 +53,17 @@ class PlanBuild:
     unsupported_types: Tuple[str, ...] = ()
     unsupported_ids: Tuple[str, ...] = ()
 
+    #: Set when the plan was built by the graph-driven executor rather than
+    #: by way of a V1 document -- which happens exactly when a selector is
+    #: richer than Section C.7 can express. Never set at the same time as
+    #: :attr:`document`, so a caller can always tell which path ran.
+    execution: Optional[Any] = None
+
+    @property
+    def executed(self) -> bool:
+        """Whether the graph-driven executor produced this result."""
+        return self.execution is not None
+
     @property
     def built(self) -> bool:
         """Whether the existing service reports a successful build.
@@ -59,6 +71,8 @@ class PlanBuild:
         Delegates to :attr:`BuildOutcome.succeeded` rather than deciding
         anything: success is the build layer's word, not this layer's.
         """
+        if self.execution is not None:
+            return bool(self.execution.succeeded)
         return self.outcome is not None and self.outcome.succeeded
 
     @property
@@ -91,6 +105,14 @@ def build_plan(
     types named, and **nothing is built or approximated**. That case is
     caught before the generic one because it is the more specific fact.
     """
+    # One explicit question, asked before anything is built: can a V1
+    # document carry this plan's selectors? A plan that needs a semantic one
+    # executes directly on the backend. Not because the document path
+    # failed -- it is never tried -- but because the two paths answer
+    # different questions. See `cad_experimental.executor`.
+    if plan_needs_executor(plan):
+        return _executed(plan, name=name)
+
     try:
         document = plan_to_document(plan, name=name)
     except ExecutionUnsupported as exc:
@@ -107,6 +129,23 @@ def build_plan(
         BuildDocumentRequest.for_outputs(document, *outputs)
     )
     return PlanBuild(document=document, outcome=outcome)
+
+
+def _executed(plan: OperationPlan, *, name: str) -> PlanBuild:
+    """Build through the graph-driven executor, and report it as one.
+
+    No V1 document exists for such a plan, so :attr:`PlanBuild.document` is
+    ``None`` and :attr:`PlanBuild.execution` carries the result. A caller
+    that only asks :attr:`PlanBuild.built` gets the right answer either way.
+    """
+    result = execute_plan(plan, part_name=name)
+    if not result.succeeded:
+        return PlanBuild(
+            document=None,
+            error=f"[{result.failure.code}] {result.failure.message}",
+            execution=result,
+        )
+    return PlanBuild(document=None, execution=result)
 
 
 __all__ = ["DEFAULT_OUTPUTS", "PlanBuild", "build_plan"]

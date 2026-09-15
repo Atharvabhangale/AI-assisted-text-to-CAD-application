@@ -26,6 +26,7 @@ from cad_core.model import EdgeSelector
 from cad_core.render_model import build_render_model
 from cad_core.step_export import export_step, read_step
 
+from .edge_semantics import CIRCLE, LINE, OTHER, PLANE, CYLINDER, EdgeFacts
 from .cad_backend import (
     CADQUERY,
     BackendOperationError,
@@ -214,6 +215,123 @@ class CadQueryBackend(CadBackend):
 
     # --- reading out -----------------------------------------------------
 
+    # --- semantic edge selection: the only OCC topology code here --------
+
+    def describe_edges(self, shape) -> Tuple[EdgeFacts, ...]:
+        """Every edge of ``shape``, as plain numbers.
+
+        The one place in this project that reads OpenCascade topology for
+        selection purposes, and it reads it **once per shape** rather than
+        once per selector.
+
+        Seams are decided by the kernel's own predicate,
+        ``BRepTools::IsReallyClosed``, which answers whether an edge closes a
+        periodic face -- appearing twice in that one face's traversal. That
+        is a topological fact, not a guess from length or position: on a
+        drilled plate the seam and an outer corner are both 10 mm straight
+        edges running along Z, and nothing but topology separates them.
+
+        Surface names are reduced to the neutral vocabulary
+        (``plane``, ``cylinder``, ...) so that nothing above this method sees
+        an OCC enumeration.
+        """
+        from OCP.BRepAdaptor import BRepAdaptor_Curve, BRepAdaptor_Surface
+        from OCP.BRepTools import BRepTools
+        from OCP.TopAbs import TopAbs_EDGE
+        from OCP.TopExp import TopExp_Explorer
+        from OCP.TopoDS import TopoDS
+
+        edges = shape.Edges()
+        seams: set = set()
+        adjacent: dict = {}
+
+        for face in shape.Faces():
+            name = _surface_name(BRepAdaptor_Surface(face.wrapped))
+            explorer = TopExp_Explorer(face.wrapped, TopAbs_EDGE)
+            while explorer.More():
+                raw = TopoDS.Edge_s(explorer.Current())
+                index = _index_of(edges, raw)
+                if index is not None:
+                    adjacent.setdefault(index, set()).add(name)
+                    if BRepTools.IsReallyClosed_s(raw, face.wrapped):
+                        seams.add(index)
+                explorer.Next()
+
+        facts = []
+        for index, edge in enumerate(edges):
+            curve = BRepAdaptor_Curve(edge.wrapped)
+            kind = _curve_name(curve)
+            midpoint = _midpoint(curve)
+            direction = centre = normal = None
+            radius = None
+            if kind == LINE:
+                raw = curve.Line().Direction()
+                direction = (raw.X(), raw.Y(), raw.Z())
+            elif kind == CIRCLE:
+                circle = curve.Circle()
+                location = circle.Location()
+                axis = circle.Axis().Direction()
+                centre = (location.X(), location.Y(), location.Z())
+                normal = (axis.X(), axis.Y(), axis.Z())
+                radius = circle.Radius()
+            facts.append(EdgeFacts(
+                index=index,
+                curve=kind,
+                is_seam=index in seams,
+                midpoint=midpoint,
+                direction=direction,
+                centre=centre,
+                normal=normal,
+                radius=radius,
+                length=curve.LastParameter() - curve.FirstParameter(),
+                adjacent=tuple(sorted(adjacent.get(index, ()))),
+            ))
+        return tuple(facts)
+
+    def edges_at(self, shape, indices) -> Tuple[Any, ...]:
+        edges = shape.Edges()
+        chosen = []
+        for index in indices:
+            if not 0 <= index < len(edges):
+                raise BackendOperationError(
+                    f"edge {index} does not exist on this shape, which has "
+                    f"{len(edges)}"
+                )
+            chosen.append(edges[index])
+        return tuple(chosen)
+
+    def fillet_edges(self, target, radius, edges) -> Any:
+        if not radius > 0:
+            raise BackendOperationError(
+                f"a fillet needs a positive radius; got {radius!r}"
+            )
+        if not edges:
+            raise BackendOperationError("a fillet needs at least one edge")
+        try:
+            result = target.fillet(radius, list(edges))
+        except Exception as exc:
+            raise BackendOperationError(
+                f"the kernel refused the fillet (rule E5): {exc}"
+            ) from exc
+        return self._require_solid(result, "fillet")
+
+    def chamfer_edges(self, target, distance, edges) -> Any:
+        if not distance > 0:
+            raise BackendOperationError(
+                f"a chamfer needs a positive distance; got {distance!r}"
+            )
+        if not edges:
+            raise BackendOperationError("a chamfer needs at least one edge")
+        try:
+            # `None` for the second length: Section C.6 has only the
+            # symmetric chamfer, the same call `chamfer` above makes.
+            result = target.chamfer(distance, None, list(edges))
+        except Exception as exc:
+            raise BackendOperationError(
+                f"the kernel refused the chamfer (rule E5): {exc}"
+            ) from exc
+        return self._require_solid(result, "chamfer")
+
     def select_edges(self, shape, selector: Selector) -> Tuple[Any, ...]:
         """Delegates to the existing selector. No second implementation."""
         selector.validate()
@@ -265,3 +383,47 @@ class CadQueryBackend(CadBackend):
 
 
 __all__ = ["CadQueryBackend"]
+
+
+# --- neutral names for what the kernel reports ------------------------------
+#
+# Small translation tables rather than string munging, so an OCC enumeration
+# name never reaches a caller and an unrecognised one is `other` rather than
+# a leaked identifier.
+
+_CURVE_NAMES = {"GeomAbs_Line": LINE, "GeomAbs_Circle": CIRCLE}
+_SURFACE_NAMES = {"GeomAbs_Plane": PLANE, "GeomAbs_Cylinder": CYLINDER}
+
+
+def _enumeration(value: Any) -> str:
+    return str(value).rsplit(".", 1)[-1]
+
+
+def _curve_name(curve: Any) -> str:
+    return _CURVE_NAMES.get(_enumeration(curve.GetType()), OTHER)
+
+
+def _surface_name(surface: Any) -> str:
+    return _SURFACE_NAMES.get(_enumeration(surface.GetType()), OTHER)
+
+
+def _midpoint(curve: Any) -> Tuple[float, float, float]:
+    """The point halfway along the edge, in parameter space.
+
+    Used only to order straight edges, never to decide what one is.
+    """
+    first, last = curve.FirstParameter(), curve.LastParameter()
+    point = curve.Value(first + (last - first) / 2.0)
+    return (point.X(), point.Y(), point.Z())
+
+
+def _index_of(edges: Sequence[Any], raw: Any) -> Any:
+    """Which entry of ``edges`` is the same topological edge as ``raw``.
+
+    By ``TopoDS_Shape.IsSame``, the kernel's own identity: two handles to one
+    edge compare same whatever their orientation. Never by coordinates.
+    """
+    for index, edge in enumerate(edges):
+        if edge.wrapped.IsSame(raw):
+            return index
+    return None

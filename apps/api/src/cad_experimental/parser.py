@@ -50,7 +50,10 @@ from .plan import (
     PARAMETERS,
     PROFILE_SOLID_TYPES,
     REVOLVE,
-    SELECT_AXIS_PARALLEL,
+    AXIS_OPTIONAL_MODES,
+    AXIS_REQUIRED_MODES,
+    POSITIONS,
+    POSITION_MODES,
     SELECT_MODES,
     SELECTOR_AXES,
     SELECTOR_FIELDS,
@@ -626,14 +629,11 @@ def _selector(value: Any, where: str) -> EdgeSelector:
         )
 
     axis = mapping.get("axis")
-    if mode == SELECT_AXIS_PARALLEL:
-        if axis is None:
+    if axis is not None:
+        if mode not in AXIS_REQUIRED_MODES and mode not in AXIS_OPTIONAL_MODES:
             raise PlanParseError(
-                f"{where} edges is missing `axis`",
-                detail=(
-                    f"`{SELECT_AXIS_PARALLEL}` needs an axis (rule S18); one "
-                    f"of {', '.join(SELECTOR_AXES)}"
-                ),
+                f"{where} edges must not carry `axis`",
+                detail=f"`{mode}` selects every edge, so an axis means nothing",
             )
         if not isinstance(axis, str) or axis not in SELECTOR_AXES:
             raise PlanParseError(
@@ -643,14 +643,37 @@ def _selector(value: Any, where: str) -> EdgeSelector:
                     f"{', '.join(SELECTOR_AXES)}, not a signed direction"
                 ),
             )
-        return EdgeSelector(select=mode, axis=axis)
-
-    if axis is not None:
+    elif mode in AXIS_REQUIRED_MODES:
         raise PlanParseError(
-            f"{where} edges must not carry `axis`",
-            detail=f"`{mode}` selects every edge, so an axis means nothing",
+            f"{where} edges is missing `axis`",
+            detail=(
+                f"`{mode}` needs an axis (rule S18); one of "
+                f"{', '.join(SELECTOR_AXES)}"
+            ),
         )
-    return EdgeSelector(select=mode)
+
+    position = mapping.get("position")
+    if position is not None:
+        if mode not in POSITION_MODES:
+            raise PlanParseError(
+                f"{where} edges must not carry `position`",
+                detail=(
+                    f"only {', '.join(POSITION_MODES)} can be narrowed to an "
+                    f"end of an axis; `{mode}` cannot"
+                ),
+            )
+        if axis is None:
+            raise PlanParseError(
+                f"{where} edges needs an `axis` to give a `position`",
+                detail="a position is measured along an axis, so it needs one",
+            )
+        if not isinstance(position, str) or position not in POSITIONS:
+            raise PlanParseError(
+                f"{where} edges has an invalid `position`",
+                detail=f"{position!r}; expected one of {', '.join(POSITIONS)}",
+            )
+
+    return EdgeSelector(select=mode, axis=axis, position=position)
 
 
 def _tools(value: Any, where: str) -> Tuple[str, ...]:

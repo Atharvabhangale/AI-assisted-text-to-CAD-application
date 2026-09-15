@@ -12,6 +12,8 @@ without going through :mod:`cad_experimental.parser`.
 
 from __future__ import annotations
 
+from . import edge_semantics as _semantics
+
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, Optional, Tuple
@@ -166,9 +168,36 @@ SELECTOR_AXES: Tuple[str, ...] = ("X", "Y", "Z")
 
 #: The two deterministic selectors V1 provides, and no others. Persistent
 #: named-topology selection is deferred to a later schema version.
-SELECT_ALL = "all"
-SELECT_AXIS_PARALLEL = "axis_parallel"
-SELECT_MODES: Tuple[str, ...] = (SELECT_ALL, SELECT_AXIS_PARALLEL)
+#: The selector vocabulary, imported from :mod:`cad_experimental.edge_semantics`
+#: rather than restated. That module owns what a selector MEANS; this one
+#: owns how a plan carries it, and a second spelling of the same four names
+#: is one spelling too many.
+#:
+#: ``all`` and ``axis_parallel`` are Section C.7's own, unchanged: a plan
+#: written before Stage 47 means exactly what it meant. ``straight`` and
+#: ``circular`` are Stage 47's, and exist because a cylindrical face's
+#: parameterisation seam is a genuine straight edge that no blend can take --
+#: see :mod:`cad_experimental.edge_semantics` for the measurement.
+SELECT_ALL = _semantics.SELECT_ALL
+SELECT_AXIS_PARALLEL = _semantics.SELECT_AXIS_PARALLEL
+SELECT_STRAIGHT = _semantics.SELECT_STRAIGHT
+SELECT_CIRCULAR = _semantics.SELECT_CIRCULAR
+SELECT_MODES: Tuple[str, ...] = _semantics.SELECT_MODES
+
+#: Selector modes V1 itself can express, and so the only ones the adapter
+#: can write into a CAD document. The other two are resolved by the
+#: executor against the backend's own topology.
+V1_SELECT_MODES: Tuple[str, ...] = (SELECT_ALL, SELECT_AXIS_PARALLEL)
+
+#: Modes that must carry an axis, may carry one, and may carry a position.
+AXIS_REQUIRED_MODES: Tuple[str, ...] = _semantics.AXIS_REQUIRED
+AXIS_OPTIONAL_MODES: Tuple[str, ...] = _semantics.AXIS_OPTIONAL
+POSITION_MODES: Tuple[str, ...] = _semantics.POSITION_MODES
+
+#: Which end of the axis a selection is narrowed to. Extremal, not ordinal.
+POSITION_TOP = _semantics.POSITION_TOP
+POSITION_BOTTOM = _semantics.POSITION_BOTTOM
+POSITIONS: Tuple[str, ...] = _semantics.POSITIONS
 
 #: V1 is millimetres only (rule S5). The plan carries no unit field at all:
 #: a unit the model could get wrong is a unit the model can get wrong.
@@ -277,7 +306,7 @@ PARAMETERS: Dict[str, Tuple[Tuple[str, ...], Tuple[str, ...]]] = {
 #: The keys an edge selector may carry. ``axis`` is present exactly when
 #: ``select`` is ``axis_parallel`` (rule S18) -- not optional, and not
 #: allowed otherwise.
-SELECTOR_FIELDS: Tuple[str, ...] = ("select", "axis")
+SELECTOR_FIELDS: Tuple[str, ...] = ("select", "axis", "position")
 
 #: Which operation-level keys each type may carry, beside ``parameters``.
 #: ``target`` belongs at the operation level, as it does in the V1 document,
@@ -436,27 +465,57 @@ class ThroughHoleOperation:
 
 @dataclass(frozen=True)
 class EdgeSelector:
-    """Which edges of the target a fillet acts on (Section C.7).
+    """Which edges of the target a fillet or chamfer acts on.
 
-    Two selectors exist and no others:
+    Four selectors exist and no others:
 
     * ``{"select": "all"}`` -- every edge of the target solid;
-    * ``{"select": "axis_parallel", "axis": "Z"}`` -- every **straight** edge
-      parallel to that axis. Circular edges never match, so filleting a
-      drilled plate's vertical corners does not touch the hole rims.
+    * ``{"select": "axis_parallel", "axis": "Z"}`` -- every straight edge
+      parallel to that axis, **seams included**. Section C.7's own wording,
+      kept unchanged so a plan written before Stage 47 still means what it
+      meant;
+    * ``{"select": "straight", "axis": "Z"}`` -- the same, **seams
+      excluded**. What "the vertical corners" means to a person;
+    * ``{"select": "circular", "axis": "Z", "position": "top"}`` -- circular
+      edges about that axis, optionally at one end of it. A hole's rim.
 
-    :attr:`axis` is **unsigned** and present exactly when :attr:`select` is
-    ``axis_parallel``. It is a different vocabulary from a cylinder's signed
-    axis on purpose, and the contract is explicit about that.
+    :attr:`axis` is **unsigned**, and a different vocabulary from a
+    cylinder's signed axis on purpose. It is required for ``axis_parallel``
+    and ``straight``, optional for ``circular``, and forbidden for ``all``.
+
+    :attr:`position` narrows a ``circular`` selection to one end of its axis
+    and is admissible nowhere else -- a position needs an axis to be measured
+    along. It is **extremal, not ordinal**: ``top`` is every candidate at the
+    greatest coordinate, so two holes through one plate both have a top rim
+    and both are named. Narrowing to "the single highest" would have to pick
+    between them, and picking silently is exactly what this layer must not do.
+
+    Nothing here can name an edge index, a face, or a kernel query. The model
+    never sees topology; it says what it means and
+    :mod:`cad_experimental.edge_semantics` decides which edges that is.
     """
 
     select: str
     axis: Optional[str] = None
+    position: Optional[str] = None
+
+    def semantic(self) -> "_semantics.SemanticSelector":
+        """This selector as the resolver's own type. One conversion, here."""
+        return _semantics.SemanticSelector(
+            select=self.select, axis=self.axis, position=self.position
+        )
+
+    @property
+    def is_v1(self) -> bool:
+        """Whether a V1 CAD document can carry this selector unchanged."""
+        return self.select in V1_SELECT_MODES and self.position is None
 
     def to_dict(self) -> Dict[str, Any]:
         payload: Dict[str, Any] = {"select": self.select}
         if self.axis is not None:
             payload["axis"] = self.axis
+        if self.position is not None:
+            payload["position"] = self.position
         return payload
 
 
@@ -872,8 +931,17 @@ def _ref(name: str) -> Dict[str, str]:
     return {"$ref": f"#/$defs/{name}"}
 
 
-def _plan_defs() -> Dict[str, Any]:
-    """The shared definitions the operation branches reference."""
+def _plan_defs(
+    selector_modes: Tuple[str, ...] = SELECT_MODES,
+) -> Dict[str, Any]:
+    """The shared definitions the operation branches reference.
+
+    ``selector_modes`` narrows the edge selector to what a particular schema
+    can carry. :func:`executable_schema` passes :data:`V1_SELECT_MODES`,
+    because a V1 CAD document carries exactly those two and because that
+    schema is a **recorded instrument**: Stage 43's fingerprint must not move
+    when the language gains a selector the document cannot hold.
+    """
     from .sketch import sketch_defs
 
     return {
@@ -892,7 +960,15 @@ def _plan_defs() -> Dict[str, Any]:
         SELECTOR_DEF: {
             "type": "object",
             "properties": {
-                "select": {"type": "string", "enum": list(SELECT_MODES)},
+                "select": {"type": "string", "enum": list(selector_modes)},
+                # Only a `circular` selector may carry this, which the
+                # grammar cannot say -- it would have to condition one
+                # property on a sibling's value. Rule P32 enforces it, as
+                # the parser does. Absent entirely from a schema whose modes
+                # cannot take one.
+                **({"position": {"type": "string", "enum": list(POSITIONS)}}
+                   if any(mode in POSITION_MODES for mode in selector_modes)
+                   else {}),
                 # Unsigned. Not the signed axis above -- Section C.7 is
                 # explicit that parallelism has no direction.
                 "axis": {"type": "string", "enum": list(SELECTOR_AXES)},
@@ -1153,11 +1229,12 @@ def _plan_document(
     *,
     merged: Tuple[Tuple[str, ...], ...] = (),
     omit_parameters: Tuple[str, ...] = (),
+    selector_modes: Tuple[str, ...] = SELECT_MODES,
 ) -> Dict[str, Any]:
     """The plan schema over exactly ``kinds``, with unused defs pruned."""
     return _prune_defs({
         "type": "object",
-        "$defs": _plan_defs(),
+        "$defs": _plan_defs(selector_modes),
         "properties": {
             "status": {"type": "string", "enum": [s.value for s in PlanStatus]},
             "summary": {"type": "string"},
@@ -1261,7 +1338,7 @@ def executable_schema() -> Dict[str, Any]:
     measurement must stay attributable to the instrument that produced it:
     re-running Stage 43 must reproduce Stage 43, fingerprint included.
     """
-    return _plan_document(V1_FEATURE_TYPES)
+    return _plan_document(V1_FEATURE_TYPES, selector_modes=V1_SELECT_MODES)
 
 
 def plan_schema() -> Dict[str, Any]:
@@ -1281,6 +1358,15 @@ def plan_schema() -> Dict[str, Any]:
 
 
 __all__ = [
+    "POSITIONS",
+    "POSITION_BOTTOM",
+    "POSITION_TOP",
+    "POSITION_MODES",
+    "AXIS_OPTIONAL_MODES",
+    "AXIS_REQUIRED_MODES",
+    "V1_SELECT_MODES",
+    "SELECT_CIRCULAR",
+    "SELECT_STRAIGHT",
     "REPEATING_TYPES",
     "instance_id",
     "V1_FEATURE_TYPES",

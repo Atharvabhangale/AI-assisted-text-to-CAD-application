@@ -1816,6 +1816,204 @@ are **not** implemented and are not started.
   prompt gained a section (`2026-09-15.3`) telling it to repeat rather than
   duplicate, and words in a prompt are a hypothesis.
 
+## Stage 47: semantic edge selection, and the seam
+
+### Root cause, measured
+
+OpenCascade represents a cylindrical face's **parameterisation seam** as a
+genuine straight edge. Measured on a 100 x 60 x 10 plate with one d20 hole --
+15 edges, and one of them is the seam:
+
+| edge | curve | seam? | adjacent surfaces |
+|---|---|---|---|
+| outer corner | line, 10 mm, along Z | no | plane, plane |
+| **hole seam** | line, 10 mm, along Z | **yes** | **cylinder only** |
+| hole rim (x2) | circle, r 10 | no | cylinder, plane |
+
+The seam and an outer corner have the **same curve type, the same direction
+and the same length**. Nothing geometric separates them. So
+`axis_parallel Z`, whose contract is "every straight edge parallel to that
+axis", matched five edges: four corners and the seam.
+
+A blend cannot take a seam. `BRepFilletAPI` accepts the edge, builds **no
+contour** for it, and would leave it silently unblended; since Stage 14.1 both
+consumers require complete coverage -- a matched edge is never quietly dropped
+-- so the whole modifier fails with rule E5. The practical result was that
+*drill a plate and break its corners*, the most ordinary mechanical chain
+there is, could not be built at all.
+
+**The seam is topologically different, and that is the fix.** It is the edge
+that closes a periodic face: it appears twice in that one face's traversal,
+and the kernel's own `BRepTools::IsReallyClosed` answers for it. A rim is a
+circle; a seam is a line. So a selector that asks for *circular* edges can
+never name a seam, and one that asks for *straight* edges can exclude it by a
+topological fact rather than by guessing at position or length.
+
+### Where the semantics live
+
+```
+Operation Plan   selector: a KIND of edge, an unsigned axis, an optional end
+  -> parser      shape only
+  -> validation  P15-P17, P32
+  -> graph/history                 (Stage 46, unchanged)
+  -> executor    resolve, then act
+       -> backend.describe_edges    the ONLY place OCC topology is read
+       -> edge_semantics.resolve    plain numbers, no kernel anywhere
+       -> backend.fillet_edges      acts on exactly the resolved edges
+  -> CAD kernel
+```
+
+`cad_experimental/edge_semantics.py` imports **nothing** -- not a kernel, not
+a backend, not `cad_core`, not another project module. It is arithmetic on
+`EdgeFacts`: curve type, direction or centre and normal, radius, length,
+whether the edge is a seam, and the neutral names of the adjoining surfaces.
+A test asserts that import list is empty, and most of this stage's tests run
+on hand-written facts with no solid in sight.
+
+Discovering the facts is a backend's job (`describe_edges`); deciding what
+they mean is the resolver's. That division is what keeps OCC out of the
+Operation Plan and leaves room for FreeCAD or direct OCCT. **No CadQuery
+selector string, no OCC enumeration and no edge index appears in the IR.**
+
+### The selector vocabulary
+
+Four kinds, and no query language:
+
+| Selector | Names | Axis |
+|---|---|---|
+| `{"select": "all"}` | every edge | forbidden |
+| `{"select": "axis_parallel", "axis": "Z"}` | straight edges along Z, **seams included** | required |
+| `{"select": "straight", "axis": "Z"}` | straight edges along Z, **seams excluded** | required |
+| `{"select": "circular", "axis": "Z"}` | circular edges about Z -- a hole's rim, a cylinder's cap | optional |
+
+plus `"position": "top" \| "bottom"` on a `circular` selector, narrowing it to
+one end of its axis.
+
+**`axis_parallel` was not redefined.** It still means what Section C.7 says
+and still matches the seam, so a plan written before this stage means exactly
+what it meant. `straight` is the new name for what a person means by "the
+corners". Silently changing what an existing selector names would have been
+worse than the problem it fixed.
+
+**`position` is extremal, not ordinal.** `top` is every candidate at the
+greatest coordinate along the axis -- so two holes through one plate both have
+a top rim and both are named. Narrowing to "the single highest" would have to
+pick between them, and picking silently is exactly what this layer must not
+do. It is admissible only on `circular`, and only with an axis to measure
+along (rule P32): a position without an axis is not a position.
+
+### Ambiguity and determinism policy
+
+**Nothing is guessed.** Three machine-readable resolution codes, deliberately
+separate from the plan's P-codes and the specification's S/E codes -- a
+resolution failure is neither a malformed plan nor a kernel refusal:
+
+| Code | Meaning |
+|---|---|
+| `R1` | the selector matched no edge; the message says what the solid actually has |
+| `R2` | the selection contains a seam, which no blend can take |
+| `R3` | a `position` could not separate the candidates -- they all lie at one level, so `top` and `bottom` name the same edges |
+
+A failed resolution still reports its **candidates**, because "it matched
+these five and one of them is a seam" is a diagnostic and "it failed" is not.
+Every one names the offending operation.
+
+`R2` is the seam's own diagnostic. It is reachable only through `all` or the
+legacy `axis_parallel` -- `straight` excludes seams and `circular` cannot name
+one -- and it replaces a generic E5 from the kernel with an actionable
+sentence that names the two selectors to use instead.
+
+**Ordering is geometric, not the kernel's.** Edges sort by their defining
+point (a circle's centre, else the midpoint), axis coordinate first, then
+radius; the backend's own index is the **final tie-break** and settles only
+edges that are geometrically coincident, where no geometric key could
+distinguish them anyway. A test resolves the same facts in reversed order and
+gets the same answer. Nothing picks the first edge the kernel returned.
+
+**No float is compared for equality.** Parallelism is `|dot|` within
+`PARALLEL_TOLERANCE` of 1 (unsigned, which is Section C.7's rule); levels are
+grouped within `LEVEL_TOLERANCE` millimetres.
+
+### Why there are two build paths
+
+A V1 CAD document carries exactly two edge selectors. A semantic one cannot
+be written into one, and writing the nearest thing would be a silent
+substitution -- `straight Z` is `axis_parallel Z` **minus the seam**, and that
+difference is the whole stage. So the adapter now raises
+`SelectorNotExpressible`, a third answer distinct from `ExecutionUnsupported`:
+an unsupported operation means the engine is behind the language, this means
+the **document format** is, and the part is perfectly buildable.
+
+`build_plan` therefore asks one explicit question before building anything --
+`plan_needs_executor(plan)` -- and takes one of two paths:
+
+* **V1 document path** (unchanged): the adapter, then
+  `CadApplicationService`, with its cache, isolation, exporters and artifacts.
+  Every plan whose selectors Section C.7 can express, which is every plan the
+  comparison instrument uses.
+* **executor path** (`cad_experimental/executor.py`): walks Stage 46's
+  `topological_order()`, holds one backend shape per live body, and calls
+  `CadBackend`. For plans whose selectors are richer.
+
+Neither is the other's fallback, and `PlanBuild.executed` says which ran. The
+executor is also what finally **consumes** the deterministic order Stage 46
+derived, and it introduces no second history: which body an operation touches,
+what it declares and what it consumes all come from `plan_history`. The one
+thing it adds is the backend shape per body, which history cannot hold.
+
+### Graph and history integration
+
+Unchanged and still load-bearing. A fillet or chamfer still depends on its
+target's **state** through Stage 46's derived per-body edges, so an edge
+operation after a hole executes after that hole -- which is exactly why
+`describe_edges` sees the rim at all. A pattern's output is the body, so a
+downstream selector names the body and finds every instance's rim: case 7
+below chamfers four bolt-circle holes with one selector.
+
+### Proved at the execution level
+
+Real solids, volumes against closed forms with a relative tolerance of `1e-6`:
+
+| # | Chain | Result |
+|---|---|---|
+| 1 | plate -> hole -> **fillet rim** | 2 edges, one solid |
+| 2 | plate -> hole -> **chamfer rim** | closed form `2*pi*(R + d/3) * d^2/2` per rim, both rims |
+| 3 | **top rim vs bottom rim** | different edges chosen; equal removal, since the plate is symmetric |
+| 4 | **outer corners vs rim** | 4 straight vs 2 circular, disjoint sets |
+| 5 | **seam never selected** | `straight` and `circular` never name the one seam |
+| 5b | legacy `axis_parallel` | stops at `R2`, naming the operation and the two selectors to use |
+| 6 | **two holes** | one top rim each, identical across runs |
+| 7 | **pattern -> downstream selector** | four bolt-circle holes, one `circular/top` selector, closed form |
+
+### Deliberate V1 limitations
+
+- **`inner` and `outer` are not implemented.** The required cases do not need
+  them: on a plate the outer edges are straight and the rims are circular, so
+  curve type already separates them. A part with both an outer cylindrical
+  face and a bore -- a tube -- would need it, and the measurement is recorded
+  for when it is built: the two cylindrical faces carry opposite
+  `TopAbs_Orientation`, and the bore's rims come back with the opposite sign
+  to the outer rims'. That is one measurement on one shape and not yet a rule.
+- **No face or vertex selectors**, and no named topology. There are still no
+  persistent edge ids: a selector names a *kind* of edge, never a particular
+  one, and nothing survives a rebuild.
+- **`describe_edges` is CadQuery-only.** `FreeCadBackend` inherits the base
+  method and therefore raises. That is a gap, not a fallback -- a backend that
+  answered wrongly would be worse than one that says it cannot answer.
+- **The executor produces a shape, a measurement and a render model**, not
+  STEP, not a build cache and not artifact ids. Those live on the V1 document
+  path and were not duplicated.
+- **`position` has two values.** No `at`, no ordinal index, no nearest-to-a-
+  point. Each would need a rule for what happens when several candidates tie,
+  and the answer would have to be a guess.
+
+### Still unmeasured
+
+No model has been asked to produce a semantic selector. The prompt
+(`2026-09-15.4`) now names the four kinds, says which to use for "round the
+corners" and "break the edge of the hole", and warns that a seam exists
+without naming a kernel -- but words in a prompt are a hypothesis.
+
 ## What is NOT known
 
 **Real Anthropic testing happened at Stage 40, and only there.** Stages 33 to

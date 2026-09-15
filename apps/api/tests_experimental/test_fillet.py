@@ -149,8 +149,20 @@ class VocabularyTests(unittest.TestCase):
         for signed in AXES:
             self.assertNotIn(signed, SELECTOR_AXES)
 
-    def test_only_two_selectors_exist(self):
-        self.assertEqual(set(SELECT_MODES), {"all", "axis_parallel"})
+    def test_the_selector_vocabulary(self):
+        """Stage 47 added two. `all` and `axis_parallel` are Section C.7's
+        own and are unchanged; `straight` and `circular` exist because a
+        cylindrical face's seam is a straight edge no blend can take.
+
+        `V1_SELECT_MODES` is still exactly the two a CAD document can carry.
+        """
+        from cad_experimental.plan import V1_SELECT_MODES
+
+        self.assertEqual(
+            set(SELECT_MODES),
+            {"all", "axis_parallel", "straight", "circular"},
+        )
+        self.assertEqual(set(V1_SELECT_MODES), {"all", "axis_parallel"})
 
     def test_the_schema_describes_the_selector_object(self):
         """Stage 41: per-type branches, and the selector lives in `$defs`."""
@@ -167,11 +179,25 @@ class VocabularyTests(unittest.TestCase):
         reference = parameters["properties"]["edges"]["$ref"]
         edges = schema["$defs"][reference.rsplit("/", 1)[-1]]
         self.assertEqual(edges["type"], "object")
-        self.assertEqual(set(edges["properties"]["select"]["enum"]),
-                         {"all", "axis_parallel"})
+        self.assertEqual(
+            set(edges["properties"]["select"]["enum"]),
+            {"all", "axis_parallel", "straight", "circular"},
+        )
         self.assertEqual(set(edges["properties"]["axis"]["enum"]),
                          {"X", "Y", "Z"})
+        self.assertEqual(set(edges["properties"]["position"]["enum"]),
+                         {"top", "bottom"})
         self.assertFalse(edges["additionalProperties"])
+
+    def test_the_v1_schema_keeps_the_two_selectors_a_document_can_carry(self):
+        """`executable_schema` is Stage 43's recorded instrument. Widening
+        the language must not widen it."""
+        from cad_experimental.plan import executable_schema
+
+        edges = executable_schema()["$defs"]["edge_selector"]
+        self.assertEqual(set(edges["properties"]["select"]["enum"]),
+                         {"all", "axis_parallel"})
+        self.assertNotIn("position", edges["properties"])
 
 
 class ParseTests(unittest.TestCase):

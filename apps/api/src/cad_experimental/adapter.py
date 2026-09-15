@@ -98,6 +98,29 @@ class AdapterError(Exception):
     """A plan that cannot be expressed as a V1 document at all."""
 
 
+class SelectorNotExpressible(AdapterError):
+    """A **valid** plan whose edge selector a V1 document cannot carry.
+
+    A different answer again from :class:`ExecutionUnsupported`, and the
+    distinction is worth keeping: an unsupported operation means the engine
+    is behind the language, while this means the **document format** is.
+    The plan is fine, the geometry is buildable, and
+    :func:`cad_experimental.executor.execute_plan` builds it -- just not by
+    way of a V1 document.
+
+    Collapsing the two would report a buildable part as unbuildable.
+    """
+
+    def __init__(self, operation_ids: Tuple[str, ...]) -> None:
+        self.operation_ids = tuple(operation_ids)
+        super().__init__(
+            "a V1 document carries only the `all` and `axis_parallel` "
+            "selectors (Section C.7); these operations use a semantic one "
+            "and must be executed directly: "
+            + ", ".join(repr(name) for name in self.operation_ids)
+        )
+
+
 class ExecutionUnsupported(AdapterError):
     """A **valid** plan whose operations this backend cannot execute yet.
 
@@ -174,6 +197,19 @@ def plan_to_document(
     # feature list is no longer the same length as the plan's operation
     # list, and why an operation's id is no longer always a feature's id.
     by_id = {operation.id: operation for operation in plan.operations}
+    # A V1 document carries exactly two edge selectors (Section C.7). A
+    # semantic one cannot be written into one, and writing the nearest thing
+    # would be the silent substitution this project forbids -- `straight Z`
+    # is not `axis_parallel Z`, it is `axis_parallel Z` minus the seam, and
+    # the difference is the whole of Stage 47.
+    semantic = tuple(
+        operation.id for operation in plan.operations
+        if getattr(operation, "edges", None) is not None
+        and not operation.edges.is_v1
+    )
+    if semantic:
+        raise SelectorNotExpressible(semantic)
+
     features: List[Dict[str, Any]] = []
     for operation in plan.operations:
         features.extend(_features(operation, by_id))
@@ -311,5 +347,6 @@ __all__ = [
     "SCHEMA_VERSION",
     "AdapterError",
     "ExecutionUnsupported",
+    "SelectorNotExpressible",
     "plan_to_document",
 ]

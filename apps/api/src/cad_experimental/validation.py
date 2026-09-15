@@ -49,7 +49,10 @@ from .plan import (
     MODIFIER_TYPES,
     PROFILE_SOLID_TYPES,
     REVOLVE,
-    SELECT_AXIS_PARALLEL,
+    AXIS_OPTIONAL_MODES,
+    AXIS_REQUIRED_MODES,
+    POSITIONS,
+    POSITION_MODES,
     SELECT_MODES,
     SELECTOR_AXES,
     SKETCH,
@@ -158,10 +161,21 @@ P30 = "P30"  # a derived instance id does not collide with an operation id
 # a rule a later stage may want to relax.
 P31 = "P31"  # the dependency graph is acyclic
 
+# --- selector rules, extended with semantic edge selection -----------------
+#
+# P15-P17 already judge the mode and the axis. A `position` is the one new
+# shape a selector can carry, and it is admissible in exactly one place: on
+# a `circular` selector that names an axis to measure along. Whether the
+# geometry can honour it -- whether the candidates are actually spread along
+# that axis -- is a question for the solid and is answered by
+# `cad_experimental.edge_semantics` at resolution time (code R3), never
+# guessed at here.
+P32 = "P32"  # a position is admissible for this selector, and has an axis
+
 RULE_CODES: Tuple[str, ...] = (
     P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14,
     P15, P16, P17, P18, P19, P20, P21, P22,
-    P23, P24, P25, P26, P27, P28, P29, P30, P31,
+    P23, P24, P25, P26, P27, P28, P29, P30, P31, P32,
 )
 
 
@@ -762,12 +776,14 @@ def _selector(
         )
         return
 
-    if mode == SELECT_AXIS_PARALLEL:
-        if axis is None:
+    position = getattr(selector, "position", None)
+
+    if axis is not None:
+        if mode not in AXIS_REQUIRED_MODES and mode not in AXIS_OPTIONAL_MODES:
             problems.append(
                 PlanProblem(
                     P16,
-                    f"`{SELECT_AXIS_PARALLEL}` requires an axis",
+                    f"`{mode}` selects every edge, so an axis means nothing",
                     f"{path}.axis",
                 )
             )
@@ -780,12 +796,39 @@ def _selector(
                     f"{path}.axis",
                 )
             )
-    elif axis is not None:
+    elif mode in AXIS_REQUIRED_MODES:
+        problems.append(
+            PlanProblem(P16, f"`{mode}` requires an axis", f"{path}.axis")
+        )
+
+    if position is None:
+        return
+    if mode not in POSITION_MODES:
         problems.append(
             PlanProblem(
-                P16,
-                f"`{mode}` selects every edge, so an axis means nothing",
-                f"{path}.axis",
+                P32,
+                f"`{mode}` cannot be narrowed to an end of an axis; only "
+                f"{', '.join(POSITION_MODES)} can",
+                f"{path}.position",
+            )
+        )
+        return
+    if axis is None:
+        problems.append(
+            PlanProblem(
+                P32,
+                "a position is measured along an axis, so the selector needs "
+                "one",
+                f"{path}.position",
+            )
+        )
+    if position not in POSITIONS:
+        problems.append(
+            PlanProblem(
+                P32,
+                f"{position!r} is not a position; expected one of "
+                f"{', '.join(POSITIONS)}",
+                f"{path}.position",
             )
         )
 
@@ -1141,6 +1184,7 @@ def _finite(value: object) -> bool:
 
 
 __all__ = [
+    "P32",
     "P31",
     "P30",
     "P29",

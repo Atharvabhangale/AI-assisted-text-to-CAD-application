@@ -195,7 +195,7 @@ simulation, and expressions/scripting of any kind.
 | `geometry.py` | Geometric rule boundary | `check_geometric_rules` | Requires a built shape | spec §E.2 |
 | `serialization.py` | Canonical JSON + hashing | `serialize_part`, `part_hash`, `deserialize_part`, `parts_equivalent`, `save_part`, `load_part` | Canonical form is the hash input; don't hand-roll JSON | `docs/cad-document-serialization.md` |
 | `local_cad.py` | **The CAD engine** (CadQuery/OpenCascade) | `build_part`, `shape_volume`, `shape_bounding_box`, `shape_solid_count` | Requires `cadquery`; returns kernel objects — never serialize them | `docs/local-cad-engine.md` |
-| `edge_selection.py` | Deterministic edge selection | `select_edges`, `line_direction`, `is_straight_edge` | Only `all` / `axis_parallel`; seam semantics unresolved (§11) | `docs/edge-selection.md` |
+| `edge_selection.py` | Deterministic edge selection | `select_edges`, `line_direction`, `is_straight_edge` | Only `all` / `axis_parallel`; seam semantics unresolved here (§11), answered on the experiment branch (§19) | `docs/edge-selection.md` |
 | `render_model.py` | Neutral tessellation as plain data | `build_render_model`, `RenderModel`, `TessellationSettings` | Visualization only, never a geometry source | `docs/render-representation.md` |
 | `step_export.py` | STEP export + round-trip check | `export_step`, `read_step` | — | `docs/step-export.md` |
 | `iges_export.py` | IGES export + round-trip check | `export_iges`, `read_iges` | — | `docs/iges-export.md` |
@@ -1045,8 +1045,9 @@ easier for a model to generate correctly than the V1 document?** and **is
 CadQuery the right engine?**
 
 It adds `apps/api/src/cad_experimental/` (an operation-plan language, its
-parser, a plan validator with rules P1–P31, a feature graph with role-tagged
-edges and a shared solid-set walk, a V1 adapter, its own prompt and FastAPI app, and two CAD
+parser, a plan validator with rules P1–P32, a feature graph with role-tagged
+edges, a shared solid-set walk, semantic edge selection and a graph-driven
+executor, a V1 adapter, its own prompt and FastAPI app, and two CAD
 backends), `apps/api/tests_experimental/`, and
 `apps/web-experimental/` on port 5174. The **operation plan** drops `units`,
 `schema_version` and `features` for a flat ordered `operations` list. Nine
@@ -1202,7 +1203,8 @@ try, and it still admits every profile operation.
 
 1. **Re-run the frozen Stage 43 comparison** once the schema is verified. The
    corpus, prompts and scoring must stay exactly as they are.
-2. **Then resolve seam selection** — see Stage 46's next limitation.
+2. **Then measure the semantic selectors and `pattern`** — Stage 47 built
+   them; nothing has asked a model to use them.
 
 Read `docs/experimental-operation-plan.md` → *Stage 44* for the full detail.
 
@@ -1306,11 +1308,63 @@ origin, its ordered features, whether it is live and what consumed it, plus
 `owner_of()` and `live_bodies`. Nothing assumes one body; S9 still requires
 one and is unweakened. Assemblies are **not** started.
 
-**Next limitation:** the seam problem still bites — any fillet or chamfer
-after a hole selects the hole's parameterisation seam and the kernel refuses
-it (E5). It blocks the most ordinary mechanical chain there is (drill, then
-break the edges), and resolving it means deciding selector semantics in
-`docs/edge-selection.md`, not adding a feature.
+Read `docs/experimental-operation-plan.md` → *Stage 46* for the full detail.
+
+### Stage 47: semantic edge selection, and the seam
+
+**Root cause, measured.** OpenCascade represents a cylindrical face's
+parameterisation seam as a genuine straight edge — on a drilled plate it has
+the **same curve type, direction and length** as an outer corner, so
+`axis_parallel Z` matched four corners *and* the seam. No blend can take a
+seam (the kernel builds no contour for it), and since Stage 14.1 a matched
+edge is never quietly dropped, so the whole modifier failed with E5. Nothing
+geometric separates them; `BRepTools::IsReallyClosed` — the edge closes a
+periodic face — does.
+
+**Four selector kinds** in the experimental IR: `all` and `axis_parallel`
+exactly as Section C.7 defines them (**not redefined**, so old plans mean what
+they meant), plus `straight` (axis-parallel lines, seams excluded — what "the
+corners" means) and `circular` (circular edges about an axis — a hole's rim),
+with `"position": "top"|"bottom"` narrowing a `circular` selection to one end.
+`position` is **extremal, not ordinal**: two holes through a plate both have a
+top rim and both are named, because picking one would be a guess.
+
+**`cad_experimental/edge_semantics.py` imports nothing** — no kernel, no
+backend, no `cad_core`, no project module. A backend reports plain `EdgeFacts`
+(curve, direction or centre and normal, radius, **is_seam**, adjacent surface
+names) from `describe_edges`, the one place OCC topology is read; the resolver
+decides on those numbers. No CadQuery string, OCC enumeration or edge index
+ever reaches the IR.
+
+**Three resolution codes**, separate from P- and S/E-codes: `R1` matched
+nothing (and says what the solid has), `R2` the selection contains a seam
+(naming the two selectors to use instead), `R3` a `position` could not
+separate the candidates. A failed resolution still reports its candidates.
+Ordering is **geometric** — defining point along the axis, then radius — with
+the backend's index as final tie-break only, so nothing depends on the
+kernel's enumeration order.
+
+**Two build paths, chosen explicitly.** A V1 document carries only two
+selectors, so the adapter raises `SelectorNotExpressible` (distinct from
+`ExecutionUnsupported`: the *document format* is behind, not the engine) and
+`build_plan` sends such plans to `cad_experimental/executor.py` — which walks
+Stage 46's `topological_order()`, holds one backend shape per live body, and
+introduces no second history. `PlanBuild.executed` says which path ran.
+
+**Proved at the execution level** with closed forms: fillet and chamfer on a
+hole rim (chamfer to `2π(R + d/3)·d²/2` per rim), top vs bottom rim, corners
+vs rim disjoint, the seam never selected, two holes deterministic, and a
+pattern's four bolt-circle rims chamfered by one selector.
+
+**Deliberately deferred:** `inner`/`outer` (not needed for these cases — the
+tube measurement is recorded for when it is), face and vertex selectors, named
+topology, and `describe_edges` on FreeCAD, which raises rather than answering
+wrongly.
+
+**Next limitation:** no model has been asked to produce a semantic selector.
+Prompt `2026-09-15.4` names the four kinds and which to use for "round the
+corners" and "break the edge of the hole", but that is a hypothesis until it
+is measured.
 
 **FreeCAD runs here, but not the obvious way.** No pip distribution, and it is
 **not in Ubuntu 24.04**. It came from the official AppImage (649 MB, extracting
@@ -1358,7 +1412,7 @@ The POSIX forms remain correct on Linux/macOS, where `python3` and a
 `CAD_FREECAD_HOME` plus `LD_LIBRARY_PATH=$CAD_FREECAD_HOME/usr/lib` set
 **before Python starts**, or `test_cad_backends` skips.
 
-**1107 tests, 2 skipped** with FreeCAD present on Linux, as of Stage 46 (at
+**1188 tests, 2 skipped** with FreeCAD present on Linux, as of Stage 47 (at
 Stage 43 that was 897 tests, 33 skipped on the Windows environment, where the
 extra skips are the FreeCAD backend). Run the whole suite before finishing a
 stage here: package-wide guard tests in older modules are routinely tripped
