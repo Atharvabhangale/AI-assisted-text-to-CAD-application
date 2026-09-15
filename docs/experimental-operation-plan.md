@@ -1149,6 +1149,96 @@ none should be read into these numbers.
   engines diverge on the harder geometry this project ultimately wants.
 * **FreeCAD is not production-ready here, and is not proposed as such.**
 
+## Stage 43: structured output, and a Windows worker that could not build
+
+Stage 43 is **preparation only**. It makes the Stage 40 comparison askable for
+the first time and fixes the local environment it would be measured in. **The
+comparison itself has not been run.**
+
+### Why the Stage 40 result could not answer its own question
+
+Stage 40 ran both arms with a strict parser and no grammar constraint, because
+the operation-plan schema could not be compiled at all — 31 optional
+properties against an API limit of 24. Claude Haiku then fenced almost every
+answer, both parsers refuse a fence by design, and the run scored 0% on both
+sides. The transport decided all 130 cases; the representations were never
+compared. Stage 41 removed that blocker by restructuring the plan schema.
+
+A re-run of the frozen Stage 40 instrument on Windows reproduced the original
+result exactly — 130/130 `PARSER_REJECTED`, 0% on both arms, 110 of 130
+answers fenced (the plan arm 65/65). The instrument is reproducible.
+
+### The new mode
+
+`cad_experimental.stage43_structured_comparison` is a **separate stage**, not
+an edit to Stage 40. The frozen instrument — the corpus, both prompts, both
+parsers, both validators, the adapter, the build and every scoring rule — is
+imported and used unchanged; `representation_comparison.STRUCTURED_OUTPUT_ENABLED`
+is still `False` and a test asserts it. The one intended difference is that
+both arms are constrained by their own JSON schema at the API.
+
+Stage 40's `_TimedModel` drops `output_schema`. Rather than modify it,
+`StructuredModel` sits *beneath* it and puts the schema back, choosing the arm
+by **exact** system-prompt match — an unrecognised prompt raises rather than
+guessing, because attaching the wrong arm's grammar would silently corrupt a
+measurement. Nothing strips a fence, repairs, retries or re-prompts; guard
+tests assert a fence literal may only reach `startswith`-style detection,
+never `replace`/`strip`/`split`.
+
+### Schema preflight
+
+Offline (free) and then live (two calls, acceptance only):
+
+| | V1 JSON | Operation Plan |
+|---|---:|---:|
+| Optional properties | 8 | 7 |
+| Worst single object | 4 (limit 14) | 2 (limit 14) |
+| Rejected keywords | none | none |
+| Accepted live | **yes** | **yes** |
+| Markdown fence | **no** | **no** |
+
+**V1's raw schema carries `exclusiveMinimum` and `minLength` and must be
+sanitised to compile; the plan's Stage 41 schema is already clean.** Stage 40's
+own `sanitise_schema` does it, and removes only bounds — 29 and 47 properties
+identical before and after, `required` lists unchanged, no property lost. The
+dropped bounds are still enforced by the parser and the validator.
+
+### The Windows build worker: two causes, both in production code
+
+Deterministic committed fixtures — no model involved — failed identically to
+the model-driven run, which is what identified this as environment, not output.
+
+1. **The child had no home directory.** `INHERITED_ENVIRONMENT_NAMES` omitted
+   `USERPROFILE`/`HOMEDRIVE`/`HOMEPATH`. `import cadquery` loads its DXF
+   exporter at module scope → `ezdxf` builds its options at import time →
+   `Path("~").expanduser()`. POSIX falls back to the `pwd` database, which is
+   why Stage 40 on Linux was unaffected; Windows has no fallback and raises.
+   Every isolated build died before touching geometry.
+2. **OpenCascade aborts at interpreter shutdown.** With (1) fixed the child
+   built correctly and then exited `0xC0000374` during finalisation; the host
+   classifies on the response first and the exit code second, so a correct
+   build was reported as a protocol error. The worker entrypoint now flushes
+   and calls `os._exit(code)`. Nothing in `cad_core` registers an `atexit`
+   hook, `__del__` or finaliser, and the response is published with
+   `os.replace` before `main` returns, so finalisation had no work left to do
+   — only a way to fail. The exit code is passed through unchanged.
+
+Both were documented in `CLAUDE.md` §15 as *test* traps; they were live in
+production code on this branch, which forked before the stable branch's
+Windows fixes.
+
+`test_local_plan_provider` went from 21 failures and 59 errors to **45 OK**.
+The chain now runs end to end on a committed fixture: parse → validate →
+adapter → worker → build succeeded.
+
+### What this licenses
+
+Only that the two blocking questions are answered: **the transport can deliver
+both representations** (unfenced, schema-constrained), and **the local
+environment can build them** (deterministic fixtures pass). Which
+representation Claude Haiku handles better is **still unmeasured** — that is
+the run this stage prepares and deliberately did not start.
+
 ## What is NOT known
 
 **Real Anthropic testing happened at Stage 40, and only there.** Stages 33 to

@@ -140,11 +140,24 @@ WORKSPACE_PREFIX = "cad-isolated-"
 MAX_DIAGNOSTIC_CHARACTERS = 4000
 
 #: Environment variables the child inherits **if the host has them**: the
-#: dynamic loader's and the platform's, nothing else.
+#: dynamic loader's, the platform's, and the home-directory ones, nothing
+#: else.
 #:
 #: Everything else is dropped, so no API key, token or cloud credential can
 #: reach the child even by accident. No credential handling exists here, and
 #: nothing in this stage needs one.
+#:
+#: The home-directory names are here because the CAD kernel needs them, not
+#: as a convenience. ``import cadquery`` pulls in its DXF exporter at module
+#: scope, which imports ``ezdxf``, which builds its options object at import
+#: time and calls ``Path("~").expanduser()`` while doing so. On POSIX that
+#: falls back to the ``pwd`` database when ``HOME`` is unset, so it survives
+#: a minimal environment; **on Windows there is no fallback** and it raises
+#: ``RuntimeError("Could not determine home directory.")``. Without these
+#: names every isolated build on Windows therefore fails in the child before
+#: any geometry is touched, and the host reports it as an unhandled internal
+#: worker error. A path to the user's profile is not a credential, and these
+#: are inherited on the same terms as ``PATH`` and ``SYSTEMROOT``.
 INHERITED_ENVIRONMENT_NAMES: Tuple[str, ...] = (
     "PATH",
     "LD_LIBRARY_PATH",
@@ -153,6 +166,10 @@ INHERITED_ENVIRONMENT_NAMES: Tuple[str, ...] = (
     "SYSTEMROOT",
     "SystemRoot",
     "WINDIR",
+    "HOME",
+    "USERPROFILE",
+    "HOMEDRIVE",
+    "HOMEPATH",
 )
 
 #: Environment variables the child is **given**, whatever the host's are.

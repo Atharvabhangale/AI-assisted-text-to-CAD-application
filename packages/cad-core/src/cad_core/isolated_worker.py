@@ -630,4 +630,33 @@ __all__ = [
 
 
 if __name__ == "__main__":  # pragma: no cover - process entrypoint
-    sys.exit(main())
+    # Leave without running interpreter finalisation.
+    #
+    # By the time ``main`` returns, everything this process owes the host is
+    # already durable: the response was published with :func:`os.replace`,
+    # and ``stdout``/``stderr`` are diagnostic only. Nothing in this package
+    # registers an ``atexit`` hook, a ``__del__`` or a finaliser that writes
+    # any part of the protocol, so finalisation has no work left to do here.
+    #
+    # It does, however, have a way to fail. The OpenCascade native layer
+    # aborts while its objects are torn down at shutdown -- on Windows with
+    # ``0xC0000374`` (heap corruption) or ``0xC0000005`` (access violation),
+    # *after* a correct build has been written. The host classifies on the
+    # response first and the exit code second, and a mismatch between them is
+    # a protocol error, so that abort turned every successful isolated build
+    # on Windows into a reported failure.
+    #
+    # ``os._exit`` skips finalisation and hands the host the code ``main``
+    # decided on, unchanged. It narrows what this process does at the very
+    # end; it does not change, retry or reinterpret any outcome. The streams
+    # are flushed first because ``os._exit`` does not flush them.
+    code = main()
+    try:
+        sys.stdout.flush()
+    except Exception:  # pragma: no cover - a broken pipe is not an outcome
+        pass
+    try:
+        sys.stderr.flush()
+    except Exception:  # pragma: no cover
+        pass
+    os._exit(code)
