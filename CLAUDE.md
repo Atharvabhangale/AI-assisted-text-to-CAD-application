@@ -279,8 +279,14 @@ skipped or weakened to make the suite pass.
 
 **On `experiment/cad-operation-graph` the numbers above are stable's, and six
 cad-core tests fail.** Measured on this branch: cad-core runs **1481 tests
-with 6 errors**, and `tests_experimental` is **897 passed, 33 skipped** (the
-skips are the FreeCAD backend, which is absent on Windows). The six errors
+with 6 errors**, and `tests_experimental` was **897 passed, 33 skipped** at
+Stage 43 on Windows (the skips are the FreeCAD backend, absent there) and is
+**1263 passed, 33 skipped (1296 collected)** as of Stage 48, measured on a
+Linux container without FreeCAD. Note for anyone reproducing that figure in a
+fresh container: `cadquery` and `fastapi` are not installed by default there,
+and without them six test modules fail to *import* and their tests are never
+collected at all — a red suite that is an environment gap, not a regression.
+The six errors
 are **pre-existing, in test code, and unrelated to CAD** — they are two of
 §15's own traps, in a branch that forked before the stable branch's Stage 32
 Windows fixes and so never received them:
@@ -1040,8 +1046,8 @@ section is the index.
 
 ### Where this branch stands, and what is next
 
-Stages 32–47 are complete and pushed. The subsections below are the index, in
-order; the four most recent are:
+Stages 32–48 are complete and pushed. The subsections below are the index, in
+order; the five most recent are:
 
 | Stage | What it settled |
 |---|---|
@@ -1049,35 +1055,43 @@ order; the four most recent are:
 | **45** | The plan's dependency and history graph made visible: one shared solid-set walk, `derivation()`, `depth`, terminal solids. |
 | **46** | A real feature graph — role-tagged edges, derived per-body sequencing, deterministic topological order — and `pattern` as its first graph-native operation. |
 | **47** | Semantic edge selection: `straight` and `circular`, the seam told apart from the rim by topology, and a graph-driven executor. |
+| **48** | The **evaluation instrument** for all of the above: a 30-case capability corpus, the widened schema, two separate result groups, a free offline preflight — and the prompt contradiction that would have wrecked the run. |
 
-**Everything built since Stage 43 is unmeasured.** No model has been asked to
-produce a sketch chain, a `pattern`, or a semantic selector. The next step is
-therefore **real-model measurement on the local machine**, with the real
-credential, and it is not merely a matter of running the existing harness.
+**Everything built since Stage 43 is still unmeasured against a model.** What
+changed at Stage 48 is that the instrument to measure it now exists, is fully
+exercised offline, and refuses to start if it would not measure what it
+claims. The next step is **running it on the local machine**, with the real
+credential.
 
-**Two things block a meaningful run, and neither is a bug in the code:**
+Stage 48 removed the two blockers that stood in the way:
 
-1. **No harness sends `provider_schema()`.** `stage43_structured_comparison`
-   is deliberately pinned to `executable_schema()` — the six V1 features —
-   so that re-running Stage 43 reproduces Stage 43 (fingerprint
-   `54759d1e16cfe634`, which a test asserts). Running it today would send the
-   **old six-type grammar** with the **new prompt**, which tells the model to
-   use `pattern`, `straight`, `circular` and profile chains that the grammar
-   forbids. That is Stage 43's own failure mode repeated, and the numbers
-   would mean nothing. **A new harness — a Stage 48 — is needed**, reusing
-   Stage 40's frozen corpus, scoring, attempts and model, and changing only
-   the schema and the prompt. That is a stage of work, not run preparation.
-2. **The corpus does not exercise the new capability.** `comparison_corpus.py`
-   is frozen at 13 cases from Stage 40 and contains no pattern, no semantic
-   selector and no multi-feature chain. Measuring Stages 44–47 against it
-   would measure nothing about them. Extending it is a deliberate
-   re-baselining stage and must never be done by editing expectations after
-   seeing a score.
+1. **A harness that sends `provider_schema()` now exists.**
+   `stage48_capability_evaluation` sends the widened ten-type schema
+   (`be8ba82740aecc1d`) and the current prompt, and its
+   `--probe-live` asks the one question Stage 44 left open — *does the
+   provider compile it?* — in three calls.
+   `stage43_structured_comparison` is **untouched** and still pinned to
+   `executable_schema()` (`54759d1e16cfe634`, which a test still asserts):
+   re-running Stage 43 must reproduce Stage 43.
+2. **A corpus that exercises the new capability now exists.**
+   `stage48_corpus` is 30 cases (`96517cb979b4660a`) covering sketch chains,
+   `pattern`, semantic selectors, deeper graphs, ambiguity and impossible
+   parts. `comparison_corpus.py` is **untouched** and still frozen at its 13
+   cases — Stage 48's `legacy` group *reads* them out of it rather than
+   copying them, so the two cannot drift.
 
-What *can* be answered with one live call today is the open question Stage 44
-left: **does the provider compile the widened schema?** No CLI sends it —
-`--probe-live` probes `executable_schema()`, which is already known-accepted —
-so that too needs a few lines of new code before it can be asked.
+**The finding Stage 48 produced before running anything:** Stage 46 added
+`pattern` as a full operation and left `patterns` standing in the prompt's
+UNSUPPORTED list, so the prompt told the model to decline something the
+language has. Every pattern case would have come back `unsupported` and been
+recorded as the model's judgement — the Stage 44 mistake in a new place.
+Prompt `2026-09-15.5` removes it. **When an operation is added, the refusal
+list is part of the operation.**
+
+Still open, and only answerable live: **does the provider compile the widened
+schema?** Every offline limit is satisfied and asserted; compiled-grammar
+size can only be measured by sending it. `--plan-schema compact` is the
+documented fallback, and nothing selects it automatically.
 
 The credential is `CAD_ANTHROPIC_API_KEY` (§7 and the Commands block below).
 **Nothing in Claude Code Web may use or request it.**
@@ -1406,9 +1420,11 @@ topology, and `describe_edges` on FreeCAD, which raises rather than answering
 wrongly.
 
 **Next limitation:** no model has been asked to produce a semantic selector.
-Prompt `2026-09-15.4` names the four kinds and which to use for "round the
-corners" and "break the edge of the hole", but that is a hypothesis until it
-is measured.
+The prompt names the four kinds and which to use for "round the corners" and
+"break the edge of the hole", but that is a hypothesis until it is measured.
+Stage 48 built the instrument that can measure it — cases `F1`–`F4` — and it
+has not been run live. (The prompt is `2026-09-15.5` since Stage 48; it was
+`2026-09-15.4` here.)
 
 **FreeCAD runs here, but not the obvious way.** No pip distribution, and it is
 **not in Ubuntu 24.04**. It came from the official AppImage (649 MB, extracting
@@ -1421,6 +1437,96 @@ engines produce bit-identical volumes on all six golden parts.
 `CAD_ANTHROPIC_API_KEY`,** because the platform reserves and strips
 `ANTHROPIC_API_KEY` — which is what `cad_ai` reads. §7's note is right for the
 Windows machine; in the cloud a caller must bridge the value across.
+
+### Stage 48: the evaluation instrument for Stages 44-47
+
+**This stage measures nothing yet, and that is what it says.** It is the
+harness, the corpus and the discipline; the numbers are a local run away.
+
+**Why Stage 43 could not be re-used.** It is pinned to `executable_schema()`
+— six types, no `sketch`/`extrude`/`revolve` branch, two selectors — and a
+test asserts that pin. Running it today would send the old grammar with the
+current prompt, which tells the model to use `pattern`, `straight`,
+`circular` and profile chains that grammar forbids: Stage 44's finding
+repeated on purpose. **Stage 43 is untouched**, and four tests prove it.
+
+**The finding, before any run.** Stage 46 added `pattern` as a full
+operation — its own prompt section, executable, in `provider_schema()`'s
+eight branches — and **left `patterns` in the prompt's UNSUPPORTED list**.
+The prompt said "use a pattern for a bolt circle" and, forty lines later,
+"decline patterns". Every pattern case would have returned `unsupported` and
+been recorded as the model's judgement. Prompt `2026-09-15.5`
+(`21d564ddeba05a74`) removes it and adds the carve-out the `extrude`/
+`revolve` entry already had.
+
+**A Stage 38 test was pinning the contradiction in place** — it *required*
+`patterns` to appear in the refusal list, because at Stage 38 that was true.
+Stage 46 did not update it, so the suite held the error rather than catching
+it. Corrected, with a mirror test for the carve-out. **When an operation is
+added, the refusal list is part of the operation — and so is the test that
+pins it.**
+
+**Two result groups, never one number.** `legacy` is the thirteen Stage 40
+requests answered by **both** representations — *read out of the frozen
+`comparison_corpus` object at import*, not retyped, with a test asserting
+character-for-character identity. `capability` is seventeen plan-only cases
+covering sketch chains, `pattern`, semantic selectors, deeper graphs,
+ambiguity and an impossible part. `summarise()` produces no combined rate and
+a test asserts the absence of one.
+
+**Not a delta against Stage 43.** Three things moved at once: the schema
+(`54759d1e16cfe634` → `be8ba82740aecc1d`), the prompt (`2026-09-10.7` →
+`2026-09-15.5`), and — the subtle one — **the scoring path for a semantic
+selector**. Stage 40's runner calls `plan_to_document` directly, so a
+`straight` or `circular` selector raises `SelectorNotExpressible` and scores
+`SEMANTICALLY_INCORRECT`. That was right when none existed; today it would
+score a correct, buildable answer wrong, and legacy cases `07`/`08` are
+exactly where the current prompt steers towards one. Stage 48 builds through
+`build_plan`, which picks the document path or the graph executor
+explicitly.
+
+**Five expected classes**, three of them Stage 40's own constants imported
+rather than redefined: `build` (19), `valid_unexecutable` (4), `unsupported`
+(4), and two new — `clarification` (2, a required value is absent) and
+`no_part` (1, the part cannot exist; either refusal word is accepted, a plan
+never is).
+
+**The offline preflight is the stage's real deliverable.** `--check` calls no
+model and verifies: both schemas against every measured provider limit (plan
+**16** optional properties, worst object 4, **8 branches**); that the legacy
+text is identical to the frozen corpus and no capability case carries a V1
+expectation; that **all 19 buildable expectations agree with the real
+kernel**, 7 of them via the graph executor; that 9 deliberately broken plans
+are refused by the right layer with the right P-code; and that **all seven
+Stage 40/43 baseline files match their recorded SHA-256**. `--self-check`
+then runs the whole loop against developer-written reference plans, 19/19 —
+stamped `is_live_model_result: false`, because **that is a statement about
+the harness and says nothing about any model.**
+
+**Baselines cannot be overwritten.** `run()` raises `BaselineMissing` if a
+digest moved, `_write()` refuses any path inside `stage40-v1-vs-operation-plan/`
+or `stage43-structured-output/`, and the CLI refuses such an `--out` before
+doing anything at all.
+
+**Four new metrics, each marked new in `SCORING_RULES`:**
+`correct_valid_unexecutable`, `correct_clarification`, `selector_correct`
+(F2 and F3 chamfer to the *same volume*, so only the selector tells the top
+rim from the bottom) and `executed_by_graph` (a count, not a rate, not a
+quality signal). Three new codes: `WRONG_SELECTOR`,
+`INVENTED_MISSING_VALUE`, and `CORRECT_CLARIFICATION` — a success, and
+deliberately not `OK`, which means "built the part that was asked for".
+Every Stage 40 metric keeps its meaning and Stage 40's own success tuple is
+not widened; `scoring_fingerprint()` hashes the definitions so that changing
+one is visible.
+
+**Still unverified, and only answerable live:** that the provider *compiles*
+the widened schema. `--probe-live` asks in three calls;
+`--plan-schema compact` is the documented fallback and nothing selects it
+automatically.
+
+Full detail: `docs/experimental-operation-plan.md` → *Stage 48*, and
+`docs/evaluation-baselines/stage48-widened-schema/README.md` for the exact
+local commands.
 
 ### Commands
 
@@ -1446,10 +1552,18 @@ Set-Location "$repo\apps\api"
 & "$repo\.venv\Scripts\python.exe" -u -m cad_experimental.local_plan_provider --list
 & "$repo\.venv\Scripts\python.exe" -u -m cad_experimental.representation_comparison --check
 & "$repo\.venv\Scripts\python.exe" -u -m cad_experimental.stage43_structured_comparison --check
+
+# Stage 48 — also free, and the preflight builds 19 reference parts
+& "$repo\.venv\Scripts\python.exe" -u -m cad_experimental.stage48_capability_evaluation --list
+& "$repo\.venv\Scripts\python.exe" -u -m cad_experimental.stage48_capability_evaluation --check
+& "$repo\.venv\Scripts\python.exe" -u -m cad_experimental.stage48_capability_evaluation --self-check
 ```
 
 A live run additionally needs the credential exported into *that* process
-(§7) as `CAD_ANTHROPIC_API_KEY`, which is what the harness reads.
+(§7) as `CAD_ANTHROPIC_API_KEY`, which is what the harness reads. The two
+Stage 48 live commands — `--probe-live` (3 calls) and `--live` (215 calls at
+5 attempts) — are written out in full in
+`docs/evaluation-baselines/stage48-widened-schema/README.md`.
 
 The POSIX forms remain correct on Linux/macOS, where `python3` and a
 `:`-separated `PYTHONPATH` are right, and where FreeCAD needs
@@ -1486,3 +1600,16 @@ output, not the exit code.
 - **Stage 43's module is pinned to `executable_schema()`** and does not follow
   `provider_schema()`. A recorded result must stay attributable to the
   instrument that produced it: re-running Stage 43 must reproduce Stage 43.
+  Stage 48 is a **separate** module, corpus, version and output directory —
+  it never edits Stage 43 to reach the current schema.
+- **`stage48_corpus.py` is a frozen instrument too**, and its `legacy` group
+  is *read out of* `comparison_corpus` rather than copied, so the two can
+  never drift. Its expectations were written before any live call and must
+  never be edited after a score is seen.
+- **The Stage 40 and Stage 43 baseline files are immutable, and enforced.**
+  Stage 48 records their SHA-256, refuses to run if one moved, and refuses
+  any output path inside either directory.
+- **A prompt's refusal list is part of the vocabulary.** Adding an operation
+  and leaving it in the UNSUPPORTED list makes the model decline something
+  the language has, and the run records the contradiction as the model's
+  judgement. Stage 44 found this for `sketch`, Stage 48 for `pattern`.

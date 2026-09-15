@@ -1139,10 +1139,14 @@ class PromptTests(unittest.TestCase):
         `2026-09-10.7` was Stages 38-43. `2026-09-15.1` is Stage 44, which
         stopped telling the model that a profile operation cannot be built.
         `2026-09-15.2` is Stage 45, which added the sequence section,
-        `2026-09-15.3` is Stage 46, which added `pattern`, and
-        `2026-09-15.4` is Stage 47, which added the semantic edge selectors.
+        `2026-09-15.3` is Stage 46, which added `pattern`,
+        `2026-09-15.4` is Stage 47, which added the semantic edge selectors,
+        and `2026-09-15.5` is Stage 48, which took `patterns` back out of
+        the unsupported list -- Stage 46 added the operation and left the
+        refusal standing, so the prompt told the model to decline something
+        the language has. The same mistake Stage 44 found, in a new place.
         """
-        self.assertEqual(self.version, "2026-09-15.4")
+        self.assertEqual(self.version, "2026-09-15.5")
         self.assertEqual(len(self.fingerprint), 64)
 
 

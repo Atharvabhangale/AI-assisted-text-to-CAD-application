@@ -2119,3 +2119,299 @@ So the stage's central question — is the operation plan easier for a model to
 get right than the V1 document? — **remains open**. Answering it needs the live
 harness run, and then a comparison against the stable path's own numbers on
 equivalent prompts.
+
+---
+
+## Stage 48: an evaluation instrument for what Stages 44–47 built
+
+**This stage measures nothing yet.** It is the instrument, and saying so is
+the point: Stage 43's numbers are the only live comparison this branch has,
+and the reason a new instrument was needed is that re-running Stage 43 would
+have produced numbers that looked like a measurement and were not.
+
+### Why Stage 43 cannot answer the current question
+
+Stage 43 is pinned to `executable_schema()` — six operation types, six
+branches, **no `sketch`, `extrude` or `revolve` branch**, and the two V1 edge
+selectors. That pin is deliberate and a test asserts its fingerprint
+(`54759d1e16cfe634`): a recorded result must stay attributable to the
+instrument that produced it.
+
+Since then the language grew. Stage 44 widened `provider_schema()` to all ten
+types in eight branches and established that Stage 43's 5/5 profile refusals
+were **forced by the grammar rather than chosen**. Stage 45 exposed the
+history graph, Stage 46 added `pattern`, Stage 47 added `straight`,
+`circular` and `position`.
+
+So running `stage43_structured_comparison --live` today would send the **old
+six-type grammar** with the **current prompt**, which tells the model to use
+operations that grammar forbids. That is Stage 44's finding repeated on
+purpose. Stage 43 therefore stays exactly as it is, and Stage 48 is a
+separate module, corpus, version and output directory.
+
+### A prompt contradiction found while building the corpus
+
+Stage 46 added `pattern` as a full operation — documented in its own prompt
+section, executable, in `EXECUTABLE_TYPES`, in eight-branch
+`provider_schema()` — and **left `patterns` standing in the prompt's
+unsupported list**:
+
+```
+...sweeps along a path, helical sweeps and lofts -- an extrude and a revolve
+are NOT in this list, they are operations this language has;
+patterns; mirrors; assemblies;
+```
+
+The prompt's `## pattern` section says *"Use a pattern whenever a description
+says several of the same feature arranged in a regular way"*, and forty lines
+later its refusal list says to decline one. Every pattern case in a Stage 48
+run would plausibly have come back `unsupported`, and the run would have
+recorded a **prompt contradiction as the model's judgement** — exactly the
+Stage 44 mistake, in a new place.
+
+Prompt `2026-09-15.5` removes the word and adds the same explicit carve-out
+the `extrude`/`revolve` entry already carries:
+
+> A `pattern` is NOT in that list either. Repeating one feature at several
+> places is an operation this language has, so a bolt circle, a row of holes
+> or any other regular repetition is a plan and never a refusal.
+
+Found before any run, by reading the prompt against the vocabulary rather
+than by seeing a score. The version pin in `test_extrude_revolve` moved with
+it, as its own comment requires.
+
+**A test was asserting the contradiction.** `test_sketch.py`'s
+`test_the_sweeps_beyond_this_stage_are_still_unsupported` was written at
+Stage 38, when `pattern` genuinely did not exist, and it pinned `patterns` as
+*required* to be in the refusal list. Stage 46 added the operation and did
+not update it — so the suite was actively holding the contradiction in place,
+which is how it survived four stages. It now asserts the correct state, and a
+mirror test (`test_the_prompt_no_longer_calls_a_pattern_unsupported`) asserts
+the carve-out is present, exactly as the sketch pair above it does.
+
+The general lesson, again: **when an operation is added, the refusal list is
+part of the operation — and so is the test that pins it.** Stage 44 said a
+schema is what the model may say; this says a prompt's negative space is too,
+and that a guard test written against an older vocabulary can keep an error
+alive rather than catch it.
+
+### Two groups, never one number
+
+| Group | Cases | Arms | Why |
+|---|---:|---|---|
+| `legacy` | 13 | V1 **and** plan | The Stage 40 requests. Both vocabularies can express them, so both are asked |
+| `capability` | 17 | plan only | Sketch chains, `pattern`, semantic selectors, deeper graphs. V1 has none of them |
+
+The legacy cases are **read out of the frozen `comparison_corpus` object at
+import** — text, both expectations, geometry and both required-type tuples —
+rather than retyped, and `_group_check()` plus a test assert
+character-for-character identity. "Legitimately comparable" is therefore a
+checkable property, not a claim in a docstring.
+
+`summarise()` deliberately produces no combined rate, and a test asserts the
+absence of an `overall` or `combined` key. One number over both groups would
+be a V1 score diluted by seventeen cases V1 was never asked.
+
+### What broke apples-to-apples with Stage 43, and why that is fine
+
+Three things moved at once, and **any one of them is enough**:
+
+1. **The schema.** `executable_schema()` → `provider_schema()`:
+   `54759d1e16cfe634` → `be8ba82740aecc1d`, six branches → eight, six types →
+   ten.
+2. **The prompt.** `2026-09-10.7` → `2026-09-15.5`. Four stages of changes.
+3. **The scoring path for a semantic selector** — the subtle one. Stage 40's
+   `run_plan_attempt` calls `plan_to_document` directly, so a plan using
+   `straight` or `circular` raises `SelectorNotExpressible` and lands in its
+   generic `except Exception` arm as `SEMANTICALLY_INCORRECT`. That was right
+   when no such selector existed. Today it scores a **correct, buildable**
+   answer as wrong — and legacy cases `07` and `08` ("chamfer/fillet the
+   vertical edges") are precisely where prompt `2026-09-15.4` onwards steers
+   the model towards one.
+
+Stage 48 therefore builds through `build_plan`, which asks
+`plan_needs_executor(plan)` **before** building and sends such a plan to the
+graph executor. A test pins both halves: the F1 reference plan scores `OK`
+through Stage 48, and `plan_to_document` on that very plan raises.
+
+**So a Stage 48 legacy number is not a Stage 43 number that moved.** It is a
+fresh measurement whose internal V1-vs-plan comparison is fair. Every result
+carries `relationship_to_stage_43` stating this in the JSON itself, for a
+reader who finds the file without the docs.
+
+### The corpus: 30 cases, nine categories, five expected classes
+
+`stage48_corpus.py`, version `1.0.0`, fingerprint `96517cb979b4660a`.
+
+| | A | B | C | D | E | F | G | H | I |
+|---|---|---|---|---|---|---|---|---|---|
+| | primitives | modifiers | profiles | chains | pattern | selectors | graph | unsupported | invalid |
+| cases | 3 | 6 | 2 | 3 | 2 | 4 | 3 | 4 | 3 |
+
+Five expected classes, each carried explicitly by every case. Three are Stage
+40's own constants, **imported not redefined**, so a legacy case means what
+it meant there:
+
+- `build` (19) — buildable geometry matching a closed form;
+- `valid_unexecutable` (4) — a valid plan this engine refuses;
+- `unsupported` (4) — the word `unsupported`;
+- `clarification` (2) — **new** — a required value is absent and has no
+  default, so the only correct answer is to ask;
+- `no_part` (1) — **new** — the request names a part that cannot exist (a
+  200 mm hole through a 100 mm plate). Nothing is missing and the vocabulary
+  can say it, so neither of the other two fits. Either refusal word is
+  accepted, because the language gives no basis to prefer one; producing a
+  plan is always wrong.
+
+Two cases are worth understanding in detail.
+
+**`F2` and `F3` — the top rim and the bottom rim.** A 1 mm chamfer on either
+end of a Ø20 hole through a 10 mm plate removes `2π(R + d/3)·d²/2` — **the
+same volume to the last bit**. Geometry alone cannot tell the two requests
+apart, so a run that scored both correct on volume would have proved nothing.
+They are scored by reading the selector the model wrote, which is what
+`SelectorExpectation` and the `selector_correct` metric are for. A test
+feeds `F2` the `F3` reference plan and asserts `WRONG_SELECTOR`.
+
+**`F1` — "round the four outside corners" on a drilled plate.** The Stage 47
+root cause, as a request: the bore's seam is a genuine Z-parallel straight
+edge, so `axis_parallel Z` selects it and the whole fillet fails with E5.
+Only `straight` builds this, which is why it is the single accepted selector
+— and why the case is also the clearest demonstration that Stage 40's runner
+could not have scored this corpus.
+
+### Reference plans, and why they are not an answer key
+
+Every buildable case carries a **reference plan**: a developer-written plan
+that is *one* correct answer to that request. The preflight parses,
+validates and **builds all nineteen with the real kernel** and checks each
+against its closed form. Seven go through the graph executor.
+
+That check caught nothing, which is the point — it was run before the
+expectations were committed, and all nineteen closed forms agreed with
+CadQuery to within 1 ULP. Had one disagreed, every attempt on that case
+would have been scored incorrect and read as a model failure.
+
+A reference plan **never reaches the model**: not in the prompt, not in the
+schema, not in any request. The only other thing that reads one is
+`ReferencePlanStub`, the `--self-check` provider, which is stamped
+`is_local_development = True`, produces a result stamped
+`is_live_model_result: false`, and is unreachable from `--live` — that path
+builds `real_model()` and nothing else.
+
+### Invalid plans: asked of the rules, not of a model
+
+The brief's "bad references, incompatible references, ambiguous selector,
+unsupported geometry semantics" are properties of a **plan**, not of a
+request: no wording makes a model emit a dangling reference on demand.
+Measuring them through a model would measure something else and call it
+this.
+
+They are checked offline instead — nine deliberately broken plans, each with
+the layer and the rule code that must refuse it. Every code below was
+**observed from the validator**, not recalled:
+
+| Fixture | Refused by | Codes | Kind |
+|---|---|---|---|
+| `bad-reference` | validator | `P9` | bad reference |
+| `forward-reference` | validator | `P10` | bad reference |
+| `consumed-reference` | validator | `P12` | incompatible reference |
+| `pattern-of-a-solid` | validator | `P27` | incompatible reference |
+| `self-referencing-subtract` | validator | `P10`, `P31` | cycle |
+| `radial-pattern-off-axis` | validator | `P29` | unsupported geometry semantics |
+| `pattern-count-of-one` | validator | `P28` | unsupported geometry semantics |
+| `selector-position-without-axis` | **parser** | — | ambiguous selector |
+| `selector-straight-without-axis` | **parser** | — | ambiguous selector |
+
+They contribute to no score and appear in no rate.
+
+### Scoring, and the three new metrics
+
+Every Stage 40 metric keeps its meaning, and `SCORING_RULES` states each one
+in words rather than leaving it implicit in the code. `scoring_fingerprint()`
+hashes that table together with the tolerances, the success categories and
+the accepted-refusal map, so **changing what a metric means changes the
+fingerprint** — a test proves it by mutating one definition and checking the
+hash moves.
+
+Four metrics are new, and marked as new in the table itself:
+
+- `correct_valid_unexecutable` — Stage 40 had the *category*, never the rate;
+- `correct_clarification` — over the cases where a required value is absent;
+- `selector_correct` — over the cases that name a kind of edge only;
+- `executed_by_graph` — a **count, not a rate**, and not a quality signal.
+  It is the evidence that a run measured something Stage 43 could not.
+
+Three new codes, none reachable by a Stage 40 or Stage 43 record, so no
+existing category changed meaning to make room: `WRONG_SELECTOR` (right part,
+wrong kind of edge), `INVENTED_MISSING_VALUE` (a plan where the request left a
+required value out) and `CORRECT_CLARIFICATION` (asking was right and the
+model asked — a **success**).
+
+One inherited metric has its **denominator** stated rather than changed:
+`render_success` is over document-path attempts only, because a
+graph-executed plan has no V1 document and so no RenderModel *by design*.
+Counting those as failures would report Stage 47's capability as a defect.
+
+`INVENTED_MISSING_VALUE` is kept apart from `WRONGLY_ANSWERED` because
+inventing a dimension is a different failure from confidently answering an
+impossible request, and a run that folded them would lose which one happened.
+`CORRECT_CLARIFICATION` is kept apart from `OK` for the mirror reason: `OK`
+means *built the part that was asked for*, and reporting a question as a
+built part is the same conflation in the other direction.
+`STAGE48_SUCCESS_CATEGORIES` is Stage 40's tuple plus that one; **Stage 40's
+own tuple is not widened**, because widening it would change what a Stage 40
+record's categories mean.
+
+**A provider error stays out of every denominator.** Stage 40's `_rate`
+rule, its implementation, and a test.
+
+### Baselines cannot be overwritten
+
+`BASELINE_DIGESTS` records the SHA-256 of all seven Stage 40 and Stage 43
+files. The preflight checks them, `run()` raises `BaselineMissing` if one is
+absent or changed, `_write()` refuses any path inside
+`stage40-v1-vs-operation-plan/` or `stage43-structured-output/`, and the CLI
+refuses such a `--out` before doing anything at all. Four tests cover it,
+including one that mutates a digest and asserts the run stops.
+
+`BaselineMissing` is deliberately not `SchemaNotCompilable` and not
+`CredentialUnavailable`: those say the run would not measure what it claims,
+and that it cannot be paid for. This says the run might destroy evidence that
+cannot be regenerated.
+
+### Measured offline, on this branch
+
+```
+STAGE 48 PREFLIGHT (offline; no model call)
+  v1_json          fingerprint ce2083a78e84c6d5   8 optional   worst 4   COMPILABLE
+  operation_plan   fingerprint be8ba82740aecc1d  16 optional   worst 4   8 branches   COMPILABLE
+  legacy cases              13   (text identical to the frozen Stage 40 corpus)
+  capability cases          17
+  beyond Stage 43's reach   circular, extrude, pattern, revolve, sketch, straight
+  reference plans built     19   (7 by the graph executor)   none disagreeing
+  invalid-plan fixtures      9   none mis-refused
+  protected baselines        7   all present and unchanged
+  READY: True
+```
+
+`--self-check` then runs the entire loop against the reference plans and
+scores **19/19**, with the graph executor on 7 of them. That is a statement
+about this harness and **says nothing about any model.**
+
+### What is NOT known after Stage 48
+
+- **No Stage 48 number exists.** Nothing here has been put to a model.
+- **The provider has still not been asked to compile the widened schema.**
+  Every offline limit is satisfied and asserted, but compiled-grammar size
+  can only be measured by sending it. `--probe-live` exists to ask (three
+  calls), and has not been run. `--plan-schema compact` is the documented
+  fallback if it is refused; nothing selects it automatically.
+- **Whether prompt `2026-09-15.5` actually reaches a pattern is untested.**
+  Removing the contradiction makes the answer *reachable*; whether the model
+  takes it is exactly what the E and F4 cases are for.
+- **The corpus exercises each capability at least once, not a distribution.**
+  Thirty cases is a probe, not a survey, and the `no_part` class has one
+  case.
+- **FreeCAD is not exercised**, and a second-backend comparison is its own
+  stage.

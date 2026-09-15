@@ -1361,11 +1361,30 @@ class SketchPromptTests(unittest.TestCase):
 
         Extrude and revolve left the unsupported list at Stage 38 when they
         were built. The sweeps that remain unbuilt are still named.
+
+        **`patterns` left it at Stage 48**, and was overdue: Stage 46 added
+        `pattern` as a full operation -- its own prompt section, executable,
+        in `provider_schema()` -- and left the refusal standing, so the
+        prompt told the model to decline something the language has. This
+        test asserted the contradiction, which is how it survived four
+        stages. It now asserts the correct state instead.
         """
         after = self.text.split("# When to say unsupported", 1)[1]
         self.assertIn("sweeps", after)
         self.assertIn("lofts", after)
-        self.assertIn("patterns", after)
+        self.assertIn("mirrors", after)
+        self.assertIn("assemblies", after)
+
+    def test_the_prompt_no_longer_calls_a_pattern_unsupported(self):
+        """The mirror of the sketch test above, for the same reason.
+
+        `pattern` is an operation this language has, so a refusal list that
+        names it is false -- and a model decoding against a grammar that
+        HAS a pattern branch would be told to refuse anyway.
+        """
+        after = self.text.split("# When to say unsupported", 1)[1]
+        self.assertNotIn("patterns;", after)
+        self.assertIn("A `pattern` is NOT in that list either", after)
 
     def test_every_plane_and_geometry_type_is_documented(self):
         for plane in PLANES:

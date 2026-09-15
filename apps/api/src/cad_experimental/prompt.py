@@ -18,7 +18,7 @@ from .plan import AXES, OPERATION_TYPES, PlanStatus
 
 #: Bumped on any change to the text below. A measurement without this is not
 #: reproducible.
-PROMPT_VERSION = "2026-09-15.4"
+PROMPT_VERSION = "2026-09-15.5"
 
 SYSTEM_PROMPT = f"""\
 You turn a description of a mechanical part into a CAD operation plan.
@@ -484,9 +484,13 @@ per-edge fillet radii; angled or asymmetric chamfers; naming an individual
 edge; shells; ribs;
 sweeps along a path, helical sweeps and lofts -- an extrude and a revolve
 are NOT in this list, they are operations this language has;
-patterns; mirrors; assemblies;
+mirrors; assemblies;
 tolerances; materials; surface finish; and any dimension given as a formula, a
 range or a tolerance.
+
+A `pattern` is NOT in that list either. Repeating one feature at several
+places is an operation this language has, so a bolt circle, a row of holes or
+any other regular repetition is a plan and never a refusal.
 
 Two solids cannot be joined in this language. A request for a box and a
 cylinder together is {PlanStatus.UNSUPPORTED.value}.

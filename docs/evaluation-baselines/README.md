@@ -20,10 +20,14 @@ representation comparisons:
 |---|---|---|
 | `stage40-v1-vs-operation-plan/` | experiment, Stage 40 | The **frozen baseline**: V1 vs the operation plan, structured output **off**. Both arms 0% |
 | `stage43-structured-output/` | experiment, Stage 43 | The same comparison with structured output **on** — the first run in which the two representations were actually comparable |
+| `stage48-widened-schema/` | experiment, Stage 48 | A **separate instrument** for what Stages 44–47 added. **Holds no result yet** — the directory and its README describe the instrument and are where a live run will write |
 
-**Stage 43 does not replace Stage 40.** They are different configurations of
-the same instrument and both are kept; see the Stage 43 section at the end of
-this file.
+**Stage 43 does not replace Stage 40, and Stage 48 does not replace Stage 43.**
+Stage 40 and Stage 43 are different configurations of one instrument and both
+are kept; see the Stage 43 section at the end of this file. Stage 48 is a
+*different* instrument — different schema, different prompt, a 30-case corpus
+and two result groups — and its numbers, when they exist, are **not a delta
+against Stage 43's**. See the Stage 48 section at the end of this file.
 
 They are **immutable records**. Do not edit them, and do not overwrite one
 with a later run. `cad_ai.evaluation.save_run` refuses to overwrite an
@@ -123,3 +127,55 @@ Like every file here this is an **immutable record**. Do not edit it, and do
 not overwrite it with a later run.
 
 See `docs/experimental-operation-plan.md` → *Stage 43* and `CLAUDE.md` §19.
+
+
+## Reading Stage 48 — and why it is not a Stage 43 re-run
+
+`stage48-widened-schema/`. **No result is recorded there yet**; the README in
+that directory documents the instrument and the exact local commands.
+
+Stage 43 is pinned to `executable_schema()` — six operation types, no
+`sketch`, `extrude` or `revolve` branch, two edge selectors — and a test
+asserts its fingerprint `54759d1e16cfe634`, because a recorded result must
+stay attributable to the instrument that produced it. Stage 44 then
+established that the profile refusals Stage 43 recorded 5/5 were **forced by
+that grammar rather than chosen by the model**, and Stages 45–47 added the
+feature graph, `pattern` and semantic edge selection on top.
+
+Re-running Stage 43 today would send the old six-type grammar with a prompt
+that tells the model to use operations it forbids. So Stage 43 stays frozen
+and Stage 48 asks the current question separately.
+
+**Three things moved, and any one of them breaks a like-for-like delta:**
+
+| | Stage 43 | Stage 48 |
+|---|---|---|
+| plan schema | `executable_schema()` `54759d1e16cfe634` | `provider_schema()` `be8ba82740aecc1d` |
+| plan prompt | `2026-09-10.7` `5ef08dd09893b689` | `2026-09-15.5` `21d564ddeba05a74` |
+| a semantic selector | scored incorrect (none existed) | built by the graph executor and scored on the part |
+
+The third is the subtle one. Stage 40's plan runner calls `plan_to_document`
+directly, so a plan using `straight` or `circular` raises
+`SelectorNotExpressible` and is scored `SEMANTICALLY_INCORRECT`. That was
+right when no such selector existed; today it would score a correct,
+buildable answer as wrong — and Stage 40's cases `07` and `08` ("chamfer/
+fillet the vertical edges") are exactly where the current prompt steers the
+model towards one.
+
+**What Stage 48 does keep comparable** is a V1-vs-operation-plan comparison
+*within its own run*: its `legacy` group is the thirteen Stage 40 requests,
+read out of the frozen corpus object rather than retyped, answered by both
+arms under one prompt pair, one model and one set of scoring definitions.
+Its `capability` group — seventeen cases covering sketch chains, `pattern`,
+semantic selectors and deeper feature graphs — is **operation-plan only**,
+because V1 has none of them and asking it would re-measure the vocabulary gap
+Stage 43 already measured. The two groups are summarised separately and
+there is deliberately **no combined headline rate**.
+
+Every Stage 48 result carries a `relationship_to_stage_43` field saying all
+of this inside the JSON, for a reader who finds the file without the docs.
+
+**These files stay immutable too.** The Stage 48 harness records the SHA-256
+of all seven Stage 40 and Stage 43 files, refuses to start if one is missing
+or changed, and refuses any output path inside either directory — including
+from the command line, before it does anything else.
