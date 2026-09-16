@@ -53,3 +53,5 @@ venv/
 # OS
 .DS_Store
 Thumbs.db
+.venv-*-spike/
+.agentcad/

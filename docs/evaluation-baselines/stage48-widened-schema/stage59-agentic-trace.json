@@ -1,0 +1,540 @@
+[
+  {
+    "task": {
+      "task_id": "task-ca14e2f7",
+      "description": "Create a 100 mm by 60 mm by 10 mm plate with a 20 mm diameter hole through the centre, then fillet the rim of the hole with a 25 mm radius.",
+      "expected_volume_mm3": null,
+      "volume_rtol": 1e-06,
+      "expected_solid_count": 1,
+      "expected_selector": {}
+    },
+    "success": true,
+    "failure_class": "success",
+    "attempt_count": 2,
+    "accepted_because": "validated, built, and every stated expectation met",
+    "stopped_because": "accepted on attempt 2",
+    "attempts": [
+      {
+        "attempt_id": "attempt-9e731615",
+        "attempt_number": 1,
+        "parent_attempt_id": null,
+        "backend": "cadquery",
+        "candidate": {
+          "candidate_id": "plan-bb843bec",
+          "source": "planner",
+          "parent_candidate_id": null,
+          "payload": {
+            "status": "generated",
+            "summary": "A 100\u00d760\u00d710 mm plate with a 20 mm diameter hole through the center and a filleted rim.",
+            "operations": [
+              {
+                "id": "plate",
+                "type": "box",
+                "parameters": {
+                  "x": 100,
+                  "y": 60,
+                  "z": 10
+                }
+              },
+              {
+                "id": "hole",
+                "type": "through_hole",
+                "target": "plate",
+                "parameters": {
+                  "diameter": 20,
+                  "position": {
+                    "x": 50,
+                    "y": 30,
+                    "z": 0
+                  }
+                }
+              },
+              {
+                "id": "fillet_rim",
+                "type": "fillet",
+                "target": "plate",
+                "parameters": {
+                  "radius": 25,
+                  "edges": {
+                    "select": "circular",
+                    "position": "top",
+                    "axis": "Z"
+                  }
+                }
+              }
+            ]
+          },
+          "parsed": true,
+          "parse_error": null
+        },
+        "validation": {
+          "valid": true,
+          "problems": []
+        },
+        "inspection": {
+          "built": false,
+          "solid_count": null,
+          "volume_mm3": null,
+          "bounding_box": {},
+          "face_count": null,
+          "edge_count": null,
+          "triangle_count": null,
+          "render_available": false,
+          "executed_by_graph": false,
+          "selectors": [
+            {
+              "select": "circular",
+              "position": "top",
+              "axis": "Z"
+            }
+          ],
+          "unsupported_types": [],
+          "error_text": "[backend] the kernel refused the fillet (rule E5): BRep_API: command not done"
+        },
+        "diagnosis": {
+          "failure_class": "selector_geometry_rejected",
+          "summary": "the selector matched edges the kernel then refused (E5): the selection was right, a parameter was not",
+          "affected_operation_ids": [],
+          "facts": {
+            "selectors": [
+              {
+                "select": "circular",
+                "position": "top",
+                "axis": "Z"
+              }
+            ],
+            "error_text": "[backend] the kernel refused the fillet (rule E5): BRep_API: command not done"
+          },
+          "revisable": true
+        },
+        "revision_request": {
+          "failed_candidate_id": "plan-bb843bec",
+          "failure_class": "selector_geometry_rejected",
+          "diagnostic_facts": {
+            "selectors": [
+              {
+                "select": "circular",
+                "position": "top",
+                "axis": "Z"
+              }
+            ],
+            "error_text": "[backend] the kernel refused the fillet (rule E5): BRep_API: command not done"
+          },
+          "affected_operation_ids": [],
+          "requested_change": "keep the selector and change the parameter the kernel refused",
+          "preserved_constraints": [
+            "every operation the diagnosis does not name",
+            "the units, dimensions and ids already agreed",
+            "the selector mode, which was correct"
+          ]
+        },
+        "succeeded": false,
+        "elapsed_seconds": 0.031
+      },
+      {
+        "attempt_id": "attempt-ed685fc0",
+        "attempt_number": 2,
+        "parent_attempt_id": "attempt-9e731615",
+        "backend": "cadquery",
+        "candidate": {
+          "candidate_id": "plan-a1269389",
+          "source": "reviser",
+          "parent_candidate_id": "plan-bb843bec",
+          "payload": {
+            "status": "generated",
+            "summary": "100x60x10 mm plate with a 20 mm diameter hole through the centre and a filleted rim.",
+            "operations": [
+              {
+                "id": "plate",
+                "type": "box",
+                "parameters": {
+                  "x": 100,
+                  "y": 60,
+                  "z": 10
+                }
+              },
+              {
+                "id": "hole",
+                "type": "through_hole",
+                "target": "plate",
+                "parameters": {
+                  "diameter": 20,
+                  "position": {
+                    "x": 50,
+                    "y": 30,
+                    "z": 0
+                  }
+                }
+              },
+              {
+                "id": "rim_fillet",
+                "type": "fillet",
+                "target": "plate",
+                "parameters": {
+                  "radius": 2,
+                  "edges": {
+                    "select": "circular",
+                    "position": "top",
+                    "axis": "Z"
+                  }
+                }
+              }
+            ]
+          },
+          "parsed": true,
+          "parse_error": null
+        },
+        "validation": {
+          "valid": true,
+          "problems": []
+        },
+        "inspection": {
+          "built": true,
+          "solid_count": 1,
+          "volume_mm3": 56802.062537701306,
+          "bounding_box": {
+            "x": 100.0,
+            "y": 60.0,
+            "z": 10.0
+          },
+          "face_count": null,
+          "edge_count": null,
+          "triangle_count": null,
+          "render_available": false,
+          "executed_by_graph": true,
+          "selectors": [
+            {
+              "select": "circular",
+              "position": "top",
+              "axis": "Z"
+            }
+          ],
+          "unsupported_types": [],
+          "error_text": null
+        },
+        "diagnosis": {
+          "failure_class": "success",
+          "summary": "validated, built, and every stated expectation met",
+          "affected_operation_ids": [],
+          "facts": {},
+          "revisable": false
+        },
+        "revision_request": null,
+        "succeeded": true,
+        "elapsed_seconds": 0.063
+      }
+    ]
+  },
+  {
+    "task": {
+      "task_id": "task-29011cf3",
+      "description": "Create a 100 mm by 60 mm by 10 mm plate with a 20 mm diameter hole through the centre and break the top edge of the hole with a 1 mm chamfer.",
+      "expected_volume_mm3": null,
+      "volume_rtol": 1e-06,
+      "expected_solid_count": 1,
+      "expected_selector": {
+        "select": "circular",
+        "position": "top"
+      }
+    },
+    "success": true,
+    "failure_class": "success",
+    "attempt_count": 1,
+    "accepted_because": "validated, built, and every stated expectation met",
+    "stopped_because": "accepted on attempt 1",
+    "attempts": [
+      {
+        "attempt_id": "attempt-db60382e",
+        "attempt_number": 1,
+        "parent_attempt_id": null,
+        "backend": "cadquery",
+        "candidate": {
+          "candidate_id": "plan-b49d8331",
+          "source": "planner",
+          "parent_candidate_id": null,
+          "payload": {
+            "status": "generated",
+            "summary": "100 x 60 x 10 mm plate with a 20 mm diameter hole through the centre and 1 mm chamfer on the top edge of the hole.",
+            "operations": [
+              {
+                "id": "plate",
+                "type": "box",
+                "parameters": {
+                  "x": 100,
+                  "y": 60,
+                  "z": 10
+                }
+              },
+              {
+                "id": "hole",
+                "type": "through_hole",
+                "target": "plate",
+                "parameters": {
+                  "diameter": 20,
+                  "position": {
+                    "x": 50,
+                    "y": 30,
+                    "z": 0
+                  }
+                }
+              },
+              {
+                "id": "break_edge",
+                "type": "chamfer",
+                "target": "plate",
+                "parameters": {
+                  "edges": {
+                    "select": "circular",
+                    "position": "top",
+                    "axis": "Z"
+                  },
+                  "distance": 1
+                }
+              }
+            ]
+          },
+          "parsed": true,
+          "parse_error": null
+        },
+        "validation": {
+          "valid": true,
+          "problems": []
+        },
+        "inspection": {
+          "built": true,
+          "solid_count": 1,
+          "volume_mm3": 56825.944222323116,
+          "bounding_box": {
+            "x": 100.0,
+            "y": 60.0,
+            "z": 10.0
+          },
+          "face_count": null,
+          "edge_count": null,
+          "triangle_count": null,
+          "render_available": false,
+          "executed_by_graph": true,
+          "selectors": [
+            {
+              "select": "circular",
+              "position": "top",
+              "axis": "Z"
+            }
+          ],
+          "unsupported_types": [],
+          "error_text": null
+        },
+        "diagnosis": {
+          "failure_class": "success",
+          "summary": "validated, built, and every stated expectation met",
+          "affected_operation_ids": [],
+          "facts": {},
+          "revisable": false
+        },
+        "revision_request": null,
+        "succeeded": true,
+        "elapsed_seconds": 0.032
+      }
+    ]
+  },
+  {
+    "task": {
+      "task_id": "task-e32e5e19",
+      "description": "Create a 100 mm by 60 mm by 10 mm plate. Drill a 20 mm diameter hole through its centre, then chamfer the four long edges by 2 mm.",
+      "expected_volume_mm3": null,
+      "volume_rtol": 1e-06,
+      "expected_solid_count": 1,
+      "expected_selector": {
+        "select": "straight",
+        "axis": "X"
+      }
+    },
+    "success": true,
+    "failure_class": "success",
+    "attempt_count": 1,
+    "accepted_because": "validated, built, and every stated expectation met",
+    "stopped_because": "accepted on attempt 1",
+    "attempts": [
+      {
+        "attempt_id": "attempt-d8bb144d",
+        "attempt_number": 1,
+        "parent_attempt_id": null,
+        "backend": "cadquery",
+        "candidate": {
+          "candidate_id": "plan-8afb2c0e",
+          "source": "planner",
+          "parent_candidate_id": null,
+          "payload": {
+            "status": "generated",
+            "summary": "A 100 \u00d7 60 \u00d7 10 mm plate with a 20 mm diameter hole through its centre and 2 mm chamfers on the four long edges.",
+            "operations": [
+              {
+                "id": "plate",
+                "type": "box",
+                "parameters": {
+                  "x": 100,
+                  "y": 60,
+                  "z": 10
+                }
+              },
+              {
+                "id": "hole",
+                "type": "through_hole",
+                "target": "plate",
+                "parameters": {
+                  "diameter": 20,
+                  "position": {
+                    "x": 50,
+                    "y": 30,
+                    "z": 0
+                  }
+                }
+              },
+              {
+                "id": "chamfer_edges",
+                "type": "chamfer",
+                "target": "plate",
+                "parameters": {
+                  "edges": {
+                    "select": "straight",
+                    "axis": "X"
+                  },
+                  "distance": 2
+                }
+              }
+            ]
+          },
+          "parsed": true,
+          "parse_error": null
+        },
+        "validation": {
+          "valid": true,
+          "problems": []
+        },
+        "inspection": {
+          "built": true,
+          "solid_count": 1,
+          "volume_mm3": 56058.40734641021,
+          "bounding_box": {
+            "x": 100.0,
+            "y": 60.0,
+            "z": 10.0
+          },
+          "face_count": null,
+          "edge_count": null,
+          "triangle_count": null,
+          "render_available": false,
+          "executed_by_graph": true,
+          "selectors": [
+            {
+              "select": "straight",
+              "axis": "X"
+            }
+          ],
+          "unsupported_types": [],
+          "error_text": null
+        },
+        "diagnosis": {
+          "failure_class": "success",
+          "summary": "validated, built, and every stated expectation met",
+          "affected_operation_ids": [],
+          "facts": {},
+          "revisable": false
+        },
+        "revision_request": null,
+        "succeeded": true,
+        "elapsed_seconds": 0.032
+      }
+    ]
+  },
+  {
+    "task": {
+      "task_id": "task-92ebf7ac",
+      "description": "Create a 100 mm by 60 mm by 10 mm plate with a 20 mm diameter hole through the centre.",
+      "expected_volume_mm3": 56858.407346410204,
+      "volume_rtol": 1e-06,
+      "expected_solid_count": 1,
+      "expected_selector": {}
+    },
+    "success": true,
+    "failure_class": "success",
+    "attempt_count": 1,
+    "accepted_because": "validated, built, and every stated expectation met",
+    "stopped_because": "accepted on attempt 1",
+    "attempts": [
+      {
+        "attempt_id": "attempt-7810defb",
+        "attempt_number": 1,
+        "parent_attempt_id": null,
+        "backend": "cadquery",
+        "candidate": {
+          "candidate_id": "plan-e9652548",
+          "source": "planner",
+          "parent_candidate_id": null,
+          "payload": {
+            "status": "generated",
+            "summary": "A 100 mm by 60 mm by 10 mm plate with a 20 mm diameter hole through the centre.",
+            "operations": [
+              {
+                "id": "plate",
+                "type": "box",
+                "parameters": {
+                  "x": 100,
+                  "y": 60,
+                  "z": 10
+                }
+              },
+              {
+                "id": "centre_hole",
+                "type": "through_hole",
+                "target": "plate",
+                "parameters": {
+                  "diameter": 20,
+                  "position": {
+                    "x": 50,
+                    "y": 30,
+                    "z": 0
+                  }
+                }
+              }
+            ]
+          },
+          "parsed": true,
+          "parse_error": null
+        },
+        "validation": {
+          "valid": true,
+          "problems": []
+        },
+        "inspection": {
+          "built": true,
+          "solid_count": 1,
+          "volume_mm3": 56858.407346410204,
+          "bounding_box": {
+            "x": 100.0,
+            "y": 60.0,
+            "z": 10.0
+          },
+          "face_count": null,
+          "edge_count": null,
+          "triangle_count": 520,
+          "render_available": true,
+          "executed_by_graph": false,
+          "selectors": [],
+          "unsupported_types": [],
+          "error_text": null
+        },
+        "diagnosis": {
+          "failure_class": "success",
+          "summary": "validated, built, and every stated expectation met",
+          "affected_operation_ids": [],
+          "facts": {},
+          "revisable": false
+        },
+        "revision_request": null,
+        "succeeded": true,
+        "elapsed_seconds": 6.516
+      }
+    ]
+  }
+]

@@ -3233,3 +3233,114 @@ subtract only; the five selector cases cannot be cross-executed at all. A
 checkpoint would therefore have re-measured on exactly the cases Stage 52
 already covered while answering nothing about cross-backend behaviour on the
 interesting ones. No calls were spent.
+
+## Stage 59: the agentic control loop
+
+The first production-shaped loop around the existing architecture. It adds
+**orchestration only** — no CAD concept, no geometry, no selector semantics,
+no second representation. Every piece of CAD judgement is delegated to code
+that already existed.
+
+```
+task
+  → Planner.generate         a model, or a deterministic stub
+  → canonical operation plan
+  → validate_plan            authoritative, unchanged
+  → build_plan               graph / adapter / backend, unchanged
+  → inspect                  backend-neutral view
+  → diagnose                 deterministic, no model
+  → Reviser.revise           a model, or a deterministic stub
+  → a NEW canonical plan
+  → validate / build / inspect, bounded
+  → VerifiedResult + trace
+```
+
+`apps/api/src/cad_experimental/agentic_loop.py`. The existing direct build
+path is untouched and still works — a test asserts it.
+
+### The seven rules it is built to keep
+
+1. **The plan is canonical.** A revision is a *new* `PlanCandidate` with a
+   parent link. Nothing is mutated, so what was tried survives the run.
+2. **Nothing is silently repaired.** The loop never edits model output; a
+   revision is a whole new plan, validated from scratch.
+3. **Nothing falls back** — not between backends, not between planners.
+4. **The taxonomy does not collapse.** "The build failed" is not an outcome.
+5. **Diagnosis is deterministic.** No model decides what went wrong.
+6. **The loop is bounded** — 1 attempt + 2 revisions, and no way to ask for
+   more.
+7. **The planner is an interface.** No vendor is named in the engine; a test
+   asserts it by walking the AST for imports and identifiers rather than
+   grepping prose.
+
+### Failure taxonomy
+
+`NO_PLAN_PRODUCED` · `PLAN_INVALID` · `PLAN_UNSUPPORTED` ·
+`BACKEND_UNSUPPORTED` · **`SELECTOR_MATCHED_NOTHING` (E4)** ·
+**`SELECTOR_GEOMETRY_REJECTED` (E5)** · `EXECUTION_ERROR` ·
+`GEOMETRY_INVALID` · `MEASUREMENT_MISMATCH` · `SEMANTIC_MISMATCH` ·
+`SUCCESS`.
+
+Each member names a **different remedy**, which is the test for deserving to
+exist. The E4/E5 split the Stage 40–55 line of work established is preserved
+and carries different `requested_change` text: *matched nothing* needs a
+different selector, *matched something the kernel refused* needs a different
+parameter with the selector kept.
+
+`BACKEND_UNSUPPORTED` is deliberately **not revisable**: a backend does not
+grow a method because a plan changed, and asking a reviser to try would
+invite something that looks like a fix and is not.
+
+### A diagnosis defect this stage found and fixed
+
+The first live run classified a refused 25 mm fillet as `EXECUTION_ERROR`
+and therefore offered no revision. The cause was in the diagnosis, not the
+model: it was matching prose heuristics while **the backend already emits the
+rule code** — `"the kernel refused the fillet (rule E5): BRep_API: command
+not done"`. Reading the code first is exact; the prose markers remain only as
+a fallback for a backend that has not adopted the convention.
+
+### Live checkpoint — 5 calls, `claude-haiku-4-5-20251001`
+
+Not a benchmark. Four tasks, structured output on, no retry, no repair, no
+fallback.
+
+| task | attempts | result |
+|---|---:|---|
+| fillet a hole rim with a **25 mm** radius on a 10 mm plate | **2** | E5 → revised → **success** |
+| chamfer the **top** rim | 1 | success |
+| chamfer the four **long edges** | 1 | success |
+| plate + hole, volume-checked | 1 | success |
+
+The first task closed the whole loop live, and the revision was **targeted**:
+
+```
+attempt 1  radius 25  edges {circular, top, Z}   -> selector_geometry_rejected
+           asked: "keep the selector and change the parameter the kernel refused"
+attempt 2  radius  2  edges {circular, top, Z}   -> success
+```
+
+Plate and hole byte-identical between attempts; only the fillet changed. The
+model kept the selector it was told was correct and changed the one parameter
+it was told was not.
+
+### The trace answers the four questions
+
+`what did the model try` — every attempt carries its full payload.
+`what failed` — a `failure_class` per attempt. `what evidence caused the
+revision` — `diagnosis.facts` carries the measured particulars. `what
+changed` — consecutive payloads are directly comparable. `why was the final
+result accepted` — `accepted_because`, not a bare boolean.
+
+### Limitations
+
+- The live checkpoint is **five calls**. It proves wiring; it estimates
+  nothing.
+- Only one failure class was exercised live (E5). The other ten are covered
+  by 33 deterministic tests, not by the model.
+- E4 has **no live evidence at all** — no task in this checkpoint produced a
+  selector that matched nothing.
+- Diagnosis still reads error *text* for the E4/E5 split. The rule code makes
+  that exact where backends emit one; a typed error would make it exact
+  everywhere.
+- `MEASUREMENT_MISMATCH` compares one volume. It is not a shape check.
