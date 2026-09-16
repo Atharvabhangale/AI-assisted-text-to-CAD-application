@@ -1,0 +1,194 @@
+{
+  "volume_rtol": 1e-06,
+  "bbox_atol_mm": 1e-06,
+  "rows": [
+    {
+      "case": "1-primitive-plus-hole",
+      "cadquery": {
+        "backend": "cadquery",
+        "status": "OK",
+        "volume": 59497.34517542564,
+        "solids": 1,
+        "bbox": {
+          "x": 100.0,
+          "y": 60.0,
+          "z": 10.0
+        },
+        "triangles": 520,
+        "render": true,
+        "graph": false
+      },
+      "freecad": {
+        "backend": "freecad",
+        "status": "OK",
+        "volume": 59497.34517542564,
+        "solids": 1,
+        "bbox": {
+          "x": 100.0,
+          "y": 60.0,
+          "z": 10.0
+        },
+        "triangles": 520,
+        "render": true,
+        "graph": false
+      },
+      "verdict": "PASS"
+    },
+    {
+      "case": "2-subtract",
+      "cadquery": {
+        "backend": "cadquery",
+        "status": "OK",
+        "volume": 109292.03673205104,
+        "solids": 1,
+        "bbox": {
+          "x": 50.0,
+          "y": 50.0,
+          "z": 50.0
+        },
+        "triangles": 520,
+        "render": true,
+        "graph": false
+      },
+      "freecad": {
+        "backend": "freecad",
+        "status": "OK",
+        "volume": 109292.03673205104,
+        "solids": 1,
+        "bbox": {
+          "x": 50.0,
+          "y": 50.0,
+          "z": 50.0
+        },
+        "triangles": 520,
+        "render": true,
+        "graph": false
+      },
+      "verdict": "PASS"
+    },
+    {
+      "case": "3-fillet-straight",
+      "cadquery": {
+        "backend": "cadquery",
+        "status": "OK",
+        "volume": 56643.80550980765,
+        "solids": 1,
+        "bbox": {
+          "x": 100.0,
+          "y": 60.0,
+          "z": 10.0
+        },
+        "triangles": null,
+        "render": false,
+        "graph": true
+      },
+      "freecad": {
+        "backend": "freecad",
+        "status": "UNSUPPORTED",
+        "error": "backend does not implement a required protocol method",
+        "detail": ""
+      },
+      "verdict": "UNSUPPORTED"
+    },
+    {
+      "case": "4-chamfer-straight-x",
+      "cadquery": {
+        "backend": "cadquery",
+        "status": "OK",
+        "volume": 56058.40734641021,
+        "solids": 1,
+        "bbox": {
+          "x": 100.0,
+          "y": 60.0,
+          "z": 10.0
+        },
+        "triangles": null,
+        "render": false,
+        "graph": true
+      },
+      "freecad": {
+        "backend": "freecad",
+        "status": "UNSUPPORTED",
+        "error": "backend does not implement a required protocol method",
+        "detail": ""
+      },
+      "verdict": "UNSUPPORTED"
+    },
+    {
+      "case": "5-circular-top",
+      "cadquery": {
+        "backend": "cadquery",
+        "status": "OK",
+        "volume": 56825.944222323116,
+        "solids": 1,
+        "bbox": {
+          "x": 100.0,
+          "y": 60.0,
+          "z": 10.0
+        },
+        "triangles": null,
+        "render": false,
+        "graph": true
+      },
+      "freecad": {
+        "backend": "freecad",
+        "status": "UNSUPPORTED",
+        "error": "backend does not implement a required protocol method",
+        "detail": ""
+      },
+      "verdict": "UNSUPPORTED"
+    },
+    {
+      "case": "6-circular-bottom",
+      "cadquery": {
+        "backend": "cadquery",
+        "status": "OK",
+        "volume": 56825.944222323116,
+        "solids": 1,
+        "bbox": {
+          "x": 100.0,
+          "y": 60.0,
+          "z": 10.0
+        },
+        "triangles": null,
+        "render": false,
+        "graph": true
+      },
+      "freecad": {
+        "backend": "freecad",
+        "status": "UNSUPPORTED",
+        "error": "backend does not implement a required protocol method",
+        "detail": ""
+      },
+      "verdict": "UNSUPPORTED"
+    },
+    {
+      "case": "7-two-holes-ordering",
+      "cadquery": {
+        "backend": "cadquery",
+        "status": "OK",
+        "volume": 55273.00918301275,
+        "solids": 1,
+        "bbox": {
+          "x": 100.0,
+          "y": 60.0,
+          "z": 10.0
+        },
+        "triangles": null,
+        "render": false,
+        "graph": true
+      },
+      "freecad": {
+        "backend": "freecad",
+        "status": "UNSUPPORTED",
+        "error": "backend does not implement a required protocol method",
+        "detail": ""
+      },
+      "verdict": "UNSUPPORTED"
+    },
+    {
+      "case": "8-radial-pattern",
+      "verdict": "NO_SOURCE"
+    }
+  ]
+}

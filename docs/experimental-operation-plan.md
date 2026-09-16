@@ -3051,3 +3051,185 @@ and one it will actually use.
 - Whether required-ness helps elsewhere is untested — the optional
   `axis` on `circular` was left optional on purpose, so this experiment
   moved one thing.
+
+## Stage 56: backend parity — harness built, comparison BLOCKED on this machine
+
+### The blocker, found before any plan was made around it
+
+**FreeCAD is not available on this Windows development machine.**
+`freecad_available()` returns `False` and `CAD_FREECAD_HOME` is unset. Per
+Stage 42 it was installed from the official Linux **AppImage** (649 MB,
+extracting to 2.4 GB) and needs `LD_LIBRARY_PATH` set *before Python starts*
+to resolve a bundled `libssl` against the system `libcrypto`. Neither the
+AppImage nor `LD_LIBRARY_PATH` exists on Windows, and FreeCAD has no pip
+distribution.
+
+So the CadQuery-vs-FreeCAD comparison this stage set out to make **cannot be
+measured here**. No parity number is reported, because none was obtained.
+
+### What was established instead
+
+**The backend abstraction is genuinely symmetric.** Both `CadQueryBackend`
+and `FreeCadBackend` implement the identical 18-method `CadBackend`
+protocol, with no extra methods on either side:
+
+```
+available  name  version
+create_box  create_cylinder  through_hole  subtract
+fillet  fillet_edges  chamfer  chamfer_edges
+select_edges  describe_edges  edges_at
+measure  render_model  export_step  read_step
+```
+
+`CAD_BACKEND` defaults to `cadquery` and **`resolve_backend()` contains no
+fallback path** — verified by reading the source, not assumed. A caller who
+names a backend gets it or gets an error.
+
+### The parity harness, and proof that it works
+
+Written and exercised. Each case is **one canonical operation plan** run
+against every available backend; the model is not part of it. Sources are
+committed fixtures plus the canonical plans recorded in the Stage 53–55
+result files — a recorded plan is a plan, and using one isolates backend
+behaviour from model behaviour exactly as intended.
+
+Tolerances are explicit: volume `rtol=1e-6`, bounding box `atol=1e-6 mm`.
+No exact float equality.
+
+| # | case | source | CadQuery | volume mm³ | FreeCAD |
+|---|---|---|---|---:|---|
+| 1 | primitive + hole | fixture `plate-one-hole` | **OK** | 59497.345 | UNAVAILABLE |
+| 2 | subtract | fixture `subtract-cube-bore` | **OK** | 109292.037 | UNAVAILABLE |
+| 3 | fillet, `straight` selector | Stage 53 `F1` | **OK** | 56643.806 | UNAVAILABLE |
+| 4 | chamfer, `straight` + axis X | Stage 54B `D1` | **OK** | 56058.407 | UNAVAILABLE |
+| 5 | circular **top** rim | Stage 55 `F2` | **OK** | 56825.944 | UNAVAILABLE |
+| 6 | circular **bottom** rim | Stage 55 `F3` | **OK** | 56825.944 | UNAVAILABLE |
+| 7 | two holes, modifier ordering | Stage 53 `G2` | **OK** | 55273.009 | UNAVAILABLE |
+| 8 | radial pattern | — | NO_SOURCE | — | UNAVAILABLE |
+
+Every CadQuery figure matches the value the corresponding recorded run
+measured, which is what makes the harness trustworthy rather than merely
+runnable. Cases 5 and 6 return **identical** volumes, correctly reproducing
+the fact that a top and a bottom rim chamfer to the same number — the
+harness does not pretend geometry can separate them.
+
+**Case 8 has no source.** No committed fixture uses a `pattern`, and no
+proven provider encoding can express one, so nothing in the repository
+produces such a plan. Recorded as `NO_SOURCE` rather than as a backend
+result.
+
+### Classification discipline
+
+`UNAVAILABLE` (backend absent) is kept distinct from `UNSUPPORTED` (backend
+present, capability missing), from `MISMATCH` (both executed, geometry
+differs) and from `ERROR`. Only the first occurs here, and it is a fact
+about this machine rather than about FreeCAD.
+
+### What is needed to finish this stage
+
+A Linux host — or WSL — with the FreeCAD AppImage extracted, `CAD_FREECAD_HOME`
+set and `LD_LIBRARY_PATH` exported before Python starts. The harness, the
+corpus and the tolerances are ready; only the second backend is missing.
+
+## Stage 57: FreeCAD runs, and the backends agree where both can execute
+
+Stage 56 was blocked because FreeCAD was unavailable on Windows. It is now
+running under WSL, and the parity matrix exists. Setup is documented
+reproducibly in `docs/freecad-wsl-setup.md`; the harness is
+`scripts/freecad_parity.{py,sh}`, driven by `CAD_REPO`, `CAD_FREECAD_HOME`
+and `CQ_SIDE` rather than any machine's user directory.
+
+### Environment
+
+| | |
+|---|---|
+| Host | WSL2, **Ubuntu 26.04 LTS**, x86_64, kernel 6.18.33.2 |
+| System Python | 3.14.4 — **cannot host FreeCAD** |
+| FreeCAD | **1.0.0, build 39109**, official `py311` AppImage, extracted (2.4 GB) |
+| Interpreter used | FreeCAD's bundled **Python 3.11.9** |
+| CadQuery | **2.8.0**, side-installed, coexisting in the same process |
+
+Three findings from the setup are worth keeping, because each cost time:
+
+**The system interpreter cannot host this backend.** `libFreeCADBase.so`
+fails with `undefined symbol: _Py_PackageContext` under Python 3.14. The
+AppImage's own 3.11 is mandatory.
+
+**The FreeCAD backend cannot import without CadQuery.** It imports
+`cad_core.render_model` → `cad_core.local_cad`, which requires CadQuery. So
+the *other* engine must be installed for this one to load — a real coupling
+in the abstraction, not a packaging accident.
+
+**`pip install cadquery` into the bundled interpreter fails**, because
+CadQuery wants a newer `vtk` than the one FreeCAD installed through
+distutils, which pip cannot safely uninstall. Forcing it was rejected: a
+half-uninstalled FreeCAD would execute geometry wrongly rather than fail
+loudly. A `--target` side directory leaves FreeCAD's site-packages intact and
+both engines then coexist.
+
+### Smoke test — all seven pass
+
+`freecad_available()` True · backend `freecad 1.0.0` · `create_box` ok ·
+`measure` volume 6000.0, 1 solid, 6 faces, 12 edges · `render_model` returns
+a `RenderModel` · `through_hole` ok · `resolve_backend()` returns
+`FreeCadBackend` with no fallback.
+
+The same through-hole, built by both engines in one process:
+
+```
+FreeCAD  volume=5151.769983530756  faces=7  edges=15
+CadQuery volume=5151.769983530756  faces=7  edges=15
+```
+
+Bit-identical.
+
+### Parity matrix
+
+Tolerances: volume `rtol=1e-6`, bbox `atol=1e-6 mm`. Same canonical plan to
+both backends; no model involved.
+
+| case | CadQuery | FreeCAD | geometry parity | notes |
+|---|---|---|---|---|
+| 1 primitive + hole | OK 59497.345 | OK 59497.345 | **PASS**, Δ=0.0 | exact |
+| 2 subtract | OK 109292.037 | OK 109292.037 | **PASS**, Δ=0.0 | exact |
+| 3 fillet, `straight` | OK 56643.806 | UNSUPPORTED | — | needs `fillet_edges` |
+| 4 chamfer, `straight`+X | OK 56058.407 | UNSUPPORTED | — | needs `chamfer_edges` |
+| 5 circular **top** | OK 56825.944 | UNSUPPORTED | — | needs `chamfer_edges` |
+| 6 circular **bottom** | OK 56825.944 | UNSUPPORTED | — | needs `chamfer_edges` |
+| 7 two holes, ordering | OK 55273.009 | UNSUPPORTED | — | needs `chamfer_edges` |
+| 8 radial pattern | NO_SOURCE | NO_SOURCE | — | no plan exists |
+
+**2 PASS · 5 UNSUPPORTED · 0 MISMATCH · 0 ERROR · 1 NO_SOURCE.**
+
+Where both backends execute they agree to the last bit. **No geometry
+mismatch and no semantic mismatch was found.**
+
+### The capability gap, stated precisely
+
+**This corrects Stage 56.** That stage reported both backends implementing
+"the identical 18-method protocol" — which was read off `dir()`, and `dir()`
+shows *inherited* names. Checking `vars()` instead:
+
+`FreeCadBackend` implements **14 of 18** protocol methods and inherits four
+as base-class stubs that raise a bare `NotImplementedError`:
+
+```
+fillet_edges   chamfer_edges   describe_edges   edges_at
+```
+
+It *does* implement `fillet`, `chamfer` and `select_edges`. The gap is the
+**explicit edge-list** family, which is the path the graph executor takes —
+so every selector case is blocked while every non-selector case works.
+
+Those five results are classified **UNSUPPORTED** (backend present,
+capability absent), never ERROR or MISMATCH. The harness was corrected to
+make that distinction rather than letting `NotImplementedError` masquerade as
+a failure.
+
+### Live model checkpoint — not run, and why
+
+Phase 11 was gated on parity succeeding. It succeeded for primitive, hole and
+subtract only; the five selector cases cannot be cross-executed at all. A
+checkpoint would therefore have re-measured on exactly the cases Stage 52
+already covered while answering nothing about cross-backend behaviour on the
+interesting ones. No calls were spent.

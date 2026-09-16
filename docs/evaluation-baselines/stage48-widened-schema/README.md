@@ -467,3 +467,37 @@ change that while the field stayed optional.
 The canonical language still permits a positionless circular selector (both
 rims) and the parser still accepts it — the encoding is deliberately
 narrower. Stage 53/54 result files unmodified; Stage 40/43 untouched.
+
+## Stage 56: parity harness ready, FreeCAD UNAVAILABLE on Windows
+
+`freecad_available()` is `False` here: FreeCAD came from a Linux AppImage
+needing `LD_LIBRARY_PATH`, which Windows has not, and there is no pip build.
+**No CadQuery-vs-FreeCAD parity number exists**, because none was measured.
+
+The harness itself is proven: 7 of 8 parity cases execute on CadQuery with
+real geometry, each matching the value its source run recorded. Case 8
+(radial pattern) has no source plan — no fixture uses `pattern` and no proven
+encoding can express one. Tolerances are volume `rtol=1e-6`, bbox
+`atol=1e-6 mm`.
+
+Both backends implement the same 18-method protocol and `resolve_backend()`
+has no fallback. `UNAVAILABLE` is kept distinct from `UNSUPPORTED`.
+
+Finishing needs a Linux/WSL host with `CAD_FREECAD_HOME` set.
+
+## MEASURED (Stage 57): FreeCAD parity under WSL
+
+File: `stage57-backend-parity.json`. Setup: `docs/freecad-wsl-setup.md`.
+FreeCAD **1.0.0 build 39109** under its bundled Python **3.11.9** (WSL2
+Ubuntu 26.04); CadQuery **2.8.0** side-installed in the same process.
+
+**2 PASS · 5 UNSUPPORTED · 0 MISMATCH · 0 ERROR · 1 NO_SOURCE.**
+
+Where both execute, they agree bit-for-bit (Δ volume = 0.0 on primitive+hole
+and subtract). The five selector cases are UNSUPPORTED: `FreeCadBackend`
+implements 14 of 18 protocol methods and inherits `fillet_edges`,
+`chamfer_edges`, `describe_edges` and `edges_at` as stubs.
+
+**This corrects Stage 56**, which reported an identical 18-method protocol —
+that was read from `dir()`, which shows inherited names. No geometry or
+semantic mismatch was found between the backends.
