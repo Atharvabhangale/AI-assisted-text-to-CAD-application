@@ -311,6 +311,32 @@ def create_app(
                     "unsupported_operations": list(result.unsupported_ids),
                 },
             )
+        if result.executed:
+            # The graph-driven executor ran, which happens exactly when a
+            # selector is richer than Section C.7 can express -- a
+            # `straight`, a `circular`, or a rim's `position`. Such a plan
+            # has **no V1 document and no BuildOutcome by design**
+            # (`PlanBuild.execution` is never set alongside `document`), so
+            # the generic `outcome is None` branch below reported every
+            # Stage 47 selector as "the plan cannot be built" while the
+            # build had in fact succeeded.
+            #
+            # Nothing is recomputed here. `ExecutionResult.to_dict()` is the
+            # executor's own neutral serialization and already carries the
+            # bodies with their measurements, the typed `selections` -- one
+            # `Resolution` per operation, with its indices, candidates,
+            # seams and R-code -- and the structured `failure`. A failed
+            # execution keeps its selections too, which is why the failure
+            # path returns the same shape rather than a bare message.
+            execution = result.execution
+            status = OK_STATUS if result.built else BAD_REQUEST_STATUS
+            return JSONResponse(
+                status_code=status,
+                content={
+                    "executed_by_graph": True,
+                    "execution": execution.to_dict(),
+                },
+            )
         if result.outcome is None:
             return JSONResponse(
                 status_code=BAD_REQUEST_STATUS,

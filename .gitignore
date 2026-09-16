@@ -55,3 +55,4 @@ venv/
 Thumbs.db
 .venv-*-spike/
 .agentcad/
+.dev/
