@@ -82,8 +82,18 @@ from cad_ai.provider import ModelRequest, ModelResponse, ProviderError
 from .adapter import ExecutionUnsupported, SelectorNotExpressible
 from .build import build_plan
 from .plan import (
+    OPERATION_TYPES,
+    POSITION_MODES,
+    SELECT_MODES,
+    V1_FEATURE_TYPES,
+    V1_SELECT_MODES,
     compact_provider_schema,
     executable_schema,
+    profile_hole_provider_schema,
+    profile_provider_schema,
+    selector_provider_schema,
+    strict_selector_provider_schema,
+    profile_union_provider_schema,
     provider_schema,
 )
 from .representation_comparison import (
@@ -184,19 +194,215 @@ STRUCTURED_OUTPUT_ENABLED = True
 #: :func:`cad_experimental.cad_backend.resolve_backend` keeps, for the same
 #: reason: a run whose schema was chosen for it cannot be read.
 #:
-#: ``provider_schema`` covers the whole ten-type vocabulary in eight
-#: branches. If the provider refuses it on compiled-grammar size (unverified
-#: -- see :func:`probe_live`), ``--plan-schema compact`` is the documented
-#: fallback and the choice is recorded in the result either way.
+#: **Measured, Stage 50/51:** ``provider`` (7351 inlined) and ``compact``
+#: (6190) are both REFUSED by the live compiler for grammar size, so neither
+#: can run. The ``profile*`` encodings are the ones proven to compile --
+#: 3487, 4030 and 4481 respectively, against a refusal at 4551.
+#:
+#: The default stays ``provider`` **deliberately**. It is the encoding that
+#: describes the most of the language, a run that asked for it and silently
+#: got a smaller one could not be read, and the same rule
+#: :func:`cad_experimental.cad_backend.resolve_backend` keeps applies here:
+#: **nothing falls back.** A caller who wants a grammar that compiles names
+#: one, and the name is recorded in the result.
 DEFAULT_PLAN_SCHEMA = "provider"
 
 PLAN_SCHEMAS: Mapping[str, Any] = {
+    # Refused by the live compiler. Kept because they are what the language
+    # actually needs, and because a future provider may compile them.
     "provider": provider_schema,
     "compact": compact_provider_schema,
+    # Proven to compile. Each is an ENCODING of the plan, never the plan:
+    # an operation one of them cannot express is still legal in the IR, and
+    # a case needing it must be scored as not-expressible-here rather than
+    # as anything the model chose to do.
+    "profile": profile_provider_schema,
+    "profile_hole": profile_hole_provider_schema,
+    "profile_union": profile_union_provider_schema,
+    # Stage 53: the six solid types with the FULL selector vocabulary.
+    # Smaller than `executable` despite carrying more, because merging
+    # fillet/chamfer pays for the wider selector several times over.
+    "selector": selector_provider_schema,
+    # Stage 55: the same six types and selector modes, but the selector is
+    # a discriminated union and a circular branch REQUIRES its end. A
+    # deliberate narrowing of the encoding, never of the language.
+    "strict_selector": strict_selector_provider_schema,
     # Present so a caller can reproduce Stage 43's grammar deliberately and
     # see the difference. Never the default, and never selected for anyone.
     "executable": executable_schema,
 }
+
+#: What each encoding can express, stated rather than derived at the call
+#: site, so a harness can tell "the grammar had no word for this" from "the
+#: model declined to say it". Conflating those two would report a schema
+#: limit as a model failure -- exactly the error Stage 43 made on both
+#: profile cases without noticing.
+SCHEMA_CAPABILITIES: Mapping[str, Tuple[str, ...]] = {
+    "provider": OPERATION_TYPES,
+    "compact": OPERATION_TYPES,
+    "profile": ("box", "cylinder", "sketch", "extrude", "revolve"),
+    "profile_hole": ("box", "cylinder", "through_hole", "sketch", "extrude"),
+    "profile_union": ("box", "cylinder", "through_hole", "subtract",
+                      "sketch", "extrude", "revolve"),
+    "selector": V1_FEATURE_TYPES,
+    "strict_selector": V1_FEATURE_TYPES,
+    "executable": V1_FEATURE_TYPES,
+}
+
+#: Encodings the live compiler has actually accepted, with the measured
+#: inlined size. A claim of acceptance belongs here only after a probe.
+#: ``executable`` earned its place at Stage 43, the others at Stage 51.
+PROVEN_COMPILABLE: Mapping[str, int] = {
+    # Stage 53. Smaller than every other proven encoding AND the
+    # only one that can name an edge semantically.
+    "selector": 3134,
+    # Stage 55. Selector as a discriminated union, circular end
+    # required. 4/4 on F2/F3 where the flat form was 0/4.
+    "strict_selector": 3619,
+    "profile": 3487,
+    "executable": 3622,
+    "profile_hole": 4030,
+    "profile_union": 4481,
+}
+
+
+#: The selector modes each encoding admits. Stage 52's defect was that this
+#: table did not exist: expressibility was decided on operation **types**
+#: alone, so a case whose chamfer needs a ``circular`` selector looked
+#: answerable under a grammar offering only ``all`` and ``axis_parallel``.
+#: The model then said ``all``, chamfered every edge of the plate, and the
+#: kernel failed -- and the failure was recorded against the model.
+#:
+#: An encoding that carries no edge-selecting operation has no selector at
+#: all; its entry is empty, and no selector requirement can be met by it.
+SCHEMA_SELECTOR_MODES: Mapping[str, Tuple[str, ...]] = {
+    "provider": SELECT_MODES,
+    "compact": SELECT_MODES,
+    "executable": V1_SELECT_MODES,
+    "selector": SELECT_MODES,
+    "strict_selector": SELECT_MODES,
+    # No fillet or chamfer, so nothing in these grammars selects an edge.
+    "profile": (),
+    "profile_hole": (),
+    "profile_union": (),
+}
+
+#: Whether an encoding's selector can carry a ``position`` (``top`` /
+#: ``bottom``). True exactly when it admits a mode that may take one, which
+#: is what :data:`cad_experimental.plan.POSITION_MODES` states.
+def schema_supports_position(schema_choice: str) -> bool:
+    """Whether a circular selector's ``top``/``bottom`` is sayable here."""
+    modes = SCHEMA_SELECTOR_MODES.get(schema_choice)
+    if modes is None:
+        raise KeyError(f"unknown schema choice {schema_choice!r}")
+    return any(mode in POSITION_MODES for mode in modes)
+
+
+def selector_requirement(case: Any) -> Tuple[Tuple[str, ...], Optional[str]]:
+    """What selector a case needs: its modes, and its position if any.
+
+    Read off the corpus case rather than inferred from its category, for
+    the same reason the operation list is: a category name is a label, and
+    the expectation is the fact.
+    """
+    selector = getattr(case, "selector", None)
+    if selector is None:
+        return (), None
+    modes = getattr(selector, "select", None)
+    if modes is None:
+        modes = getattr(selector, "mode", None)
+    if isinstance(modes, str):
+        modes = (modes,)
+    return tuple(modes or ()), getattr(selector, "position", None)
+
+
+def schema_can_express_case(schema_choice: str, case: Any) -> bool:
+    """Whether an encoding can express everything one case requires.
+
+    **Both** dimensions, which is the Stage 52 correction: the operation
+    types *and* the selector. A case is inexpressible if either fails, and
+    the two are kept apart in :func:`case_expressibility` because "the
+    grammar has no chamfer" and "the grammar has no circular selector" are
+    different facts about different limits.
+    """
+    return case_expressibility(schema_choice, case)["expressible"]
+
+
+def case_expressibility(schema_choice: str, case: Any) -> Dict[str, Any]:
+    """Why a case is or is not expressible, dimension by dimension."""
+    operations = tuple(getattr(case, "required_plan_operations", ()) or ())
+    missing_ops = [
+        op for op in operations if not schema_can_express(schema_choice, op)
+    ]
+    modes, position = selector_requirement(case)
+    admitted = SCHEMA_SELECTOR_MODES.get(schema_choice)
+    if admitted is None:
+        raise KeyError(f"unknown schema choice {schema_choice!r}")
+    missing_modes = [mode for mode in modes if mode not in admitted]
+    position_missing = bool(position) and not schema_supports_position(
+        schema_choice
+    )
+    return {
+        "schema": schema_choice,
+        "case": getattr(case, "identifier", None),
+        "required_operations": list(operations),
+        "missing_operations": missing_ops,
+        "required_selector_modes": list(modes),
+        "missing_selector_modes": missing_modes,
+        "required_position": position,
+        "position_unsupported": position_missing,
+        "expressible": not (missing_ops or missing_modes or position_missing),
+    }
+
+
+def encodings_that_can_express(
+    operations: Sequence[str],
+    *,
+    proven_only: bool = True,
+) -> Tuple[str, ...]:
+    """Which encodings have a word for every one of ``operations``.
+
+    The harness's partitioning primitive. It answers "could this case even
+    be asked under that grammar", which must be settled **before** a result
+    is scored: a case whose plan needs an operation the encoding cannot name
+    was never put to the model, and recording it as a refusal would report a
+    schema limit as a model failure.
+
+    ``proven_only`` keeps encodings the live compiler has actually refused
+    out of a partition. A grammar that cannot be sent is not a home for a
+    case, however well it describes one.
+    """
+    wanted = tuple(operations)
+    names = [
+        name for name in SCHEMA_CAPABILITIES
+        if not proven_only or name in PROVEN_COMPILABLE
+    ]
+    return tuple(
+        name for name in names
+        if all(schema_can_express(name, op) for op in wanted)
+    )
+
+#: Encodings the live compiler has actually refused, with the measured size.
+PROVEN_REFUSED: Mapping[str, int] = {
+    "compact": 6190,
+    "provider": 7351,
+}
+
+
+def schema_can_express(schema_choice: str, operation_type: str) -> bool:
+    """Whether one encoding has a word for one operation.
+
+    The question a harness must ask before scoring a refusal. A case whose
+    expected plan needs an operation this encoding cannot name is not a case
+    the model failed; it is a case that was never asked.
+    """
+    known = SCHEMA_CAPABILITIES.get(schema_choice)
+    if known is None:
+        raise KeyError(
+            f"unknown schema choice {schema_choice!r}; known: "
+            f"{', '.join(sorted(SCHEMA_CAPABILITIES))}"
+        )
+    return operation_type in known
 
 #: The probe description. Short on purpose: the question is whether the
 #: provider COMPILES the schema, never whether the answer is any good.
@@ -2808,6 +3014,16 @@ __all__ = [
     "DEFAULT_PLAN_SCHEMA",
     "INVENTED_MISSING_VALUE",
     "PLAN_SCHEMAS",
+    "PROVEN_COMPILABLE",
+    "PROVEN_REFUSED",
+    "SCHEMA_CAPABILITIES",
+    "encodings_that_can_express",
+    "SCHEMA_SELECTOR_MODES",
+    "case_expressibility",
+    "schema_can_express",
+    "schema_can_express_case",
+    "schema_supports_position",
+    "selector_requirement",
     "PROBE_DESCRIPTION",
     "PROBE_PROFILE_DESCRIPTION",
     "PROTECTED_BASELINE_DIRECTORIES",

@@ -1,0 +1,3986 @@
+{
+  "arms": [
+    "operation_plan"
+  ],
+  "attempts_per_case": 5,
+  "cases": [
+    "01-plate-worded",
+    "02-cylinder-axis",
+    "03-box-dimensional",
+    "04-plate-centre-hole",
+    "05-plate-two-holes",
+    "06-cube-bore",
+    "09-profile-extrude",
+    "10-profile-revolve",
+    "11-sphere",
+    "12-union",
+    "13-engine",
+    "B6-plate-subtract-cylinder",
+    "D2-profile-extrude-hole",
+    "G3-two-tool-subtract",
+    "H4-threaded-rod",
+    "I1-underspecified-plate",
+    "I2-round-the-edges-no-radius",
+    "I3-hole-wider-than-plate"
+  ],
+  "evaluation_version": "1.0.0",
+  "fingerprints": {
+    "corpus": "96517cb979b4660adb08cddb9856fd7a03344834ccb79f799224bdf028b78fcc",
+    "corpus_version": "1.0.0",
+    "evaluation_version": "1.0.0",
+    "model": {
+      "max_output_tokens": 4096,
+      "model": "claude-haiku-4-5-20251001",
+      "plan_schema_choice": "profile_union",
+      "structured_output_enabled": true,
+      "timeout_seconds": 120.0
+    },
+    "prompt": {
+      "operation_plan": {
+        "characters": 22824,
+        "fingerprint": "21d564ddeba05a745abfeb245c85bce0ef2e19ddebdeb3f38bdf2a63e179214d",
+        "version": "2026-09-15.5"
+      },
+      "v1_json": {
+        "characters": 14943,
+        "fingerprint": "2b3e3395ec6efee0fe252cf88207e981dcdecfdb88ea847f075ce20a5ad9ba52",
+        "version": "2026-09-08.1"
+      }
+    },
+    "schema": {
+      "operation_plan": "a5c3484f182bc0c7d4d0105a1db1ea8b69bb3835a021525486c5efb3c02ea2ec",
+      "v1_json": "ce2083a78e84c6d555312dd2778b8dcf11e0080217b2fb35937b19d43f4c4472"
+    },
+    "scoring": "98b1118b7b97f36be9f45ab49b240bffb1e954b4d13c51948f085969c433d500"
+  },
+  "kind": "stage48-capability-evaluation",
+  "not_expressible_by_encoding": [
+    {
+      "case_id": "07-plate-chamfer",
+      "category": "NOT_EXPRESSIBLE_BY_ENCODING",
+      "group": "legacy",
+      "missing_from_encoding": [
+        "chamfer"
+      ],
+      "note": "the selected provider encoding has no word for these operations, so no call was made; this is NOT a model refusal, a validation failure or a build failure",
+      "required_plan_operations": [
+        "box",
+        "chamfer"
+      ]
+    },
+    {
+      "case_id": "08-plate-fillet",
+      "category": "NOT_EXPRESSIBLE_BY_ENCODING",
+      "group": "legacy",
+      "missing_from_encoding": [
+        "fillet"
+      ],
+      "note": "the selected provider encoding has no word for these operations, so no call was made; this is NOT a model refusal, a validation failure or a build failure",
+      "required_plan_operations": [
+        "box",
+        "fillet"
+      ]
+    },
+    {
+      "case_id": "D1-plate-hole-chamfer-long-edges",
+      "category": "NOT_EXPRESSIBLE_BY_ENCODING",
+      "group": "capability",
+      "missing_from_encoding": [
+        "chamfer"
+      ],
+      "note": "the selected provider encoding has no word for these operations, so no call was made; this is NOT a model refusal, a validation failure or a build failure",
+      "required_plan_operations": [
+        "box",
+        "through_hole",
+        "chamfer"
+      ]
+    },
+    {
+      "case_id": "D3-profile-revolve-fillet",
+      "category": "NOT_EXPRESSIBLE_BY_ENCODING",
+      "group": "capability",
+      "missing_from_encoding": [
+        "fillet"
+      ],
+      "note": "the selected provider encoding has no word for these operations, so no call was made; this is NOT a model refusal, a validation failure or a build failure",
+      "required_plan_operations": [
+        "sketch",
+        "revolve",
+        "fillet"
+      ]
+    },
+    {
+      "case_id": "E1-bolt-circle-radial",
+      "category": "NOT_EXPRESSIBLE_BY_ENCODING",
+      "group": "capability",
+      "missing_from_encoding": [
+        "pattern"
+      ],
+      "note": "the selected provider encoding has no word for these operations, so no call was made; this is NOT a model refusal, a validation failure or a build failure",
+      "required_plan_operations": [
+        "box",
+        "through_hole",
+        "pattern"
+      ]
+    },
+    {
+      "case_id": "E2-hole-row-linear",
+      "category": "NOT_EXPRESSIBLE_BY_ENCODING",
+      "group": "capability",
+      "missing_from_encoding": [
+        "pattern"
+      ],
+      "note": "the selected provider encoding has no word for these operations, so no call was made; this is NOT a model refusal, a validation failure or a build failure",
+      "required_plan_operations": [
+        "box",
+        "through_hole",
+        "pattern"
+      ]
+    },
+    {
+      "case_id": "F1-drilled-plate-round-corners",
+      "category": "NOT_EXPRESSIBLE_BY_ENCODING",
+      "group": "capability",
+      "missing_from_encoding": [
+        "fillet"
+      ],
+      "note": "the selected provider encoding has no word for these operations, so no call was made; this is NOT a model refusal, a validation failure or a build failure",
+      "required_plan_operations": [
+        "box",
+        "through_hole",
+        "fillet"
+      ]
+    },
+    {
+      "case_id": "F2-hole-rim-chamfer-top",
+      "category": "NOT_EXPRESSIBLE_BY_ENCODING",
+      "group": "capability",
+      "missing_from_encoding": [
+        "chamfer"
+      ],
+      "note": "the selected provider encoding has no word for these operations, so no call was made; this is NOT a model refusal, a validation failure or a build failure",
+      "required_plan_operations": [
+        "box",
+        "through_hole",
+        "chamfer"
+      ]
+    },
+    {
+      "case_id": "F3-hole-rim-chamfer-bottom",
+      "category": "NOT_EXPRESSIBLE_BY_ENCODING",
+      "group": "capability",
+      "missing_from_encoding": [
+        "chamfer"
+      ],
+      "note": "the selected provider encoding has no word for these operations, so no call was made; this is NOT a model refusal, a validation failure or a build failure",
+      "required_plan_operations": [
+        "box",
+        "through_hole",
+        "chamfer"
+      ]
+    },
+    {
+      "case_id": "F4-patterned-rims-chamfered",
+      "category": "NOT_EXPRESSIBLE_BY_ENCODING",
+      "group": "capability",
+      "missing_from_encoding": [
+        "pattern",
+        "chamfer"
+      ],
+      "note": "the selected provider encoding has no word for these operations, so no call was made; this is NOT a model refusal, a validation failure or a build failure",
+      "required_plan_operations": [
+        "box",
+        "through_hole",
+        "pattern",
+        "chamfer"
+      ]
+    },
+    {
+      "case_id": "G1-subtract-then-chamfer",
+      "category": "NOT_EXPRESSIBLE_BY_ENCODING",
+      "group": "capability",
+      "missing_from_encoding": [
+        "chamfer"
+      ],
+      "note": "the selected provider encoding has no word for these operations, so no call was made; this is NOT a model refusal, a validation failure or a build failure",
+      "required_plan_operations": [
+        "box",
+        "cylinder",
+        "subtract",
+        "chamfer"
+      ]
+    },
+    {
+      "case_id": "G2-two-holes-then-chamfer",
+      "category": "NOT_EXPRESSIBLE_BY_ENCODING",
+      "group": "capability",
+      "missing_from_encoding": [
+        "chamfer"
+      ],
+      "note": "the selected provider encoding has no word for these operations, so no call was made; this is NOT a model refusal, a validation failure or a build failure",
+      "required_plan_operations": [
+        "box",
+        "through_hole",
+        "chamfer"
+      ]
+    }
+  ],
+  "per_case": {
+    "01-plate-worded": {
+      "category": "A-primitives",
+      "expect_plan": "build",
+      "expect_v1": "build",
+      "group": "legacy",
+      "operation_plan": {
+        "answered": 5,
+        "attempts": 5,
+        "categories": {
+          "OK": 5
+        },
+        "correct": 5,
+        "details": [],
+        "executed_by_graph": 0
+      },
+      "text": "Create a rectangular plate 100 mm long, 60 mm wide and 10 mm thick."
+    },
+    "02-cylinder-axis": {
+      "category": "A-primitives",
+      "expect_plan": "build",
+      "expect_v1": "build",
+      "group": "legacy",
+      "operation_plan": {
+        "answered": 5,
+        "attempts": 5,
+        "categories": {
+          "OK": 5
+        },
+        "correct": 5,
+        "details": [],
+        "executed_by_graph": 0
+      },
+      "text": "Create a cylinder 20 mm in diameter and 50 mm tall along the +Z axis."
+    },
+    "03-box-dimensional": {
+      "category": "A-primitives",
+      "expect_plan": "build",
+      "expect_v1": "build",
+      "group": "legacy",
+      "operation_plan": {
+        "answered": 5,
+        "attempts": 5,
+        "categories": {
+          "OK": 5
+        },
+        "correct": 5,
+        "details": [],
+        "executed_by_graph": 0
+      },
+      "text": "Create a 100 mm by 60 mm by 10 mm box."
+    },
+    "04-plate-centre-hole": {
+      "category": "B-modifiers",
+      "expect_plan": "build",
+      "expect_v1": "build",
+      "group": "legacy",
+      "operation_plan": {
+        "answered": 5,
+        "attempts": 5,
+        "categories": {
+          "OK": 5
+        },
+        "correct": 5,
+        "details": [],
+        "executed_by_graph": 0
+      },
+      "text": "Create a 100 mm by 60 mm by 10 mm plate with a 20 mm diameter through hole in the center."
+    },
+    "05-plate-two-holes": {
+      "category": "B-modifiers",
+      "expect_plan": "build",
+      "expect_v1": "build",
+      "group": "legacy",
+      "operation_plan": {
+        "answered": 5,
+        "attempts": 5,
+        "categories": {
+          "OK": 5
+        },
+        "correct": 5,
+        "details": [],
+        "executed_by_graph": 0
+      },
+      "text": "Create a 100 mm by 60 mm by 10 mm plate with two 16 mm diameter through holes."
+    },
+    "06-cube-bore": {
+      "category": "B-modifiers",
+      "expect_plan": "build",
+      "expect_v1": "build",
+      "group": "legacy",
+      "operation_plan": {
+        "answered": 5,
+        "attempts": 5,
+        "categories": {
+          "OK": 5
+        },
+        "correct": 5,
+        "details": [],
+        "executed_by_graph": 0
+      },
+      "text": "Create a 50 mm cube with a 20 mm diameter cylindrical hole through the center."
+    },
+    "09-profile-extrude": {
+      "category": "C-profiles",
+      "expect_plan": "valid_unexecutable",
+      "expect_v1": "unsupported",
+      "group": "legacy",
+      "operation_plan": {
+        "answered": 5,
+        "attempts": 5,
+        "categories": {
+          "CORRECT_VALID_UNEXECUTABLE": 5
+        },
+        "correct": 5,
+        "details": [
+          "cannot execute sketch, extrude"
+        ],
+        "executed_by_graph": 0
+      },
+      "text": "Create a rectangular 100 mm by 60 mm profile on the XY plane and extrude it 10 mm."
+    },
+    "10-profile-revolve": {
+      "category": "C-profiles",
+      "expect_plan": "valid_unexecutable",
+      "expect_v1": "unsupported",
+      "group": "legacy",
+      "operation_plan": {
+        "answered": 5,
+        "attempts": 5,
+        "categories": {
+          "CORRECT_VALID_UNEXECUTABLE": 1,
+          "WRONGLY_REFUSED": 4
+        },
+        "correct": 1,
+        "details": [
+          "cannot execute sketch, revolve",
+          "declined with 'needs_clarification' where valid_unexecutable was required",
+          "declined with 'unsupported' where valid_unexecutable was required"
+        ],
+        "executed_by_graph": 0
+      },
+      "text": "Create a circular profile with a 20 mm diameter on the XY plane and revolve it 180 degrees around the X axis."
+    },
+    "11-sphere": {
+      "category": "H-unsupported",
+      "expect_plan": "unsupported",
+      "expect_v1": "unsupported",
+      "group": "legacy",
+      "operation_plan": {
+        "answered": 5,
+        "attempts": 5,
+        "categories": {
+          "CORRECT_UNSUPPORTED": 5
+        },
+        "correct": 5,
+        "details": [],
+        "executed_by_graph": 0
+      },
+      "text": "Create a sphere with a 20 mm diameter."
+    },
+    "12-union": {
+      "category": "H-unsupported",
+      "expect_plan": "unsupported",
+      "expect_v1": "unsupported",
+      "group": "legacy",
+      "operation_plan": {
+        "answered": 5,
+        "attempts": 5,
+        "categories": {
+          "CORRECT_UNSUPPORTED": 5
+        },
+        "correct": 5,
+        "details": [],
+        "executed_by_graph": 0
+      },
+      "text": "Create a cylinder and a box joined together."
+    },
+    "13-engine": {
+      "category": "H-unsupported",
+      "expect_plan": "unsupported",
+      "expect_v1": "unsupported",
+      "group": "legacy",
+      "operation_plan": {
+        "answered": 5,
+        "attempts": 5,
+        "categories": {
+          "CORRECT_UNSUPPORTED": 5
+        },
+        "correct": 5,
+        "details": [],
+        "executed_by_graph": 0
+      },
+      "text": "Create a four-cylinder engine."
+    },
+    "B6-plate-subtract-cylinder": {
+      "category": "B-modifiers",
+      "expect_plan": "build",
+      "expect_v1": null,
+      "group": "capability",
+      "operation_plan": {
+        "answered": 5,
+        "attempts": 5,
+        "categories": {
+          "OK": 5
+        },
+        "correct": 5,
+        "details": [],
+        "executed_by_graph": 0
+      },
+      "text": "Create a 100 mm by 60 mm by 10 mm plate. Create a 20 mm diameter cylinder 10 mm tall standing at the centre of the plate, and subtract that cylinder from the plate."
+    },
+    "D2-profile-extrude-hole": {
+      "category": "D-chains",
+      "expect_plan": "valid_unexecutable",
+      "expect_v1": null,
+      "group": "capability",
+      "operation_plan": {
+        "answered": 5,
+        "attempts": 5,
+        "categories": {
+          "CORRECT_VALID_UNEXECUTABLE": 5
+        },
+        "correct": 5,
+        "details": [
+          "cannot execute sketch, extrude"
+        ],
+        "executed_by_graph": 0
+      },
+      "text": "Create a rectangular 80 mm by 40 mm profile on the XY plane, extrude it 12 mm, and put a 10 mm diameter hole through the middle of the result."
+    },
+    "G3-two-tool-subtract": {
+      "category": "G-graph",
+      "expect_plan": "build",
+      "expect_v1": null,
+      "group": "capability",
+      "operation_plan": {
+        "answered": 5,
+        "attempts": 5,
+        "categories": {
+          "BUILD_FAILED": 4,
+          "OK": 1
+        },
+        "correct": 1,
+        "details": [
+          "the build failed"
+        ],
+        "executed_by_graph": 0
+      },
+      "text": "Create a 100 mm by 60 mm by 10 mm plate. Create two 16 mm diameter cylinders 10 mm tall, one 25 mm from the left-hand edge and one 75 mm from it, both on the centreline, and subtract both of them from the plate in one operation."
+    },
+    "H4-threaded-rod": {
+      "category": "H-unsupported",
+      "expect_plan": "unsupported",
+      "expect_v1": null,
+      "group": "capability",
+      "operation_plan": {
+        "answered": 5,
+        "attempts": 5,
+        "categories": {
+          "CORRECT_UNSUPPORTED": 5
+        },
+        "correct": 5,
+        "details": [],
+        "executed_by_graph": 0
+      },
+      "text": "Create an M8 threaded rod 40 mm long with a proper helical thread."
+    },
+    "I1-underspecified-plate": {
+      "category": "I-invalid",
+      "expect_plan": "clarification",
+      "expect_v1": null,
+      "group": "capability",
+      "operation_plan": {
+        "answered": 5,
+        "attempts": 5,
+        "categories": {
+          "CORRECT_CLARIFICATION": 5
+        },
+        "correct": 5,
+        "details": [],
+        "executed_by_graph": 0
+      },
+      "text": "Create a mounting plate with some holes in it."
+    },
+    "I2-round-the-edges-no-radius": {
+      "category": "I-invalid",
+      "expect_plan": "clarification",
+      "expect_v1": null,
+      "group": "capability",
+      "operation_plan": {
+        "answered": 5,
+        "attempts": 5,
+        "categories": {
+          "INVENTED_MISSING_VALUE": 2,
+          "PLAN_VALIDATION_REJECTED": 3
+        },
+        "correct": 0,
+        "details": [
+          "P23 an extrude acts on a profile, but 'plate' is a solid. Target a sketch instead",
+          "P9 'profile' names no operation in the plan; declared: plate, round_edges",
+          "produced box, box although a required value is absent from the request and has no default"
+        ],
+        "executed_by_graph": 0
+      },
+      "text": "Create a 100 mm by 60 mm by 10 mm plate and round off its edges."
+    },
+    "I3-hole-wider-than-plate": {
+      "category": "I-invalid",
+      "expect_plan": "no_part",
+      "expect_v1": null,
+      "group": "capability",
+      "operation_plan": {
+        "answered": 5,
+        "attempts": 5,
+        "categories": {
+          "CORRECT_UNSUPPORTED": 5
+        },
+        "correct": 5,
+        "details": [],
+        "executed_by_graph": 0
+      },
+      "text": "Create a 100 mm by 60 mm by 10 mm plate with a 200 mm diameter hole through the centre."
+    }
+  },
+  "per_category": {
+    "A-primitives": {
+      "answered": 15,
+      "attempts": 15,
+      "categories": {
+        "OK": 15
+      },
+      "semantically_correct": 1.0
+    },
+    "B-modifiers": {
+      "answered": 20,
+      "attempts": 20,
+      "categories": {
+        "OK": 20
+      },
+      "semantically_correct": 1.0
+    },
+    "C-profiles": {
+      "answered": 10,
+      "attempts": 10,
+      "categories": {
+        "CORRECT_VALID_UNEXECUTABLE": 6,
+        "WRONGLY_REFUSED": 4
+      },
+      "semantically_correct": 0.6
+    },
+    "D-chains": {
+      "answered": 5,
+      "attempts": 5,
+      "categories": {
+        "CORRECT_VALID_UNEXECUTABLE": 5
+      },
+      "semantically_correct": 1.0
+    },
+    "G-graph": {
+      "answered": 5,
+      "attempts": 5,
+      "categories": {
+        "BUILD_FAILED": 4,
+        "OK": 1
+      },
+      "semantically_correct": 0.2
+    },
+    "H-unsupported": {
+      "answered": 20,
+      "attempts": 20,
+      "categories": {
+        "CORRECT_UNSUPPORTED": 20
+      },
+      "semantically_correct": 1.0
+    },
+    "I-invalid": {
+      "answered": 15,
+      "attempts": 15,
+      "categories": {
+        "CORRECT_CLARIFICATION": 5,
+        "CORRECT_UNSUPPORTED": 5,
+        "INVENTED_MISSING_VALUE": 2,
+        "PLAN_VALIDATION_REJECTED": 3
+      },
+      "semantically_correct": 0.6666666666666666
+    }
+  },
+  "plan_schema_choice": "profile_union",
+  "preflight": {
+    "arms": {
+      "operation_plan": {
+        "branches": 6,
+        "compilable_offline": true,
+        "facts": {
+          "definitions": 5,
+          "every_object_closes_additional_properties": true,
+          "fingerprint": "a5c3484f182bc0c7d4d0105a1db1ea8b69bb3835a021525486c5efb3c02ea2ec",
+          "min_items_values": [
+            1
+          ],
+          "optional_properties": 10,
+          "optional_properties_limit": 24,
+          "rejected_keywords_present": [],
+          "serialized_characters": 3859,
+          "uses_one_of": false,
+          "worst_object_limit": 14,
+          "worst_object_optional_properties": 4,
+          "worst_object_path": ".properties.operations.items.anyOf[5].properties.parameters"
+        },
+        "violations": []
+      },
+      "v1_json": {
+        "branches": 0,
+        "compilable_offline": true,
+        "facts": {
+          "definitions": 0,
+          "every_object_closes_additional_properties": true,
+          "fingerprint": "ce2083a78e84c6d555312dd2778b8dcf11e0080217b2fb35937b19d43f4c4472",
+          "min_items_values": [
+            1
+          ],
+          "optional_properties": 8,
+          "optional_properties_limit": 24,
+          "rejected_keywords_present": [],
+          "serialized_characters": 3263,
+          "uses_one_of": false,
+          "worst_object_limit": 14,
+          "worst_object_optional_properties": 4,
+          "worst_object_path": "<root>"
+        },
+        "violations": []
+      }
+    },
+    "baselines": {
+      "files": {
+        "docs/evaluation-baselines/stage40-v1-vs-operation-plan/README.md": {
+          "crlf_on_disk": true,
+          "digest": "72c882ef93952ab2c43c3d9f02946ec60d294e03ff2a078f408751df94be5635",
+          "matches": true,
+          "present": true
+        },
+        "docs/evaluation-baselines/stage40-v1-vs-operation-plan/comparison-report.txt": {
+          "crlf_on_disk": true,
+          "digest": "0ea838b1232d224b7cf049d250af230b3f5391be8a9b926b4bd3cafed6f22cb9",
+          "matches": true,
+          "present": true
+        },
+        "docs/evaluation-baselines/stage40-v1-vs-operation-plan/comparison-run.json": {
+          "crlf_on_disk": true,
+          "digest": "bf72e79873e249bbf268ba165d648a1f4b42ce8364b9d37231d38c0d214929de",
+          "matches": true,
+          "present": true
+        },
+        "docs/evaluation-baselines/stage40-v1-vs-operation-plan/failure-diagnosis.json": {
+          "crlf_on_disk": true,
+          "digest": "b7a0f44674e72ad5e99343bb297f3a0267bc752432cf5d791c2310b801f6a8d7",
+          "matches": true,
+          "present": true
+        },
+        "docs/evaluation-baselines/stage40-v1-vs-operation-plan/failure-diagnosis.txt": {
+          "crlf_on_disk": true,
+          "digest": "fefa891c1d2f67f44a0fb8632c1b512295e1b0f5dca1a0a4d1a336f56ef19211",
+          "matches": true,
+          "present": true
+        },
+        "docs/evaluation-baselines/stage43-structured-output/README.md": {
+          "crlf_on_disk": false,
+          "digest": "18c4305422b9c13408cc5e852ce380797670e05d061ee44e221768652354dfa9",
+          "matches": true,
+          "present": true
+        },
+        "docs/evaluation-baselines/stage43-structured-output/stage43-structured-run.json": {
+          "crlf_on_disk": true,
+          "digest": "9ee1d25283c54c561243ade81cf6486f91b1cfdd2f0b8fd92cb7dbc870d8ccfc",
+          "matches": true,
+          "present": true
+        }
+      },
+      "intact": true,
+      "protected_directories": [
+        "stage40-v1-vs-operation-plan",
+        "stage43-structured-output"
+      ],
+      "root": "C:\\Users\\AtharvaBhangale\\Desktop\\AI-assisted-text-to-CAD-application"
+    },
+    "fingerprints": {
+      "corpus": "96517cb979b4660adb08cddb9856fd7a03344834ccb79f799224bdf028b78fcc",
+      "corpus_version": "1.0.0",
+      "evaluation_version": "1.0.0",
+      "model": {
+        "max_output_tokens": 4096,
+        "model": "claude-haiku-4-5-20251001",
+        "plan_schema_choice": "profile_union",
+        "structured_output_enabled": true,
+        "timeout_seconds": 120.0
+      },
+      "prompt": {
+        "operation_plan": {
+          "characters": 22824,
+          "fingerprint": "21d564ddeba05a745abfeb245c85bce0ef2e19ddebdeb3f38bdf2a63e179214d",
+          "version": "2026-09-15.5"
+        },
+        "v1_json": {
+          "characters": 14943,
+          "fingerprint": "2b3e3395ec6efee0fe252cf88207e981dcdecfdb88ea847f075ce20a5ad9ba52",
+          "version": "2026-09-08.1"
+        }
+      },
+      "schema": {
+        "operation_plan": "a5c3484f182bc0c7d4d0105a1db1ea8b69bb3835a021525486c5efb3c02ea2ec",
+        "v1_json": "ce2083a78e84c6d555312dd2778b8dcf11e0080217b2fb35937b19d43f4c4472"
+      },
+      "scoring": "98b1118b7b97f36be9f45ab49b240bffb1e954b4d13c51948f085969c433d500"
+    },
+    "groups": {
+      "capabilities_beyond_stage_43": [
+        "circular",
+        "extrude",
+        "pattern",
+        "revolve",
+        "sketch",
+        "straight"
+      ],
+      "capability_carrying_v1_expectation": [],
+      "capability_cases": 17,
+      "correct": true,
+      "legacy_cases": 13,
+      "legacy_missing_v1_expectation": [],
+      "legacy_text_drifted_from_stage_40": []
+    },
+    "invalid_plans": {
+      "checked": 9,
+      "correct": true,
+      "failed": [],
+      "rows": [
+        {
+          "actual": "validator",
+          "codes": [
+            "P9"
+          ],
+          "expected": "validator",
+          "expected_codes": [
+            "P9"
+          ],
+          "id": "bad-reference",
+          "kind": "bad reference",
+          "ok": true
+        },
+        {
+          "actual": "validator",
+          "codes": [
+            "P10"
+          ],
+          "expected": "validator",
+          "expected_codes": [
+            "P10"
+          ],
+          "id": "forward-reference",
+          "kind": "bad reference",
+          "ok": true
+        },
+        {
+          "actual": "validator",
+          "codes": [
+            "P12"
+          ],
+          "expected": "validator",
+          "expected_codes": [
+            "P12"
+          ],
+          "id": "consumed-reference",
+          "kind": "incompatible reference",
+          "ok": true
+        },
+        {
+          "actual": "validator",
+          "codes": [
+            "P27"
+          ],
+          "expected": "validator",
+          "expected_codes": [
+            "P27"
+          ],
+          "id": "pattern-of-a-solid",
+          "kind": "incompatible reference",
+          "ok": true
+        },
+        {
+          "actual": "validator",
+          "codes": [
+            "P10",
+            "P31"
+          ],
+          "expected": "validator",
+          "expected_codes": [
+            "P10",
+            "P31"
+          ],
+          "id": "self-referencing-subtract",
+          "kind": "cycle",
+          "ok": true
+        },
+        {
+          "actual": "validator",
+          "codes": [
+            "P29"
+          ],
+          "expected": "validator",
+          "expected_codes": [
+            "P29"
+          ],
+          "id": "radial-pattern-off-axis",
+          "kind": "unsupported geometry semantics",
+          "ok": true
+        },
+        {
+          "actual": "validator",
+          "codes": [
+            "P28"
+          ],
+          "expected": "validator",
+          "expected_codes": [
+            "P28"
+          ],
+          "id": "pattern-count-of-one",
+          "kind": "unsupported geometry semantics",
+          "ok": true
+        },
+        {
+          "actual": "parser",
+          "detail": "operation 1 edges needs an `axis` to give a `position`",
+          "expected": "parser",
+          "id": "selector-position-without-axis",
+          "kind": "ambiguous selector",
+          "ok": true
+        },
+        {
+          "actual": "parser",
+          "detail": "operation 1 edges is missing `axis`",
+          "expected": "parser",
+          "id": "selector-straight-without-axis",
+          "kind": "ambiguous selector",
+          "ok": true
+        }
+      ]
+    },
+    "kind": "stage48-preflight",
+    "model": "claude-haiku-4-5-20251001",
+    "plan_schema_choice": "profile_union",
+    "ready": true,
+    "result_directory": "docs/evaluation-baselines/stage48-widened-schema",
+    "sanitising_is_identity_for_the_plan": true,
+    "stage": 48,
+    "structured_output_enabled": true,
+    "version": "1.0.0"
+  },
+  "records": [
+    {
+      "attempt": 1,
+      "bounding_box": {
+        "x": 100.0,
+        "y": 60.0,
+        "z": 10.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "01-plate-worded",
+      "category": "A-primitives",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 2.0780000000013388,
+      "model_output_valid": true,
+      "operations": [
+        "box"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"A rectangular plate 100 mm \u00d7 60 mm \u00d7 10 mm.\", \"operations\": [{\"id\": \"plate\", \"type\": \"box\", \"parameters\": {\"x\": 100, \"y\": 60, \"z\": 10}}]}",
+      "render_success": true,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": 12,
+      "usage": {
+        "input_tokens": 8629,
+        "output_tokens": 69
+      },
+      "volume_mm3": 60000.0
+    },
+    {
+      "attempt": 1,
+      "bounding_box": {
+        "x": 20.0,
+        "y": 20.0,
+        "z": 50.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "02-cylinder-axis",
+      "category": "A-primitives",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 4.109000000000378,
+      "model_output_valid": true,
+      "operations": [
+        "cylinder"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"A cylinder 20 mm in diameter and 50 mm tall along the +Z axis.\", \"operations\": [{\"id\": \"cylinder_1\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 20, \"height\": 50, \"axis\": \"+Z\"}}]}",
+      "render_success": true,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": 500,
+      "usage": {
+        "input_tokens": 8628,
+        "output_tokens": 74
+      },
+      "volume_mm3": 15707.963267948966
+    },
+    {
+      "attempt": 1,
+      "bounding_box": {
+        "x": 100.0,
+        "y": 60.0,
+        "z": 10.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "03-box-dimensional",
+      "category": "A-primitives",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 2.5940000000009604,
+      "model_output_valid": true,
+      "operations": [
+        "box"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"A 100 mm by 60 mm by 10 mm box.\", \"operations\": [{\"id\": \"box1\", \"type\": \"box\", \"parameters\": {\"x\": 100, \"y\": 60, \"z\": 10}}]}",
+      "render_success": true,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": 12,
+      "usage": {
+        "input_tokens": 8625,
+        "output_tokens": 69
+      },
+      "volume_mm3": 60000.0
+    },
+    {
+      "attempt": 1,
+      "bounding_box": {
+        "x": 100.0,
+        "y": 60.0,
+        "z": 10.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "04-plate-centre-hole",
+      "category": "B-modifiers",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 1.6719999999986612,
+      "model_output_valid": true,
+      "operations": [
+        "box",
+        "through_hole"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"A 100\u00d760\u00d710 mm plate with a 20 mm diameter through hole at the center.\", \"operations\": [{\"id\": \"plate\", \"type\": \"box\", \"parameters\": {\"x\": 100, \"y\": 60, \"z\": 10}}, {\"id\": \"center_hole\", \"type\": \"through_hole\", \"target\": \"plate\", \"parameters\": {\"diameter\": 20, \"position\": {\"x\": 50, \"y\": 30, \"z\": 0}}}]}",
+      "render_success": true,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": 520,
+      "usage": {
+        "input_tokens": 8637,
+        "output_tokens": 128
+      },
+      "volume_mm3": 56858.407346410204
+    },
+    {
+      "attempt": 1,
+      "bounding_box": {
+        "x": 100.0,
+        "y": 60.0,
+        "z": 10.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "05-plate-two-holes",
+      "category": "B-modifiers",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 5.328000000001339,
+      "model_output_valid": true,
+      "operations": [
+        "box",
+        "through_hole",
+        "through_hole"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"A 100 \u00d7 60 \u00d7 10 mm plate with two 16 mm diameter through holes.\", \"operations\": [{\"id\": \"plate\", \"type\": \"box\", \"parameters\": {\"x\": 100, \"y\": 60, \"z\": 10}}, {\"id\": \"hole1\", \"type\": \"through_hole\", \"target\": \"plate\", \"parameters\": {\"diameter\": 16, \"position\": {\"x\": 25, \"y\": 30, \"z\": 0}}}, {\"id\": \"hole2\", \"type\": \"through_hole\", \"target\": \"plate\", \"parameters\": {\"diameter\": 16, \"position\": {\"x\": 75, \"y\": 30, \"z\": 0}}}]}",
+      "render_success": true,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": 1028,
+      "usage": {
+        "input_tokens": 8634,
+        "output_tokens": 180
+      },
+      "volume_mm3": 55978.761403405064
+    },
+    {
+      "attempt": 1,
+      "bounding_box": {
+        "x": 50.0,
+        "y": 50.0,
+        "z": 50.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "06-cube-bore",
+      "category": "B-modifiers",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 1.875,
+      "model_output_valid": true,
+      "operations": [
+        "box",
+        "through_hole"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"A 50 mm cube with a 20 mm diameter hole through its center.\", \"operations\": [{\"id\": \"cube\", \"type\": \"box\", \"parameters\": {\"x\": 50, \"y\": 50, \"z\": 50}}, {\"id\": \"center_hole\", \"type\": \"through_hole\", \"target\": \"cube\", \"parameters\": {\"diameter\": 20, \"position\": {\"x\": 25, \"y\": 25, \"z\": 0}}}]}",
+      "render_success": true,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": 520,
+      "usage": {
+        "input_tokens": 8628,
+        "output_tokens": 123
+      },
+      "volume_mm3": 109292.03673205106
+    },
+    {
+      "attempt": 1,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": true,
+      "case_id": "09-profile-extrude",
+      "category": "C-profiles",
+      "category_code": "CORRECT_VALID_UNEXECUTABLE",
+      "declared_outcome": "generated",
+      "detail": "cannot execute sketch, extrude",
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 1.7809999999990396,
+      "model_output_valid": true,
+      "operations": [
+        "sketch",
+        "extrude"
+      ],
+      "raw_text": "{\"status\":\"generated\",\"summary\":\"A 100 mm by 60 mm rectangular profile extruded 10 mm to create a plate.\",\"operations\":[{\"id\":\"profile\",\"type\":\"sketch\",\"parameters\":{\"plane\":\"XY\",\"geometry\":[{\"id\":\"rect1\",\"type\":\"rectangle\",\"corner\":{\"x\":0,\"y\":0},\"width\":100,\"height\":60}]}},{\"id\":\"plate\",\"type\":\"extrude\",\"target\":\"profile\",\"parameters\":{\"distance\":10,\"direction\":\"+Z\"}}]}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8635,
+        "output_tokens": 119
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 1,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "10-profile-revolve",
+      "category": "C-profiles",
+      "category_code": "WRONGLY_REFUSED",
+      "declared_outcome": "unsupported",
+      "detail": "declined with 'unsupported' where valid_unexecutable was required",
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 5.234000000000378,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"summary\": \"A circular profile cannot be revolved around an axis lying in its plane without crossing that axis.\", \"reason\": \"A sketch on the XY plane with a circle of 20 mm diameter centred at the origin cannot be revolved around the X axis (which lies in the XY plane) without the circle crossing the axis of revolution. This creates a self-intersecting solid that the CAD system cannot represent. To create a valid revolve, the circle must be offset from the axis so it does not cross it during the sweep.\", \"operations\": []}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": false,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8636,
+        "output_tokens": 131
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 1,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "11-sphere",
+      "category": "H-unsupported",
+      "category_code": "CORRECT_UNSUPPORTED",
+      "declared_outcome": "unsupported",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 3.172000000002299,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"summary\": \"A sphere cannot be created in this language.\", \"reason\": \"Spheres are not a supported operation. This language provides boxes, cylinders, and sketches with extrude/revolve operations, but no sphere primitive.\", \"operations\": []}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8618,
+        "output_tokens": 67
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 1,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "12-union",
+      "category": "H-unsupported",
+      "category_code": "CORRECT_UNSUPPORTED",
+      "declared_outcome": "unsupported",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 1.5939999999973224,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"summary\": \"Joining two solids is not supported in this language.\", \"reason\": \"This language has no union, join, or merge operation. Two solids cannot be combined into one part. Only subtraction is available to remove material from a solid.\", \"operations\": []}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8616,
+        "output_tokens": 70
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 1,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "13-engine",
+      "category": "H-unsupported",
+      "category_code": "CORRECT_UNSUPPORTED",
+      "declared_outcome": "unsupported",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 2.6090000000003783,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"summary\": \"A four-cylinder engine cannot be expressed in this language.\", \"reason\": \"An engine is an assembly of many separate solids (cylinders, pistons, crankshaft, valves, etc.) that move relative to each other. This language can only create a single static solid. It has no concept of assemblies, moving parts, joints, or relationships between independent bodies. A multi-part mechanism is fundamentally outside the scope of what this language expresses.\", \"operations\": []}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8614,
+        "output_tokens": 117
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 1,
+      "bounding_box": {
+        "x": 100.0,
+        "y": 60.0,
+        "z": 10.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "B6-plate-subtract-cylinder",
+      "category": "B-modifiers",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "capability",
+      "latency_seconds": 6.610000000000582,
+      "model_output_valid": true,
+      "operations": [
+        "box",
+        "cylinder",
+        "subtract"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"A 100 \u00d7 60 \u00d7 10 mm plate with a 20 mm diameter \u00d7 10 mm tall cylindrical boss at its centre.\", \"operations\": [{\"id\": \"plate\", \"type\": \"box\", \"parameters\": {\"x\": 100, \"y\": 60, \"z\": 10}}, {\"id\": \"boss\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 20, \"height\": 10, \"position\": {\"x\": 50, \"y\": 30, \"z\": 0}, \"axis\": \"+Z\"}}, {\"id\": \"cut\", \"type\": \"subtract\", \"target\": \"plate\", \"tools\": [\"boss\"]}]}",
+      "render_success": true,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": 520,
+      "usage": {
+        "input_tokens": 8654,
+        "output_tokens": 166
+      },
+      "volume_mm3": 56858.407346410204
+    },
+    {
+      "attempt": 1,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": true,
+      "case_id": "D2-profile-extrude-hole",
+      "category": "D-chains",
+      "category_code": "CORRECT_VALID_UNEXECUTABLE",
+      "declared_outcome": "generated",
+      "detail": "cannot execute sketch, extrude",
+      "executed_by_graph": false,
+      "group": "capability",
+      "latency_seconds": 5.797000000002299,
+      "model_output_valid": true,
+      "operations": [
+        "sketch",
+        "extrude",
+        "through_hole"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"A 80\u00d740 mm rectangular profile extruded 12 mm with a 10 mm diameter hole through its center.\", \"operations\": [{\"id\": \"profile\", \"type\": \"sketch\", \"parameters\": {\"plane\": \"XY\", \"geometry\": [{\"id\": \"rect1\", \"type\": \"rectangle\", \"corner\": {\"x\": 0, \"y\": 0}, \"width\": 80, \"height\": 40}]}}, {\"id\": \"body\", \"type\": \"extrude\", \"target\": \"profile\", \"parameters\": {\"distance\": 12}}, {\"id\": \"hole\", \"type\": \"through_hole\", \"target\": \"body\", \"parameters\": {\"diameter\": 10, \"position\": {\"x\": 40, \"y\": 20, \"z\": 0}}}]}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8651,
+        "output_tokens": 195
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 1,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": true,
+      "case_id": "G3-two-tool-subtract",
+      "category": "G-graph",
+      "category_code": "BUILD_FAILED",
+      "declared_outcome": "generated",
+      "detail": "the build failed",
+      "executed_by_graph": false,
+      "group": "capability",
+      "latency_seconds": 2.312999999998283,
+      "model_output_valid": true,
+      "operations": [
+        "box",
+        "cylinder",
+        "cylinder",
+        "subtract"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"100 x 60 x 10 mm plate with two 16 mm diameter cylinders subtracted.\", \"operations\": [{\"id\": \"plate\", \"type\": \"box\", \"parameters\": {\"x\": 100, \"y\": 60, \"z\": 10}}, {\"id\": \"cyl1\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 16, \"height\": 10}}, {\"id\": \"cyl2\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 16, \"height\": 10}}, {\"id\": \"cut\", \"type\": \"subtract\", \"target\": \"plate\", \"tools\": [\"cyl1\", \"cyl2\"]}]}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": false,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8678,
+        "output_tokens": 168
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 1,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "H4-threaded-rod",
+      "category": "H-unsupported",
+      "category_code": "CORRECT_UNSUPPORTED",
+      "declared_outcome": "unsupported",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "capability",
+      "latency_seconds": 4.5,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"summary\": \"Threaded rods with helical threads cannot be created in this language.\", \"reason\": \"Threads are not supported. This language can only create plain cylindrical holes and solid shapes. Helical sweeps, which would be needed to create a threaded surface, are not available operations. A threaded rod would require either a helical sweep (not in the language) or manual geometry (not practical).\", \"operations\": []}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8627,
+        "output_tokens": 106
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 1,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "I1-underspecified-plate",
+      "category": "I-invalid",
+      "category_code": "CORRECT_CLARIFICATION",
+      "declared_outcome": "needs_clarification",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "capability",
+      "latency_seconds": 3.9690000000009604,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"needs_clarification\", \"summary\": \"Cannot generate without specific dimensions and hole details.\", \"questions\": [\"What are the length, width, and thickness of the plate?\", \"How many holes are needed and what is their diameter?\", \"Where should the holes be positioned on the plate?\", \"Should the holes be arranged in a regular pattern (e.g., bolt circle, linear array)?\"], \"operations\": []}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8617,
+        "output_tokens": 95
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 1,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": true,
+      "case_id": "I2-round-the-edges-no-radius",
+      "category": "I-invalid",
+      "category_code": "INVENTED_MISSING_VALUE",
+      "declared_outcome": "generated",
+      "detail": "produced box, box although a required value is absent from the request and has no default",
+      "executed_by_graph": false,
+      "group": "capability",
+      "latency_seconds": 1.8280000000013388,
+      "model_output_valid": true,
+      "operations": [
+        "box",
+        "box"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"Created a 100 \u00d7 60 \u00d7 10 mm plate with rounded edges.\", \"operations\": [{\"id\": \"plate\", \"type\": \"box\", \"parameters\": {\"x\": 100, \"y\": 60, \"z\": 10}}, {\"id\": \"round_edges\", \"type\": \"box\", \"parameters\": {\"x\": 100, \"y\": 60, \"z\": 10}}]}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": false,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8630,
+        "output_tokens": 109
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 1,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "I3-hole-wider-than-plate",
+      "category": "I-invalid",
+      "category_code": "CORRECT_UNSUPPORTED",
+      "declared_outcome": "unsupported",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "capability",
+      "latency_seconds": 1.8909999999996217,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"summary\": \"The hole diameter (200 mm) exceeds the plate dimensions (100 \u00d7 60 \u00d7 10 mm), making it impossible to create.\", \"reason\": \"A through hole with a 200 mm diameter cannot exist in a plate that is only 100 mm \u00d7 60 mm in its largest horizontal dimensions. The hole would extend far beyond the plate's boundaries.\", \"operations\": []}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8636,
+        "output_tokens": 100
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 2,
+      "bounding_box": {
+        "x": 100.0,
+        "y": 60.0,
+        "z": 10.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "01-plate-worded",
+      "category": "A-primitives",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 1.4530000000013388,
+      "model_output_valid": true,
+      "operations": [
+        "box"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"A 100 mm \u00d7 60 mm \u00d7 10 mm rectangular plate.\", \"operations\": [{\"id\": \"plate\", \"type\": \"box\", \"parameters\": {\"x\": 100, \"y\": 60, \"z\": 10}}]}",
+      "render_success": true,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": 12,
+      "usage": {
+        "input_tokens": 8629,
+        "output_tokens": 69
+      },
+      "volume_mm3": 60000.0
+    },
+    {
+      "attempt": 2,
+      "bounding_box": {
+        "x": 20.0,
+        "y": 20.0,
+        "z": 50.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "02-cylinder-axis",
+      "category": "A-primitives",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 3.202999999997701,
+      "model_output_valid": true,
+      "operations": [
+        "cylinder"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"A cylinder 20 mm in diameter and 50 mm tall along the +Z axis.\", \"operations\": [{\"id\": \"cylinder_1\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 20, \"height\": 50, \"axis\": \"+Z\"}}]}",
+      "render_success": true,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": 500,
+      "usage": {
+        "input_tokens": 8628,
+        "output_tokens": 74
+      },
+      "volume_mm3": 15707.963267948966
+    },
+    {
+      "attempt": 2,
+      "bounding_box": {
+        "x": 100.0,
+        "y": 60.0,
+        "z": 10.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "03-box-dimensional",
+      "category": "A-primitives",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 1.4840000000003783,
+      "model_output_valid": true,
+      "operations": [
+        "box"
+      ],
+      "raw_text": "{\"status\":\"generated\",\"summary\":\"A 100 mm by 60 mm by 10 mm box.\",\"operations\":[{\"id\":\"box1\",\"type\":\"box\",\"parameters\":{\"x\":100,\"y\":60,\"z\":10}}]}",
+      "render_success": true,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": 12,
+      "usage": {
+        "input_tokens": 8625,
+        "output_tokens": 57
+      },
+      "volume_mm3": 60000.0
+    },
+    {
+      "attempt": 2,
+      "bounding_box": {
+        "x": 100.0,
+        "y": 60.0,
+        "z": 10.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "04-plate-centre-hole",
+      "category": "B-modifiers",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 1.8279999999977008,
+      "model_output_valid": true,
+      "operations": [
+        "box",
+        "through_hole"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"A 100 x 60 x 10 mm plate with a 20 mm diameter through hole at the center.\", \"operations\": [{\"id\": \"plate\", \"type\": \"box\", \"parameters\": {\"x\": 100, \"y\": 60, \"z\": 10}}, {\"id\": \"center_hole\", \"type\": \"through_hole\", \"target\": \"plate\", \"parameters\": {\"diameter\": 20, \"position\": {\"x\": 50, \"y\": 30, \"z\": 0}}}]}",
+      "render_success": true,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": 520,
+      "usage": {
+        "input_tokens": 8637,
+        "output_tokens": 132
+      },
+      "volume_mm3": 56858.407346410204
+    },
+    {
+      "attempt": 2,
+      "bounding_box": {
+        "x": 100.0,
+        "y": 60.0,
+        "z": 10.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "05-plate-two-holes",
+      "category": "B-modifiers",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 5.234000000000378,
+      "model_output_valid": true,
+      "operations": [
+        "box",
+        "through_hole",
+        "through_hole"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"A 100 \u00d7 60 \u00d7 10 mm plate with two 16 mm diameter through holes.\", \"operations\": [{\"id\": \"plate\", \"type\": \"box\", \"parameters\": {\"x\": 100, \"y\": 60, \"z\": 10}}, {\"id\": \"hole1\", \"type\": \"through_hole\", \"target\": \"plate\", \"parameters\": {\"diameter\": 16, \"position\": {\"x\": 25, \"y\": 30, \"z\": 0}}}, {\"id\": \"hole2\", \"type\": \"through_hole\", \"target\": \"plate\", \"parameters\": {\"diameter\": 16, \"position\": {\"x\": 75, \"y\": 30, \"z\": 0}}}]}",
+      "render_success": true,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": 1028,
+      "usage": {
+        "input_tokens": 8634,
+        "output_tokens": 180
+      },
+      "volume_mm3": 55978.761403405064
+    },
+    {
+      "attempt": 2,
+      "bounding_box": {
+        "x": 50.0,
+        "y": 50.0,
+        "z": 50.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "06-cube-bore",
+      "category": "B-modifiers",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 1.7190000000009604,
+      "model_output_valid": true,
+      "operations": [
+        "box",
+        "through_hole"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"50 mm cube with a 20 mm diameter hole through the center.\", \"operations\": [{\"id\": \"cube\", \"type\": \"box\", \"parameters\": {\"x\": 50, \"y\": 50, \"z\": 50}}, {\"id\": \"center_hole\", \"type\": \"through_hole\", \"target\": \"cube\", \"parameters\": {\"diameter\": 20, \"position\": {\"x\": 25, \"y\": 25, \"z\": 0}}}]}",
+      "render_success": true,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": 520,
+      "usage": {
+        "input_tokens": 8628,
+        "output_tokens": 121
+      },
+      "volume_mm3": 109292.03673205106
+    },
+    {
+      "attempt": 2,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": true,
+      "case_id": "09-profile-extrude",
+      "category": "C-profiles",
+      "category_code": "CORRECT_VALID_UNEXECUTABLE",
+      "declared_outcome": "generated",
+      "detail": "cannot execute sketch, extrude",
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 1.7190000000009604,
+      "model_output_valid": true,
+      "operations": [
+        "sketch",
+        "extrude"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"A 100 mm by 60 mm rectangular profile on the XY plane, extruded 10 mm upward.\", \"operations\": [{\"id\": \"profile\", \"type\": \"sketch\", \"parameters\": {\"plane\": \"XY\", \"geometry\": [{\"id\": \"rect1\", \"type\": \"rectangle\", \"corner\": {\"x\": 0, \"y\": 0}, \"width\": 100, \"height\": 60}]}}, {\"id\": \"body\", \"type\": \"extrude\", \"target\": \"profile\", \"parameters\": {\"distance\": 10, \"direction\": \"+Z\"}}]}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8635,
+        "output_tokens": 150
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 2,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "10-profile-revolve",
+      "category": "C-profiles",
+      "category_code": "WRONGLY_REFUSED",
+      "declared_outcome": "unsupported",
+      "detail": "declined with 'unsupported' where valid_unexecutable was required",
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 7.28099999999904,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"summary\": \"Cannot create a circular profile on XY and revolve it around the X axis.\", \"reason\": \"A revolve's axis must lie IN the sketch's plane. The XY plane spans X and Y axes only, so a revolve about the X axis is geometrically valid, but a circular profile centered on the sketch origin with radius 10 mm, when revolved 180 degrees about the X axis passing through its center, would sweep through itself and create a self-intersecting or degenerate shape. To revolve a circle about an axis in its plane, the axis must not pass through the circle's interior. If the circle's center is offset from the axis, a valid torus-like or ring surface results. The description does not specify the circle's position relative to the X axis, making the geometry ambiguous and potentially invalid.\", \"operations\": []}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": false,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8636,
+        "output_tokens": 197
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 2,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "11-sphere",
+      "category": "H-unsupported",
+      "category_code": "CORRECT_UNSUPPORTED",
+      "declared_outcome": "unsupported",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 3.436999999998079,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"summary\": \"Spheres are not supported in this language.\", \"reason\": \"This language supports only boxes and cylinders as primitive solids, plus sketches that can be extruded or revolved. Spheres, and all other curved surfaces of revolution other than cylinders, are not available.\", \"operations\": []}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8618,
+        "output_tokens": 80
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 2,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "12-union",
+      "category": "H-unsupported",
+      "category_code": "CORRECT_UNSUPPORTED",
+      "declared_outcome": "unsupported",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 1.5630000000019209,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"summary\": \"Joining two solids is not supported in this language.\", \"reason\": \"This language has no union, merge, or join operation. Only a single solid can be the final result. A box and a cylinder cannot be combined into one part.\", \"operations\": []}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8616,
+        "output_tokens": 70
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 2,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "13-engine",
+      "category": "H-unsupported",
+      "category_code": "CORRECT_UNSUPPORTED",
+      "declared_outcome": "unsupported",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 2.375,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"summary\": \"A four-cylinder engine cannot be expressed in this language.\", \"reason\": \"An engine requires multiple solids joined together (cylinders, pistons, crankshaft, head, block), assemblies, rotating parts, and complex internal geometry. This language supports only a single final solid and has no operations for joining, rotating, or creating assemblies. Additionally, many engine components (threaded holes, precise internal passages, variable geometry) exceed the capabilities of the box, cylinder, and basic hole operations available.\", \"operations\": []}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8614,
+        "output_tokens": 125
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 2,
+      "bounding_box": {
+        "x": 100.0,
+        "y": 60.0,
+        "z": 10.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "B6-plate-subtract-cylinder",
+      "category": "B-modifiers",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "capability",
+      "latency_seconds": 5.359000000000378,
+      "model_output_valid": true,
+      "operations": [
+        "box",
+        "cylinder",
+        "subtract"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"A 100\u00d760\u00d710 mm plate with a 20 mm diameter, 10 mm tall cylindrical boss at its center, created by subtracting the cylinder from the plate.\", \"operations\": [{\"id\": \"plate\", \"type\": \"box\", \"parameters\": {\"x\": 100, \"y\": 60, \"z\": 10}}, {\"id\": \"boss\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 20, \"height\": 10, \"position\": {\"x\": 50, \"y\": 30, \"z\": 0}, \"axis\": \"+Z\"}}, {\"id\": \"cut\", \"type\": \"subtract\", \"target\": \"plate\", \"tools\": [\"boss\"]}]}",
+      "render_success": true,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": 520,
+      "usage": {
+        "input_tokens": 8654,
+        "output_tokens": 173
+      },
+      "volume_mm3": 56858.407346410204
+    },
+    {
+      "attempt": 2,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": true,
+      "case_id": "D2-profile-extrude-hole",
+      "category": "D-chains",
+      "category_code": "CORRECT_VALID_UNEXECUTABLE",
+      "declared_outcome": "generated",
+      "detail": "cannot execute sketch, extrude",
+      "executed_by_graph": false,
+      "group": "capability",
+      "latency_seconds": 5.953000000001339,
+      "model_output_valid": true,
+      "operations": [
+        "sketch",
+        "extrude",
+        "through_hole"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"A 80\u00d740 mm rectangular profile extruded 12 mm with a 10 mm diameter hole through its center.\", \"operations\": [{\"id\": \"profile\", \"type\": \"sketch\", \"parameters\": {\"plane\": \"XY\", \"geometry\": [{\"id\": \"rect1\", \"type\": \"rectangle\", \"corner\": {\"x\": 0, \"y\": 0}, \"width\": 80, \"height\": 40}]}}, {\"id\": \"body\", \"type\": \"extrude\", \"target\": \"profile\", \"parameters\": {\"distance\": 12}}, {\"id\": \"hole\", \"type\": \"through_hole\", \"target\": \"body\", \"parameters\": {\"diameter\": 10, \"position\": {\"x\": 40, \"y\": 20, \"z\": 0}}}]}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8651,
+        "output_tokens": 195
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 2,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": true,
+      "case_id": "G3-two-tool-subtract",
+      "category": "G-graph",
+      "category_code": "BUILD_FAILED",
+      "declared_outcome": "generated",
+      "detail": "the build failed",
+      "executed_by_graph": false,
+      "group": "capability",
+      "latency_seconds": 5.967999999997119,
+      "model_output_valid": true,
+      "operations": [
+        "box",
+        "cylinder",
+        "cylinder",
+        "subtract"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"A 100 x 60 x 10 mm plate with two 16 mm diameter cylinders subtracted from it.\", \"operations\": [{\"id\": \"plate\", \"type\": \"box\", \"parameters\": {\"x\": 100, \"y\": 60, \"z\": 10}}, {\"id\": \"cyl1\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 16, \"height\": 10}}, {\"id\": \"cyl2\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 16, \"height\": 10}}, {\"id\": \"cut\", \"type\": \"subtract\", \"target\": \"plate\", \"tools\": [\"cyl1\", \"cyl2\"]}]}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": false,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8678,
+        "output_tokens": 172
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 2,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "H4-threaded-rod",
+      "category": "H-unsupported",
+      "category_code": "CORRECT_UNSUPPORTED",
+      "declared_outcome": "unsupported",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "capability",
+      "latency_seconds": 2.985000000000582,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"summary\": \"Threaded rods with helical threads cannot be created.\", \"reason\": \"This language does not support threads, helical sweeps, or any parametric thread geometry. Only plain cylinders and holes are available.\", \"operations\": []}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8627,
+        "output_tokens": 65
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 2,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "I1-underspecified-plate",
+      "category": "I-invalid",
+      "category_code": "CORRECT_CLARIFICATION",
+      "declared_outcome": "needs_clarification",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "capability",
+      "latency_seconds": 4.46900000000096,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"needs_clarification\", \"summary\": \"Cannot generate without specific dimensions.\", \"questions\": [\"What are the length, width, and thickness of the mounting plate?\", \"How many holes are needed, what diameter, and where should they be positioned?\"], \"operations\": []}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8617,
+        "output_tokens": 64
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 2,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "I2-round-the-edges-no-radius",
+      "category": "I-invalid",
+      "category_code": "PLAN_VALIDATION_REJECTED",
+      "declared_outcome": "invalid_model_output",
+      "detail": "P23 an extrude acts on a profile, but 'plate' is a solid. Target a sketch instead",
+      "executed_by_graph": false,
+      "group": "capability",
+      "latency_seconds": 1.9530000000013388,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"A 100 x 60 x 10 mm plate with all edges rounded.\", \"operations\": [{\"id\": \"plate\", \"type\": \"box\", \"parameters\": {\"x\": 100, \"y\": 60, \"z\": 10}}, {\"id\": \"round_edges\", \"type\": \"extrude\", \"target\": \"plate\", \"parameters\": {\"distance\": 2, \"direction\": \"+Z\"}}]}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": false,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8630,
+        "output_tokens": 109
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 2,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "I3-hole-wider-than-plate",
+      "category": "I-invalid",
+      "category_code": "CORRECT_UNSUPPORTED",
+      "declared_outcome": "unsupported",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "capability",
+      "latency_seconds": 1.7969999999986612,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"summary\": \"The hole diameter (200 mm) exceeds the plate dimensions (100 mm \u00d7 60 mm), making it impossible to create.\", \"reason\": \"A 200 mm diameter hole cannot pass through a plate whose maximum dimension is only 100 mm. The hole would extend far beyond the plate's boundaries.\", \"operations\": []}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8636,
+        "output_tokens": 86
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 3,
+      "bounding_box": {
+        "x": 100.0,
+        "y": 60.0,
+        "z": 10.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "01-plate-worded",
+      "category": "A-primitives",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 1.5459999999984575,
+      "model_output_valid": true,
+      "operations": [
+        "box"
+      ],
+      "raw_text": "{\"status\":\"generated\",\"summary\":\"A rectangular plate 100 mm long, 60 mm wide and 10 mm thick.\",\"operations\":[{\"id\":\"plate\",\"type\":\"box\",\"parameters\":{\"x\":100,\"y\":60,\"z\":10}}]}",
+      "render_success": true,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": 12,
+      "usage": {
+        "input_tokens": 8629,
+        "output_tokens": 60
+      },
+      "volume_mm3": 60000.0
+    },
+    {
+      "attempt": 3,
+      "bounding_box": {
+        "x": 20.0,
+        "y": 20.0,
+        "z": 50.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "02-cylinder-axis",
+      "category": "A-primitives",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 2.9679999999971187,
+      "model_output_valid": true,
+      "operations": [
+        "cylinder"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"A cylinder 20 mm in diameter and 50 mm tall along the +Z axis.\", \"operations\": [{\"id\": \"cylinder1\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 20, \"height\": 50, \"axis\": \"+Z\"}}]}",
+      "render_success": true,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": 500,
+      "usage": {
+        "input_tokens": 8628,
+        "output_tokens": 73
+      },
+      "volume_mm3": 15707.963267948966
+    },
+    {
+      "attempt": 3,
+      "bounding_box": {
+        "x": 100.0,
+        "y": 60.0,
+        "z": 10.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "03-box-dimensional",
+      "category": "A-primitives",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 1.4540000000015425,
+      "model_output_valid": true,
+      "operations": [
+        "box"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"A 100 \u00d7 60 \u00d7 10 mm box.\", \"operations\": [{\"id\": \"box1\", \"type\": \"box\", \"parameters\": {\"x\": 100, \"y\": 60, \"z\": 10}}]}",
+      "render_success": true,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": 12,
+      "usage": {
+        "input_tokens": 8625,
+        "output_tokens": 67
+      },
+      "volume_mm3": 60000.0
+    },
+    {
+      "attempt": 3,
+      "bounding_box": {
+        "x": 100.0,
+        "y": 60.0,
+        "z": 10.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "04-plate-centre-hole",
+      "category": "B-modifiers",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 1.8120000000017171,
+      "model_output_valid": true,
+      "operations": [
+        "box",
+        "through_hole"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"A 100\u00d760\u00d710 mm plate with a 20 mm diameter through hole at its center.\", \"operations\": [{\"id\": \"plate\", \"type\": \"box\", \"parameters\": {\"x\": 100, \"y\": 60, \"z\": 10}}, {\"id\": \"center_hole\", \"type\": \"through_hole\", \"target\": \"plate\", \"parameters\": {\"diameter\": 20, \"position\": {\"x\": 50, \"y\": 30, \"z\": 0}}}]}",
+      "render_success": true,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": 520,
+      "usage": {
+        "input_tokens": 8637,
+        "output_tokens": 128
+      },
+      "volume_mm3": 56858.407346410204
+    },
+    {
+      "attempt": 3,
+      "bounding_box": {
+        "x": 100.0,
+        "y": 60.0,
+        "z": 10.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "05-plate-two-holes",
+      "category": "B-modifiers",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 5.109000000000378,
+      "model_output_valid": true,
+      "operations": [
+        "box",
+        "through_hole",
+        "through_hole"
+      ],
+      "raw_text": "{\"status\":\"generated\",\"summary\":\"100 x 60 x 10 mm plate with two 16 mm diameter through holes.\",\"operations\":[{\"id\":\"plate\",\"type\":\"box\",\"parameters\":{\"x\":100,\"y\":60,\"z\":10}},{\"id\":\"hole1\",\"type\":\"through_hole\",\"target\":\"plate\",\"parameters\":{\"diameter\":16,\"position\":{\"x\":25,\"y\":30,\"z\":0}}},{\"id\":\"hole2\",\"type\":\"through_hole\",\"target\":\"plate\",\"parameters\":{\"diameter\":16,\"position\":{\"x\":75,\"y\":30,\"z\":0}}}]}",
+      "render_success": true,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": 1028,
+      "usage": {
+        "input_tokens": 8634,
+        "output_tokens": 140
+      },
+      "volume_mm3": 55978.761403405064
+    },
+    {
+      "attempt": 3,
+      "bounding_box": {
+        "x": 50.0,
+        "y": 50.0,
+        "z": 50.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "06-cube-bore",
+      "category": "B-modifiers",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 1.8440000000009604,
+      "model_output_valid": true,
+      "operations": [
+        "box",
+        "through_hole"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"A 50 mm cube with a 20 mm diameter hole through the center.\", \"operations\": [{\"id\": \"cube\", \"type\": \"box\", \"parameters\": {\"x\": 50, \"y\": 50, \"z\": 50}}, {\"id\": \"center_hole\", \"type\": \"through_hole\", \"target\": \"cube\", \"parameters\": {\"diameter\": 20, \"position\": {\"x\": 25, \"y\": 25, \"z\": 0}}}]}",
+      "render_success": true,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": 520,
+      "usage": {
+        "input_tokens": 8628,
+        "output_tokens": 123
+      },
+      "volume_mm3": 109292.03673205106
+    },
+    {
+      "attempt": 3,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": true,
+      "case_id": "09-profile-extrude",
+      "category": "C-profiles",
+      "category_code": "CORRECT_VALID_UNEXECUTABLE",
+      "declared_outcome": "generated",
+      "detail": "cannot execute sketch, extrude",
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 1.6719999999986612,
+      "model_output_valid": true,
+      "operations": [
+        "sketch",
+        "extrude"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"A 100 mm by 60 mm rectangular profile on the XY plane, extruded 10 mm to create a solid.\", \"operations\": [{\"id\": \"profile\", \"type\": \"sketch\", \"parameters\": {\"plane\": \"XY\", \"geometry\": [{\"id\": \"r1\", \"type\": \"rectangle\", \"corner\": {\"x\": 0, \"y\": 0}, \"width\": 100, \"height\": 60}]}}, {\"id\": \"body\", \"type\": \"extrude\", \"target\": \"profile\", \"parameters\": {\"distance\": 10, \"direction\": \"+Z\"}}]}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8635,
+        "output_tokens": 152
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 3,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "10-profile-revolve",
+      "category": "C-profiles",
+      "category_code": "WRONGLY_REFUSED",
+      "declared_outcome": "needs_clarification",
+      "detail": "declined with 'needs_clarification' where valid_unexecutable was required",
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 7.078000000001339,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"needs_clarification\", \"summary\": \"Cannot create the requested part due to conflicting profile and revolution axis.\", \"reason\": \"A circular profile on the XY plane cannot be revolved around the X axis. The X axis lies in the XY plane, but a revolution axis must turn the profile about an axis that also lies in the plane itself. For an XY sketch, valid revolution axes are only X and Y. However, revolving a circle centered on the sketch plane about an axis in that plane that passes through or near its center would cause the profile to cross the axis of revolution, which is not a valid operation. A circle on the XY plane revolved about the X axis (which is in the plane) would intersect itself.\", \"questions\": [\"Should the profile be revolved around the Y axis instead?\", \"Or should the profile be on a different plane (such as XZ or YZ) if you intend to revolve around the X axis?\", \"What is the intended 3D shape you are trying to create?\"], \"operations\": []}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": false,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8636,
+        "output_tokens": 233
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 3,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "11-sphere",
+      "category": "H-unsupported",
+      "category_code": "CORRECT_UNSUPPORTED",
+      "declared_outcome": "unsupported",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 3.437999999998283,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"summary\": \"Spheres are not supported in this language.\", \"reason\": \"This language supports only boxes and cylinders as primitive solids, plus sketches that can be extruded or revolved. Spheres, cones, and other curved surfaces that cannot be expressed as a box, cylinder, or swept profile are not available.\", \"operations\": []}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8618,
+        "output_tokens": 88
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 3,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "12-union",
+      "category": "H-unsupported",
+      "category_code": "CORRECT_UNSUPPORTED",
+      "declared_outcome": "unsupported",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 1.4530000000013388,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"summary\": \"Joining two solids is not supported in this language.\", \"reason\": \"This language has no union, join, merge or combine operation. Two solids cannot be attached or connected together. Only a single solid can be created and modified.\", \"operations\": []}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8616,
+        "output_tokens": 69
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 3,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "13-engine",
+      "category": "H-unsupported",
+      "category_code": "CORRECT_UNSUPPORTED",
+      "declared_outcome": "unsupported",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 3.0469999999986612,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"summary\": \"A four-cylinder engine cannot be expressed in this language.\", \"reason\": \"This language can only create simple solids (boxes and cylinders), modify them with holes, subtracting, filleting and chamfering, and sweep sketches to make extrusions and revolutions. An engine is an assembly of many moving parts with complex geometry, rotating components, internal passages, threads, precise tolerances, and functional relationships between parts. None of these can be expressed. This language has no operations for assemblies, unions of separate bodies, threads, helical geometry, or the mechanical constraints and articulations an engine requires.\", \"operations\": []}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8614,
+        "output_tokens": 148
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 3,
+      "bounding_box": {
+        "x": 100.0,
+        "y": 60.0,
+        "z": 10.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "B6-plate-subtract-cylinder",
+      "category": "B-modifiers",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "capability",
+      "latency_seconds": 4.484000000000378,
+      "model_output_valid": true,
+      "operations": [
+        "box",
+        "cylinder",
+        "subtract"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"A 100\u00d760\u00d710 mm plate with a 20 mm diameter cylinder subtracted from its centre.\", \"operations\": [{\"id\": \"plate\", \"type\": \"box\", \"parameters\": {\"x\": 100, \"y\": 60, \"z\": 10}}, {\"id\": \"cylinder\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 20, \"height\": 10, \"position\": {\"x\": 50, \"y\": 30, \"z\": 0}, \"axis\": \"+Z\"}}, {\"id\": \"cut\", \"type\": \"subtract\", \"target\": \"plate\", \"tools\": [\"cylinder\"]}]}",
+      "render_success": true,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": 520,
+      "usage": {
+        "input_tokens": 8654,
+        "output_tokens": 156
+      },
+      "volume_mm3": 56858.407346410204
+    },
+    {
+      "attempt": 3,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": true,
+      "case_id": "D2-profile-extrude-hole",
+      "category": "D-chains",
+      "category_code": "CORRECT_VALID_UNEXECUTABLE",
+      "declared_outcome": "generated",
+      "detail": "cannot execute sketch, extrude",
+      "executed_by_graph": false,
+      "group": "capability",
+      "latency_seconds": 5.781999999999243,
+      "model_output_valid": true,
+      "operations": [
+        "sketch",
+        "extrude",
+        "through_hole"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"A 80\u00d740 mm rectangular profile extruded 12 mm with a 10 mm diameter hole through the center.\", \"operations\": [{\"id\": \"profile\", \"type\": \"sketch\", \"parameters\": {\"plane\": \"XY\", \"geometry\": [{\"id\": \"rect1\", \"type\": \"rectangle\", \"corner\": {\"x\": 0, \"y\": 0}, \"width\": 80, \"height\": 40}]}}, {\"id\": \"body\", \"type\": \"extrude\", \"target\": \"profile\", \"parameters\": {\"distance\": 12}}, {\"id\": \"hole\", \"type\": \"through_hole\", \"target\": \"body\", \"parameters\": {\"diameter\": 10, \"position\": {\"x\": 40, \"y\": 20, \"z\": 0}}}]}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8651,
+        "output_tokens": 195
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 3,
+      "bounding_box": {
+        "x": 100.0,
+        "y": 60.0,
+        "z": 10.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "G3-two-tool-subtract",
+      "category": "G-graph",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "capability",
+      "latency_seconds": 2.187000000001717,
+      "model_output_valid": true,
+      "operations": [
+        "box",
+        "cylinder",
+        "cylinder",
+        "subtract"
+      ],
+      "raw_text": "{\"status\":\"generated\",\"summary\":\"A 100\u00d760\u00d710 mm plate with two 16 mm diameter cylinders subtracted from it.\",\"operations\":[{\"id\":\"plate\",\"type\":\"box\",\"parameters\":{\"x\":100,\"y\":60,\"z\":10}},{\"id\":\"cyl1\",\"type\":\"cylinder\",\"parameters\":{\"diameter\":16,\"height\":10,\"position\":{\"x\":25,\"y\":30,\"z\":0},\"axis\":\"+Z\"}},{\"id\":\"cyl2\",\"type\":\"cylinder\",\"parameters\":{\"diameter\":16,\"height\":10,\"position\":{\"x\":75,\"y\":30,\"z\":0},\"axis\":\"+Z\"}},{\"id\":\"cut\",\"type\":\"subtract\",\"target\":\"plate\",\"tools\":[\"cyl1\",\"cyl2\"]}]}",
+      "render_success": true,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": 1028,
+      "usage": {
+        "input_tokens": 8678,
+        "output_tokens": 177
+      },
+      "volume_mm3": 55978.761403405064
+    },
+    {
+      "attempt": 3,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "H4-threaded-rod",
+      "category": "H-unsupported",
+      "category_code": "CORRECT_UNSUPPORTED",
+      "declared_outcome": "unsupported",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "capability",
+      "latency_seconds": 4.453000000001339,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"summary\": \"Threaded rods with helical threads cannot be created in this language.\", \"reason\": \"Threads are not supported. This language can create plain holes and cylinders, but has no operations for threads, helical sweeps, or other features needed to define a threaded surface. An M8 rod would require either explicit thread geometry (which would need a loft or helical sweep, neither of which exist) or a thread library (which does not exist).\", \"operations\": []}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8627,
+        "output_tokens": 118
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 3,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "I1-underspecified-plate",
+      "category": "I-invalid",
+      "category_code": "CORRECT_CLARIFICATION",
+      "declared_outcome": "needs_clarification",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "capability",
+      "latency_seconds": 4.437999999998283,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\":\"needs_clarification\",\"summary\":\"A mounting plate needs dimensions and hole specifications.\",\"questions\":[\"What are the length, width, and thickness of the mounting plate?\",\"How many holes are needed, what diameter should they be, and where should they be positioned?\",\"Should the holes go completely through the plate?\",\" Are the holes arranged in a regular pattern (e.g., bolt circle, linear array) or at specific individual positions?\",\" Is any edge finishing required (fillets or chamfers)?\"],\"operations\":[]}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8617,
+        "output_tokens": 115
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 3,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": true,
+      "case_id": "I2-round-the-edges-no-radius",
+      "category": "I-invalid",
+      "category_code": "INVENTED_MISSING_VALUE",
+      "declared_outcome": "generated",
+      "detail": "produced box, box, box although a required value is absent from the request and has no default",
+      "executed_by_graph": false,
+      "group": "capability",
+      "latency_seconds": 2.312000000001717,
+      "model_output_valid": true,
+      "operations": [
+        "box",
+        "box",
+        "box"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"A 100 x 60 x 10 mm plate with rounded edges.\", \"operations\": [{\"id\": \"plate\", \"type\": \"box\", \"parameters\": {\"x\": 100, \"y\": 60, \"z\": 10}}, {\"id\": \"round_edges\", \"type\": \"box\",\"parameters\":{\"x\":100,\"y\":60,\"z\":10}}, {\"id\": \"rounded_plate\", \"type\": \"box\", \"parameters\": {\"x\": 100, \"y\": 60, \"z\": 10}}]}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": false,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8630,
+        "output_tokens": 141
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 3,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "I3-hole-wider-than-plate",
+      "category": "I-invalid",
+      "category_code": "CORRECT_UNSUPPORTED",
+      "declared_outcome": "unsupported",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "capability",
+      "latency_seconds": 1.9059999999990396,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"summary\": \"The hole diameter (200 mm) exceeds the plate dimensions (100 \u00d7 60 mm), making this geometrically impossible.\", \"reason\": \"A through hole with a 200 mm diameter cannot be drilled through a plate whose largest dimension is 100 mm. The hole would extend far beyond the plate's boundaries.\", \"operations\": []}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8636,
+        "output_tokens": 90
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 4,
+      "bounding_box": {
+        "x": 100.0,
+        "y": 60.0,
+        "z": 10.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "01-plate-worded",
+      "category": "A-primitives",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 1.5779999999977008,
+      "model_output_valid": true,
+      "operations": [
+        "box"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"A rectangular plate 100 mm long, 60 mm wide and 10 mm thick.\", \"operations\": [{\"id\": \"plate\", \"type\": \"box\", \"parameters\": {\"x\": 100, \"y\": 60, \"z\": 10}}]}",
+      "render_success": true,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": 12,
+      "usage": {
+        "input_tokens": 8629,
+        "output_tokens": 72
+      },
+      "volume_mm3": 60000.0
+    },
+    {
+      "attempt": 4,
+      "bounding_box": {
+        "x": 20.0,
+        "y": 20.0,
+        "z": 50.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "02-cylinder-axis",
+      "category": "A-primitives",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 3.2340000000003783,
+      "model_output_valid": true,
+      "operations": [
+        "cylinder"
+      ],
+      "raw_text": "{\"status\":\"generated\",\"summary\":\"A cylinder 20 mm in diameter and 50 mm tall along the +Z axis.\",\"operations\":[{\"id\":\"cylinder1\",\"type\":\"cylinder\",\"parameters\":{\"diameter\":20,\"height\":50,\"axis\":\"+Z\"}}]}",
+      "render_success": true,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": 500,
+      "usage": {
+        "input_tokens": 8628,
+        "output_tokens": 62
+      },
+      "volume_mm3": 15707.963267948966
+    },
+    {
+      "attempt": 4,
+      "bounding_box": {
+        "x": 100.0,
+        "y": 60.0,
+        "z": 10.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "03-box-dimensional",
+      "category": "A-primitives",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 1.360000000000582,
+      "model_output_valid": true,
+      "operations": [
+        "box"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"A 100 mm by 60 mm by 10 mm box.\", \"operations\": [{\"id\": \"box1\", \"type\": \"box\", \"parameters\": {\"x\": 100, \"y\": 60, \"z\": 10}}]}",
+      "render_success": true,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": 12,
+      "usage": {
+        "input_tokens": 8625,
+        "output_tokens": 69
+      },
+      "volume_mm3": 60000.0
+    },
+    {
+      "attempt": 4,
+      "bounding_box": {
+        "x": 100.0,
+        "y": 60.0,
+        "z": 10.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "04-plate-centre-hole",
+      "category": "B-modifiers",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 1.8909999999996217,
+      "model_output_valid": true,
+      "operations": [
+        "box",
+        "through_hole"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"A 100 \u00d7 60 \u00d7 10 mm plate with a 20 mm diameter through hole at its center.\", \"operations\": [{\"id\": \"plate\", \"type\": \"box\", \"parameters\": {\"x\": 100, \"y\": 60, \"z\": 10}}, {\"id\": \"center_hole\", \"type\": \"through_hole\", \"target\": \"plate\", \"parameters\": {\"diameter\": 20, \"position\": {\"x\": 50, \"y\": 30, \"z\": 0}}}]}",
+      "render_success": true,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": 520,
+      "usage": {
+        "input_tokens": 8637,
+        "output_tokens": 132
+      },
+      "volume_mm3": 56858.407346410204
+    },
+    {
+      "attempt": 4,
+      "bounding_box": {
+        "x": 100.0,
+        "y": 60.0,
+        "z": 10.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "05-plate-two-holes",
+      "category": "B-modifiers",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 5.264999999999418,
+      "model_output_valid": true,
+      "operations": [
+        "box",
+        "through_hole",
+        "through_hole"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"A 100 x 60 x 10 mm plate with two 16 mm diameter through holes.\", \"operations\": [{\"id\": \"plate\", \"type\": \"box\", \"parameters\": {\"x\": 100, \"y\": 60, \"z\": 10}}, {\"id\": \"hole1\", \"type\": \"through_hole\", \"target\": \"plate\", \"parameters\": {\"diameter\": 16, \"position\": {\"x\": 25, \"y\": 30, \"z\": 0}}}, {\"id\": \"hole2\", \"type\": \"through_hole\", \"target\": \"plate\", \"parameters\": {\"diameter\": 16, \"position\": {\"x\": 75, \"y\": 30, \"z\": 0}}}]}",
+      "render_success": true,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": 1028,
+      "usage": {
+        "input_tokens": 8634,
+        "output_tokens": 180
+      },
+      "volume_mm3": 55978.761403405064
+    },
+    {
+      "attempt": 4,
+      "bounding_box": {
+        "x": 50.0,
+        "y": 50.0,
+        "z": 50.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "06-cube-bore",
+      "category": "B-modifiers",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 1.9529999999977008,
+      "model_output_valid": true,
+      "operations": [
+        "box",
+        "through_hole"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"A 50 mm cube with a 20 mm diameter hole drilled through its center.\", \"operations\": [{\"id\": \"cube\", \"type\": \"box\", \"parameters\": {\"x\": 50, \"y\": 50, \"z\": 50}}, {\"id\": \"center_hole\", \"type\": \"through_hole\", \"target\": \"cube\", \"parameters\": {\"diameter\": 20, \"position\": {\"x\": 25, \"y\": 25, \"z\": 0}}}]}",
+      "render_success": true,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": 520,
+      "usage": {
+        "input_tokens": 8628,
+        "output_tokens": 125
+      },
+      "volume_mm3": 109292.03673205106
+    },
+    {
+      "attempt": 4,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": true,
+      "case_id": "09-profile-extrude",
+      "category": "C-profiles",
+      "category_code": "CORRECT_VALID_UNEXECUTABLE",
+      "declared_outcome": "generated",
+      "detail": "cannot execute sketch, extrude",
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 2.2179999999971187,
+      "model_output_valid": true,
+      "operations": [
+        "sketch",
+        "extrude"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"A 100 mm by 60 mm rectangular profile on the XY plane, extruded 10 mm to create a solid box.\", \"operations\": [{\"id\": \"profile\", \"type\": \"sketch\", \"parameters\": {\"plane\": \"XY\", \"geometry\": [{\"id\": \"rect1\", \"type\": \"rectangle\", \"corner\": {\"x\": 0, \"y\": 0}, \"width\": 100, \"height\": 60}]}}, {\"id\": \"body\", \"type\": \"extrude\", \"target\": \"profile\", \"parameters\": {\"distance\": 10, \"direction\": \"+Z\"}}]}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8635,
+        "output_tokens": 153
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 4,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "10-profile-revolve",
+      "category": "C-profiles",
+      "category_code": "WRONGLY_REFUSED",
+      "declared_outcome": "unsupported",
+      "detail": "declined with 'unsupported' where valid_unexecutable was required",
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 4.89100000000326,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"summary\": \"A circular profile revolved about an axis in its plane cannot be generated.\", \"reason\": \"A sketch with a single circle on the XY plane cannot be revolved about the X axis. The X axis lies in the XY plane, so revolving the circle about X would require the circle's center to be offset from the axis of revolution. A circle centered on the axis of revolution would sweep out nothing (a degenerate case). The description does not specify the circle's position relative to the X axis, making it impossible to generate a valid solid.\", \"operations\": []}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": false,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8636,
+        "output_tokens": 134
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 4,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "11-sphere",
+      "category": "H-unsupported",
+      "category_code": "CORRECT_UNSUPPORTED",
+      "declared_outcome": "unsupported",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 2.687999999998283,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"summary\": \"Spheres are not supported in this language.\", \"reason\": \"This language supports only boxes and cylinders as primitive solids. Spheres, and all other shapes not expressible as extrusions or revolutions of 2D profiles, cannot be created.\", \"operations\": []}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8618,
+        "output_tokens": 75
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 4,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "12-union",
+      "category": "H-unsupported",
+      "category_code": "CORRECT_UNSUPPORTED",
+      "declared_outcome": "unsupported",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 1.9059999999990396,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"summary\": \"Joining two solids is not supported in this language.\", \"reason\": \"This language does not have a union, join, merge or combine operation. Two solids cannot be connected or combined into a single part. Only one solid can exist in the final result.\", \"operations\": []}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8616,
+        "output_tokens": 74
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 4,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "13-engine",
+      "category": "H-unsupported",
+      "category_code": "CORRECT_UNSUPPORTED",
+      "declared_outcome": "unsupported",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 4.687000000001717,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"summary\": \"A four-cylinder engine cannot be expressed in this language.\", \"reason\": \"An engine is an assembly of multiple independent solids (cylinders, crankshaft, pistons, valves, etc.) that move relative to each other and function together. This language can only create a single solid part. There is no union, no assembly capability, and no way to express moving components or mechanical function. Each cylinder alone could be modeled, but not the engine as a working mechanism.\", \"operations\": []}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8614,
+        "output_tokens": 120
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 4,
+      "bounding_box": {
+        "x": 100.0,
+        "y": 60.0,
+        "z": 10.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "B6-plate-subtract-cylinder",
+      "category": "B-modifiers",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "capability",
+      "latency_seconds": 4.625,
+      "model_output_valid": true,
+      "operations": [
+        "box",
+        "cylinder",
+        "subtract"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"A 100\u00d760\u00d710 mm plate with a 20 mm diameter cylinder subtracted from its centre.\", \"operations\": [{\"id\": \"plate\", \"type\": \"box\", \"parameters\": {\"x\": 100, \"y\": 60, \"z\": 10}}, {\"id\": \"post\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 20, \"height\": 10, \"position\": {\"x\": 50, \"y\": 30, \"z\": 0}}}, {\"id\": \"cut\", \"type\": \"subtract\", \"target\": \"plate\", \"tools\": [\"post\"]}]}",
+      "render_success": true,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": 520,
+      "usage": {
+        "input_tokens": 8654,
+        "output_tokens": 150
+      },
+      "volume_mm3": 56858.407346410204
+    },
+    {
+      "attempt": 4,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": true,
+      "case_id": "D2-profile-extrude-hole",
+      "category": "D-chains",
+      "category_code": "CORRECT_VALID_UNEXECUTABLE",
+      "declared_outcome": "generated",
+      "detail": "cannot execute sketch, extrude",
+      "executed_by_graph": false,
+      "group": "capability",
+      "latency_seconds": 5.546999999998661,
+      "model_output_valid": true,
+      "operations": [
+        "sketch",
+        "extrude",
+        "through_hole"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"Rectangular profile extruded to create a solid, then drilled with a central hole.\", \"operations\": [{\"id\": \"profile\", \"type\": \"sketch\", \"parameters\": {\"plane\": \"XY\", \"geometry\": [{\"id\": \"rect1\", \"type\": \"rectangle\", \"corner\": {\"x\": 0, \"y\": 0}, \"width\": 80, \"height\": 40}]}}, {\"id\": \"body\", \"type\": \"extrude\", \"target\": \"profile\", \"parameters\": {\"distance\": 12}}, {\"id\": \"hole\", \"type\": \"through_hole\", \"target\": \"body\", \"parameters\": {\"diameter\": 10, \"position\": {\"x\": 40, \"y\": 20, \"z\": 0}}}]}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8651,
+        "output_tokens": 186
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 4,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": true,
+      "case_id": "G3-two-tool-subtract",
+      "category": "G-graph",
+      "category_code": "BUILD_FAILED",
+      "declared_outcome": "generated",
+      "detail": "the build failed",
+      "executed_by_graph": false,
+      "group": "capability",
+      "latency_seconds": 2.0309999999990396,
+      "model_output_valid": true,
+      "operations": [
+        "box",
+        "cylinder",
+        "cylinder",
+        "subtract"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"A 100 \u00d7 60 \u00d7 10 mm plate with two 16 mm diameter cylinders subtracted from it.\", \"operations\": [{\"id\": \"plate\", \"type\": \"box\", \"parameters\": {\"x\": 100, \"y\": 60, \"z\": 10}}, {\"id\": \"cyl1\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 16, \"height\": 10}}, {\"id\": \"cyl2\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 16, \"height\": 10}}, {\"id\": \"cut\", \"type\": \"subtract\", \"target\": \"plate\", \"tools\": [\"cyl1\", \"cyl2\"]}]}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": false,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8678,
+        "output_tokens": 172
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 4,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "H4-threaded-rod",
+      "category": "H-unsupported",
+      "category_code": "CORRECT_UNSUPPORTED",
+      "declared_outcome": "unsupported",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "capability",
+      "latency_seconds": 3.327999999997701,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"summary\": \"Threaded rods with helical threads cannot be expressed in this language.\", \"reason\": \"Threads are not supported. This language can only create plain cylindrical solids, holes, and swept profiles. Helical geometry, variable pitch, and thread forms require capabilities beyond what is available.\", \"operations\": []}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8627,
+        "output_tokens": 81
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 4,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "I1-underspecified-plate",
+      "category": "I-invalid",
+      "category_code": "CORRECT_CLARIFICATION",
+      "declared_outcome": "needs_clarification",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "capability",
+      "latency_seconds": 3.5780000000013388,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"needs_clarification\", \"summary\": \"A mounting plate requires specification of dimensions and hole locations.\", \"questions\": [\"What are the plate's length, width, and thickness (in mm)?\", \"How many holes are needed, what is their diameter, and where should they be positioned?\", \"Should the holes go all the way through the plate?\"], \"operations\": []}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8617,
+        "output_tokens": 85
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 4,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "I2-round-the-edges-no-radius",
+      "category": "I-invalid",
+      "category_code": "PLAN_VALIDATION_REJECTED",
+      "declared_outcome": "invalid_model_output",
+      "detail": "P23 an extrude acts on a profile, but 'plate' is a solid. Target a sketch instead",
+      "executed_by_graph": false,
+      "group": "capability",
+      "latency_seconds": 1.7819999999992433,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"Created a 100 x 60 x 10 mm plate with rounded edges.\", \"operations\": [{\"id\": \"plate\", \"type\": \"box\", \"parameters\": {\"x\": 100, \"y\": 60, \"z\": 10}}, {\"id\": \"round_edges\", \"type\": \"extrude\", \"target\": \"plate\", \"parameters\": {\"distance\": 5, \"direction\": \"+Z\"}}]}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": false,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8630,
+        "output_tokens": 109
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 4,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "I3-hole-wider-than-plate",
+      "category": "I-invalid",
+      "category_code": "CORRECT_UNSUPPORTED",
+      "declared_outcome": "unsupported",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "capability",
+      "latency_seconds": 2.063000000001921,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"summary\": \"The hole diameter (200 mm) exceeds the plate dimensions, making it impossible to drill through the plate as specified.\", \"reason\": \"A through_hole with a 200 mm diameter cannot be created in a plate that is only 100 mm by 60 mm. The hole diameter is larger than the plate itself, so there is no physical geometry to cut.\", \"operations\": []}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8636,
+        "output_tokens": 98
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 5,
+      "bounding_box": {
+        "x": 100.0,
+        "y": 60.0,
+        "z": 10.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "01-plate-worded",
+      "category": "A-primitives",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 1.639999999999418,
+      "model_output_valid": true,
+      "operations": [
+        "box"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"A 100 mm \u00d7 60 mm \u00d7 10 mm rectangular plate.\", \"operations\": [{\"id\": \"plate\", \"type\": \"box\", \"parameters\": {\"x\": 100, \"y\": 60, \"z\": 10}}]}",
+      "render_success": true,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": 12,
+      "usage": {
+        "input_tokens": 8629,
+        "output_tokens": 69
+      },
+      "volume_mm3": 60000.0
+    },
+    {
+      "attempt": 5,
+      "bounding_box": {
+        "x": 20.0,
+        "y": 20.0,
+        "z": 50.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "02-cylinder-axis",
+      "category": "A-primitives",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 3.0459999999984575,
+      "model_output_valid": true,
+      "operations": [
+        "cylinder"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"A single cylinder 20 mm diameter and 50 mm tall along the +Z axis.\", \"operations\": [{\"id\": \"cylinder_1\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 20, \"height\": 50, \"axis\": \"+Z\"}}]}",
+      "render_success": true,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": 500,
+      "usage": {
+        "input_tokens": 8628,
+        "output_tokens": 74
+      },
+      "volume_mm3": 15707.963267948966
+    },
+    {
+      "attempt": 5,
+      "bounding_box": {
+        "x": 100.0,
+        "y": 60.0,
+        "z": 10.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "03-box-dimensional",
+      "category": "A-primitives",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 2.7969999999986612,
+      "model_output_valid": true,
+      "operations": [
+        "box"
+      ],
+      "raw_text": "{\"status\":\"generated\",\"summary\":\"A 100 mm by 60 mm by 10 mm box.\",\"operations\":[{\"id\":\"box1\",\"type\":\"box\",\"parameters\":{\"x\":100,\"y\":60,\"z\":10}}]}",
+      "render_success": true,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": 12,
+      "usage": {
+        "input_tokens": 8625,
+        "output_tokens": 57
+      },
+      "volume_mm3": 60000.0
+    },
+    {
+      "attempt": 5,
+      "bounding_box": {
+        "x": 100.0,
+        "y": 60.0,
+        "z": 10.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "04-plate-centre-hole",
+      "category": "B-modifiers",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 1.735000000000582,
+      "model_output_valid": true,
+      "operations": [
+        "box",
+        "through_hole"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"A 100 x 60 x 10 mm plate with a 20 mm diameter through hole at the center.\", \"operations\": [{\"id\": \"plate\", \"type\": \"box\", \"parameters\": {\"x\": 100, \"y\": 60, \"z\": 10}}, {\"id\": \"center_hole\", \"type\": \"through_hole\", \"target\": \"plate\", \"parameters\": {\"diameter\": 20, \"position\": {\"x\": 50, \"y\": 30, \"z\": 0}}}]}",
+      "render_success": true,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": 520,
+      "usage": {
+        "input_tokens": 8637,
+        "output_tokens": 132
+      },
+      "volume_mm3": 56858.407346410204
+    },
+    {
+      "attempt": 5,
+      "bounding_box": {
+        "x": 100.0,
+        "y": 60.0,
+        "z": 10.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "05-plate-two-holes",
+      "category": "B-modifiers",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 5.313000000001921,
+      "model_output_valid": true,
+      "operations": [
+        "box",
+        "through_hole",
+        "through_hole"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"A 100 x 60 x 10 mm plate with two 16 mm diameter through holes.\", \"operations\": [{\"id\": \"plate\", \"type\": \"box\", \"parameters\": {\"x\": 100, \"y\": 60, \"z\": 10}}, {\"id\": \"hole1\", \"type\": \"through_hole\", \"target\": \"plate\", \"parameters\": {\"diameter\": 16, \"position\": {\"x\": 25, \"y\": 30, \"z\": 0}}}, {\"id\": \"hole2\", \"type\": \"through_hole\", \"target\": \"plate\", \"parameters\": {\"diameter\": 16, \"position\": {\"x\": 75, \"y\": 30, \"z\": 0}}}]}",
+      "render_success": true,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": 1028,
+      "usage": {
+        "input_tokens": 8634,
+        "output_tokens": 180
+      },
+      "volume_mm3": 55978.761403405064
+    },
+    {
+      "attempt": 5,
+      "bounding_box": {
+        "x": 50.0,
+        "y": 50.0,
+        "z": 50.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "06-cube-bore",
+      "category": "B-modifiers",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 2.547000000002299,
+      "model_output_valid": true,
+      "operations": [
+        "box",
+        "through_hole"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"A 50 mm cube with a 20 mm diameter hole through the center.\", \"operations\": [{\"id\": \"cube\", \"type\": \"box\", \"parameters\": {\"x\": 50, \"y\": 50, \"z\": 50}}, {\"id\": \"center_hole\", \"type\": \"through_hole\", \"target\": \"cube\", \"parameters\": {\"diameter\": 20, \"position\": {\"x\": 25, \"y\": 25, \"z\": 0}}}]}",
+      "render_success": true,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": 520,
+      "usage": {
+        "input_tokens": 8628,
+        "output_tokens": 123
+      },
+      "volume_mm3": 109292.03673205106
+    },
+    {
+      "attempt": 5,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": true,
+      "case_id": "09-profile-extrude",
+      "category": "C-profiles",
+      "category_code": "CORRECT_VALID_UNEXECUTABLE",
+      "declared_outcome": "generated",
+      "detail": "cannot execute sketch, extrude",
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 1.9059999999990396,
+      "model_output_valid": true,
+      "operations": [
+        "sketch",
+        "extrude"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"Created a 100 mm by 60 mm rectangular profile on the XY plane and extruded it 10 mm to form a solid.\", \"operations\": [{\"id\": \"profile\", \"type\": \"sketch\", \"parameters\": {\"plane\": \"XY\", \"geometry\": [{\"id\": \"rect1\", \"type\": \"rectangle\", \"corner\": {\"x\": 0, \"y\": 0}, \"width\": 100, \"height\": 60}]}}, {\"id\": \"body\", \"type\": \"extrude\", \"target\": \"profile\", \"parameters\": {\"distance\": 10, \"direction\": \"+Z\"}}]}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8635,
+        "output_tokens": 154
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 5,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": true,
+      "case_id": "10-profile-revolve",
+      "category": "C-profiles",
+      "category_code": "CORRECT_VALID_UNEXECUTABLE",
+      "declared_outcome": "generated",
+      "detail": "cannot execute sketch, revolve",
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 4.53099999999904,
+      "model_output_valid": true,
+      "operations": [
+        "sketch",
+        "revolve"
+      ],
+      "raw_text": "{\"status\":\"generated\",\"summary\":\"Circular profile on XY plane revolved 180 degrees around the X axis to create a half-sphere-like shape.\",\"operations\":[{\"id\":\"profile\",\"type\":\"sketch\",\"parameters\":{\"plane\":\"XY\",\"geometry\":[{\"id\":\"circle1\",\"type\":\"circle\",\"centre\":{\"x\":0,\"y\":0},\"radius\":10}]}},{\"id\":\"body\",\"type\":\"revolve\",\"target\":\"profile\",\"parameters\":{\"angle\":180,\"axis\":\"+X\"}}]}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8636,
+        "output_tokens": 117
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 5,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "11-sphere",
+      "category": "H-unsupported",
+      "category_code": "CORRECT_UNSUPPORTED",
+      "declared_outcome": "unsupported",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 3.313000000001921,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"summary\": \"A sphere cannot be expressed in this language.\", \"reason\": \"Spheres are not supported. This language has boxes, cylinders, and swept profiles (extrude and revolve), but no primitive sphere operation and no way to approximate one exactly.\", \"operations\": []}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8618,
+        "output_tokens": 72
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 5,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "12-union",
+      "category": "H-unsupported",
+      "category_code": "CORRECT_UNSUPPORTED",
+      "declared_outcome": "unsupported",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 2.0940000000009604,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"summary\": \"Joining two solids is not supported by this language.\", \"reason\": \"This language cannot union, merge, or combine solids. It can only create individual shapes (box, cylinder) and remove material from them (subtract, through_hole). A request for a cylinder and box joined together requires a union operation, which does not exist.\", \"operations\": []}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8616,
+        "output_tokens": 90
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 5,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "13-engine",
+      "category": "H-unsupported",
+      "category_code": "CORRECT_UNSUPPORTED",
+      "declared_outcome": "unsupported",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 2.389999999999418,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"summary\": \"A four-cylinder engine cannot be expressed in this language.\", \"reason\": \"An engine is an assembly of multiple independent solids and moving parts. This language has no union or joining operation, so separate solids cannot be combined into one part. Each cylinder would be a separate solid with no way to connect them into a single engine. Additionally, engines require features like threads, helical geometry, and precise mechanical tolerances that are not supported.\", \"operations\": []}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8614,
+        "output_tokens": 110
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 5,
+      "bounding_box": {
+        "x": 100.0,
+        "y": 60.0,
+        "z": 10.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "B6-plate-subtract-cylinder",
+      "category": "B-modifiers",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "capability",
+      "latency_seconds": 5.046999999998661,
+      "model_output_valid": true,
+      "operations": [
+        "box",
+        "cylinder",
+        "subtract"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"A 100\u00d760\u00d710 mm plate with a 20 mm diameter, 10 mm tall cylindrical boss at its centre, created by subtracting the cylinder from the plate.\", \"operations\": [{\"id\": \"plate\", \"type\": \"box\", \"parameters\": {\"x\": 100, \"y\": 60, \"z\": 10}}, {\"id\": \"boss\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 20, \"height\": 10, \"position\": {\"x\": 50, \"y\": 30, \"z\": 0}}}, {\"id\": \"cut\", \"type\": \"subtract\", \"target\": \"plate\", \"tools\": [\"boss\"]}]}",
+      "render_success": true,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": 520,
+      "usage": {
+        "input_tokens": 8654,
+        "output_tokens": 167
+      },
+      "volume_mm3": 56858.407346410204
+    },
+    {
+      "attempt": 5,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": true,
+      "case_id": "D2-profile-extrude-hole",
+      "category": "D-chains",
+      "category_code": "CORRECT_VALID_UNEXECUTABLE",
+      "declared_outcome": "generated",
+      "detail": "cannot execute sketch, extrude",
+      "executed_by_graph": false,
+      "group": "capability",
+      "latency_seconds": 5.48399999999674,
+      "model_output_valid": true,
+      "operations": [
+        "sketch",
+        "extrude",
+        "through_hole"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"80\u00d740 mm rectangular profile extruded 12 mm with a 10 mm diameter hole through the center.\", \"operations\": [{\"id\": \"profile\", \"type\": \"sketch\", \"parameters\": {\"plane\": \"XY\", \"geometry\": [{\"id\": \"rect1\", \"type\": \"rectangle\", \"corner\": {\"x\": 0, \"y\": 0}, \"width\": 80, \"height\": 40}]}}, {\"id\": \"body\", \"type\": \"extrude\", \"target\": \"profile\", \"parameters\": {\"distance\": 12, \"direction\": \"+Z\"}}, {\"id\": \"hole\", \"type\": \"through_hole\", \"target\": \"body\", \"parameters\": {\"diameter\": 10, \"position\": {\"x\": 40, \"y\": 20, \"z\": 0}}}]}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8651,
+        "output_tokens": 199
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 5,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": true,
+      "case_id": "G3-two-tool-subtract",
+      "category": "G-graph",
+      "category_code": "BUILD_FAILED",
+      "declared_outcome": "generated",
+      "detail": "the build failed",
+      "executed_by_graph": false,
+      "group": "capability",
+      "latency_seconds": 2.0,
+      "model_output_valid": true,
+      "operations": [
+        "box",
+        "cylinder",
+        "cylinder",
+        "subtract"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"A 100x60x10 mm plate with two 16 mm diameter cylinders subtracted from it.\", \"operations\": [{\"id\": \"plate\", \"type\": \"box\", \"parameters\": {\"x\": 100, \"y\": 60, \"z\": 10}}, {\"id\": \"cyl1\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 16, \"height\": 10}}, {\"id\": \"cyl2\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 16, \"height\": 10}}, {\"id\": \"cut\", \"type\": \"subtract\", \"target\": \"plate\", \"tools\": [\"cyl1\", \"cyl2\"]}]}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": false,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8678,
+        "output_tokens": 168
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 5,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "H4-threaded-rod",
+      "category": "H-unsupported",
+      "category_code": "CORRECT_UNSUPPORTED",
+      "declared_outcome": "unsupported",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "capability",
+      "latency_seconds": 4.125,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"summary\": \"Threaded rods with helical threads cannot be created in this language.\", \"reason\": \"This language does not support threads, helical sweeps, or any form of spiraling geometry. Only straight extrusions and revolutions about a fixed axis are available. An M8 threaded rod requires a helical thread profile, which is outside the scope of supported operations.\", \"operations\": []}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8627,
+        "output_tokens": 98
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 5,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "I1-underspecified-plate",
+      "category": "I-invalid",
+      "category_code": "CORRECT_CLARIFICATION",
+      "declared_outcome": "needs_clarification",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "capability",
+      "latency_seconds": 3.327999999997701,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"needs_clarification\", \"summary\": \"Cannot proceed without specific dimensions and hole details.\", \"questions\": [\"What are the plate dimensions (length, width, and thickness)?\", \"How many holes are needed?\", \"What is the diameter of each hole?\", \"Where should the holes be positioned on the plate?\"], \"operations\": []}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8617,
+        "output_tokens": 78
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 5,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "I2-round-the-edges-no-radius",
+      "category": "I-invalid",
+      "category_code": "PLAN_VALIDATION_REJECTED",
+      "declared_outcome": "invalid_model_output",
+      "detail": "P9 'profile' names no operation in the plan; declared: plate, round_edges",
+      "executed_by_graph": false,
+      "group": "capability",
+      "latency_seconds": 1.8130000000019209,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"A 100\u00d760\u00d710 mm plate with rounded edges.\", \"operations\": [{\"id\": \"plate\", \"type\": \"box\", \"parameters\": {\"x\": 100, \"y\": 60, \"z\": 10}}, {\"id\": \"round_edges\", \"type\": \"extrude\", \"target\": \"profile\", \"parameters\": {\"distance\": 10}}]}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": false,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8630,
+        "output_tokens": 97
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 5,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "I3-hole-wider-than-plate",
+      "category": "I-invalid",
+      "category_code": "CORRECT_UNSUPPORTED",
+      "declared_outcome": "unsupported",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "capability",
+      "latency_seconds": 1.8440000000009604,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"summary\": \"A 200 mm diameter hole cannot pass through a 100 mm \u00d7 60 mm plate.\", \"reason\": \"The hole diameter (200 mm) is larger than both dimensions of the plate (100 mm and 60 mm). A through-hole cannot be larger than the solid it passes through.\", \"operations\": []}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8636,
+        "output_tokens": 86
+      },
+      "volume_mm3": null
+    }
+  ],
+  "reference_geometry_ok": true,
+  "relationship_to_stage_43": "Stage 48 is NOT a re-run of Stage 43 and its numbers are not a delta against it. Stage 43 sent executable_schema (six types, no sketch branch, two selectors) with plan prompt 2026-09-10.7 and scored a semantic selector as incorrect because none existed. Stage 48 sends the widened plan schema with the current prompt and builds a semantic selector through the graph executor. The legacy group re-uses Stage 40's thirteen requests so that V1 and the operation plan are comparable WITHIN this run; Stage 43 remains the frozen comparison for the earlier capability envelope.",
+  "schema_attached_per_arm": {
+    "operation_plan": 90,
+    "v1_json": 0
+  },
+  "stage": 48,
+  "stage52_arms": [
+    "operation_plan"
+  ],
+  "stage52_elapsed_seconds": 427.4,
+  "stage52_encoding": "profile_union",
+  "stage52_pass": "A-profile_union",
+  "structured_output_enabled": true,
+  "summary": {
+    "capability": {
+      "arms": [
+        "operation_plan"
+      ],
+      "cases": 7,
+      "operation_plan": {
+        "answered": 35,
+        "attempts": 35,
+        "build_success": 0.17142857142857143,
+        "cad_valid": 0.4857142857142857,
+        "categories": {
+          "BUILD_FAILED": 4,
+          "CORRECT_CLARIFICATION": 5,
+          "CORRECT_UNSUPPORTED": 10,
+          "CORRECT_VALID_UNEXECUTABLE": 5,
+          "INVENTED_MISSING_VALUE": 2,
+          "OK": 6,
+          "PLAN_VALIDATION_REJECTED": 3
+        },
+        "correct_clarification": 0.5,
+        "correct_unsupported": 1.0,
+        "correct_valid_unexecutable": 1.0,
+        "executed_by_graph": 0,
+        "input_tokens": 302465,
+        "mean_latency_seconds": 3.6442571428571164,
+        "model_output_valid": 1.0,
+        "output_tokens": 4569,
+        "provider_errors": 0,
+        "render_scored_attempts": 35,
+        "render_success": 0.17142857142857143,
+        "selector_correct": null,
+        "selector_scored_attempts": 0,
+        "semantically_correct": 0.7428571428571429,
+        "structure_valid": 1.0
+      }
+    },
+    "legacy": {
+      "arms": [
+        "operation_plan"
+      ],
+      "cases": 11,
+      "operation_plan": {
+        "answered": 55,
+        "attempts": 55,
+        "build_success": 0.5454545454545454,
+        "cad_valid": 0.6545454545454545,
+        "categories": {
+          "CORRECT_UNSUPPORTED": 15,
+          "CORRECT_VALID_UNEXECUTABLE": 6,
+          "OK": 30,
+          "WRONGLY_REFUSED": 4
+        },
+        "correct_clarification": null,
+        "correct_unsupported": 1.0,
+        "correct_valid_unexecutable": 0.6,
+        "executed_by_graph": 0,
+        "input_tokens": 474500,
+        "mean_latency_seconds": 2.86810909090901,
+        "model_output_valid": 1.0,
+        "output_tokens": 6057,
+        "provider_errors": 0,
+        "render_scored_attempts": 55,
+        "render_success": 0.5454545454545454,
+        "selector_correct": null,
+        "selector_scored_attempts": 0,
+        "semantically_correct": 0.9272727272727272,
+        "structure_valid": 1.0
+      }
+    }
+  }
+}

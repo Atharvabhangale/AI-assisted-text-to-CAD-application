@@ -1,0 +1,1013 @@
+{
+  "arms": [
+    "operation_plan"
+  ],
+  "attempts_per_case": 2,
+  "cases": [
+    "D1-plate-hole-chamfer-long-edges",
+    "F1-drilled-plate-round-corners",
+    "F2-hole-rim-chamfer-top",
+    "F3-hole-rim-chamfer-bottom",
+    "G1-subtract-then-chamfer",
+    "G2-two-holes-then-chamfer"
+  ],
+  "evaluation_version": "1.0.0",
+  "fingerprints": {
+    "corpus": "96517cb979b4660adb08cddb9856fd7a03344834ccb79f799224bdf028b78fcc",
+    "corpus_version": "1.0.0",
+    "evaluation_version": "1.0.0",
+    "model": {
+      "max_output_tokens": 4096,
+      "model": "claude-haiku-4-5-20251001",
+      "plan_schema_choice": "selector",
+      "structured_output_enabled": true,
+      "timeout_seconds": 120.0
+    },
+    "prompt": {
+      "operation_plan": {
+        "characters": 22824,
+        "fingerprint": "21d564ddeba05a745abfeb245c85bce0ef2e19ddebdeb3f38bdf2a63e179214d",
+        "version": "2026-09-15.5"
+      },
+      "v1_json": {
+        "characters": 14943,
+        "fingerprint": "2b3e3395ec6efee0fe252cf88207e981dcdecfdb88ea847f075ce20a5ad9ba52",
+        "version": "2026-09-08.1"
+      }
+    },
+    "schema": {
+      "operation_plan": "893a912002fb659302cf4ddd882a160bd585eecb60d9c1333daa1f964fac2fd3",
+      "v1_json": "ce2083a78e84c6d555312dd2778b8dcf11e0080217b2fb35937b19d43f4c4472"
+    },
+    "scoring": "98b1118b7b97f36be9f45ab49b240bffb1e954b4d13c51948f085969c433d500"
+  },
+  "kind": "stage48-capability-evaluation",
+  "per_case": {
+    "D1-plate-hole-chamfer-long-edges": {
+      "category": "D-chains",
+      "expect_plan": "build",
+      "expect_v1": null,
+      "group": "capability",
+      "operation_plan": {
+        "answered": 2,
+        "attempts": 2,
+        "categories": {
+          "OK": 1,
+          "SEMANTICALLY_INCORRECT": 1
+        },
+        "correct": 1,
+        "details": [
+          "volume 55599.7406797435, expected 56058.407346410204 (rel_tol 1e-06)"
+        ],
+        "executed_by_graph": 2
+      },
+      "text": "Create a 100 mm by 60 mm by 10 mm plate with a 20 mm diameter hole through the centre, then chamfer the four long edges by 2 mm."
+    },
+    "F1-drilled-plate-round-corners": {
+      "category": "F-selectors",
+      "expect_plan": "build",
+      "expect_v1": null,
+      "group": "capability",
+      "operation_plan": {
+        "answered": 2,
+        "attempts": 2,
+        "categories": {
+          "OK": 2
+        },
+        "correct": 2,
+        "details": [],
+        "executed_by_graph": 2
+      },
+      "text": "Create a 100 mm by 60 mm by 10 mm plate with a 20 mm diameter hole through the centre, then round the four outside corners with a 5 mm radius."
+    },
+    "F2-hole-rim-chamfer-top": {
+      "category": "F-selectors",
+      "expect_plan": "build",
+      "expect_v1": null,
+      "group": "capability",
+      "operation_plan": {
+        "answered": 2,
+        "attempts": 2,
+        "categories": {
+          "SEMANTICALLY_INCORRECT": 2
+        },
+        "correct": 0,
+        "details": [
+          "volume 56793.48109823602, expected 56825.94422232311 (rel_tol 1e-06)"
+        ],
+        "executed_by_graph": 2
+      },
+      "text": "Create a 100 mm by 60 mm by 10 mm plate with a 20 mm diameter hole through the centre and break the top edge of the hole with a 1 mm chamfer."
+    },
+    "F3-hole-rim-chamfer-bottom": {
+      "category": "F-selectors",
+      "expect_plan": "build",
+      "expect_v1": null,
+      "group": "capability",
+      "operation_plan": {
+        "answered": 2,
+        "attempts": 2,
+        "categories": {
+          "SEMANTICALLY_INCORRECT": 2
+        },
+        "correct": 0,
+        "details": [
+          "volume 56793.48109823602, expected 56825.94422232311 (rel_tol 1e-06)"
+        ],
+        "executed_by_graph": 2
+      },
+      "text": "Create a 100 mm by 60 mm by 10 mm plate with a 20 mm diameter hole through the centre and break the bottom edge of the hole with a 1 mm chamfer."
+    },
+    "G1-subtract-then-chamfer": {
+      "category": "G-graph",
+      "expect_plan": "build",
+      "expect_v1": null,
+      "group": "capability",
+      "operation_plan": {
+        "answered": 2,
+        "attempts": 2,
+        "categories": {
+          "OK": 2
+        },
+        "correct": 2,
+        "details": [],
+        "executed_by_graph": 2
+      },
+      "text": "Create a 100 mm by 60 mm by 10 mm plate. Create a 20 mm diameter cylinder 10 mm tall at the centre of the plate and subtract it. Then chamfer the four long edges of the plate by 2 mm."
+    },
+    "G2-two-holes-then-chamfer": {
+      "category": "G-graph",
+      "expect_plan": "build",
+      "expect_v1": null,
+      "group": "capability",
+      "operation_plan": {
+        "answered": 2,
+        "attempts": 2,
+        "categories": {
+          "OK": 1,
+          "SEMANTICALLY_INCORRECT": 1
+        },
+        "correct": 1,
+        "details": [
+          "volume 55993.009183012764, expected 55273.00918301276 (rel_tol 1e-06)"
+        ],
+        "executed_by_graph": 2
+      },
+      "text": "Create a 100 mm by 60 mm by 10 mm plate. Drill a 20 mm diameter hole through its centre, drill a 10 mm diameter hole through the point 20 mm from the left-hand edge on the centreline, and then chamfer the four long edges by 2 mm."
+    }
+  },
+  "per_category": {
+    "D-chains": {
+      "answered": 2,
+      "attempts": 2,
+      "categories": {
+        "OK": 1,
+        "SEMANTICALLY_INCORRECT": 1
+      },
+      "semantically_correct": 0.5
+    },
+    "F-selectors": {
+      "answered": 6,
+      "attempts": 6,
+      "categories": {
+        "OK": 2,
+        "SEMANTICALLY_INCORRECT": 4
+      },
+      "semantically_correct": 0.3333333333333333
+    },
+    "G-graph": {
+      "answered": 4,
+      "attempts": 4,
+      "categories": {
+        "OK": 3,
+        "SEMANTICALLY_INCORRECT": 1
+      },
+      "semantically_correct": 0.75
+    }
+  },
+  "plan_schema_choice": "selector",
+  "preflight": {
+    "arms": {
+      "operation_plan": {
+        "branches": 5,
+        "compilable_offline": true,
+        "facts": {
+          "definitions": 4,
+          "every_object_closes_additional_properties": true,
+          "fingerprint": "893a912002fb659302cf4ddd882a160bd585eecb60d9c1333daa1f964fac2fd3",
+          "min_items_values": [
+            1
+          ],
+          "optional_properties": 10,
+          "optional_properties_limit": 24,
+          "rejected_keywords_present": [],
+          "serialized_characters": 2824,
+          "uses_one_of": false,
+          "worst_object_limit": 14,
+          "worst_object_optional_properties": 2,
+          "worst_object_path": "<root>"
+        },
+        "violations": []
+      },
+      "v1_json": {
+        "branches": 0,
+        "compilable_offline": true,
+        "facts": {
+          "definitions": 0,
+          "every_object_closes_additional_properties": true,
+          "fingerprint": "ce2083a78e84c6d555312dd2778b8dcf11e0080217b2fb35937b19d43f4c4472",
+          "min_items_values": [
+            1
+          ],
+          "optional_properties": 8,
+          "optional_properties_limit": 24,
+          "rejected_keywords_present": [],
+          "serialized_characters": 3263,
+          "uses_one_of": false,
+          "worst_object_limit": 14,
+          "worst_object_optional_properties": 4,
+          "worst_object_path": "<root>"
+        },
+        "violations": []
+      }
+    },
+    "baselines": {
+      "files": {
+        "docs/evaluation-baselines/stage40-v1-vs-operation-plan/README.md": {
+          "crlf_on_disk": true,
+          "digest": "72c882ef93952ab2c43c3d9f02946ec60d294e03ff2a078f408751df94be5635",
+          "matches": true,
+          "present": true
+        },
+        "docs/evaluation-baselines/stage40-v1-vs-operation-plan/comparison-report.txt": {
+          "crlf_on_disk": true,
+          "digest": "0ea838b1232d224b7cf049d250af230b3f5391be8a9b926b4bd3cafed6f22cb9",
+          "matches": true,
+          "present": true
+        },
+        "docs/evaluation-baselines/stage40-v1-vs-operation-plan/comparison-run.json": {
+          "crlf_on_disk": true,
+          "digest": "bf72e79873e249bbf268ba165d648a1f4b42ce8364b9d37231d38c0d214929de",
+          "matches": true,
+          "present": true
+        },
+        "docs/evaluation-baselines/stage40-v1-vs-operation-plan/failure-diagnosis.json": {
+          "crlf_on_disk": true,
+          "digest": "b7a0f44674e72ad5e99343bb297f3a0267bc752432cf5d791c2310b801f6a8d7",
+          "matches": true,
+          "present": true
+        },
+        "docs/evaluation-baselines/stage40-v1-vs-operation-plan/failure-diagnosis.txt": {
+          "crlf_on_disk": true,
+          "digest": "fefa891c1d2f67f44a0fb8632c1b512295e1b0f5dca1a0a4d1a336f56ef19211",
+          "matches": true,
+          "present": true
+        },
+        "docs/evaluation-baselines/stage43-structured-output/README.md": {
+          "crlf_on_disk": false,
+          "digest": "18c4305422b9c13408cc5e852ce380797670e05d061ee44e221768652354dfa9",
+          "matches": true,
+          "present": true
+        },
+        "docs/evaluation-baselines/stage43-structured-output/stage43-structured-run.json": {
+          "crlf_on_disk": true,
+          "digest": "9ee1d25283c54c561243ade81cf6486f91b1cfdd2f0b8fd92cb7dbc870d8ccfc",
+          "matches": true,
+          "present": true
+        }
+      },
+      "intact": true,
+      "protected_directories": [
+        "stage40-v1-vs-operation-plan",
+        "stage43-structured-output"
+      ],
+      "root": "C:\\Users\\AtharvaBhangale\\Desktop\\AI-assisted-text-to-CAD-application"
+    },
+    "fingerprints": {
+      "corpus": "96517cb979b4660adb08cddb9856fd7a03344834ccb79f799224bdf028b78fcc",
+      "corpus_version": "1.0.0",
+      "evaluation_version": "1.0.0",
+      "model": {
+        "max_output_tokens": 4096,
+        "model": "claude-haiku-4-5-20251001",
+        "plan_schema_choice": "selector",
+        "structured_output_enabled": true,
+        "timeout_seconds": 120.0
+      },
+      "prompt": {
+        "operation_plan": {
+          "characters": 22824,
+          "fingerprint": "21d564ddeba05a745abfeb245c85bce0ef2e19ddebdeb3f38bdf2a63e179214d",
+          "version": "2026-09-15.5"
+        },
+        "v1_json": {
+          "characters": 14943,
+          "fingerprint": "2b3e3395ec6efee0fe252cf88207e981dcdecfdb88ea847f075ce20a5ad9ba52",
+          "version": "2026-09-08.1"
+        }
+      },
+      "schema": {
+        "operation_plan": "893a912002fb659302cf4ddd882a160bd585eecb60d9c1333daa1f964fac2fd3",
+        "v1_json": "ce2083a78e84c6d555312dd2778b8dcf11e0080217b2fb35937b19d43f4c4472"
+      },
+      "scoring": "98b1118b7b97f36be9f45ab49b240bffb1e954b4d13c51948f085969c433d500"
+    },
+    "groups": {
+      "capabilities_beyond_stage_43": [
+        "circular",
+        "extrude",
+        "pattern",
+        "revolve",
+        "sketch",
+        "straight"
+      ],
+      "capability_carrying_v1_expectation": [],
+      "capability_cases": 17,
+      "correct": true,
+      "legacy_cases": 13,
+      "legacy_missing_v1_expectation": [],
+      "legacy_text_drifted_from_stage_40": []
+    },
+    "invalid_plans": {
+      "checked": 9,
+      "correct": true,
+      "failed": [],
+      "rows": [
+        {
+          "actual": "validator",
+          "codes": [
+            "P9"
+          ],
+          "expected": "validator",
+          "expected_codes": [
+            "P9"
+          ],
+          "id": "bad-reference",
+          "kind": "bad reference",
+          "ok": true
+        },
+        {
+          "actual": "validator",
+          "codes": [
+            "P10"
+          ],
+          "expected": "validator",
+          "expected_codes": [
+            "P10"
+          ],
+          "id": "forward-reference",
+          "kind": "bad reference",
+          "ok": true
+        },
+        {
+          "actual": "validator",
+          "codes": [
+            "P12"
+          ],
+          "expected": "validator",
+          "expected_codes": [
+            "P12"
+          ],
+          "id": "consumed-reference",
+          "kind": "incompatible reference",
+          "ok": true
+        },
+        {
+          "actual": "validator",
+          "codes": [
+            "P27"
+          ],
+          "expected": "validator",
+          "expected_codes": [
+            "P27"
+          ],
+          "id": "pattern-of-a-solid",
+          "kind": "incompatible reference",
+          "ok": true
+        },
+        {
+          "actual": "validator",
+          "codes": [
+            "P10",
+            "P31"
+          ],
+          "expected": "validator",
+          "expected_codes": [
+            "P10",
+            "P31"
+          ],
+          "id": "self-referencing-subtract",
+          "kind": "cycle",
+          "ok": true
+        },
+        {
+          "actual": "validator",
+          "codes": [
+            "P29"
+          ],
+          "expected": "validator",
+          "expected_codes": [
+            "P29"
+          ],
+          "id": "radial-pattern-off-axis",
+          "kind": "unsupported geometry semantics",
+          "ok": true
+        },
+        {
+          "actual": "validator",
+          "codes": [
+            "P28"
+          ],
+          "expected": "validator",
+          "expected_codes": [
+            "P28"
+          ],
+          "id": "pattern-count-of-one",
+          "kind": "unsupported geometry semantics",
+          "ok": true
+        },
+        {
+          "actual": "parser",
+          "detail": "operation 1 edges needs an `axis` to give a `position`",
+          "expected": "parser",
+          "id": "selector-position-without-axis",
+          "kind": "ambiguous selector",
+          "ok": true
+        },
+        {
+          "actual": "parser",
+          "detail": "operation 1 edges is missing `axis`",
+          "expected": "parser",
+          "id": "selector-straight-without-axis",
+          "kind": "ambiguous selector",
+          "ok": true
+        }
+      ]
+    },
+    "kind": "stage48-preflight",
+    "model": "claude-haiku-4-5-20251001",
+    "plan_schema_choice": "selector",
+    "ready": true,
+    "result_directory": "docs/evaluation-baselines/stage48-widened-schema",
+    "sanitising_is_identity_for_the_plan": true,
+    "stage": 48,
+    "structured_output_enabled": true,
+    "version": "1.0.0"
+  },
+  "records": [
+    {
+      "attempt": 1,
+      "bounding_box": {
+        "x": 100.0,
+        "y": 60.0,
+        "z": 10.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "D1-plate-hole-chamfer-long-edges",
+      "category": "D-chains",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": true,
+      "group": "capability",
+      "latency_seconds": 7.514999999999418,
+      "model_output_valid": true,
+      "operations": [
+        "box",
+        "through_hole",
+        "chamfer"
+      ],
+      "raw_text": "{\"status\":\"generated\",\"summary\":\"A 100\u00d760\u00d710 mm plate with a 20 mm diameter hole through the centre and 2 mm chamfers on the four long edges.\",\"operations\":[{\"id\":\"plate\",\"type\":\"box\",\"parameters\":{\"x\":100,\"y\":60,\"z\":10}},{\"id\":\"hole\",\"type\":\"through_hole\",\"target\":\"plate\",\"parameters\":{\"diameter\":20,\"position\":{\"x\":50,\"y\":30,\"z\":0}}},{\"id\":\"chamfer_long\",\"type\":\"chamfer\",\"target\":\"plate\",\"parameters\":{\"edges\":{\"select\":\"straight\",\"axis\":\"X\"},\"distance\":2}}]}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": {
+        "axis": "X",
+        "position": null,
+        "select": "straight"
+      },
+      "selector_correct": true,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8010,
+        "output_tokens": 148
+      },
+      "volume_mm3": 56058.40734641021
+    },
+    {
+      "attempt": 1,
+      "bounding_box": {
+        "x": 100.0,
+        "y": 60.0,
+        "z": 10.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "F1-drilled-plate-round-corners",
+      "category": "F-selectors",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": true,
+      "group": "capability",
+      "latency_seconds": 4.968000000008033,
+      "model_output_valid": true,
+      "operations": [
+        "box",
+        "through_hole",
+        "fillet"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"A 100 \u00d7 60 \u00d7 10 mm plate with a 20 mm diameter hole through the centre and 5 mm radius on the four outside corners.\", \"operations\": [{\"id\": \"plate\", \"type\": \"box\", \"parameters\": {\"x\": 100, \"y\": 60, \"z\": 10}}, {\"id\": \"centre_hole\", \"type\": \"through_hole\", \"target\": \"plate\", \"parameters\": {\"diameter\": 20, \"position\": {\"x\": 50, \"y\": 30, \"z\": 0}}}, {\"id\": \"round_corners\", \"type\": \"fillet\", \"target\": \"plate\", \"parameters\": {\"radius\": 5, \"edges\": {\"select\": \"straight\", \"axis\": \"Z\"}}}]}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": {
+        "axis": "Z",
+        "position": null,
+        "select": "straight"
+      },
+      "selector_correct": true,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8011,
+        "output_tokens": 188
+      },
+      "volume_mm3": 56643.80550980765
+    },
+    {
+      "attempt": 1,
+      "bounding_box": {
+        "x": 100.0,
+        "y": 60.0,
+        "z": 10.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "F2-hole-rim-chamfer-top",
+      "category": "F-selectors",
+      "category_code": "SEMANTICALLY_INCORRECT",
+      "declared_outcome": "generated",
+      "detail": "volume 56793.48109823602, expected 56825.94422232311 (rel_tol 1e-06)",
+      "executed_by_graph": true,
+      "group": "capability",
+      "latency_seconds": 2.2810000000026776,
+      "model_output_valid": true,
+      "operations": [
+        "box",
+        "through_hole",
+        "chamfer"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"100\u00d760\u00d710 mm plate with a 20 mm diameter hole through the centre and 1 mm chamfer on the top edge of the bore.\", \"operations\": [{\"id\": \"plate\", \"type\": \"box\", \"parameters\": {\"x\": 100, \"y\": 60, \"z\": 10}}, {\"id\": \"hole\", \"type\": \"through_hole\", \"target\": \"plate\", \"parameters\": {\"diameter\": 20, \"position\": {\"x\": 50, \"y\": 30, \"z\": 0}}}, {\"id\": \"chamfer\", \"type\": \"chamfer\", \"target\": \"plate\", \"parameters\": {\"edges\": {\"select\": \"circular\", \"axis\": \"Z\"}, \"distance\": 1}}]}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": {
+        "axis": "Z",
+        "position": null,
+        "select": "circular"
+      },
+      "selector_correct": false,
+      "semantically_correct": false,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8013,
+        "output_tokens": 182
+      },
+      "volume_mm3": 56793.48109823602
+    },
+    {
+      "attempt": 1,
+      "bounding_box": {
+        "x": 100.0,
+        "y": 60.0,
+        "z": 10.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "F3-hole-rim-chamfer-bottom",
+      "category": "F-selectors",
+      "category_code": "SEMANTICALLY_INCORRECT",
+      "declared_outcome": "generated",
+      "detail": "volume 56793.48109823602, expected 56825.94422232311 (rel_tol 1e-06)",
+      "executed_by_graph": true,
+      "group": "capability",
+      "latency_seconds": 3.1410000000032596,
+      "model_output_valid": true,
+      "operations": [
+        "box",
+        "through_hole",
+        "chamfer"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"100 \u00d7 60 \u00d7 10 mm plate with a 20 mm diameter through-hole at the centre and 1 mm chamfer on the bottom rim.\", \"operations\": [{\"id\": \"plate\", \"type\": \"box\", \"parameters\": {\"x\": 100, \"y\": 60, \"z\": 10}}, {\"id\": \"hole\", \"type\": \"through_hole\", \"target\": \"plate\", \"parameters\": {\"diameter\": 20, \"position\": {\"x\": 50, \"y\": 30, \"z\": 0}}}, {\"id\": \"chamfer_hole_bottom\", \"type\": \"chamfer\", \"target\": \"plate\", \"parameters\": {\"edges\": {\"select\": \"circular\", \"axis\": \"Z\"}, \"distance\": 1}}]}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": {
+        "axis": "Z",
+        "position": null,
+        "select": "circular"
+      },
+      "selector_correct": false,
+      "semantically_correct": false,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8013,
+        "output_tokens": 189
+      },
+      "volume_mm3": 56793.48109823602
+    },
+    {
+      "attempt": 1,
+      "bounding_box": {
+        "x": 100.0,
+        "y": 60.0,
+        "z": 10.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "G1-subtract-then-chamfer",
+      "category": "G-graph",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": true,
+      "group": "capability",
+      "latency_seconds": 5.171999999991385,
+      "model_output_valid": true,
+      "operations": [
+        "box",
+        "cylinder",
+        "subtract",
+        "chamfer"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"A 100\u00d760\u00d710 mm plate with a 20 mm diameter cylindrical boss at its centre, subtracted away, with 2 mm chamfers on the four long edges.\", \"operations\": [{\"id\": \"plate\", \"type\": \"box\", \"parameters\": {\"x\": 100, \"y\": 60, \"z\": 10}}, {\"id\": \"boss\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 20, \"height\": 10, \"position\": {\"x\": 50, \"y\": 30, \"z\": 0}, \"axis\": \"+Z\"}}, {\"id\": \"cut\", \"type\": \"subtract\", \"target\": \"plate\", \"tools\": [\"boss\"]}, {\"id\": \"chamfer_long\", \"type\": \"chamfer\", \"target\": \"plate\", \"parameters\": {\"edges\": {\"select\": \"straight\", \"axis\": \"X\"}, \"distance\": 2}}]}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": {
+        "axis": "X",
+        "position": null,
+        "select": "straight"
+      },
+      "selector_correct": true,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8025,
+        "output_tokens": 220
+      },
+      "volume_mm3": 56058.40734641021
+    },
+    {
+      "attempt": 1,
+      "bounding_box": {
+        "x": 100.0,
+        "y": 60.0,
+        "z": 10.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "G2-two-holes-then-chamfer",
+      "category": "G-graph",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": true,
+      "group": "capability",
+      "latency_seconds": 2.25,
+      "model_output_valid": true,
+      "operations": [
+        "box",
+        "through_hole",
+        "through_hole",
+        "chamfer"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"A 100 \u00d7 60 \u00d7 10 mm plate with a 20 mm hole at the centre, a 10 mm hole offset 20 mm from the left edge on the centreline, and 2 mm chamfers on the four long edges.\", \"operations\": [{\"id\": \"plate\", \"type\": \"box\", \"parameters\": {\"x\": 100, \"y\": 60, \"z\": 10}}, {\"id\": \"hole1\", \"type\": \"through_hole\", \"target\": \"plate\", \"parameters\": {\"diameter\": 20, \"position\": {\"x\": 50, \"y\": 30, \"z\": 0}}}, {\"id\": \"hole2\", \"type\": \"through_hole\", \"target\": \"plate\", \"parameters\": {\"diameter\": 10, \"position\": {\"x\": 20, \"y\": 30, \"z\": 0}}}, {\"id\": \"chamfer_edges\", \"type\": \"chamfer\", \"target\": \"plate\", \"parameters\": {\"edges\": {\"select\": \"straight\", \"axis\": \"X\"}, \"distance\": 2}}]}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": {
+        "axis": "X",
+        "position": null,
+        "select": "straight"
+      },
+      "selector_correct": true,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8039,
+        "output_tokens": 261
+      },
+      "volume_mm3": 55273.00918301275
+    },
+    {
+      "attempt": 2,
+      "bounding_box": {
+        "x": 100.0,
+        "y": 60.0,
+        "z": 10.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "D1-plate-hole-chamfer-long-edges",
+      "category": "D-chains",
+      "category_code": "SEMANTICALLY_INCORRECT",
+      "declared_outcome": "generated",
+      "detail": "volume 55599.7406797435, expected 56058.407346410204 (rel_tol 1e-06)",
+      "executed_by_graph": true,
+      "group": "capability",
+      "latency_seconds": 5.578000000008615,
+      "model_output_valid": true,
+      "operations": [
+        "box",
+        "through_hole",
+        "chamfer",
+        "chamfer"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"A 100 x 60 x 10 mm plate with a 20 mm diameter hole through the centre and 2 mm chamfers on the four long edges.\", \"operations\": [{\"id\": \"plate\", \"type\": \"box\", \"parameters\": {\"x\": 100, \"y\": 60, \"z\": 10}}, {\"id\": \"hole\", \"type\": \"through_hole\", \"target\": \"plate\", \"parameters\": {\"diameter\": 20, \"position\": {\"x\": 50, \"y\": 30, \"z\": 0}}}, {\"id\": \"chamfer_edges\", \"type\": \"chamfer\", \"target\": \"plate\", \"parameters\": {\"edges\": {\"select\": \"straight\", \"axis\": \"X\"}, \"distance\": 2}}, {\"id\": \"chamfer_edges_y\", \"type\": \"chamfer\", \"target\": \"plate\", \"parameters\": {\"edges\": {\"select\": \"straight\", \"axis\": \"Y\"}, \"distance\": 2}}]}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": {
+        "axis": "X",
+        "position": null,
+        "select": "straight"
+      },
+      "selector_correct": true,
+      "semantically_correct": false,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8010,
+        "output_tokens": 238
+      },
+      "volume_mm3": 55599.7406797435
+    },
+    {
+      "attempt": 2,
+      "bounding_box": {
+        "x": 100.0,
+        "y": 60.0,
+        "z": 10.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "F1-drilled-plate-round-corners",
+      "category": "F-selectors",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": true,
+      "group": "capability",
+      "latency_seconds": 4.688000000009197,
+      "model_output_valid": true,
+      "operations": [
+        "box",
+        "through_hole",
+        "fillet"
+      ],
+      "raw_text": "{\"status\":\"generated\",\"summary\":\"100\u00d760\u00d710 mm plate with a 20 mm diameter hole through the centre and 5 mm radius fillets on the four outside corners.\",\"operations\":[{\"id\":\"plate\",\"type\":\"box\",\"parameters\":{\"x\":100,\"y\":60,\"z\":10}},{\"id\":\"hole\",\"type\":\"through_hole\",\"target\":\"plate\",\"parameters\":{\"diameter\":20,\"position\":{\"x\":50,\"y\":30,\"z\":0}}},{\"id\":\"corners\",\"type\":\"fillet\",\"target\":\"plate\",\"parameters\":{\"radius\":5,\"edges\":{\"select\":\"straight\",\"axis\":\"Z\"}}}]}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": {
+        "axis": "Z",
+        "position": null,
+        "select": "straight"
+      },
+      "selector_correct": true,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8011,
+        "output_tokens": 144
+      },
+      "volume_mm3": 56643.80550980765
+    },
+    {
+      "attempt": 2,
+      "bounding_box": {
+        "x": 100.0,
+        "y": 60.0,
+        "z": 10.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "F2-hole-rim-chamfer-top",
+      "category": "F-selectors",
+      "category_code": "SEMANTICALLY_INCORRECT",
+      "declared_outcome": "generated",
+      "detail": "volume 56793.48109823602, expected 56825.94422232311 (rel_tol 1e-06)",
+      "executed_by_graph": true,
+      "group": "capability",
+      "latency_seconds": 2.125,
+      "model_output_valid": true,
+      "operations": [
+        "box",
+        "through_hole",
+        "chamfer"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"A 100 x 60 x 10 mm plate with a 20 mm diameter hole through the centre and a 1 mm chamfer on the top edge of the hole.\", \"operations\": [{\"id\": \"plate\", \"type\": \"box\", \"parameters\": {\"x\": 100, \"y\": 60, \"z\": 10}}, {\"id\": \"hole\", \"type\": \"through_hole\", \"target\": \"plate\", \"parameters\": {\"diameter\": 20, \"position\": {\"x\": 50, \"y\": 30, \"z\": 0}}}, {\"id\": \"chamfer_hole\", \"type\": \"chamfer\", \"target\": \"plate\", \"parameters\": {\"edges\": {\"select\": \"circular\", \"axis\": \"Z\"}, \"distance\": 1}}]}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": {
+        "axis": "Z",
+        "position": null,
+        "select": "circular"
+      },
+      "selector_correct": false,
+      "semantically_correct": false,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8013,
+        "output_tokens": 191
+      },
+      "volume_mm3": 56793.48109823602
+    },
+    {
+      "attempt": 2,
+      "bounding_box": {
+        "x": 100.0,
+        "y": 60.0,
+        "z": 10.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "F3-hole-rim-chamfer-bottom",
+      "category": "F-selectors",
+      "category_code": "SEMANTICALLY_INCORRECT",
+      "declared_outcome": "generated",
+      "detail": "volume 56793.48109823602, expected 56825.94422232311 (rel_tol 1e-06)",
+      "executed_by_graph": true,
+      "group": "capability",
+      "latency_seconds": 2.172000000005937,
+      "model_output_valid": true,
+      "operations": [
+        "box",
+        "through_hole",
+        "chamfer"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"A 100\u00d760\u00d710 mm plate with a 20 mm diameter hole through the centre and a 1 mm chamfer on the bottom edge of the hole.\", \"operations\": [{\"id\": \"plate\", \"type\": \"box\", \"parameters\": {\"x\": 100, \"y\": 60, \"z\": 10}}, {\"id\": \"hole\", \"type\": \"through_hole\", \"target\": \"plate\", \"parameters\": {\"diameter\": 20, \"position\": {\"x\": 50, \"y\": 30, \"z\": 0}}}, {\"id\": \"chamfer_hole\", \"type\": \"chamfer\", \"target\": \"plate\", \"parameters\": {\"edges\": {\"select\": \"circular\", \"axis\": \"Z\"}, \"distance\": 1}}]}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": {
+        "axis": "Z",
+        "position": null,
+        "select": "circular"
+      },
+      "selector_correct": false,
+      "semantically_correct": false,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8013,
+        "output_tokens": 187
+      },
+      "volume_mm3": 56793.48109823602
+    },
+    {
+      "attempt": 2,
+      "bounding_box": {
+        "x": 100.0,
+        "y": 60.0,
+        "z": 10.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "G1-subtract-then-chamfer",
+      "category": "G-graph",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": true,
+      "group": "capability",
+      "latency_seconds": 5.046999999991385,
+      "model_output_valid": true,
+      "operations": [
+        "box",
+        "cylinder",
+        "subtract",
+        "chamfer"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"A 100\u00d760\u00d710 mm plate with a 20 mm diameter cylinder subtracted from its centre, and the four long edges chamfered by 2 mm.\", \"operations\": [{\"id\": \"plate\", \"type\": \"box\", \"parameters\": {\"x\": 100, \"y\": 60, \"z\": 10}}, {\"id\": \"cylinder\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 20, \"height\": 10, \"position\": {\"x\": 50, \"y\": 30, \"z\": 0}}}, {\"id\": \"cut\", \"type\": \"subtract\", \"target\": \"plate\", \"tools\": [\"cylinder\"]}, {\"id\": \"chamfer_edges\", \"type\": \"chamfer\", \"target\": \"plate\", \"parameters\": {\"edges\": {\"select\": \"straight\", \"axis\": \"X\"}, \"distance\": 2}}]}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": {
+        "axis": "X",
+        "position": null,
+        "select": "straight"
+      },
+      "selector_correct": true,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8025,
+        "output_tokens": 211
+      },
+      "volume_mm3": 56058.40734641021
+    },
+    {
+      "attempt": 2,
+      "bounding_box": {
+        "x": 100.0,
+        "y": 60.0,
+        "z": 10.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "G2-two-holes-then-chamfer",
+      "category": "G-graph",
+      "category_code": "SEMANTICALLY_INCORRECT",
+      "declared_outcome": "generated",
+      "detail": "volume 55993.009183012764, expected 55273.00918301276 (rel_tol 1e-06)",
+      "executed_by_graph": true,
+      "group": "capability",
+      "latency_seconds": 4.062000000005355,
+      "model_output_valid": true,
+      "operations": [
+        "box",
+        "through_hole",
+        "through_hole",
+        "chamfer"
+      ],
+      "raw_text": "{\"status\": \"generated\", \"summary\": \"A 100\u00d760\u00d710 mm plate with a 20 mm hole at centre, a 10 mm hole 20 mm from the left edge on the centreline, and 2 mm chamfers on the four long edges.\", \"operations\": [{\"id\": \"plate\", \"type\": \"box\", \"parameters\": {\"x\": 100, \"y\": 60, \"z\": 10}}, {\"id\": \"hole_centre\", \"type\": \"through_hole\", \"target\": \"plate\", \"parameters\": {\"diameter\": 20, \"position\": {\"x\": 50, \"y\": 30, \"z\": 0}}}, {\"id\": \"hole_side\", \"type\": \"through_hole\", \"target\": \"plate\", \"parameters\": {\"diameter\": 10, \"position\": {\"x\": 20, \"y\": 30, \"z\": 0}}}, {\"id\": \"chamfer_edges\", \"type\": \"chamfer\", \"target\": \"plate\", \"parameters\": {\"edges\": {\"select\": \"straight\", \"axis\": \"Z\"}, \"distance\": 2}}]}",
+      "render_success": false,
+      "representation": "operation_plan",
+      "selector": {
+        "axis": "Z",
+        "position": null,
+        "select": "straight"
+      },
+      "selector_correct": true,
+      "semantically_correct": false,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 8039,
+        "output_tokens": 257
+      },
+      "volume_mm3": 55993.009183012764
+    }
+  ],
+  "reference_geometry_ok": true,
+  "relationship_to_stage_43": "Stage 48 is NOT a re-run of Stage 43 and its numbers are not a delta against it. Stage 43 sent executable_schema (six types, no sketch branch, two selectors) with plan prompt 2026-09-10.7 and scored a semantic selector as incorrect because none existed. Stage 48 sends the widened plan schema with the current prompt and builds a semantic selector through the graph executor. The legacy group re-uses Stage 40's thirteen requests so that V1 and the operation plan are comparable WITHIN this run; Stage 43 remains the frozen comparison for the earlier capability envelope.",
+  "schema_attached_per_arm": {
+    "operation_plan": 12,
+    "v1_json": 0
+  },
+  "stage": 48,
+  "stage54_condition": "A-baseline",
+  "stage54_elapsed_seconds": 121.6,
+  "stage54_prompt_fingerprint": "21d564ddeba05a745abfeb245c85bce0ef2e19ddebdeb3f38bdf2a63e179214d",
+  "stage54_prompt_version": "2026-09-15.5",
+  "structured_output_enabled": true,
+  "summary": {
+    "capability": {
+      "arms": [
+        "operation_plan"
+      ],
+      "cases": 6,
+      "operation_plan": {
+        "answered": 12,
+        "attempts": 12,
+        "build_success": 1.0,
+        "cad_valid": 1.0,
+        "categories": {
+          "OK": 6,
+          "SEMANTICALLY_INCORRECT": 6
+        },
+        "correct_clarification": null,
+        "correct_unsupported": null,
+        "correct_valid_unexecutable": null,
+        "executed_by_graph": 12,
+        "input_tokens": 96222,
+        "mean_latency_seconds": 4.0832500000021055,
+        "model_output_valid": 1.0,
+        "output_tokens": 2416,
+        "provider_errors": 0,
+        "render_scored_attempts": 0,
+        "render_success": null,
+        "selector_correct": 0.6666666666666666,
+        "selector_scored_attempts": 12,
+        "semantically_correct": 0.5,
+        "structure_valid": 1.0
+      }
+    }
+  }
+}

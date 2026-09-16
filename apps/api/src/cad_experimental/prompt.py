@@ -18,7 +18,7 @@ from .plan import AXES, OPERATION_TYPES, PlanStatus
 
 #: Bumped on any change to the text below. A measurement without this is not
 #: reproducible.
-PROMPT_VERSION = "2026-09-15.5"
+PROMPT_VERSION = "2026-09-16.1"
 
 SYSTEM_PROMPT = f"""\
 You turn a description of a mechanical part into a CAD operation plan.
@@ -159,6 +159,24 @@ So, for a plate with a hole through it:
   "break the edge of the hole"     -> {{"select": "circular", "axis": "Z"}}
   "chamfer the top of the bore"    -> {{"select": "circular", "axis": "Z",
                                       "position": "top"}}
+
+Read the selector's parameters off the words of the request. Two rules, and
+both are decided by the request rather than by a habit:
+
+WHICH AXIS. An edge's axis is the direction the EDGE RUNS, not the direction
+you look along and not a face's normal. On a box `x` by `y` by `z`, the four
+edges of length `x` run along X, the four of length `y` along Y, and the four
+upright ones of length `z` along Z. So "the long edges" means the four that
+run along whichever of `x` and `y` is larger -- for a 100 by 60 by 10 plate
+that is X, not Z. "The outside corners" of a flat plate are the upright ones,
+which is Z. Work it out from the dimensions in the request each time.
+
+WHICH END. `position` is how you say which of a hole's two rims you mean. If
+the request says "top", "bottom", "upper", "lower", "near side" or "far side"
+of a circular edge, that word is an instruction and the selector must carry
+it: omitting `position` chamfers BOTH rims, which is a different part and
+removes twice the material. Only leave `position` out when the request really
+does mean the whole rim, both ends.
 
 A fillet is a modifier: the result replaces the target and keeps the
 TARGET's id, so the fillet's own id never names a solid.
@@ -505,8 +523,11 @@ Say "{PlanStatus.NEEDS_CLARIFICATION.value}" when a required parameter is
 genuinely not in the description and has no default -- a cylinder with no
 diameter, a box with only two dimensions, or a length with no unit given.
 
-Do not ask about `position` or `axis`: those are optional, and omitting them
-is the correct answer when the description is silent.
+Do not ask about a selector's `position` or `axis`: never ask, and never
+refuse, for those. When the description is silent about which end or which
+direction, omitting them is the correct answer. When the description NAMES
+one -- "the top edge", "the long edges" -- it is not silent, and you write
+the selector that says so. See the selector rules above.
 
 # What you never do
 

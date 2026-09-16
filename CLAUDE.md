@@ -1027,7 +1027,7 @@ they are authoritative, this list is a snapshot.
 ## 19. A second experiment branch: `experiment/cad-operation-graph`
 
 **Read the stage-number warning first.** This branch numbers its own stages
-32–49. The stable branch *also* has a Stage 30, 31 and 32. **They are
+32–51. The stable branch *also* has a Stage 30, 31 and 32. **They are
 different work and the numbers collide.** "Stage 32" on stable is the Windows
 test fixes; "Stage 32" here is the first commit of an alternative CAD
 representation. Nothing reconciles them — when reading a commit message, check
@@ -1454,6 +1454,23 @@ Sketch is 73% of the growth; Stage 46's and 47's additions are nearly free.
 **The six types plus sketch alone already measure 6275 — above the refused
 point** — so no grammar carrying a full-fidelity sketch is expected to
 compile.
+
+**RESOLVED at Stages 50–51: profile encodings that compile.** Measured
+live — `profile` 3487, `executable` 3622, `profile_hole` 4030,
+`profile_union` **4481 ACCEPTED**; six+sketch 4551 and nine-types-no-sketch
+4698 both REFUSED. **Ceiling (4481, 4551]** — a bound, not a number. A
+sketch-free grammar at 4698 was refused while a sketch-carrying one at 4481
+was accepted, so **sketch is not a special case**: the six-type solid base
+was consuming the budget. `plan.py` now exposes `profile_provider_schema`,
+`profile_hole_provider_schema` and `profile_union_provider_schema`; the last
+carries seven of ten types and is the one to reach for. None can express
+`fillet`, `chamfer` or `pattern` (the edge pair measures 4741, past the
+refusal). Selection is explicit via `PLAN_SCHEMAS` and **nothing falls
+back** — `DEFAULT_PLAN_SCHEMA` stays `provider` even though `provider` is
+refused, because changing it silently would rewrite what earlier runs meant.
+**Stage 48 must run as two instruments** (`profile_union` 10 cases,
+`executable` 8), with four cases expressible under neither and reported as
+*not expressible* rather than as model refusals.
 
 **`cad_experimental.schema_ladder` (Stage 49)** builds variants between the
 two measured points so the ceiling can be found one call at a time. `L0`

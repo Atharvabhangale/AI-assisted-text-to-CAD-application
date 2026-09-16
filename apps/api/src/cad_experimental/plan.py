@@ -931,8 +931,74 @@ def _ref(name: str) -> Dict[str, str]:
     return {"$ref": f"#/$defs/{name}"}
 
 
+def _selector_branches(
+    selector_modes: Tuple[str, ...],
+    *,
+    require_circular_position: bool,
+) -> List[Dict[str, Any]]:
+    """One selector branch per mode, instead of one object for all of them.
+
+    The flat selector object cannot say that ``axis`` belongs to some modes
+    and ``position`` to exactly one -- as its own comment admits, that would
+    condition a property on a sibling's value, which a JSON Schema object
+    cannot express. A discriminated union can: each mode gets a branch
+    carrying precisely its own fields, required where they are required.
+
+    ``require_circular_position`` additionally makes a circular selector's
+    ``position`` **mandatory**. That is a deliberate narrowing of the
+    provider encoding and **not** of the language: the canonical form still
+    permits a circular selector with no position, meaning both rims, and
+    the parser still accepts it. What it buys is that a
+    grammar-constrained model can no longer answer "the top rim" by
+    omitting the end -- Stage 54 measured it doing exactly that, 4/4, while
+    its own prose said "top rim".
+
+    The cost is stated rather than hidden: under such an encoding a model
+    cannot ask for both rims at once. No corpus case needs that, and a
+    caller who does should choose an encoding without this flag.
+    """
+    shapes: Dict[str, Tuple[Tuple[str, ...], Tuple[str, ...]]] = {}
+    for mode in selector_modes:
+        if mode == SELECT_ALL:
+            shapes[mode] = ((), ())
+        elif mode in POSITION_MODES:
+            # `axis` stays optional for circular: omitting it means circular
+            # edges about any axis, which is the language's own rule.
+            shapes[mode] = (
+                ("position",) if require_circular_position else (),
+                ("axis",) if require_circular_position else
+                ("axis", "position"),
+            )
+        else:
+            shapes[mode] = (("axis",), ())
+    branches: List[Dict[str, Any]] = []
+    for mode, (required, optional) in shapes.items():
+        properties: Dict[str, Any] = {
+            "select": {"type": "string", "const": mode},
+        }
+        for name in required + optional:
+            if name == "axis":
+                properties["axis"] = {
+                    "type": "string", "enum": list(SELECTOR_AXES),
+                }
+            elif name == "position":
+                properties["position"] = {
+                    "type": "string", "enum": list(POSITIONS),
+                }
+        branches.append({
+            "type": "object",
+            "properties": properties,
+            "required": ["select"] + list(required),
+            "additionalProperties": False,
+        })
+    return branches
+
+
 def _plan_defs(
     selector_modes: Tuple[str, ...] = SELECT_MODES,
+    *,
+    selector_branches: bool = False,
+    require_circular_position: bool = False,
 ) -> Dict[str, Any]:
     """The shared definitions the operation branches reference.
 
@@ -958,6 +1024,11 @@ def _plan_defs(
             "additionalProperties": False,
         },
         SELECTOR_DEF: {
+            "anyOf": _selector_branches(
+                selector_modes,
+                require_circular_position=require_circular_position,
+            )
+        } if selector_branches else {
             "type": "object",
             "properties": {
                 "select": {"type": "string", "enum": list(selector_modes)},
@@ -1230,11 +1301,17 @@ def _plan_document(
     merged: Tuple[Tuple[str, ...], ...] = (),
     omit_parameters: Tuple[str, ...] = (),
     selector_modes: Tuple[str, ...] = SELECT_MODES,
+    selector_branches: bool = False,
+    require_circular_position: bool = False,
 ) -> Dict[str, Any]:
     """The plan schema over exactly ``kinds``, with unused defs pruned."""
     return _prune_defs({
         "type": "object",
-        "$defs": _plan_defs(selector_modes),
+        "$defs": _plan_defs(
+            selector_modes,
+            selector_branches=selector_branches,
+            require_circular_position=require_circular_position,
+        ),
         "properties": {
             "status": {"type": "string", "enum": [s.value for s in PlanStatus]},
             "summary": {"type": "string"},
@@ -1357,6 +1434,198 @@ def plan_schema() -> Dict[str, Any]:
     return _plan_document(OPERATION_TYPES)
 
 
+# --- provider encodings measured against the live compiler ------------------
+#
+# Stage 50/51 established, by real API calls, that the Anthropic
+# structured-output compiler refuses this language's full grammar and that the
+# binding constraint is TOTAL compiled size -- not sketches, and not any one
+# operation. Measured, in ref-inlined characters:
+#
+#     3487  box, cylinder, sketch, extrude, revolve            ACCEPTED
+#     4030  + through_hole, - revolve                          ACCEPTED
+#     4121  box, cylinder, through_hole, sketch, extrude,
+#           revolve                                            ACCEPTED
+#     4481  + subtract                                         ACCEPTED
+#     4551  the six solid types + sketch                       REFUSED
+#     4698  nine types, no sketch at all                       REFUSED
+#     6190  compact_provider_schema                            REFUSED
+#     7351  provider_schema                                    REFUSED
+#
+# So the ceiling lies in (4481, 4551] and nothing narrower is known. Do not
+# write it down as a number: it is a bound, it was not published, and it may
+# move.
+#
+# Each function below returns one **encoding** of the operation plan. None of
+# them is the language. The parser and the validator never see a schema and
+# decide what a plan means regardless; an operation absent from an encoding is
+# merely unsayable by a grammar-constrained decoder, not illegal. Choosing
+# between them is always the caller's explicit act -- nothing here falls back.
+
+#: The narrowing every profile encoding shares: a sketch's ``constraints`` are
+#: omitted. They are CHECKED, never solved (rule P21 requires a dimensional
+#: constraint to AGREE with the geometry it names), so they can only restate
+#: what the geometry already says. Geometry written at the size it means needs
+#: none, and dropping them is the single largest saving available.
+_PROFILE_OMITTED: Tuple[str, ...] = ("constraints",)
+
+
+def profile_provider_schema() -> Dict[str, Any]:
+    """A whole profile pipeline: sketch, both consumers, two solids.
+
+    **Measured ACCEPTED at 3487 inlined characters** -- the first
+    sketch-carrying grammar this provider ever compiled.
+
+    Expresses ``box``, ``cylinder``, ``sketch``, ``extrude`` and ``revolve``.
+    Cannot express ``through_hole``, ``subtract``, ``fillet``, ``chamfer`` or
+    ``pattern``: a request needing one of those cannot be answered under this
+    encoding, and a refusal produced under it says nothing about the model.
+
+    Prefer :func:`profile_union_provider_schema` unless the smallest possible
+    grammar is the point; it carries two more operations and is also proven.
+    """
+    return _plan_document(
+        ("box", "cylinder", "sketch", "extrude", "revolve"),
+        merged=MERGED_SCHEMA_GROUPS,
+        omit_parameters=_PROFILE_OMITTED,
+        selector_modes=V1_SELECT_MODES,
+    )
+
+
+def profile_hole_provider_schema() -> Dict[str, Any]:
+    """A profile pipeline with the corpus's most-used modifier.
+
+    **Measured ACCEPTED at 4030 inlined characters.**
+
+    Expresses ``box``, ``cylinder``, ``through_hole``, ``sketch`` and
+    ``extrude``. Trades ``revolve`` away for ``through_hole``; kept as its own
+    named encoding because it is separately proven and because a run recorded
+    against it must stay reproducible.
+
+    :func:`profile_union_provider_schema` carries both and is also proven, so
+    this exists for the record rather than as a recommendation.
+    """
+    return _plan_document(
+        ("box", "cylinder", "through_hole", "sketch", "extrude"),
+        omit_parameters=_PROFILE_OMITTED,
+        selector_modes=V1_SELECT_MODES,
+    )
+
+
+def profile_union_provider_schema() -> Dict[str, Any]:
+    """Seven of the ten operations, and the largest grammar known to compile.
+
+    **Measured ACCEPTED at 4481 inlined characters**, against a refusal at
+    4551 -- so this sits inside seventy characters of the ceiling and there
+    is no room to add anything.
+
+    Expresses ``box``, ``cylinder``, ``through_hole``, ``subtract``,
+    ``sketch``, ``extrude`` and ``revolve``: every solid-building operation
+    except the edge treatments, and the whole profile pipeline.
+
+    Cannot express ``fillet``, ``chamfer`` or ``pattern``. That is not a
+    judgement about their value -- adding the edge pair measures 4741, past
+    the refusal at 4551, so the grammar simply has no room. A case needing a
+    fillet must be measured under an encoding that has one, and scored as
+    *not expressible here* rather than as anything the model did.
+
+    **This is the encoding to reach for.** It dominates
+    :func:`profile_provider_schema` and :func:`profile_hole_provider_schema`
+    on capability and is proven on the same evidence.
+    """
+    return _plan_document(
+        ("box", "cylinder", "through_hole", "subtract", "sketch", "extrude",
+         "revolve"),
+        merged=MERGED_SCHEMA_GROUPS,
+        omit_parameters=_PROFILE_OMITTED,
+        selector_modes=V1_SELECT_MODES,
+    )
+
+
+def strict_selector_provider_schema() -> Dict[str, Any]:
+    """:func:`selector_provider_schema` with the end of a rim made structural.
+
+    **Stage 55's hypothesis, as a schema.** Stage 54 established that the
+    model understands "the top rim" -- its own prose says so -- and then
+    omits ``position`` anyway, 4 attempts out of 4, under an encoding where
+    the field is optional. Prompt guidance did not move it. The remaining
+    explanation is the shape of the schema rather than the model's reading
+    of the request, and this is the smallest change that tests it.
+
+    The selector becomes a **discriminated union**, one branch per mode,
+    instead of one object with every field optional. That alone expresses
+    what the flat object could not: ``axis`` is required for ``straight``
+    and ``axis_parallel``, absent for ``all``, optional for ``circular``.
+    On top of that, the circular branch **requires** ``position``.
+
+    What this narrows, stated plainly
+    ---------------------------------
+    The canonical language permits a circular selector with no position,
+    meaning *both* rims, and the parser still accepts exactly that. This
+    encoding cannot say it. A model pointed here must choose an end, so a
+    request that genuinely means both rims is not expressible -- no corpus
+    case needs one, and a caller who does should use
+    :func:`selector_provider_schema` instead.
+
+    Nothing decodes, translates or repairs: what the model emits under this
+    grammar is already canonical wire format, and the parser is unchanged.
+    """
+    return _plan_document(
+        V1_FEATURE_TYPES,
+        merged=MERGED_SCHEMA_GROUPS,
+        selector_modes=SELECT_MODES,
+        selector_branches=True,
+        require_circular_position=True,
+    )
+
+
+def selector_provider_schema() -> Dict[str, Any]:
+    """The six solid operations, able to *name the edges they mean*.
+
+    All of :data:`V1_FEATURE_TYPES` -- ``box``, ``cylinder``,
+    ``through_hole``, ``subtract``, ``fillet``, ``chamfer`` -- with the
+    **full** selector vocabulary: ``all``, ``axis_parallel``, ``straight``,
+    ``circular``, and a circular selector's ``position`` (``top``/
+    ``bottom``). ``fillet`` and ``chamfer`` share one branch, which is what
+    pays for the wider selector.
+
+    Why this and not a profile encoding
+    -----------------------------------
+    Stage 52 proposed adding selectors to :func:`profile_provider_schema`,
+    estimating ~150 inlined characters. The estimate was not merely wrong,
+    it was meaningless: **a profile encoding has nothing that selects an
+    edge.** Only ``fillet`` and ``chamfer`` carry an ``edges`` selector, and
+    a profile encoding has neither -- so ``_prune_defs`` drops the selector
+    definition entirely and widening the modes changes not one byte. A
+    selector-capable grammar must contain a selector-carrying operation.
+
+    That is why this is built on the six solid types. Every one of the seven
+    selector-dependent corpus cases needs a ``through_hole`` or a
+    ``subtract`` as well as its edge treatment, so a profile-plus-selector
+    encoding could not express any of them even once the selector was real.
+
+    What it is for
+    --------------
+    Stage 52's central defect. Under an encoding offering only ``all`` and
+    ``axis_parallel``, a model asked for a hole's top rim answered
+    ``select: "all"`` -- chamfering every edge of the plate, which failed in
+    the kernel and was recorded as a *build failure*. That is a schema limit
+    wearing a model's mistake as a disguise. This grammar can say
+    ``circular`` + ``top``, so the answer it gets back is the model's own.
+
+    The selector vocabulary is the language's, unchanged: this widens what
+    may be **said**, never what any mode **means**. The parser stays the
+    authority, rule P32 still governs which modes may carry a ``position``,
+    and the wire format is untouched.
+
+    Cannot express ``sketch``, ``extrude``, ``revolve`` or ``pattern``.
+    """
+    return _plan_document(
+        V1_FEATURE_TYPES,
+        merged=MERGED_SCHEMA_GROUPS,
+        selector_modes=SELECT_MODES,
+    )
+
+
 __all__ = [
     "POSITIONS",
     "POSITION_BOTTOM",
@@ -1424,6 +1693,11 @@ __all__ = [
     "SELECTOR_DEF",
     "compact_provider_schema",
     "executable_schema",
+    "profile_hole_provider_schema",
+    "profile_provider_schema",
+    "selector_provider_schema",
+    "strict_selector_provider_schema",
+    "profile_union_provider_schema",
     "provider_schema",
     "PROFILE_SOLID_TYPES",
     "REVOLVE",

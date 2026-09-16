@@ -2537,3 +2537,517 @@ baseline directory.
   the cheapest grammar that can express a sketch; if it is refused, no
   sketch-carrying grammar fits and the question becomes whether profiles can
   be reached another way.
+
+## Stage 51: provider encodings, made explicit and measured
+
+Stage 50 located the ceiling by probing. Stage 51 turns that result into
+architecture: the shapes that compile are now **named encodings**, chosen
+explicitly and recorded, and the corpus partition is derived from what each
+encoding can actually express.
+
+### The evidence, in full
+
+Every row is a real call to `claude-haiku-4-5-20251001`. Sizes are
+ref-inlined characters, because the compiler inlines.
+
+| encoding | inlined | capabilities | result |
+|---|---:|---|---|
+| `profile` | 3487 | box, cylinder, sketch, extrude, revolve | **ACCEPTED** |
+| `executable` (Stage 43) | 3622 | the V1 six | **ACCEPTED** |
+| `profile_hole` | 4030 | box, cylinder, through_hole, sketch, extrude | **ACCEPTED** |
+| `profile_union` | 4481 | + subtract, + revolve — seven types | **ACCEPTED** |
+| `C6-sketch-floor` | 4551 | the six + sketch | REFUSED |
+| `C4-profiles-no-sketch` | 4698 | nine types, **no sketch** | REFUSED |
+| `compact` | 6190 | all ten | REFUSED |
+| `provider` | 7351 | all ten | REFUSED |
+
+**The ceiling lies in (4481, 4551].** It is a bound, not a number: it was
+never published, it may move, and it must not be written down as though it
+were exact.
+
+**The blocker is total compiled grammar size, not any one operation.** `C4`
+carries no sketch at all and was refused at 4698, while `profile_union`
+carries a sketch and was accepted at 4481. What crossed the ceiling in
+Stage 48 was the six-type solid base consuming the budget a sketch needed —
+spend it the other way round and a profile pipeline fits comfortably.
+
+### The encodings
+
+`plan.py` gains three functions, all built from the canonical
+`_plan_document` rather than duplicating any operation definition:
+
+- `profile_provider_schema()` — the smallest proven profile pipeline
+- `profile_hole_provider_schema()` — kept because it is separately proven
+- `profile_union_provider_schema()` — **the one to reach for**; it dominates
+  both on capability and is proven on the same evidence
+
+All three omit a sketch's `constraints`, which is the largest single saving
+and costs nothing a solid needs: constraints are *checked*, never solved
+(rule P21), so they can only restate geometry already written at the size it
+means.
+
+None can express `fillet`, `chamfer` or `pattern`. That is a grammar budget,
+not a judgement — adding the edge pair measures 4741, past the refusal.
+
+### Selection is explicit, and nothing falls back
+
+`PLAN_SCHEMAS` now carries `profile`, `profile_hole` and `profile_union`
+alongside the historical names. `DEFAULT_PLAN_SCHEMA` **stays `provider`**
+even though `provider` is refused: changing it silently would rewrite what
+earlier runs meant, and a caller who got a different grammar than it asked
+for cannot read its own numbers. A caller names an encoding; the name is
+recorded in the result; nothing substitutes.
+
+`SCHEMA_CAPABILITIES`, `PROVEN_COMPILABLE` and `PROVEN_REFUSED` state what is
+measured rather than inferred, and `schema_can_express` /
+`encodings_that_can_express` answer *could this case even be asked here* —
+the question that must be settled before any result is scored.
+
+### The corpus partition, derived not guessed
+
+Of 30 cases: 8 expect no plan at all (refusals, clarifications) and are
+encoding-independent. Of the 22 that expect a plan:
+
+| home | cases |
+|---|---:|
+| `profile_union` | 10 |
+| `executable` | 8 (every `fillet`/`chamfer` case) |
+| **no proven encoding** | **4** |
+
+The four with no home are `D3-profile-revolve-fillet` (a sketch *and* a
+fillet), `E1-bolt-circle-radial`, `E2-hole-row-linear` and
+`F4-patterned-rims-chamfered` (all need `pattern`). No grammar that compiles
+has a word for them.
+
+**Two instruments, never one score.** `profile_union` and `executable` have
+different capability envelopes, so their results are not commensurable and
+must not be added together. The four homeless cases must be reported as
+*not expressible under any proven encoding* — never as model refusals. That
+distinction is the whole lesson of Stage 43, where a missing grammar branch
+was scored as the model's judgement.
+
+### Architecture rule: canonical IR ≠ provider encoding
+
+    canonical IR        one language, one meaning        plan.py
+          ↓
+    provider encoding   many representations, each        provider schemas
+                        constrained by a grammar limit
+          ↓
+    parser / validator  one authoritative interpretation  parser.py
+          ↓
+    executor            unchanged
+
+An encoding narrows what a model may **say**. It never narrows what a plan
+**means**: the parser never sees a schema, and an operation absent from an
+encoding is still legal, still parsed and still validated. Tests assert
+exactly that for `pattern` and for sketch `constraints`.
+
+**Never redesign the operation plan to fit a grammar compiler.** A different
+provider will have a different limit and needs a different encoding, not a
+different language.
+
+## Stage 52: the first real capability evaluation
+
+Stage 48 could not run at all: the provider refused its grammar. Stage 50/51
+found and proved smaller encodings. Stage 52 is the first measurement made
+with them — **270 live calls** to `claude-haiku-4-5-20251001`, structured
+output on, no fence stripping, no retry, no repair, no fallback.
+
+### Three passes, not one score
+
+| Pass | Encoding | Arm | Cases | Calls |
+|---|---|---|---:|---:|
+| A | `profile_union` (4481, `a5c3484f…`) | plan | 18 | 90 |
+| B | `executable` (3622, `54759d1e…`) | plan | 23 | 115 |
+| C | — (V1 schema) | v1_json | 13 | 65 |
+
+The V1 arm is independent of the plan encoding, so it was run **once**, not
+per instrument. Cases whose operations an encoding cannot name were **not
+called**: 12 under A, 7 under B, recorded as `NOT_EXPRESSIBLE_BY_ENCODING`
+with the missing operations named. A question a grammar cannot phrase is not
+a question the model declined.
+
+### The headline finding is a flaw in the partition, not in the model
+
+The partition was derived from `required_plan_operations` — operation *types*
+only. It did not check **selector modes**. Both proven encodings pin
+`V1_SELECT_MODES` (`all`, `axis_parallel`); seven corpus cases need Stage 47's
+`straight` or `circular` selectors, which no proven encoding carries.
+
+All 26 of pass B's `BUILD_FAILED` are exactly those cases. The model,
+unable to say "the top rim of the hole", said `select: "all"` — chamfering
+every edge of the plate, which fails geometrically. **That is the encoding's
+limit being recorded as a build failure**, the precise error this project has
+been trying not to repeat since Stage 43.
+
+Correcting for it changes the reading completely:
+
+| Pass B metric | raw (115) | corrected (85) |
+|---|---|---|
+| validation | 73.9% | 64.7% |
+| build success | 47.0% | **58.8%** |
+| **semantic correctness** | 71.3% | **94.1%** |
+
+Every `BUILD_FAILED` and `SEMANTICALLY_INCORRECT` in B was a selector
+artefact. None survives the correction.
+
+### Results
+
+**Instrument A — `profile_union`, the profile question.** 90 records:
+`OK` 36, `CORRECT_UNSUPPORTED` 25, `CORRECT_VALID_UNEXECUTABLE` 11,
+`CORRECT_CLARIFICATION` 5, `WRONGLY_REFUSED` 4, `BUILD_FAILED` 4,
+`PLAN_VALIDATION_REJECTED` 3, `INVENTED_MISSING_VALUE` 2. Model output valid
+100%, structure valid 100%, **semantic correctness 85.6%**, build 40.0%.
+
+Build success is low *by construction*: 11 of the records are
+`CORRECT_VALID_UNEXECUTABLE` — sketch chains that validate and are then
+refused at the execution boundary by design, and are scored correct.
+
+**Instrument B — `executable`, the solid question.** Corrected:
+**semantic correctness 94.1%**, build 58.8%, `OK` 50, `CORRECT_UNSUPPORTED`
+25, `CORRECT_CLARIFICATION` 5, `INVENTED_MISSING_VALUE` 5.
+
+**Pass C — V1 arm.** 65 records, semantic correctness 60.0%, build 21.5%,
+`WRONGLY_REFUSED` **25** — V1 refused every modifier case (`04`, `05`, `06`,
+`07`, `08`, 5/5 each). This reproduces Stage 43's V1 failure mode exactly:
+V1's weakness is refusal, not error.
+
+### Geometry is real
+
+Every build carries measured evidence: 36 / 54 / 14 successful builds, each
+with a volume, a solid count, a triangle count and a bounding box, all
+rendered. `01-plate-worded` measures 60000.0 mm³, 1 solid, bbox 100×60×10 —
+closed-form exact. Backend is CadQuery, unchanged; FreeCAD was not involved.
+
+### What Haiku can actually do
+
+**Under a profile grammar:** it writes sketches, extrudes and revolves
+competently — 85.6% semantically correct, 100% structurally valid output,
+zero malformed answers. Its residual errors are interesting rather than
+sloppy: it tried to extrude a solid (`P23`, caught by the validator) and it
+refused `10-profile-revolve` 4/5 as unsupported, which is the known
+deliberately-unfixed prompt wording telling it an extrude "cannot be built".
+
+**Under the solid grammar:** 94.1% semantically correct on what the encoding
+can express. The model is not the bottleneck at this vocabulary size.
+
+### What remains outside the envelope
+
+- **Stage 47's semantic selectors are entirely unmeasured.** They cost only
+  ~150 inlined characters, but `profile_union` is at 4481 against a ceiling
+  of ≤4551, so there is no room. A smaller encoding — `profile` at 3487 plus
+  selectors ≈ 3637 — would fit, and that is the obvious next instrument.
+- **`pattern` is unreachable** in every proven encoding.
+- **`fillet`/`chamfer` cannot coexist with a sketch** in one grammar.
+- `executed_by_graph` is 0 everywhere, necessarily: the graph executor is
+  reached only by selectors richer than V1 can carry, and no proven encoding
+  carries one.
+
+## Stage 53: a selector-capable encoding, and the partition bug it exposed
+
+Stage 52's central defect was that expressibility was decided on operation
+**types** alone. Seven cases needing a `straight` or `circular` selector
+looked answerable under a grammar that had neither; the model answered
+`select: "all"`, chamfered every edge of the plate, and the kernel failed.
+Twenty-six of those failures were recorded against the model.
+
+### The Stage 52 proposal was wrong, and measurably so
+
+Stage 52 suggested adding selectors to `profile_provider_schema()` for about
++150 inlined characters. Building it produced a **byte-identical schema** —
+same fingerprint, +0 characters. The reason is structural: **a profile
+encoding has nothing that selects an edge.** Only `fillet` and `chamfer`
+carry an `edges` selector, and the profile encoding has neither, so
+`_prune_defs` drops the selector definition and widening the modes changes
+nothing. A test now pins this so the idea cannot be re-proposed.
+
+A selector-capable grammar must therefore contain a selector-carrying
+operation.
+
+### `selector_provider_schema()` — proven
+
+| | |
+|---|---|
+| Capabilities | box, cylinder, through_hole, subtract, fillet, chamfer |
+| Selectors | **all, axis_parallel, straight, circular + position top/bottom** |
+| Inlined | **3134** — *smaller* than `executable` (3622) |
+| Fingerprint | `893a912002fb6593` |
+| Live | **ACCEPTED** |
+
+It is smaller than `executable` despite carrying strictly more, because
+merging `fillet`/`chamfer` into one branch saves several times what the
+wider selector costs.
+
+### Expressibility now checks both dimensions
+
+`SCHEMA_SELECTOR_MODES`, `schema_supports_position`, `selector_requirement`
+and `case_expressibility` decide a case on **operations and selectors**, and
+report the two separately — "the grammar has no chamfer" and "the grammar has
+no circular selector" are different facts. A profile encoding's selector
+entry is `()`, not V1's: it has no selector at all.
+
+### The measurement: 30 calls, six cases
+
+| Metric | Result |
+|---|---|
+| model output valid / structure valid / validation | **100%** |
+| **build success** | **30/30 = 100%** |
+| `executed_by_graph` | **30/30 — the graph executor reached for the first time** |
+| selector_correct | 20/30 = 66.7% |
+| semantic correctness | 13/30 = 43.3% |
+
+**Build success went from 4/30 to 30/30** on the same six cases. Every one of
+Stage 52's "build failures" was the encoding, not the model.
+
+`render_success` is 0/30 and that is **by design**: a graph-executed plan has
+no V1 document and therefore no RenderModel, which is exactly why the metric
+is scored over document-path attempts only.
+
+### What Haiku actually gets wrong, now that it can speak
+
+| Case | OK | selector |
+|---|---|---|
+| `F1-drilled-plate-round-corners` | 5/5 | 5/5 |
+| `G1-subtract-then-chamfer` | 5/5 | 5/5 |
+| `D1-plate-hole-chamfer-long-edges` | 2/5 | 5/5 |
+| `G2-two-holes-then-chamfer` | 1/5 | 5/5 |
+| `F2-hole-rim-chamfer-top` | 0/5 | **0/5** |
+| `F3-hole-rim-chamfer-bottom` | 0/5 | **0/5** |
+
+Two distinct, precise failure modes — both genuinely the model's, both
+invisible before this stage:
+
+**It reaches for `circular` but never disambiguates the rim.** On `F2` and
+`F3` it wrote `{"select": "circular", "axis": "Z", "position": null}` every
+single time. Omitting `position` chamfers *both* rims: volume 56793.48
+against an expected 56825.94. Note that top and bottom alone are
+volumetrically identical, so this is caught only because chamfering both
+removes more material than chamfering one — topological evidence, not volume
+equality.
+
+**It picks the wrong axis for "long edges".** On `D1` and `G2` the failures
+are `{"select": "straight", "axis": "Z"}` where the correct answer is
+`axis: "X"`; the passing attempts on the same cases use `X`. `selector_correct`
+scores these **true** because it compares the mode and not the axis — so that
+metric is a partial signal and should not be read as selector accuracy.
+
+### What remains outside the envelope
+
+`sketch`, `extrude`, `revolve` and `pattern` are absent from this encoding —
+the six solid types plus profiles plus full selectors measures 5176, past the
+4551 refusal. `F4-patterned-rims-chamfered` needs `pattern` and remains
+inexpressible under every proven encoding; its selector, notably, is fine.
+
+## Stage 54: decomposing the selector failures, and one measured fix
+
+Stage 53 reported `selector_correct` 20/30 and semantic correctness 13/30.
+Decomposing those 30 records shows the single metric was hiding two entirely
+different errors, and that one of its components was vacuous.
+
+### The decomposition
+
+| component | Stage 53 |
+|---|---|
+| `selector_mode_correct` | **30/30** |
+| `selector_axis_correct` | 30/30 — **vacuous**: the corpus pins no axis |
+| `selector_position_correct` | 20/30 |
+| `selector_fully_correct` | 20/30 |
+
+The mode was never wrong. The whole gap is two disjoint failures:
+
+- **`position` omitted** — F2/F3, 10 records. Every attempt wrote
+  `{"select": "circular", "axis": "Z", "position": null}`.
+- **wrong axis** — D1/G2, 7 records. `axis: "Z"` where "the four long edges"
+  of a 100×60×10 plate run along X.
+
+10 + 7 = 17, and 30 − 17 = 13 semantically correct. Nothing else is
+happening. Note that **axis is scored by geometry, not by the selector
+expectation** — the corpus does not pin one, which is why Stage 53's
+"axis correct 30/30" meant nothing.
+
+### The two prompt causes
+
+**Axis:** no rule said what a selector's axis *is*. The only worked example
+mapped a phrase to `Z`, and the model defaulted to `Z`.
+
+**Position:** the prompt contradicted itself. Its clarification section said
+*"Do not ask about `position` or `axis`: those are optional, and omitting
+them is the correct answer when the description is silent."* F2/F3 are not
+silent — they say "the top edge" — but the model generalised "optional,
+omitting is correct" past the silent case, overriding the correct worked
+example a hundred lines earlier.
+
+### The change: prompt `2026-09-16.1` (`a1f9991c7327fb9d`)
+
+One edit to how selector parameters are read off the request, with two
+clauses that **disjoint cases exercise**, so the A/B stays attributable:
+
+- *WHICH AXIS* — an edge's axis is the direction the edge runs, not a face
+  normal; on an `x`×`y`×`z` box the long edges run along whichever of `x`
+  and `y` is larger, worked through for a 100×60×10 plate.
+- *WHICH END* — a named end is an instruction, and omitting `position`
+  chamfers **both** rims, which is a different part.
+
+The clarification rule was narrowed to the silent case it was meant for.
+
+### A/B: 24 calls, 6 cases, 2 attempts, same model and schema
+
+| | A `2026-09-15.5` | B `2026-09-16.1` |
+|---|---|---|
+| build success | 12/12 | 12/12 |
+| `executed_by_graph` | 12/12 | 12/12 |
+| selector mode | 12/12 | 12/12 |
+| **selector axis** | 11/12 | **12/12** |
+| **selector position** | 8/12 | **8/12 — unchanged** |
+| **semantic correctness** | 6/12 | **8/12** |
+
+Per case, D1 went 1/2 → **2/2** and G2 1/2 → **2/2**. F2 and F3 stayed
+**0/2**.
+
+### The result: one clause worked, one did nothing, and the second is the
+### more interesting finding
+
+**The axis clause is a real fix.** Steering the model on spatial reasoning
+worked: told what an axis means, it computes the right one from the
+dimensions in the request.
+
+**The position clause changed nothing, and not because the model
+misunderstood.** On F2 its own summary reads *"a 1 mm chamfer on the top rim
+of the hole"* — it parsed the request correctly and said so in prose — and
+then emitted a selector with `position` absent. The guidance is in the
+prompt (asserted by test), the schema admits `position` with an
+enum of `top`/`bottom` (asserted by test), and the field is simply not used.
+
+That makes this **representational, not a reasoning failure**: under
+structured output the model reliably fills required fields and omits
+optional ones, even when instructed and even when its own summary shows it
+understood. No amount of prompt wording looks likely to fix it.
+
+**The indicated next step is a provider-encoding change, and it is
+deliberately not implemented here:** make the end-of-rim a *required* field
+in the provider encoding — `position` with values `top`/`bottom`/`both` —
+decoding deterministically back to the canonical selector, where `both`
+means the `position`-absent form. That keeps the canonical IR and the
+parser exactly as they are and removes the optionality the decoder is
+declining to use. It is a different change from this one and belongs in its
+own stage, measured on its own.
+
+### Remaining selector limitations
+
+- `position` is unreachable in practice while it is optional.
+- `selector_correct` compares the mode only, so it scores a wrong axis as
+  correct. The decomposed components exist now; the original metric was
+  left in place rather than redefined.
+- `F4-patterned-rims-chamfered` still needs `pattern`, which no proven
+  encoding carries.
+
+## Stage 55: the end of a rim, made structural
+
+### Hypothesis
+
+Stage 54 left one explanation standing. The model understands "the top rim"
+— its own prose says so — and omits `position` anyway, 4/4, under an
+encoding where the field is optional. Prompt guidance did not move it. So
+the remaining hypothesis was **not** about the model's reading of the
+request but about the shape of the schema: *an optional field is one a
+grammar-constrained decoder declines to use.*
+
+Stage 55 tests exactly that, and nothing else.
+
+### The change
+
+The selector becomes a **discriminated union** — one branch per mode —
+instead of one object with every field optional. That alone expresses what
+the flat object could not, and its own code comment admitted: `axis` is
+required for `straight` and `axis_parallel`, absent for `all`, optional for
+`circular`. On top of that the circular branch **requires** `position`.
+
+```
+all            {select}
+axis_parallel  {select, axis*}
+straight       {select, axis*}
+circular       {select, position*, axis}      * = required
+```
+
+`strict_selector_provider_schema()`, fingerprint `887718d3e5387529`.
+
+**What it narrows, stated rather than hidden.** The canonical language
+permits a circular selector with no position, meaning *both* rims, and the
+parser still accepts exactly that — a test asserts it. This encoding cannot
+say it. No corpus case needs it; a caller who does should use
+`selector_provider_schema()`. Nothing decodes, translates or repairs: what
+the model emits under this grammar is already canonical wire format.
+
+### Grammar cost
+
+| | raw | inlined | nodes | branches | defs |
+|---|---:|---:|---:|---:|---:|
+| `selector` (proven 3134) | 2824 | 3134 | 72 | 5 | 4 |
+| **`strict_selector`** | 3309 | **3619** | 84 | 5 | 4 |
+
++485 inlined, **862 below the proven-accepted 4481** and 932 below the
+refusal. Measured offline before any call was spent.
+
+### The result: 4 calls, F2 and F3, 2 attempts each
+
+| | Stage 54 (flat, optional) | **Stage 55 (union, required)** |
+|---|---|---|
+| `selector_mode_correct` | 4/4 | 4/4 |
+| **`selector_position_correct`** | **0/4** | **4/4** |
+| `selector_fully_correct` | 0/4 | **4/4** |
+| **semantic correctness** | **0/4** | **4/4** |
+| build success | 4/4 | 4/4 |
+| `executed_by_graph` | 4/4 | 4/4 |
+
+F2 emitted `{"select":"circular","axis":"Z","position":"top"}` both times;
+F3 emitted `"bottom"` both times. Same model, same prompt
+(`2026-09-16.1`), same six operations, same selector modes — **only the
+selector's structure differs.**
+
+### Geometry, and why volume alone would not have proved it
+
+Volume is now **56825.944222323116**, exactly the expected one-rim figure,
+against **56793.48** in Stage 54 when both rims were chamfered. That proves
+*one* rim rather than both.
+
+It does **not** prove *which*: F2 and F3 measure the same volume to the last
+bit, which is the whole reason both cases exist. Which end was selected is
+established by the selector the model wrote, scored against the case's
+expectation — geometry and selector evidence answering two different
+questions, neither standing in for the other.
+
+### Conclusion
+
+**Structural optionality was the cause.** The failure Stage 53 recorded as a
+model mistake, and Stage 54 proved was not a comprehension failure, was the
+schema all along: under structured output this model fills required fields
+and omits optional ones, and no amount of prompt wording changed that while
+the field stayed optional. Making it structural fixed it completely, on the
+first attempt, in both directions.
+
+Two attempts per direction is a small sample and the change is kept on that
+basis — 0/4 → 4/4 with one variable moved is strong, but it is not a rate.
+No broader benchmark was run.
+
+### The architecture rule this establishes
+
+```
+canonical IR        a circular selector MAY omit position (both rims)
+provider encoding   MAY require it, to constrain what a model can leave out
+parser              authoritative and unchanged; accepts both forms
+```
+
+An encoding may be **stricter** than the language. That is legitimate
+precisely because it narrows what can be *said*, never what a plan *means* —
+and it is now measured as the difference between a capability the model has
+and one it will actually use.
+
+### Remaining ambiguity
+
+- Under `strict_selector` a request genuinely meaning both rims is
+  inexpressible. Deliberate, documented, and costless for this corpus.
+- `selector_correct` still compares the mode only; the decomposed
+  components from Stage 54 remain the honest reading.
+- Whether required-ness helps elsewhere is untested — the optional
+  `axis` on `circular` was left optional on purpose, so this experiment
+  moved one thing.

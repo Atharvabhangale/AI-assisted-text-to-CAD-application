@@ -344,6 +344,69 @@ def _compressions() -> Tuple[Variant, ...]:
                  "but it is the floor: if this is refused, no sketch-"
                  "carrying grammar fits and the question changes.",
         ),
+        # --- profile-focused encodings, from the Stage 50 measurements ---
+        #
+        # C4 and C6 were both refused, at 4698 and 4551, and C4 carries no
+        # sketch at all. So the cost is not sketch's structure specifically:
+        # it is the whole grammar, and the base of six solid types is most
+        # of it. These encodings spend the budget the other way round --
+        # keep the profile pipeline, drop the solid operations a profile
+        # request does not need -- which is what brings a sketch-carrying
+        # grammar under the accepted bound for the first time.
+        #
+        # They are narrower encodings, not a narrower language: every type
+        # omitted here is still in the IR, still parsed and still validated.
+        # A caller picks one deliberately and the choice is recorded.
+        Variant(
+            "P1-profile-core",
+            kinds=("box", "cylinder", "sketch", "extrude", "revolve"),
+            merged=MERGED_SCHEMA_GROUPS,
+            omit_parameters=("constraints",),
+            note="The smallest grammar that expresses a whole profile "
+                 "pipeline -- sketch, both consumers, and two solids to "
+                 "combine them with. Drops through_hole, subtract, fillet "
+                 "and chamfer.",
+        ),
+        Variant(
+            "P2-profile-and-hole",
+            kinds=("box", "cylinder", "through_hole", "sketch", "extrude"),
+            omit_parameters=("constraints",),
+            note="P1 traded for a through_hole: the most-used modifier in "
+                 "the corpus. Sits inside the unknown band, so it measures "
+                 "the ceiling and adds capability in the same call.",
+        ),
+        Variant(
+            "P3-profile-union",
+            kinds=("box", "cylinder", "through_hole", "sketch", "extrude",
+                   "revolve"),
+            merged=MERGED_SCHEMA_GROUPS,
+            omit_parameters=("constraints",),
+            note="The union of P1 and P2: sketch, both consumers, and a "
+                 "through_hole. If this compiles, one encoding covers every "
+                 "profile capability and the two-instrument split is "
+                 "unnecessary.",
+        ),
+        Variant(
+            "S1-selector-solids",
+            kinds=("box", "cylinder", "through_hole", "subtract", "fillet",
+                   "chamfer"),
+            merged=MERGED_SCHEMA_GROUPS,
+            selector_modes=SELECT_MODES,
+            note="Stage 53: the six solid types with the full selector "
+                 "vocabulary. A profile encoding cannot carry a selector at "
+                 "all -- nothing in it selects an edge -- so a "
+                 "selector-capable grammar must contain fillet or chamfer.",
+        ),
+        Variant(
+            "P4-profile-union-subtract",
+            kinds=("box", "cylinder", "through_hole", "subtract", "sketch",
+                   "extrude", "revolve"),
+            merged=MERGED_SCHEMA_GROUPS,
+            omit_parameters=("constraints",),
+            note="P3 plus subtract, 70 inlined characters below the proven "
+                 "refusal. The upper edge of the band, and the last "
+                 "capability that could plausibly still fit.",
+        ),
     )
 
 

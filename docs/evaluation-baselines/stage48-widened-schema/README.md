@@ -285,6 +285,34 @@ by comparison. Critically, **the six types plus `sketch` alone already
 measures 6275 inlined — above the refused point** — so no rung carrying a
 full-fidelity sketch can be expected to compile.
 
+### RESOLVED (Stage 50/51): profile encodings that compile
+
+The blocker is **total compiled grammar size, not sketch**. Measured live:
+
+| encoding | inlined | capabilities | result |
+|---|---:|---|---|
+| `profile` | 3487 | box, cylinder, sketch, extrude, revolve | **ACCEPTED** |
+| `executable` | 3622 | the V1 six | **ACCEPTED** |
+| `profile_hole` | 4030 | + through_hole, − revolve | **ACCEPTED** |
+| `profile_union` | 4481 | seven types, sketch + both consumers | **ACCEPTED** |
+| six + sketch | 4551 | — | REFUSED |
+| nine types, **no sketch** | 4698 | — | REFUSED |
+
+**Ceiling: (4481, 4551]** — a bound, not a number.
+
+A sketch-free grammar at 4698 was refused while a sketch-carrying one at 4481
+was accepted, so sketch is not a special case; the six-type solid base was
+simply consuming the budget. `profile_union` is the largest grammar known to
+compile and cannot take `fillet`, `chamfer` or `pattern` (adding the edge
+pair measures 4741).
+
+**Stage 48 must therefore run as two instruments, not one score.**
+`profile_union` covers 10 plan-expecting cases and `executable` covers 8;
+four cases (`D3`, `E1`, `E2`, `F4`) fit no proven encoding and must be
+reported as *not expressible*, never as model refusals. Eight cases expect no
+plan and are encoding-independent. See
+`docs/experimental-operation-plan.md` → *Stage 51*.
+
 ### The schema ladder
 
 `cad_experimental.schema_ladder` builds variants between the two measured
@@ -308,3 +336,134 @@ all of them. See `docs/experimental-operation-plan.md` → *Stage 49*.
 - **The `no_part` class has one case.** One case is a probe, not a rate.
 - **FreeCAD is not exercised.** `CAD_BACKEND` defaults to `cadquery` and
   never falls back; a second-backend comparison is its own stage.
+
+## MEASURED (Stage 52): the first real capability evaluation
+
+270 live calls, `claude-haiku-4-5-20251001`, structured output on, three
+passes. Files: `stage52-A-profile_union.json`, `stage52-B-executable.json`,
+`stage52-C-v1-legacy.json`.
+
+| Pass | Encoding | Arm | Cases | Calls | Not called (not expressible) |
+|---|---|---|---:|---:|---:|
+| A | `profile_union` `a5c3484f…` 4481 | plan | 18 | 90 | 12 |
+| B | `executable` `54759d1e…` 3622 | plan | 23 | 115 | 7 |
+| C | V1 schema | v1_json | 13 | 65 | 0 |
+
+**Results are deliberately NOT combined into one score.** The instruments
+have different capability envelopes and are not commensurable.
+
+| | A `profile_union` | B `executable` (corrected) | C V1 arm |
+|---|---|---|---|
+| semantic correctness | **85.6%** | **94.1%** | 60.0% |
+| build success | 40.0% | 58.8% | 21.5% |
+| model output valid | 100% | 100% | 100% |
+
+**Read the correction note.** Pass B's raw numbers (71.3% semantic, 47.0%
+build) include 30 records from seven cases needing `straight`/`circular`
+selectors that no proven encoding carries. The model, unable to say "the top
+rim", said `select: "all"` and the build failed geometrically. Those are
+encoding limits recorded as build failures, not model errors — the partition
+checked operation types but not selector modes. Corrected figures exclude
+them; every `BUILD_FAILED` and `SEMANTICALLY_INCORRECT` in B was that
+artefact.
+
+Geometry is measured, not inferred: 36 / 54 / 14 builds each carry volume,
+solid count, triangle count and bounding box. Backend CadQuery, unchanged.
+
+**Stage 40 and Stage 43 artifacts are untouched.** These are new files under
+a new name; nothing frozen was overwritten.
+
+## MEASURED (Stage 53): selector-capable encoding
+
+`selector_provider_schema()` — `893a912002fb6593`, **3134 inlined**, **live
+ACCEPTED**. Six solid types (box, cylinder, through_hole, subtract, fillet,
+chamfer) with the full selector vocabulary (`all`, `axis_parallel`,
+`straight`, `circular`, + `position` top/bottom). Smaller than `executable`
+(3622) despite carrying more, because merging fillet/chamfer pays for the
+selector several times over.
+
+**Stage 52's proposal — adding selectors to a profile encoding — was wrong.**
+It produces a byte-identical schema: nothing in a profile encoding selects an
+edge, so the selector definition is pruned away. A selector-capable grammar
+must contain `fillet` or `chamfer`.
+
+File: `stage53-selector.json` — 30 calls, six cases, 5 attempts.
+
+| Metric | Stage 52 (`executable`) | **Stage 53 (`selector`)** |
+|---|---|---|
+| build success on these six cases | 4/30 | **30/30** |
+| `executed_by_graph` | 0 | **30/30** |
+| selector_correct | n/a | 20/30 |
+| semantic correctness | — | 13/30 |
+
+Every one of Stage 52's 26 "build failures" on these cases was the encoding,
+not the model. `render_success` is 0/30 **by design** — a graph-executed plan
+has no V1 document and therefore no RenderModel.
+
+Two real model failure modes, newly visible: it writes `circular` but leaves
+`position` null (chamfering both rims, 56793.48 vs expected 56825.94), and it
+picks `axis: Z` where "long edges" means `axis: X`. `selector_correct`
+compares the mode only, not the axis, so it is a partial signal.
+
+**Expressibility now checks operations AND selectors** (`case_expressibility`).
+Stage 40/43 baselines untouched.
+
+## MEASURED (Stage 54): selector failure decomposition and one A/B fix
+
+Files: `stage54-A-baseline.json`, `stage54-B-selector-guidance.json`.
+24 calls, 6 cases, 2 attempts, `selector` encoding, same model — **only the
+prompt differs**.
+
+Stage 53's `selector_correct` 20/30 hid two disjoint errors: `position`
+omitted (F2/F3, 10 records) and wrong `axis` (D1/G2, 7 records). Mode was
+30/30; "axis correct 30/30" was **vacuous** because the corpus pins no axis —
+geometry is what catches an axis error.
+
+| | A `2026-09-15.5` | B `2026-09-16.1` |
+|---|---|---|
+| semantic correctness | 6/12 | **8/12** |
+| selector axis | 11/12 | **12/12** |
+| selector position | 8/12 | **8/12 unchanged** |
+| build / graph | 12/12 | 12/12 |
+
+D1 and G2 each went 1/2 → 2/2. F2/F3 stayed 0/2.
+
+**The axis clause worked; the position clause did nothing** — and the model
+was not confused: on F2 its own summary says "a 1 mm chamfer on the top rim"
+while the selector omits `position`. The field is sayable and the guidance is
+present; under structured output the model fills required fields and omits
+optional ones. This is representational, not reasoning, and the indicated
+fix — making the rim end a required provider-encoding field — is documented
+and deliberately left for its own stage.
+
+Stage 53's `stage53-selector.json` was not modified. Stage 40/43 untouched.
+
+## MEASURED (Stage 55): structural position — 0/4 → 4/4
+
+File: `stage55-strict-selector.json`. 4 calls, F2/F3, 2 attempts each.
+
+`strict_selector_provider_schema()` — `887718d3e5387529`, **3619 inlined**
+(862 below the proven 4481). The selector becomes a discriminated union and
+the circular branch **requires** `position`.
+
+| | Stage 54 flat/optional | **Stage 55 union/required** |
+|---|---|---|
+| selector position correct | **0/4** | **4/4** |
+| semantic correctness | **0/4** | **4/4** |
+| build / graph | 4/4 | 4/4 |
+
+Same model, same prompt `2026-09-16.1`, same operations and modes — only the
+selector's structure differs. F2 → `circular+top`, F3 → `circular+bottom`,
+both attempts each.
+
+Volume 56825.944 (one rim) vs Stage 54's 56793.48 (both rims) proves one rim
+was chamfered; F2 and F3 are volumetrically **identical**, so which end was
+chosen is established by the selector, not the geometry.
+
+**Structural optionality was the cause.** Under structured output the model
+fills required fields and omits optional ones; prompt wording could not
+change that while the field stayed optional.
+
+The canonical language still permits a positionless circular selector (both
+rims) and the parser still accepts it — the encoding is deliberately
+narrower. Stage 53/54 result files unmodified; Stage 40/43 untouched.

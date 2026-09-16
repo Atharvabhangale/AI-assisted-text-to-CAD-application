@@ -1,0 +1,2643 @@
+{
+  "arms": [
+    "v1_json"
+  ],
+  "attempts_per_case": 5,
+  "cases": [
+    "01-plate-worded",
+    "02-cylinder-axis",
+    "03-box-dimensional",
+    "04-plate-centre-hole",
+    "05-plate-two-holes",
+    "06-cube-bore",
+    "07-plate-chamfer",
+    "08-plate-fillet",
+    "09-profile-extrude",
+    "10-profile-revolve",
+    "11-sphere",
+    "12-union",
+    "13-engine"
+  ],
+  "evaluation_version": "1.0.0",
+  "fingerprints": {
+    "corpus": "96517cb979b4660adb08cddb9856fd7a03344834ccb79f799224bdf028b78fcc",
+    "corpus_version": "1.0.0",
+    "evaluation_version": "1.0.0",
+    "model": {
+      "max_output_tokens": 4096,
+      "model": "claude-haiku-4-5-20251001",
+      "plan_schema_choice": "executable",
+      "structured_output_enabled": true,
+      "timeout_seconds": 120.0
+    },
+    "prompt": {
+      "operation_plan": {
+        "characters": 22824,
+        "fingerprint": "21d564ddeba05a745abfeb245c85bce0ef2e19ddebdeb3f38bdf2a63e179214d",
+        "version": "2026-09-15.5"
+      },
+      "v1_json": {
+        "characters": 14943,
+        "fingerprint": "2b3e3395ec6efee0fe252cf88207e981dcdecfdb88ea847f075ce20a5ad9ba52",
+        "version": "2026-09-08.1"
+      }
+    },
+    "schema": {
+      "operation_plan": "54759d1e16cfe634855c5c44266eddefd92d973628045a7afd3ecf8cbeac8323",
+      "v1_json": "ce2083a78e84c6d555312dd2778b8dcf11e0080217b2fb35937b19d43f4c4472"
+    },
+    "scoring": "98b1118b7b97f36be9f45ab49b240bffb1e954b4d13c51948f085969c433d500"
+  },
+  "kind": "stage48-capability-evaluation",
+  "per_case": {
+    "01-plate-worded": {
+      "category": "A-primitives",
+      "expect_plan": "build",
+      "expect_v1": "build",
+      "group": "legacy",
+      "text": "Create a rectangular plate 100 mm long, 60 mm wide and 10 mm thick.",
+      "v1_json": {
+        "answered": 5,
+        "attempts": 5,
+        "categories": {
+          "OK": 5
+        },
+        "correct": 5,
+        "details": [],
+        "executed_by_graph": 0
+      }
+    },
+    "02-cylinder-axis": {
+      "category": "A-primitives",
+      "expect_plan": "build",
+      "expect_v1": "build",
+      "group": "legacy",
+      "text": "Create a cylinder 20 mm in diameter and 50 mm tall along the +Z axis.",
+      "v1_json": {
+        "answered": 5,
+        "attempts": 5,
+        "categories": {
+          "OK": 5
+        },
+        "correct": 5,
+        "details": [],
+        "executed_by_graph": 0
+      }
+    },
+    "03-box-dimensional": {
+      "category": "A-primitives",
+      "expect_plan": "build",
+      "expect_v1": "build",
+      "group": "legacy",
+      "text": "Create a 100 mm by 60 mm by 10 mm box.",
+      "v1_json": {
+        "answered": 5,
+        "attempts": 5,
+        "categories": {
+          "OK": 4,
+          "PARSER_REJECTED": 1
+        },
+        "correct": 4,
+        "details": [
+          "the interpretation service returned no CAD document"
+        ],
+        "executed_by_graph": 0
+      }
+    },
+    "04-plate-centre-hole": {
+      "category": "B-modifiers",
+      "expect_plan": "build",
+      "expect_v1": "build",
+      "group": "legacy",
+      "text": "Create a 100 mm by 60 mm by 10 mm plate with a 20 mm diameter through hole in the center.",
+      "v1_json": {
+        "answered": 5,
+        "attempts": 5,
+        "categories": {
+          "WRONGLY_REFUSED": 5
+        },
+        "correct": 0,
+        "details": [
+          "declined with 'unsupported' where build was required"
+        ],
+        "executed_by_graph": 0
+      }
+    },
+    "05-plate-two-holes": {
+      "category": "B-modifiers",
+      "expect_plan": "build",
+      "expect_v1": "build",
+      "group": "legacy",
+      "text": "Create a 100 mm by 60 mm by 10 mm plate with two 16 mm diameter through holes.",
+      "v1_json": {
+        "answered": 5,
+        "attempts": 5,
+        "categories": {
+          "WRONGLY_REFUSED": 5
+        },
+        "correct": 0,
+        "details": [
+          "declined with 'unsupported' where build was required"
+        ],
+        "executed_by_graph": 0
+      }
+    },
+    "06-cube-bore": {
+      "category": "B-modifiers",
+      "expect_plan": "build",
+      "expect_v1": "build",
+      "group": "legacy",
+      "text": "Create a 50 mm cube with a 20 mm diameter cylindrical hole through the center.",
+      "v1_json": {
+        "answered": 5,
+        "attempts": 5,
+        "categories": {
+          "WRONGLY_REFUSED": 5
+        },
+        "correct": 0,
+        "details": [
+          "declined with 'unsupported' where build was required"
+        ],
+        "executed_by_graph": 0
+      }
+    },
+    "07-plate-chamfer": {
+      "category": "B-modifiers",
+      "expect_plan": "build",
+      "expect_v1": "build",
+      "group": "legacy",
+      "text": "Create a 100 mm by 60 mm by 10 mm plate and chamfer the vertical edges by 2 mm.",
+      "v1_json": {
+        "answered": 5,
+        "attempts": 5,
+        "categories": {
+          "WRONGLY_REFUSED": 5
+        },
+        "correct": 0,
+        "details": [
+          "declined with 'unsupported' where build was required"
+        ],
+        "executed_by_graph": 0
+      }
+    },
+    "08-plate-fillet": {
+      "category": "B-modifiers",
+      "expect_plan": "build",
+      "expect_v1": "build",
+      "group": "legacy",
+      "text": "Create a 100 mm by 60 mm by 10 mm plate and fillet the vertical edges with a 2 mm radius.",
+      "v1_json": {
+        "answered": 5,
+        "attempts": 5,
+        "categories": {
+          "WRONGLY_REFUSED": 5
+        },
+        "correct": 0,
+        "details": [
+          "declined with 'unsupported' where build was required"
+        ],
+        "executed_by_graph": 0
+      }
+    },
+    "09-profile-extrude": {
+      "category": "C-profiles",
+      "expect_plan": "valid_unexecutable",
+      "expect_v1": "unsupported",
+      "group": "legacy",
+      "text": "Create a rectangular 100 mm by 60 mm profile on the XY plane and extrude it 10 mm.",
+      "v1_json": {
+        "answered": 5,
+        "attempts": 5,
+        "categories": {
+          "CORRECT_UNSUPPORTED": 5
+        },
+        "correct": 5,
+        "details": [],
+        "executed_by_graph": 0
+      }
+    },
+    "10-profile-revolve": {
+      "category": "C-profiles",
+      "expect_plan": "valid_unexecutable",
+      "expect_v1": "unsupported",
+      "group": "legacy",
+      "text": "Create a circular profile with a 20 mm diameter on the XY plane and revolve it 180 degrees around the X axis.",
+      "v1_json": {
+        "answered": 5,
+        "attempts": 5,
+        "categories": {
+          "CORRECT_UNSUPPORTED": 5
+        },
+        "correct": 5,
+        "details": [],
+        "executed_by_graph": 0
+      }
+    },
+    "11-sphere": {
+      "category": "H-unsupported",
+      "expect_plan": "unsupported",
+      "expect_v1": "unsupported",
+      "group": "legacy",
+      "text": "Create a sphere with a 20 mm diameter.",
+      "v1_json": {
+        "answered": 5,
+        "attempts": 5,
+        "categories": {
+          "CORRECT_UNSUPPORTED": 5
+        },
+        "correct": 5,
+        "details": [],
+        "executed_by_graph": 0
+      }
+    },
+    "12-union": {
+      "category": "H-unsupported",
+      "expect_plan": "unsupported",
+      "expect_v1": "unsupported",
+      "group": "legacy",
+      "text": "Create a cylinder and a box joined together.",
+      "v1_json": {
+        "answered": 5,
+        "attempts": 5,
+        "categories": {
+          "CORRECT_UNSUPPORTED": 5
+        },
+        "correct": 5,
+        "details": [],
+        "executed_by_graph": 0
+      }
+    },
+    "13-engine": {
+      "category": "H-unsupported",
+      "expect_plan": "unsupported",
+      "expect_v1": "unsupported",
+      "group": "legacy",
+      "text": "Create a four-cylinder engine.",
+      "v1_json": {
+        "answered": 5,
+        "attempts": 5,
+        "categories": {
+          "CORRECT_UNSUPPORTED": 5
+        },
+        "correct": 5,
+        "details": [],
+        "executed_by_graph": 0
+      }
+    }
+  },
+  "per_category": {},
+  "plan_schema_choice": "executable",
+  "preflight": {
+    "arms": {
+      "operation_plan": {
+        "branches": 6,
+        "compilable_offline": true,
+        "facts": {
+          "definitions": 4,
+          "every_object_closes_additional_properties": true,
+          "fingerprint": "54759d1e16cfe634855c5c44266eddefd92d973628045a7afd3ecf8cbeac8323",
+          "min_items_values": [
+            1
+          ],
+          "optional_properties": 7,
+          "optional_properties_limit": 24,
+          "rejected_keywords_present": [],
+          "serialized_characters": 3105,
+          "uses_one_of": false,
+          "worst_object_limit": 14,
+          "worst_object_optional_properties": 2,
+          "worst_object_path": "<root>"
+        },
+        "violations": []
+      },
+      "v1_json": {
+        "branches": 0,
+        "compilable_offline": true,
+        "facts": {
+          "definitions": 0,
+          "every_object_closes_additional_properties": true,
+          "fingerprint": "ce2083a78e84c6d555312dd2778b8dcf11e0080217b2fb35937b19d43f4c4472",
+          "min_items_values": [
+            1
+          ],
+          "optional_properties": 8,
+          "optional_properties_limit": 24,
+          "rejected_keywords_present": [],
+          "serialized_characters": 3263,
+          "uses_one_of": false,
+          "worst_object_limit": 14,
+          "worst_object_optional_properties": 4,
+          "worst_object_path": "<root>"
+        },
+        "violations": []
+      }
+    },
+    "baselines": {
+      "files": {
+        "docs/evaluation-baselines/stage40-v1-vs-operation-plan/README.md": {
+          "crlf_on_disk": true,
+          "digest": "72c882ef93952ab2c43c3d9f02946ec60d294e03ff2a078f408751df94be5635",
+          "matches": true,
+          "present": true
+        },
+        "docs/evaluation-baselines/stage40-v1-vs-operation-plan/comparison-report.txt": {
+          "crlf_on_disk": true,
+          "digest": "0ea838b1232d224b7cf049d250af230b3f5391be8a9b926b4bd3cafed6f22cb9",
+          "matches": true,
+          "present": true
+        },
+        "docs/evaluation-baselines/stage40-v1-vs-operation-plan/comparison-run.json": {
+          "crlf_on_disk": true,
+          "digest": "bf72e79873e249bbf268ba165d648a1f4b42ce8364b9d37231d38c0d214929de",
+          "matches": true,
+          "present": true
+        },
+        "docs/evaluation-baselines/stage40-v1-vs-operation-plan/failure-diagnosis.json": {
+          "crlf_on_disk": true,
+          "digest": "b7a0f44674e72ad5e99343bb297f3a0267bc752432cf5d791c2310b801f6a8d7",
+          "matches": true,
+          "present": true
+        },
+        "docs/evaluation-baselines/stage40-v1-vs-operation-plan/failure-diagnosis.txt": {
+          "crlf_on_disk": true,
+          "digest": "fefa891c1d2f67f44a0fb8632c1b512295e1b0f5dca1a0a4d1a336f56ef19211",
+          "matches": true,
+          "present": true
+        },
+        "docs/evaluation-baselines/stage43-structured-output/README.md": {
+          "crlf_on_disk": false,
+          "digest": "18c4305422b9c13408cc5e852ce380797670e05d061ee44e221768652354dfa9",
+          "matches": true,
+          "present": true
+        },
+        "docs/evaluation-baselines/stage43-structured-output/stage43-structured-run.json": {
+          "crlf_on_disk": true,
+          "digest": "9ee1d25283c54c561243ade81cf6486f91b1cfdd2f0b8fd92cb7dbc870d8ccfc",
+          "matches": true,
+          "present": true
+        }
+      },
+      "intact": true,
+      "protected_directories": [
+        "stage40-v1-vs-operation-plan",
+        "stage43-structured-output"
+      ],
+      "root": "C:\\Users\\AtharvaBhangale\\Desktop\\AI-assisted-text-to-CAD-application"
+    },
+    "fingerprints": {
+      "corpus": "96517cb979b4660adb08cddb9856fd7a03344834ccb79f799224bdf028b78fcc",
+      "corpus_version": "1.0.0",
+      "evaluation_version": "1.0.0",
+      "model": {
+        "max_output_tokens": 4096,
+        "model": "claude-haiku-4-5-20251001",
+        "plan_schema_choice": "executable",
+        "structured_output_enabled": true,
+        "timeout_seconds": 120.0
+      },
+      "prompt": {
+        "operation_plan": {
+          "characters": 22824,
+          "fingerprint": "21d564ddeba05a745abfeb245c85bce0ef2e19ddebdeb3f38bdf2a63e179214d",
+          "version": "2026-09-15.5"
+        },
+        "v1_json": {
+          "characters": 14943,
+          "fingerprint": "2b3e3395ec6efee0fe252cf88207e981dcdecfdb88ea847f075ce20a5ad9ba52",
+          "version": "2026-09-08.1"
+        }
+      },
+      "schema": {
+        "operation_plan": "54759d1e16cfe634855c5c44266eddefd92d973628045a7afd3ecf8cbeac8323",
+        "v1_json": "ce2083a78e84c6d555312dd2778b8dcf11e0080217b2fb35937b19d43f4c4472"
+      },
+      "scoring": "98b1118b7b97f36be9f45ab49b240bffb1e954b4d13c51948f085969c433d500"
+    },
+    "groups": {
+      "capabilities_beyond_stage_43": [
+        "circular",
+        "extrude",
+        "pattern",
+        "revolve",
+        "sketch",
+        "straight"
+      ],
+      "capability_carrying_v1_expectation": [],
+      "capability_cases": 17,
+      "correct": true,
+      "legacy_cases": 13,
+      "legacy_missing_v1_expectation": [],
+      "legacy_text_drifted_from_stage_40": []
+    },
+    "invalid_plans": {
+      "checked": 9,
+      "correct": true,
+      "failed": [],
+      "rows": [
+        {
+          "actual": "validator",
+          "codes": [
+            "P9"
+          ],
+          "expected": "validator",
+          "expected_codes": [
+            "P9"
+          ],
+          "id": "bad-reference",
+          "kind": "bad reference",
+          "ok": true
+        },
+        {
+          "actual": "validator",
+          "codes": [
+            "P10"
+          ],
+          "expected": "validator",
+          "expected_codes": [
+            "P10"
+          ],
+          "id": "forward-reference",
+          "kind": "bad reference",
+          "ok": true
+        },
+        {
+          "actual": "validator",
+          "codes": [
+            "P12"
+          ],
+          "expected": "validator",
+          "expected_codes": [
+            "P12"
+          ],
+          "id": "consumed-reference",
+          "kind": "incompatible reference",
+          "ok": true
+        },
+        {
+          "actual": "validator",
+          "codes": [
+            "P27"
+          ],
+          "expected": "validator",
+          "expected_codes": [
+            "P27"
+          ],
+          "id": "pattern-of-a-solid",
+          "kind": "incompatible reference",
+          "ok": true
+        },
+        {
+          "actual": "validator",
+          "codes": [
+            "P10",
+            "P31"
+          ],
+          "expected": "validator",
+          "expected_codes": [
+            "P10",
+            "P31"
+          ],
+          "id": "self-referencing-subtract",
+          "kind": "cycle",
+          "ok": true
+        },
+        {
+          "actual": "validator",
+          "codes": [
+            "P29"
+          ],
+          "expected": "validator",
+          "expected_codes": [
+            "P29"
+          ],
+          "id": "radial-pattern-off-axis",
+          "kind": "unsupported geometry semantics",
+          "ok": true
+        },
+        {
+          "actual": "validator",
+          "codes": [
+            "P28"
+          ],
+          "expected": "validator",
+          "expected_codes": [
+            "P28"
+          ],
+          "id": "pattern-count-of-one",
+          "kind": "unsupported geometry semantics",
+          "ok": true
+        },
+        {
+          "actual": "parser",
+          "detail": "operation 1 edges needs an `axis` to give a `position`",
+          "expected": "parser",
+          "id": "selector-position-without-axis",
+          "kind": "ambiguous selector",
+          "ok": true
+        },
+        {
+          "actual": "parser",
+          "detail": "operation 1 edges is missing `axis`",
+          "expected": "parser",
+          "id": "selector-straight-without-axis",
+          "kind": "ambiguous selector",
+          "ok": true
+        }
+      ]
+    },
+    "kind": "stage48-preflight",
+    "model": "claude-haiku-4-5-20251001",
+    "plan_schema_choice": "executable",
+    "ready": true,
+    "result_directory": "docs/evaluation-baselines/stage48-widened-schema",
+    "sanitising_is_identity_for_the_plan": true,
+    "stage": 48,
+    "structured_output_enabled": true,
+    "version": "1.0.0"
+  },
+  "records": [
+    {
+      "attempt": 1,
+      "bounding_box": {
+        "x": 100.0,
+        "y": 60.0,
+        "z": 10.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "01-plate-worded",
+      "category": "A-primitives",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 5.687999999998283,
+      "model_output_valid": true,
+      "operations": [
+        "box"
+      ],
+      "raw_text": "{\"status\": \"document\", \"document\": {\"schema_version\": \"1.0.0\", \"units\": \"mm\", \"name\": \"rectangular-plate\", \"description\": \"A rectangular plate measuring 100 mm long, 60 mm wide and 10 mm thick.\", \"features\": [{\"id\": \"plate\", \"type\": \"box\", \"size\": {\"x\": 100, \"y\": 60, \"z\": 10}}]}, \"summary\": \"A single rectangular box 100 mm \u00d7 60 mm \u00d7 10 mm, positioned at the origin with edges parallel to the coordinate axes.\"}",
+      "render_success": true,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": 12,
+      "usage": {
+        "input_tokens": 5891,
+        "output_tokens": 139
+      },
+      "volume_mm3": 60000.0
+    },
+    {
+      "attempt": 1,
+      "bounding_box": {
+        "x": 20.0,
+        "y": 20.0,
+        "z": 50.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "02-cylinder-axis",
+      "category": "A-primitives",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 2.0309999999990396,
+      "model_output_valid": true,
+      "operations": [
+        "cylinder"
+      ],
+      "raw_text": "{\"status\":\"document\",\"document\":{\"schema_version\":\"1.0.0\",\"units\":\"mm\",\"name\":\"cylinder-basic\",\"description\":\"A cylinder 20 mm in diameter and 50 mm tall along the +Z axis.\",\"features\":[{\"id\":\"cylinder_main\",\"type\":\"cylinder\",\"diameter\":20,\"height\":50}]},\"summary\":\"A single cylinder with 20 mm diameter and 50 mm height, oriented along the +Z axis with its base at the origin.\"}",
+      "render_success": true,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": 500,
+      "usage": {
+        "input_tokens": 5890,
+        "output_tokens": 110
+      },
+      "volume_mm3": 15707.963267948966
+    },
+    {
+      "attempt": 1,
+      "bounding_box": {
+        "x": 100.0,
+        "y": 60.0,
+        "z": 10.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "03-box-dimensional",
+      "category": "A-primitives",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 2.2969999999986612,
+      "model_output_valid": true,
+      "operations": [
+        "box"
+      ],
+      "raw_text": "{\"status\": \"document\", \"document\": {\"schema_version\": \"1.0.0\", \"units\": \"mm\", \"name\": \"simple-box\", \"features\": [{\"id\": \"body\", \"type\": \"box\", \"size\": {\"x\": 100, \"y\": 60, \"z\": 10}}]}, \"summary\": \"A 100 mm \u00d7 60 mm \u00d7 10 mm box positioned at the origin.\"}",
+      "render_success": true,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": 12,
+      "usage": {
+        "input_tokens": 5887,
+        "output_tokens": 103
+      },
+      "volume_mm3": 60000.0
+    },
+    {
+      "attempt": 1,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "04-plate-centre-hole",
+      "category": "B-modifiers",
+      "category_code": "WRONGLY_REFUSED",
+      "declared_outcome": "unsupported",
+      "detail": "declined with 'unsupported' where build was required",
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 3.1559999999990396,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"issues\": [\"The request asks for a through hole, which requires the `through_hole` feature type. This stage supports only `box` and `cylinder` features. A through hole cannot be approximated with a single supported feature.\"]}",
+      "render_success": false,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": false,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 5899,
+        "output_tokens": 61
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 1,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "05-plate-two-holes",
+      "category": "B-modifiers",
+      "category_code": "WRONGLY_REFUSED",
+      "declared_outcome": "unsupported",
+      "detail": "declined with 'unsupported' where build was required",
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 5.21900000000096,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"issues\": [\"The request asks for through holes, but through_hole features are not supported by this stage. Only box and cylinder features are supported. A single box or cylinder part can be created, but not a plate with holes subtracted from it.\"]}",
+      "render_success": false,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": false,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 5896,
+        "output_tokens": 64
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 1,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "06-cube-bore",
+      "category": "B-modifiers",
+      "category_code": "WRONGLY_REFUSED",
+      "declared_outcome": "unsupported",
+      "detail": "declined with 'unsupported' where build was required",
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 3.1709999999984575,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"issues\": [\"The request requires a cylindrical hole through the part, which requires the 'through_hole' feature type. This stage supports only 'box' and 'cylinder' feature types, not hole, cut, or subtract operations.\"]}",
+      "render_success": false,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": false,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 5890,
+        "output_tokens": 64
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 1,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "07-plate-chamfer",
+      "category": "B-modifiers",
+      "category_code": "WRONGLY_REFUSED",
+      "declared_outcome": "unsupported",
+      "detail": "declined with 'unsupported' where build was required",
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 1.4070000000028813,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"issues\": [\"The request asks for a chamfer on vertical edges, but the chamfer feature is not supported by this stage. Only box and cylinder features are currently supported.\"]}",
+      "render_success": false,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": false,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 5898,
+        "output_tokens": 48
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 1,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "08-plate-fillet",
+      "category": "B-modifiers",
+      "category_code": "WRONGLY_REFUSED",
+      "declared_outcome": "unsupported",
+      "detail": "declined with 'unsupported' where build was required",
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 2.7659999999996217,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"issues\": [\"The request asks for a fillet operation, which is not supported by this stage. V1 supports only box and cylinder features without modifiers like fillet, chamfer, subtract, or through_hole.\"]}",
+      "render_success": false,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": false,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 5900,
+        "output_tokens": 59
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 1,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "09-profile-extrude",
+      "category": "C-profiles",
+      "category_code": "CORRECT_UNSUPPORTED",
+      "declared_outcome": "unsupported",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 2.3440000000009604,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"issues\": [\"The request describes a sketch-based extrusion workflow (profile on XY plane, then extrude), which is not supported in V1. V1 supports only primitive solids: a single box or cylinder. To create a rectangular solid, describe it directly as a box with three dimensions (width, depth, height) rather than as a sketch extruded along an axis.\"]}",
+      "render_success": false,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 5897,
+        "output_tokens": 96
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 1,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "10-profile-revolve",
+      "category": "C-profiles",
+      "category_code": "CORRECT_UNSUPPORTED",
+      "declared_outcome": "unsupported",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 2.4219999999986612,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"issues\": [\"Revolves are not supported in V1. Only box and cylinder constructive features are available.\", \"The request describes a revolved profile, which requires sketch and revolve operations that are outside the supported feature set.\"]}",
+      "render_success": false,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 5898,
+        "output_tokens": 60
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 1,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "11-sphere",
+      "category": "H-unsupported",
+      "category_code": "CORRECT_UNSUPPORTED",
+      "declared_outcome": "unsupported",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 3.0320000000028813,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"issues\": [\"Sphere is not a supported feature type in V1. Supported types are: box, cylinder. A sphere cannot be approximated with these primitives without introducing features like fillet or chamfer, which are also not supported at this stage.\"]}",
+      "render_success": false,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 5880,
+        "output_tokens": 66
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 1,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "12-union",
+      "category": "H-unsupported",
+      "category_code": "CORRECT_UNSUPPORTED",
+      "declared_outcome": "unsupported",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 4.202999999997701,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"issues\": [\"The request describes two solids (a cylinder and a box) joined together. V1 supports only single-solid parts. To create a joined geometry, features like `subtract` or `fillet` would be needed to combine multiple constructive features into one solid, but those are not supported by this stage. A request for two separate solids or an assembly is also unsupported.\"]}",
+      "render_success": false,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 5878,
+        "output_tokens": 96
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 1,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "13-engine",
+      "category": "H-unsupported",
+      "category_code": "CORRECT_UNSUPPORTED",
+      "declared_outcome": "unsupported",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 3.1570000000028813,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"issues\": [\"A four-cylinder engine is an assembly of multiple parts with complex geometry (cylinders, pistons, connecting rods, crankshaft, head, block, etc.). V1 supports only single-part designs made of one box or cylinder feature, not assemblies. This request requires multiple solids, moving parts, and geometric relationships that are outside the supported subset.\", \"The request does not specify dimensions, positions, or orientations for any component.\", \"Manufacturing-specific geometry such as threads, valve seats, and combustion chamber shapes are not supported in V1.\"]}",
+      "render_success": false,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 5876,
+        "output_tokens": 136
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 2,
+      "bounding_box": {
+        "x": 100.0,
+        "y": 60.0,
+        "z": 10.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "01-plate-worded",
+      "category": "A-primitives",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 4.952999999997701,
+      "model_output_valid": true,
+      "operations": [
+        "box"
+      ],
+      "raw_text": "{\"status\": \"document\", \"document\": {\"schema_version\": \"1.0.0\", \"units\": \"mm\", \"name\": \"rectangular-plate\", \"description\": \"A rectangular plate measuring 100 mm long, 60 mm wide and 10 mm thick.\", \"features\": [{\"id\": \"plate\", \"type\": \"box\", \"size\": {\"x\": 100, \"y\": 60, \"z\": 10}}]}, \"summary\": \"A rectangular plate 100 mm long, 60 mm wide, and 10 mm thick, positioned at the origin.\"}",
+      "render_success": true,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": 12,
+      "usage": {
+        "input_tokens": 5891,
+        "output_tokens": 135
+      },
+      "volume_mm3": 60000.0
+    },
+    {
+      "attempt": 2,
+      "bounding_box": {
+        "x": 20.0,
+        "y": 20.0,
+        "z": 50.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "02-cylinder-axis",
+      "category": "A-primitives",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 1.8280000000013388,
+      "model_output_valid": true,
+      "operations": [
+        "cylinder"
+      ],
+      "raw_text": "{\"status\": \"document\", \"document\": {\"schema_version\": \"1.0.0\", \"units\": \"mm\", \"name\": \"cylinder\", \"features\": [{\"id\": \"cylinder\", \"type\": \"cylinder\", \"diameter\": 20, \"height\": 50, \"axis\": \"+Z\"}]}, \"summary\": \"A cylinder 20 mm in diameter and 50 mm tall, positioned at the origin with its base at z=0 and extending upward along the +Z axis.\"}",
+      "render_success": true,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": 500,
+      "usage": {
+        "input_tokens": 5890,
+        "output_tokens": 114
+      },
+      "volume_mm3": 15707.963267948966
+    },
+    {
+      "attempt": 2,
+      "bounding_box": {
+        "x": 100.0,
+        "y": 60.0,
+        "z": 10.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "03-box-dimensional",
+      "category": "A-primitives",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 1.735000000000582,
+      "model_output_valid": true,
+      "operations": [
+        "box"
+      ],
+      "raw_text": "{\"status\": \"document\", \"document\": {\"schema_version\": \"1.0.0\", \"units\": \"mm\", \"name\": \"simple-box\", \"features\": [{\"id\": \"box\", \"type\": \"box\", \"size\": {\"x\": 100, \"y\": 60, \"z\": 10}}]}, \"summary\": \"A box with dimensions 100 mm \u00d7 60 mm \u00d7 10 mm, positioned at the origin.\"}",
+      "render_success": true,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": 12,
+      "usage": {
+        "input_tokens": 5887,
+        "output_tokens": 106
+      },
+      "volume_mm3": 60000.0
+    },
+    {
+      "attempt": 2,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "04-plate-centre-hole",
+      "category": "B-modifiers",
+      "category_code": "WRONGLY_REFUSED",
+      "declared_outcome": "unsupported",
+      "detail": "declined with 'unsupported' where build was required",
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 3.2190000000009604,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"issues\": [\"The request asks for a through-hole, which is not supported by this stage. Supported feature types are: box, cylinder. Modifier features (through_hole, subtract, fillet, chamfer) are reserved for later implementation.\"]}",
+      "render_success": false,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": false,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 5899,
+        "output_tokens": 65
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 2,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "05-plate-two-holes",
+      "category": "B-modifiers",
+      "category_code": "WRONGLY_REFUSED",
+      "declared_outcome": "unsupported",
+      "detail": "declined with 'unsupported' where build was required",
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 1.7819999999992433,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"issues\": [\"The request asks for through holes, which require the 'through_hole' feature type. This feature type is defined in V1 but is not supported by this stage of processing. A complete CAD document for this part cannot be produced at this time.\"]}",
+      "render_success": false,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": false,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 5896,
+        "output_tokens": 69
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 2,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "06-cube-bore",
+      "category": "B-modifiers",
+      "category_code": "WRONGLY_REFUSED",
+      "declared_outcome": "unsupported",
+      "detail": "declined with 'unsupported' where build was required",
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 3.3590000000003783,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"issues\": [\"The request describes a cube with a hole through it. Creating a hole requires the 'through_hole' feature type, which is not supported by this stage. Only basic box and cylinder features are supported; subtractive features like holes, cuts, and combinations of multiple solids cannot be expressed.\"]}",
+      "render_success": false,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": false,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 5890,
+        "output_tokens": 77
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 2,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "07-plate-chamfer",
+      "category": "B-modifiers",
+      "category_code": "WRONGLY_REFUSED",
+      "declared_outcome": "unsupported",
+      "detail": "declined with 'unsupported' where build was required",
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 1.5940000000009604,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"issues\": [\"The request asks for a chamfer on the vertical edges of the plate. Chamfering is not supported in this stage; only box and cylinder constructive features are supported. The document cannot be produced without the chamfer operation.\"]}",
+      "render_success": false,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": false,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 5898,
+        "output_tokens": 63
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 2,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "08-plate-fillet",
+      "category": "B-modifiers",
+      "category_code": "WRONGLY_REFUSED",
+      "declared_outcome": "unsupported",
+      "detail": "declined with 'unsupported' where build was required",
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 2.8909999999996217,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"issues\": [\"The request asks for a fillet operation, which is not supported by this stage. V1 supports only box and cylinder features; fillet, chamfer, subtract, and through_hole are not yet available.\"]}",
+      "render_success": false,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": false,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 5900,
+        "output_tokens": 60
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 2,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "09-profile-extrude",
+      "category": "C-profiles",
+      "category_code": "CORRECT_UNSUPPORTED",
+      "declared_outcome": "unsupported",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 2.7340000000003783,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"issues\": [\"The request describes a sketch (a 2D profile on the XY plane) followed by an extrusion. Sketches, lofts, sweeps, and revolves are not supported in V1. V1 supports only box and cylinder as constructive features. To create this part, describe it as a box with dimensions: width (X), depth (Y), and height (Z). For example, 'a box 100 mm wide, 60 mm deep, and 10 mm tall' would be expressible. Please restate the request as a box or cylinder with its three dimensions.\"]}",
+      "render_success": false,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 5897,
+        "output_tokens": 146
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 2,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "10-profile-revolve",
+      "category": "C-profiles",
+      "category_code": "CORRECT_UNSUPPORTED",
+      "declared_outcome": "unsupported",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 4.5310000000026776,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"issues\": [\"Revolves are not supported in V1. The request asks for a revolution operation, which is not among the supported feature types (box, cylinder). V1 supports only box and cylinder constructive features, and through_hole, subtract, fillet, and chamfer modifiers.\", \"The request describes a sketch-based operation (circular profile on the XY plane with a revolve), which requires sketches. Sketches are not supported in V1.\"]}",
+      "render_success": false,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 5898,
+        "output_tokens": 112
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 2,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "11-sphere",
+      "category": "H-unsupported",
+      "category_code": "CORRECT_UNSUPPORTED",
+      "declared_outcome": "unsupported",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 2.889999999999418,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"issues\": [\"Sphere is not a supported feature type in V1. The supported feature types are: box and cylinder. A sphere cannot be accurately represented using only these primitives without approximation.\"]}",
+      "render_success": false,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 5880,
+        "output_tokens": 53
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 2,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "12-union",
+      "category": "H-unsupported",
+      "category_code": "CORRECT_UNSUPPORTED",
+      "declared_outcome": "unsupported",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 4.828000000001339,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"issues\": [\"The request asks for two solids joined together. V1 supports only a single solid per part. Creating two separate features (a cylinder and a box) would result in two bodies in the solid set, which violates rule S9 (the solid set must contain exactly one solid after the last feature). To join two solids, V1 would need a Boolean union operation, which is not a supported feature type in this stage. Supported modifiers are: through_hole, subtract, fillet, chamfer \u2014 none of which combine solids.\"]}",
+      "render_success": false,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 5878,
+        "output_tokens": 135
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 2,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "13-engine",
+      "category": "H-unsupported",
+      "category_code": "CORRECT_UNSUPPORTED",
+      "declared_outcome": "unsupported",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 3.077999999997701,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"issues\": [\"A four-cylinder engine is an assembly of multiple separate parts (cylinders, pistons, crankshaft, block, etc.). V1 does not support assemblies or multi-body parts. Each feature must combine into exactly one solid body.\", \"Even if interpreted as a single solid with four cylindrical features, the request lacks specification of how these cylinders relate spatially to each other, their exact dimensions, and the overall geometry.\", \"V1 supports only constructive features (box, cylinder) and modifier features (through_hole, subtract, fillet, chamfer). An engine requires complex geometry, rotational features, and relationships that cannot be expressed in the supported subset.\"]}",
+      "render_success": false,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 5876,
+        "output_tokens": 164
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 3,
+      "bounding_box": {
+        "x": 100.0,
+        "y": 60.0,
+        "z": 10.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "01-plate-worded",
+      "category": "A-primitives",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 4.3290000000015425,
+      "model_output_valid": true,
+      "operations": [
+        "box"
+      ],
+      "raw_text": "{\"status\":\"document\",\"document\":{\"schema_version\":\"1.0.0\",\"units\":\"mm\",\"name\":\"rectangular-plate\",\"description\":\"A rectangular plate 100 mm long, 60 mm wide and 10 mm thick.\",\"features\":[{\"id\":\"plate\",\"type\":\"box\",\"size\":{\"x\":100,\"y\":60,\"z\":10}}]},\"summary\":\"A single rectangular box 100 mm \u00d7 60 mm \u00d7 10 mm (length \u00d7 width \u00d7 thickness) positioned at the origin.\"}",
+      "render_success": true,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": 12,
+      "usage": {
+        "input_tokens": 5891,
+        "output_tokens": 117
+      },
+      "volume_mm3": 60000.0
+    },
+    {
+      "attempt": 3,
+      "bounding_box": {
+        "x": 20.0,
+        "y": 20.0,
+        "z": 50.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "02-cylinder-axis",
+      "category": "A-primitives",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 1.9219999999986612,
+      "model_output_valid": true,
+      "operations": [
+        "cylinder"
+      ],
+      "raw_text": "{\"status\": \"document\", \"document\": {\"schema_version\": \"1.0.0\", \"units\": \"mm\", \"name\": \"cylinder-20x50\", \"features\": [{\"id\": \"cylinder_body\", \"type\": \"cylinder\", \"diameter\": 20, \"height\": 50, \"axis\": \"+Z\"}]}, \"summary\": \"A cylinder 20 mm in diameter and 50 mm tall, oriented along the +Z axis with its base centered at the origin.\"}",
+      "render_success": true,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": 500,
+      "usage": {
+        "input_tokens": 5890,
+        "output_tokens": 112
+      },
+      "volume_mm3": 15707.963267948966
+    },
+    {
+      "attempt": 3,
+      "bounding_box": {
+        "x": 100.0,
+        "y": 60.0,
+        "z": 10.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "03-box-dimensional",
+      "category": "A-primitives",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 2.1409999999996217,
+      "model_output_valid": true,
+      "operations": [
+        "box"
+      ],
+      "raw_text": "{\"status\": \"document\", \"document\": {\"schema_version\": \"1.0.0\", \"units\": \"mm\", \"name\": \"box-100x60x10\", \"description\": \"A rectangular box with dimensions 100 mm by 60 mm by 10 mm\", \"features\": [{\"id\": \"box\", \"type\": \"box\", \"size\": {\"x\": 100, \"y\": 60, \"z\": 10}}]}, \"summary\": \"A single box measuring 100 mm (X) by 60 mm (Y) by 10 mm (Z), positioned at the origin.\"}",
+      "render_success": true,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": 12,
+      "usage": {
+        "input_tokens": 5887,
+        "output_tokens": 143
+      },
+      "volume_mm3": 60000.0
+    },
+    {
+      "attempt": 3,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "04-plate-centre-hole",
+      "category": "B-modifiers",
+      "category_code": "WRONGLY_REFUSED",
+      "declared_outcome": "unsupported",
+      "detail": "declined with 'unsupported' where build was required",
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 2.735000000000582,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"issues\": [\"The request requires a through_hole feature, which is not supported by this stage. Only box and cylinder features are supported. A through hole cannot be approximated with a single box or cylinder.\"]}",
+      "render_success": false,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": false,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 5899,
+        "output_tokens": 55
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 3,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "05-plate-two-holes",
+      "category": "B-modifiers",
+      "category_code": "WRONGLY_REFUSED",
+      "declared_outcome": "unsupported",
+      "detail": "declined with 'unsupported' where build was required",
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 2.0,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"issues\": [\"Through holes are not supported in this stage. The request requires 'through_hole' features, which are defined in the V1 specification but not yet implemented by this translator. To proceed, the part would need to be expressed using only supported feature types (box, cylinder), which cannot represent holes.\"]}",
+      "render_success": false,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": false,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 5896,
+        "output_tokens": 78
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 3,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "06-cube-bore",
+      "category": "B-modifiers",
+      "category_code": "WRONGLY_REFUSED",
+      "declared_outcome": "unsupported",
+      "detail": "declined with 'unsupported' where build was required",
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 4.125,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"issues\": [\"The request describes a hole through the part, which requires a 'through_hole' feature. This feature type is not supported by this stage. The supported feature types are: box, cylinder. A hole cannot be approximated with these basic constructive features without using subtract or through_hole, neither of which are supported here.\"]}",
+      "render_success": false,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": false,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 5890,
+        "output_tokens": 83
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 3,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "07-plate-chamfer",
+      "category": "B-modifiers",
+      "category_code": "WRONGLY_REFUSED",
+      "declared_outcome": "unsupported",
+      "detail": "declined with 'unsupported' where build was required",
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 1.4530000000013388,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"issues\": [\"The request asks for a chamfer on the vertical edges of the plate. Chamfering is not supported at this stage; only box and cylinder constructive features are supported.\"]}",
+      "render_success": false,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": false,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 5898,
+        "output_tokens": 52
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 3,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "08-plate-fillet",
+      "category": "B-modifiers",
+      "category_code": "WRONGLY_REFUSED",
+      "declared_outcome": "unsupported",
+      "detail": "declined with 'unsupported' where build was required",
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 3.562000000001717,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"issues\": [\"The request asks for a fillet operation, which is not supported by this stage. Only box and cylinder features are supported; fillet, chamfer, subtract, and through_hole are not yet implemented.\"]}",
+      "render_success": false,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": false,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 5900,
+        "output_tokens": 58
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 3,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "09-profile-extrude",
+      "category": "C-profiles",
+      "category_code": "CORRECT_UNSUPPORTED",
+      "declared_outcome": "unsupported",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 2.2340000000003783,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"issues\": [\"The request describes a 2D sketch (a rectangular profile on the XY plane) that must be extruded. V1 does not support sketches, lofts, or sweeps. The supported features are `box` and `cylinder` only. To create the requested geometry, you would need sketch-based extrusion, which is not available in this stage. If you meant to create a simple rectangular box with dimensions 100 mm \u00d7 60 mm \u00d7 10 mm, please clarify and omit the sketch language.\"]}",
+      "render_success": false,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 5897,
+        "output_tokens": 131
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 3,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "10-profile-revolve",
+      "category": "C-profiles",
+      "category_code": "CORRECT_UNSUPPORTED",
+      "declared_outcome": "unsupported",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 4.234000000000378,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"issues\": [\"The request asks for a revolved feature, which is not supported in V1. V1 supports only box and cylinder constructive features, and modifier features through_hole, subtract, fillet, and chamfer. Revolving a profile around an axis is outside this supported subset.\", \"The request describes a swept or revolved geometry rather than a simple box or cylinder. This cannot be approximated with the supported feature types without fundamentally changing the intended geometry.\"]}",
+      "render_success": false,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 5898,
+        "output_tokens": 111
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 3,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "11-sphere",
+      "category": "H-unsupported",
+      "category_code": "CORRECT_UNSUPPORTED",
+      "declared_outcome": "unsupported",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 2.5309999999990396,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"issues\": [\"Sphere is not a supported feature type in V1. Supported types are: box, cylinder.\"]}",
+      "render_success": false,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 5880,
+        "output_tokens": 37
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 3,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "12-union",
+      "category": "H-unsupported",
+      "category_code": "CORRECT_UNSUPPORTED",
+      "declared_outcome": "unsupported",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 5.078000000001339,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"issues\": [\"The request describes two solids (a cylinder and a box) joined together. V1 supports only single-solid parts. Joining two solids requires either a `subtract` operation (which removes material, not joins), or an assembly/multi-body part, neither of which is supported at this stage. To proceed, clarify whether you mean: (1) a box with a cylindrical hole subtracted from it, (2) a box with a cylindrical protrusion (which would need to be modeled as a single box), or (3) something else entirely.\"]}",
+      "render_success": false,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 5878,
+        "output_tokens": 137
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 3,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "13-engine",
+      "category": "H-unsupported",
+      "category_code": "CORRECT_UNSUPPORTED",
+      "declared_outcome": "unsupported",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 2.8429999999971187,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"issues\": [\"A four-cylinder engine is an assembly of multiple parts (block, cylinders, pistons, crankshaft, etc.), which V1 does not support. V1 produces exactly one solid body per part, not assemblies.\", \"Even a single cylinder in isolation would require features like holes (through_hole) and subtractive geometry (subtract) to model a realistic engine bore, which are supported by V1 but would need more specific geometric parameters.\", \"The request does not specify dimensions, positions, or how the cylinders should be arranged relative to each other.\"]}",
+      "render_success": false,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 5876,
+        "output_tokens": 136
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 4,
+      "bounding_box": {
+        "x": 100.0,
+        "y": 60.0,
+        "z": 10.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "01-plate-worded",
+      "category": "A-primitives",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 5.327999999997701,
+      "model_output_valid": true,
+      "operations": [
+        "box"
+      ],
+      "raw_text": "{\"status\": \"document\", \"document\": {\"schema_version\": \"1.0.0\", \"units\": \"mm\", \"name\": \"rectangular-plate\", \"description\": \"A rectangular plate 100 mm long, 60 mm wide and 10 mm thick.\", \"features\": [{\"id\": \"plate\", \"type\": \"box\", \"size\": {\"x\": 100, \"y\": 60, \"z\": 10}}]}, \"summary\": \"A box with dimensions 100 mm (length/X) \u00d7 60 mm (width/Y) \u00d7 10 mm (thickness/Z), positioned at the origin.\"}",
+      "render_success": true,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": 12,
+      "usage": {
+        "input_tokens": 5891,
+        "output_tokens": 150
+      },
+      "volume_mm3": 60000.0
+    },
+    {
+      "attempt": 4,
+      "bounding_box": {
+        "x": 20.0,
+        "y": 20.0,
+        "z": 50.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "02-cylinder-axis",
+      "category": "A-primitives",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 1.8120000000017171,
+      "model_output_valid": true,
+      "operations": [
+        "cylinder"
+      ],
+      "raw_text": "{\"status\": \"document\", \"document\": {\"schema_version\": \"1.0.0\", \"units\": \"mm\", \"name\": \"cylinder\", \"description\": \"A cylinder 20 mm in diameter and 50 mm tall along the +Z axis.\", \"features\": [{\"id\": \"cylinder\", \"type\": \"cylinder\", \"diameter\": 20, \"height\": 50, \"axis\": \"+Z\"}]}, \"summary\": \"A cylinder with 20 mm diameter and 50 mm height, oriented along the +Z axis, with its base centered at the origin.\"}",
+      "render_success": true,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": 500,
+      "usage": {
+        "input_tokens": 5890,
+        "output_tokens": 132
+      },
+      "volume_mm3": 15707.963267948966
+    },
+    {
+      "attempt": 4,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "03-box-dimensional",
+      "category": "A-primitives",
+      "category_code": "PARSER_REJECTED",
+      "declared_outcome": "invalid_model_output",
+      "detail": "the interpretation service returned no CAD document",
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 1.6719999999986612,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\":\"document\",\"summary\":\"A 100 mm \u00d7 60 mm \u00d7 10 mm box positioned at the origin.\",\"questions\":[],\"issues\":[]}",
+      "render_success": false,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": false,
+      "solid_count": null,
+      "structure_valid": false,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 5887,
+        "output_tokens": 42
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 4,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "04-plate-centre-hole",
+      "category": "B-modifiers",
+      "category_code": "WRONGLY_REFUSED",
+      "declared_outcome": "unsupported",
+      "detail": "declined with 'unsupported' where build was required",
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 3.75,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"issues\": [\"The request asks for a through hole, which is not supported by this stage. Through holes require the `through_hole` feature type, which is reserved for a later implementation. To proceed, the part would need to be expressed using only the supported feature types: `box` and `cylinder`. A through hole cannot be accurately represented with these basic constructive features alone.\"]}",
+      "render_success": false,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": false,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 5899,
+        "output_tokens": 91
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 4,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "05-plate-two-holes",
+      "category": "B-modifiers",
+      "category_code": "WRONGLY_REFUSED",
+      "declared_outcome": "unsupported",
+      "detail": "declined with 'unsupported' where build was required",
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 2.0939999999973224,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"issues\": [\"through_hole is not supported by this stage. This request requires two through holes, which cannot be expressed using only the supported feature types (box, cylinder). To create this part, support for the 'through_hole' feature type would be needed.\"]}",
+      "render_success": false,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": false,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 5896,
+        "output_tokens": 68
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 4,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "06-cube-bore",
+      "category": "B-modifiers",
+      "category_code": "WRONGLY_REFUSED",
+      "declared_outcome": "unsupported",
+      "detail": "declined with 'unsupported' where build was required",
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 3.297000000002299,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\":\"unsupported\",\"issues\":[\"The request describes a hole through the part, which requires a 'through_hole' feature. This feature type is not supported by this stage. A cube with a hole cannot be expressed using only the supported 'box' and 'cylinder' feature types.\"]}",
+      "render_success": false,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": false,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 5890,
+        "output_tokens": 69
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 4,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "07-plate-chamfer",
+      "category": "B-modifiers",
+      "category_code": "WRONGLY_REFUSED",
+      "declared_outcome": "unsupported",
+      "detail": "declined with 'unsupported' where build was required",
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 2.1719999999986612,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"issues\": [\"The request asks for a chamfer on the vertical edges of the plate. Chamfering is not supported by this stage of the translator. Only box and cylinder features are supported; chamfer, fillet, subtract, and through_hole are reserved for later implementation.\"]}",
+      "render_success": false,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": false,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 5898,
+        "output_tokens": 71
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 4,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "08-plate-fillet",
+      "category": "B-modifiers",
+      "category_code": "WRONGLY_REFUSED",
+      "declared_outcome": "unsupported",
+      "detail": "declined with 'unsupported' where build was required",
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 3.235000000000582,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"issues\": [\"The request asks for filleted edges. Fillets are not supported by this stage; only box and cylinder features are supported. To proceed, remove the fillet requirement or submit a request for a simple box without edge finishing.\"]}",
+      "render_success": false,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": false,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 5900,
+        "output_tokens": 62
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 4,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "09-profile-extrude",
+      "category": "C-profiles",
+      "category_code": "CORRECT_UNSUPPORTED",
+      "declared_outcome": "unsupported",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 2.5309999999990396,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"issues\": [\"The request describes a sketch-based workflow (create a profile, then extrude it). V1 does not support sketches, profiles, or extrusions as separate operations. V1 supports only direct solid primitives: box and cylinder. To create a 100 mm \u00d7 60 mm \u00d7 10 mm rectangular solid, please describe it directly as a box with those dimensions, and specify which face should be on the XY plane (i.e., clarify the position and orientation of the part in the coordinate system).\"]}",
+      "render_success": false,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 5897,
+        "output_tokens": 130
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 4,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "10-profile-revolve",
+      "category": "C-profiles",
+      "category_code": "CORRECT_UNSUPPORTED",
+      "declared_outcome": "unsupported",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 4.26600000000326,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"issues\": [\"Revolve operations are not supported in V1. The supported feature types are: box, cylinder, through_hole, subtract, fillet, chamfer. A revolve would require a sketch and a sweep operation, neither of which exist in this schema version.\", \"The request describes a revolved profile, which would create a complex 3D shape that cannot be approximated by the supported primitive features (box or cylinder alone).\"]}",
+      "render_success": false,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 5898,
+        "output_tokens": 109
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 4,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "11-sphere",
+      "category": "H-unsupported",
+      "category_code": "CORRECT_UNSUPPORTED",
+      "declared_outcome": "unsupported",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 2.875,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"issues\": [\"Sphere is not a supported feature type in V1. Supported types are: box, cylinder. A sphere cannot be approximated with these primitives without losing geometric meaning.\"]}",
+      "render_success": false,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 5880,
+        "output_tokens": 52
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 4,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "12-union",
+      "category": "H-unsupported",
+      "category_code": "CORRECT_UNSUPPORTED",
+      "declared_outcome": "unsupported",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 4.25,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"issues\": [\"The request describes two solids joined together. V1 supports only a single part containing exactly one solid body. Creating two separate features (a cylinder and a box) would leave two solids in the solid set, which violates the requirement that the final solid set contains exactly one solid. To join them would require a feature type not supported at this stage, such as 'subtract' used inversely or a boolean union operation. Neither is available in V1.\"]}",
+      "render_success": false,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 5878,
+        "output_tokens": 112
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 4,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "13-engine",
+      "category": "H-unsupported",
+      "category_code": "CORRECT_UNSUPPORTED",
+      "declared_outcome": "unsupported",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 2.875,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"issues\": [\"A four-cylinder engine is an assembly of multiple parts (cylinders, pistons, crankshaft, block, head, etc.), not a single solid part. V1 does not support assemblies.\", \"The request describes a complex mechanical system requiring features not in the supported subset: revolves (for the crankshaft), patterns (for multiple cylinders), threads, and intricate internal geometry.\", \"Even if the engine were simplified to a single block with four cylindrical holes, those holes would require the `through_hole` feature, which is not supported by this stage.\"]}",
+      "render_success": false,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 5876,
+        "output_tokens": 139
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 5,
+      "bounding_box": {
+        "x": 100.0,
+        "y": 60.0,
+        "z": 10.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "01-plate-worded",
+      "category": "A-primitives",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 4.921999999998661,
+      "model_output_valid": true,
+      "operations": [
+        "box"
+      ],
+      "raw_text": "{\"status\": \"document\", \"document\": {\"schema_version\": \"1.0.0\", \"units\": \"mm\", \"name\": \"rectangular-plate\", \"description\": \"A rectangular plate with dimensions 100 mm \u00d7 60 mm \u00d7 10 mm\", \"features\": [{\"id\": \"plate\", \"type\": \"box\", \"size\": {\"x\": 100, \"y\": 60, \"z\": 10}}]}, \"summary\": \"A single rectangular box (plate) 100 mm long, 60 mm wide, and 10 mm thick, positioned at the origin.\"}",
+      "render_success": true,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": 12,
+      "usage": {
+        "input_tokens": 5891,
+        "output_tokens": 137
+      },
+      "volume_mm3": 60000.0
+    },
+    {
+      "attempt": 5,
+      "bounding_box": {
+        "x": 20.0,
+        "y": 20.0,
+        "z": 50.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "02-cylinder-axis",
+      "category": "A-primitives",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 1.9069999999992433,
+      "model_output_valid": true,
+      "operations": [
+        "cylinder"
+      ],
+      "raw_text": "{\"status\": \"document\", \"document\": {\"schema_version\": \"1.0.0\", \"units\": \"mm\", \"name\": \"simple-cylinder\", \"features\": [{\"id\": \"cylinder_1\", \"type\": \"cylinder\", \"diameter\": 20, \"height\": 50}]}, \"summary\": \"A cylinder 20 mm in diameter and 50 mm tall, oriented along the +Z axis (the default orientation).\"}",
+      "render_success": true,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": 500,
+      "usage": {
+        "input_tokens": 5890,
+        "output_tokens": 102
+      },
+      "volume_mm3": 15707.963267948966
+    },
+    {
+      "attempt": 5,
+      "bounding_box": {
+        "x": 100.0,
+        "y": 60.0,
+        "z": 10.0
+      },
+      "build_success": true,
+      "cad_valid": true,
+      "case_id": "03-box-dimensional",
+      "category": "A-primitives",
+      "category_code": "OK",
+      "declared_outcome": "generated",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 1.860000000000582,
+      "model_output_valid": true,
+      "operations": [
+        "box"
+      ],
+      "raw_text": "{\"status\": \"document\", \"document\": {\"schema_version\": \"1.0.0\", \"units\": \"mm\", \"name\": \"rectangular-box\", \"description\": \"A rectangular box with dimensions 100 mm by 60 mm by 10 mm.\", \"features\": [{\"id\": \"box\", \"type\": \"box\", \"size\": {\"x\": 100, \"y\": 60, \"z\": 10}}]}, \"summary\": \"A 100 mm \u00d7 60 mm \u00d7 10 mm box positioned at the origin.\"}",
+      "render_success": true,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": 1,
+      "structure_valid": true,
+      "triangle_count": 12,
+      "usage": {
+        "input_tokens": 5887,
+        "output_tokens": 127
+      },
+      "volume_mm3": 60000.0
+    },
+    {
+      "attempt": 5,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "04-plate-centre-hole",
+      "category": "B-modifiers",
+      "category_code": "WRONGLY_REFUSED",
+      "declared_outcome": "unsupported",
+      "detail": "declined with 'unsupported' where build was required",
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 3.2809999999990396,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"issues\": [\"The request asks for a through-hole, which is not supported by this stage. This stage supports only single box or cylinder features. A plate with a hole requires the 'through_hole' modifier feature, which is reserved for a later implementation.\"]}",
+      "render_success": false,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": false,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 5899,
+        "output_tokens": 67
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 5,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "05-plate-two-holes",
+      "category": "B-modifiers",
+      "category_code": "WRONGLY_REFUSED",
+      "declared_outcome": "unsupported",
+      "detail": "declined with 'unsupported' where build was required",
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 1.7659999999996217,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"issues\": [\"Through holes are not supported by this stage. The request requires a through_hole feature, which exists in the V1 specification but is not available in the current implementation. Only box and cylinder features are supported.\"]}",
+      "render_success": false,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": false,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 5896,
+        "output_tokens": 59
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 5,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "06-cube-bore",
+      "category": "B-modifiers",
+      "category_code": "WRONGLY_REFUSED",
+      "declared_outcome": "unsupported",
+      "detail": "declined with 'unsupported' where build was required",
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 3.7659999999996217,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"issues\": [\"The request describes a cube with a hole through it. Holes require the 'through_hole' feature type, which is not supported by this stage. Only 'box' and 'cylinder' constructive features are supported. To express this geometry, a 'through_hole' feature would be needed, which is reserved for a later implementation.\"]}",
+      "render_success": false,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": false,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 5890,
+        "output_tokens": 89
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 5,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "07-plate-chamfer",
+      "category": "B-modifiers",
+      "category_code": "WRONGLY_REFUSED",
+      "declared_outcome": "unsupported",
+      "detail": "declined with 'unsupported' where build was required",
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 1.75,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"issues\": [\"The request asks for a chamfer on the vertical edges of a plate. Chamfering is not supported by this stage; only box and cylinder features are supported. The part cannot be created as specified.\"]}",
+      "render_success": false,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": false,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 5898,
+        "output_tokens": 58
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 5,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "08-plate-fillet",
+      "category": "B-modifiers",
+      "category_code": "WRONGLY_REFUSED",
+      "declared_outcome": "unsupported",
+      "detail": "declined with 'unsupported' where build was required",
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 5.859000000000378,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"issues\": [\"The request asks for a fillet operation on the plate's vertical edges. Fillet is not supported by this stage. Only box and cylinder features are supported; modifier features (fillet, chamfer, subtract, through_hole) are not yet available.\"]}",
+      "render_success": false,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": false,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 5900,
+        "output_tokens": 69
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 5,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "09-profile-extrude",
+      "category": "C-profiles",
+      "category_code": "CORRECT_UNSUPPORTED",
+      "declared_outcome": "unsupported",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 2.2959999999984575,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"issues\": [\"The request describes a 2D profile (sketch) extruded into 3D, which requires loft or sweep operations. V1 supports only primitive constructive features: box and cylinder. A sketch-based extrusion is not supported.\", \"Additionally, 'extrude' is a modeling operation that goes beyond the supported feature set. The request should be rephrased as a complete 3D solid description (e.g., a box with specific dimensions and position) rather than a construction sequence.\"]}",
+      "render_success": false,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 5897,
+        "output_tokens": 123
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 5,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "10-profile-revolve",
+      "category": "C-profiles",
+      "category_code": "CORRECT_UNSUPPORTED",
+      "declared_outcome": "unsupported",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 3.6089999999967404,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"issues\": [\"Revolves are not supported in V1. The supported feature types are: box, cylinder. Modifiers (through_hole, subtract, fillet, chamfer) are also unsupported at this stage.\", \"The request describes a revolved profile, which requires sketch and revolve operations that are outside the V1 specification.\"]}",
+      "render_success": false,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 5898,
+        "output_tokens": 86
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 5,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "11-sphere",
+      "category": "H-unsupported",
+      "category_code": "CORRECT_UNSUPPORTED",
+      "declared_outcome": "unsupported",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 3.187999999998283,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"issues\": [\"A sphere is not a supported feature type in V1. Supported types are: box and cylinder. A sphere cannot be approximated with these primitives without additional features like fillet or subtract, which are also not supported at this stage.\"]}",
+      "render_success": false,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 5880,
+        "output_tokens": 65
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 5,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "12-union",
+      "category": "H-unsupported",
+      "category_code": "CORRECT_UNSUPPORTED",
+      "declared_outcome": "unsupported",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 5.203000000001339,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"issues\": [\"The request describes two solids (a cylinder and a box) joined together. V1 supports only single-solid parts. To combine multiple solids into one part, a `subtract` feature (which removes material) or other modifier features would be needed, but the request asks for solids to be joined, which would require a union or similar constructive operation. V1 has no union capability and no assemblies. Either describe a single box or a single cylinder, or clarify how these solids should be combined using only the supported operations (subtraction, filleting, chamfering, or drilling holes).\"]}",
+      "render_success": false,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 5878,
+        "output_tokens": 144
+      },
+      "volume_mm3": null
+    },
+    {
+      "attempt": 5,
+      "bounding_box": null,
+      "build_success": false,
+      "cad_valid": false,
+      "case_id": "13-engine",
+      "category": "H-unsupported",
+      "category_code": "CORRECT_UNSUPPORTED",
+      "declared_outcome": "unsupported",
+      "detail": null,
+      "executed_by_graph": false,
+      "group": "legacy",
+      "latency_seconds": 2.6719999999986612,
+      "model_output_valid": true,
+      "operations": [],
+      "raw_text": "{\"status\": \"unsupported\", \"issues\": [\"A four-cylinder engine is an assembly of multiple parts, and V1 supports only single-part documents.\", \"An engine would require multiple cylinders (both the engine cylinders and the supporting structure), which cannot be represented as a single unified solid.\", \"The supported feature types (box, cylinder) and operations (subtract for through_hole) cannot express the complex geometry of an engine, including pistons, crankshaft, valve train, and other mechanical components.\"]}",
+      "render_success": false,
+      "representation": "v1_json",
+      "selector": null,
+      "selector_correct": null,
+      "semantically_correct": true,
+      "solid_count": null,
+      "structure_valid": true,
+      "triangle_count": null,
+      "usage": {
+        "input_tokens": 5876,
+        "output_tokens": 113
+      },
+      "volume_mm3": null
+    }
+  ],
+  "reference_geometry_ok": true,
+  "relationship_to_stage_43": "Stage 48 is NOT a re-run of Stage 43 and its numbers are not a delta against it. Stage 43 sent executable_schema (six types, no sketch branch, two selectors) with plan prompt 2026-09-10.7 and scored a semantic selector as incorrect because none existed. Stage 48 sends the widened plan schema with the current prompt and builds a semantic selector through the graph executor. The legacy group re-uses Stage 40's thirteen requests so that V1 and the operation plan are comparable WITHIN this run; Stage 43 remains the frozen comparison for the earlier capability envelope.",
+  "schema_attached_per_arm": {
+    "operation_plan": 0,
+    "v1_json": 65
+  },
+  "stage": 48,
+  "stage52_arms": [
+    "v1_json"
+  ],
+  "stage52_elapsed_seconds": 349.6,
+  "stage52_encoding": "executable",
+  "stage52_pass": "C-v1-legacy",
+  "structured_output_enabled": true,
+  "summary": {
+    "legacy": {
+      "arms": [
+        "v1_json"
+      ],
+      "cases": 13,
+      "v1_json": {
+        "answered": 65,
+        "attempts": 65,
+        "build_success": 0.2153846153846154,
+        "cad_valid": 0.2153846153846154,
+        "categories": {
+          "CORRECT_UNSUPPORTED": 25,
+          "OK": 14,
+          "PARSER_REJECTED": 1,
+          "WRONGLY_REFUSED": 25
+        },
+        "correct_clarification": null,
+        "correct_unsupported": 1.0,
+        "correct_valid_unexecutable": null,
+        "executed_by_graph": 0,
+        "input_tokens": 382900,
+        "mean_latency_seconds": 3.103661538461445,
+        "model_output_valid": 1.0,
+        "output_tokens": 6117,
+        "provider_errors": 0,
+        "render_scored_attempts": 65,
+        "render_success": 0.2153846153846154,
+        "selector_correct": null,
+        "selector_scored_attempts": 0,
+        "semantically_correct": 0.6,
+        "structure_valid": 0.9846153846153847
+      }
+    }
+  }
+}
