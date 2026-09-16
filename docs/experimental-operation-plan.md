@@ -3344,3 +3344,89 @@ result accepted` — `accepted_because`, not a bare boolean.
   that exact where backends emit one; a typed error would make it exact
   everywhere.
 - `MEASUREMENT_MISMATCH` compares one volume. It is not a shape check.
+
+## Stage 60: hardening the agentic runtime — typed evidence
+
+Stage 59 decided E4 and E5 by matching words in a backend's error string.
+That is brittle in the obvious way and silently wrong in a worse one: a
+backend phrasing a failure differently gets a *confident misdiagnosis*.
+
+None of it was necessary. `edge_semantics.resolve` was already a total,
+typed resolver over `EdgeFacts` — it never raises, returns the indices it
+chose, and reports its own codes for why it chose no more:
+
+| code | meaning | rule |
+|---|---|---|
+| `R1` | the selector matched no edge | **E4** |
+| `R2` | the selection contains a parameterisation seam | **E5** (seam half) |
+| `R3` | a position filter could not separate top from bottom | — |
+
+### Measured, on a 100×60×10 plate with a 20 mm bore
+
+| selector | code | edges | seams |
+|---|---|---:|---:|
+| `all` | R2 | 0 | 1 |
+| `axis_parallel Z` | R2 | 0 | **1** |
+| `straight Z` | — | **4** | 0 |
+| `circular Z` | — | **2** (both rims) | 0 |
+| `circular Z top` | — | **1** | 0 |
+| `circular Z bottom` | — | **1** | 0 |
+| `circular X` | **R1** | **0** | 0 |
+
+`axis_parallel` including exactly one seam while `straight` includes none is
+the Stage 47 semantics, now visible as a *number*. And a top rim naming 1
+edge where both name 2 is what finally separates F2 from F3 without touching
+volume.
+
+### What changed
+
+`SelectorEvidence` carries `selected_edge_count`, `candidate_edge_count`,
+`seam_count` and `resolution_code` per operation. `MeasurementEvidence`
+carries expected-vs-actual per field. `FailureDiagnosis` gained `evidence`,
+`selector_evidence`, `measurement_evidence`, `backend`, and **`retryable`
+separate from `revision_allowed`** — a backend lacking a method is neither.
+`facts`/`revisable` survive as aliases so Stage 59 traces still read.
+
+`diagnose()` now consults, in order: **typed counts** → the backend's own
+rule code → prose, and a prose-classified diagnosis records
+`classified_by: "error text, not typed evidence"` so the trace never hides
+which it used. A test proves typed evidence **overrides contradicting
+prose**.
+
+### Comparison levels
+
+`MEASUREMENT` (volume + solids) → `TOPOLOGY` (+ face/edge counts) →
+`SEMANTIC` (+ the selector names what the request describes). **None is
+geometric equality** — F2/F3 agree on every number in the first two levels,
+which is exactly why `SEMANTIC` exists. A level is reported only when its
+check actually ran: a task stating no selector cannot reach `SEMANTIC`.
+
+### A second defect this stage found
+
+The first live run classified a model's `needs_clarification` as
+`EXECUTION_ERROR`. A model asking a question is not a build failure —
+nothing was executed and nothing failed. `InspectionResult` now carries
+`plan_status` and such an answer is `NO_PLAN_PRODUCED`.
+
+### Live checkpoint — 4 calls
+
+| task | result |
+|---|---|
+| circular selector on a plate with no hole | model **asked for clarification** → `no_plan_produced` |
+| 25 mm fillet on a 10 mm plate | `selector_geometry_rejected` → **revised → success** |
+| chamfer a body never created | model built a valid plate → success |
+
+**E5 is proven live. E4 is not** — the model sensibly asked a question
+rather than emitting an impossible selector, so no live answer ever carried
+one. E4 is proven deterministically, including classification with
+`error_text=None`.
+
+### Limits
+
+- **E4 has no live proof.** Deterministic only.
+- Selector evidence needs a shape to resolve against, so a build that fails
+  *before* producing one yields evidence with `None` counts — the typed path
+  covers a bad selector on a built solid, not every failure.
+- `TOPOLOGY` depends on face/edge counts that `_measure` does not currently
+  return, so most runs report `MEASUREMENT` or `SEMANTIC`.
+- Prose matching still exists as a last resort, and says so when used.

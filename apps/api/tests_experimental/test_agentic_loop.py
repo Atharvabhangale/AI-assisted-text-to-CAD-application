@@ -294,7 +294,7 @@ class FailureTaxonomyTests(unittest.TestCase):
         from cad_experimental.agentic_loop import FailureDiagnosis
         diagnosis = FailureDiagnosis(
             failure_class=FailureClass.BACKEND_UNSUPPORTED,
-            summary="no implementation", revisable=False)
+            summary="no implementation", revision_allowed=False)
         attempt_like.diagnosis = diagnosis
         attempt_like.candidate = PlanCandidate("x", "planner", {})
         self.assertIsNone(

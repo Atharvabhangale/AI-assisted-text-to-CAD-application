@@ -223,7 +223,13 @@ class InspectionResult:
     render_available: bool = False
     executed_by_graph: bool = False
     selectors: Tuple[Mapping[str, Any], ...] = ()
+    selector_evidence: Tuple[SelectorEvidence, ...] = ()
     unsupported_types: Tuple[str, ...] = ()
+    backend: Optional[str] = None
+    #: The model's own status when it declined to offer a plan. Set only
+    #: for a non-GENERATED answer, and the reason such an answer is never
+    #: reported as a build failure.
+    plan_status: Optional[str] = None
     error_text: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
@@ -238,8 +244,95 @@ class InspectionResult:
             "render_available": self.render_available,
             "executed_by_graph": self.executed_by_graph,
             "selectors": [dict(s) for s in self.selectors],
+            "selector_evidence": [s.to_dict() for s in self.selector_evidence],
             "unsupported_types": list(self.unsupported_types),
+            "backend": self.backend,
+            "plan_status": self.plan_status,
             "error_text": self.error_text,
+        }
+
+
+@dataclass(frozen=True)
+class SelectorEvidence:
+    """What a selector actually named, measured rather than inferred.
+
+    Stage 60's central correction. Stage 59 decided E4 and E5 by matching
+    words in a backend's error string, which is brittle in the obvious way
+    and silently wrong in a worse one: a backend that phrases a failure
+    differently gets a confident misdiagnosis.
+
+    None of that guesswork is necessary, because
+    :func:`cad_experimental.edge_semantics.resolve` is already a total,
+    typed resolver over :class:`EdgeFacts`. It never raises, it returns the
+    indices it chose, and it says *why* it chose no more with its own codes:
+
+    ===== ==================================================================
+    ``R1`` the selector matched no edge -- **rule E4**, exactly
+    ``R2`` the selection contains a parameterisation seam, which no blend
+           can take -- the seam half of **rule E5**
+    ``R3`` a position filter could not separate top from bottom
+    ===== ==================================================================
+
+    So a count settles what prose was being asked to imply. On a 100x60x10
+    plate with a 20 mm bore, measured: ``circular/Z`` names 2 edges, ``top``
+    names 1, ``bottom`` names 1, ``circular/X`` returns ``R1`` with 0, and
+    ``axis_parallel/Z`` returns ``R2`` with the one seam that mode is
+    documented to include.
+    """
+
+    selector: Mapping[str, Any]
+    operation_id: Optional[str] = None
+    selected_edge_count: Optional[int] = None
+    candidate_edge_count: Optional[int] = None
+    seam_count: Optional[int] = None
+    resolution_code: Optional[str] = None
+    resolution_message: Optional[str] = None
+
+    @property
+    def matched_nothing(self) -> bool:
+        """Rule E4, from a count rather than from a sentence."""
+        return self.selected_edge_count == 0
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "selector": dict(self.selector),
+            "operation_id": self.operation_id,
+            "selected_edge_count": self.selected_edge_count,
+            "candidate_edge_count": self.candidate_edge_count,
+            "seam_count": self.seam_count,
+            "resolution_code": self.resolution_code,
+            "resolution_message": self.resolution_message,
+        }
+
+
+@dataclass(frozen=True)
+class MeasurementEvidence:
+    """What was measured against what was expected, field by field.
+
+    Separate from :class:`SelectorEvidence` because the two answer different
+    questions and a reviser acts on them differently: a wrong number is a
+    parameter problem, a wrong selector is a naming problem.
+    """
+
+    expected_volume_mm3: Optional[float] = None
+    volume_mm3: Optional[float] = None
+    volume_within_tolerance: Optional[bool] = None
+    expected_solid_count: Optional[int] = None
+    solid_count: Optional[int] = None
+    face_count: Optional[int] = None
+    edge_count: Optional[int] = None
+    comparison_level: Optional[str] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "expected_volume_mm3": self.expected_volume_mm3,
+            "volume_mm3": self.volume_mm3,
+            "volume_within_tolerance": self.volume_within_tolerance,
+            "expected_solid_count": self.expected_solid_count,
+            "solid_count": self.solid_count,
+            "face_count": self.face_count,
+            "edge_count": self.edge_count,
+            "comparison_level": self.comparison_level,
         }
 
 
@@ -247,26 +340,55 @@ class InspectionResult:
 class FailureDiagnosis:
     """What went wrong, as data a reviser can act on.
 
-    ``facts`` carries the measured particulars -- the selector that matched
-    nothing, the volume that disagreed and by how much. It exists so that a
-    revision can be *targeted*: a reviser given "the build failed" can only
-    guess, and a reviser given "the circular selector on operation
-    ``break_edge`` carries no position" can change one field.
+    ``evidence`` carries the measured particulars as *structured* values --
+    the count of edges a selector named, the volume that disagreed and by how
+    much. It exists so that a revision can be **targeted**: a reviser given
+    "the build failed" can only guess; one given "the circular selector on
+    ``break_edge`` named 2 edges where the request describes 1" can change
+    one field.
+
+    ``retryable`` and ``revision_allowed`` are deliberately separate. A
+    backend that lacks a method is neither: no amount of re-running or
+    re-planning grows it one.
     """
 
     failure_class: FailureClass
     summary: str
     affected_operation_ids: Tuple[str, ...] = ()
-    facts: Mapping[str, Any] = field(default_factory=dict)
-    revisable: bool = False
+    evidence: Mapping[str, Any] = field(default_factory=dict)
+    selector_evidence: Tuple[SelectorEvidence, ...] = ()
+    measurement_evidence: Optional[MeasurementEvidence] = None
+    backend: Optional[str] = None
+    retryable: bool = False
+    revision_allowed: bool = False
+
+    @property
+    def facts(self) -> Mapping[str, Any]:
+        """Backwards-compatible alias for :attr:`evidence`."""
+        return self.evidence
+
+    @property
+    def revisable(self) -> bool:
+        """Backwards-compatible alias for :attr:`revision_allowed`."""
+        return self.revision_allowed
 
     def to_dict(self) -> Dict[str, Any]:
         return {
             "failure_class": self.failure_class.value,
             "summary": self.summary,
             "affected_operation_ids": list(self.affected_operation_ids),
-            "facts": dict(self.facts),
-            "revisable": self.revisable,
+            "evidence": dict(self.evidence),
+            "selector_evidence": [s.to_dict() for s in self.selector_evidence],
+            "measurement_evidence": (
+                self.measurement_evidence.to_dict()
+                if self.measurement_evidence else None
+            ),
+            "backend": self.backend,
+            "retryable": self.retryable,
+            "revision_allowed": self.revision_allowed,
+            # kept so a Stage 59 trace reader still finds what it expects
+            "facts": dict(self.evidence),
+            "revisable": self.revision_allowed,
         }
 
 
@@ -393,6 +515,96 @@ class Reviser(Protocol):
 # --- inspection -------------------------------------------------------------
 
 
+class ComparisonLevel(Enum):
+    """How strongly a built shape was shown to match what was asked for.
+
+    Three levels, and only three, because those are what both backends can
+    honestly supply. Each is strictly stronger than the one above it, and
+    **none of them is geometric equality** -- two different shapes can share
+    a volume, a solid count and a bounding box, and Stage 55's F2/F3 pair is
+    the standing proof: a top-rim and a bottom-rim chamfer agree on every
+    number in this list.
+
+    That is why :data:`SEMANTIC` exists and why selector evidence is scored
+    separately from measurement. Anything beyond this -- surface sampling, a
+    BREP comparison -- would need capability neither backend exposes today,
+    and claiming it without that capability would be the kind of rounding-up
+    this project keeps refusing to do.
+    """
+
+    #: Volume and solid count agree within tolerance.
+    MEASUREMENT = "measurement_match"
+
+    #: The above, plus face and edge counts agree. A cheap topology check:
+    #: it catches a shape that reached the right volume by the wrong route.
+    TOPOLOGY = "topology_match"
+
+    #: The above, plus the selector the plan used names what the request
+    #: describes. The only level that can separate a top rim from a bottom.
+    SEMANTIC = "semantic_match"
+
+
+def selector_evidence_for(
+    build: PlanBuild, payload: Mapping[str, Any],
+) -> Tuple[SelectorEvidence, ...]:
+    """Ask the resolver what each selector in the plan actually named.
+
+    This is measurement, not inference. The resolver is total and typed --
+    it never raises, it returns the indices it chose, and it reports ``R1``
+    for "named nothing" and ``R2`` for "contains a seam" -- so the counts
+    here are facts rather than readings of a kernel's prose.
+
+    A selector that cannot be resolved (no shape to resolve against, a
+    backend without ``describe_edges``) yields evidence with ``None`` counts
+    rather than a guess. Absent evidence is reported as absent.
+    """
+    from . import edge_semantics as semantics
+
+    operations = [
+        (operation.get("id"), edges)
+        for operation in (payload.get("operations") or ())
+        if isinstance(
+            edges := (operation.get("parameters") or {}).get("edges"), dict)
+    ]
+    if not operations:
+        return ()
+
+    facts = None
+    shape = getattr(build, "shape", None) or getattr(
+        getattr(build, "outcome", None), "shape", None)
+    if shape is not None:
+        try:
+            from .cad_backend import resolve_backend
+            facts = resolve_backend().describe_edges(shape)
+        except Exception:
+            facts = None
+
+    evidence: List[SelectorEvidence] = []
+    for operation_id, edges in operations:
+        if facts is None:
+            evidence.append(SelectorEvidence(
+                selector=dict(edges), operation_id=operation_id))
+            continue
+        resolution = semantics.resolve(
+            semantics.SemanticSelector(
+                select=edges.get("select"),
+                axis=edges.get("axis"),
+                position=edges.get("position"),
+            ),
+            facts,
+        )
+        evidence.append(SelectorEvidence(
+            selector=dict(edges),
+            operation_id=operation_id,
+            selected_edge_count=len(resolution.indices),
+            candidate_edge_count=len(resolution.candidates),
+            seam_count=len(resolution.seams),
+            resolution_code=resolution.code,
+            resolution_message=resolution.message or None,
+        ))
+    return tuple(evidence)
+
+
 def inspect_build(build: PlanBuild, payload: Mapping[str, Any]) -> InspectionResult:
     """Read a completed build into the backend-neutral view.
 
@@ -406,11 +618,17 @@ def inspect_build(build: PlanBuild, payload: Mapping[str, Any]) -> InspectionRes
             edges := (operation.get("parameters") or {}).get("edges"), dict
         )
     )
+    import os
+
+    backend = os.environ.get("CAD_BACKEND") or None
+    evidence = selector_evidence_for(build, payload)
     if not build.built:
         return InspectionResult(
             built=False,
             selectors=selectors,
+            selector_evidence=evidence,
             unsupported_types=tuple(build.unsupported_types or ()),
+            backend=backend,
             error_text=str(build.error or getattr(build.outcome, "error", "")
                            or "") or None,
         )
@@ -426,6 +644,8 @@ def inspect_build(build: PlanBuild, payload: Mapping[str, Any]) -> InspectionRes
         render_available=bool(getattr(build.outcome, "render_model", None)),
         executed_by_graph=bool(getattr(build, "executed", False)),
         selectors=selectors,
+        selector_evidence=evidence,
+        backend=backend,
     )
 
 
@@ -463,10 +683,16 @@ def diagnose(
     """
     def out(cls: FailureClass, summary: str, **facts: Any) -> FailureDiagnosis:
         ids = tuple(facts.pop("affected", ()) or ())
+        selector_evidence = tuple(facts.pop("selector_evidence", ()) or ())
+        measurement = facts.pop("measurement_evidence", None)
         return FailureDiagnosis(
             failure_class=cls, summary=summary,
-            affected_operation_ids=ids, facts=facts,
-            revisable=cls in REVISABLE,
+            affected_operation_ids=ids, evidence=facts,
+            selector_evidence=selector_evidence,
+            measurement_evidence=measurement,
+            backend=inspection.backend,
+            retryable=False,
+            revision_allowed=cls in REVISABLE,
         )
 
     if candidate.payload is None:
@@ -486,6 +712,12 @@ def diagnose(
                    problems=[p.to_dict() for p in validation.problems])
 
     if not inspection.built:
+        if inspection.plan_status:
+            return out(FailureClass.NO_PLAN_PRODUCED,
+                       f"the model answered {inspection.plan_status!r} "
+                       "rather than offering a plan; nothing was built "
+                       "and nothing failed",
+                       plan_status=inspection.plan_status)
         if inspection.unsupported_types:
             return out(FailureClass.PLAN_UNSUPPORTED,
                        "the plan is valid but this stage cannot execute "
@@ -497,19 +729,72 @@ def diagnose(
                        "the selected backend has no implementation for a "
                        "required operation",
                        error_text=inspection.error_text)
-        if _E4_CODE in text or any(m in text for m in _E4_MARKERS):
+
+        # --- typed first. The resolver already counted the edges, so E4 is
+        # a fact rather than a reading of the kernel's prose.
+        empty = [s for s in inspection.selector_evidence if s.matched_nothing]
+        if empty:
+            return out(FailureClass.SELECTOR_MATCHED_NOTHING,
+                       "an edge selector matched no edge of its target "
+                       "(E4): "
+                       + "; ".join(
+                           f"{dict(s.selector)} named 0 of "
+                           f"{s.candidate_edge_count} candidate(s)"
+                           for s in empty),
+                       affected=tuple(
+                           s.operation_id for s in empty if s.operation_id),
+                       selector_evidence=tuple(empty),
+                       resolution_codes=[s.resolution_code for s in empty],
+                       error_text=inspection.error_text)
+
+        seamed = [s for s in inspection.selector_evidence
+                  if (s.seam_count or 0) > 0]
+        if seamed:
+            return out(FailureClass.SELECTOR_GEOMETRY_REJECTED,
+                       "the selection contains a parameterisation seam, "
+                       "which no blend can take (E5): the mode names it, so "
+                       "the mode is what must change",
+                       affected=tuple(
+                           s.operation_id for s in seamed if s.operation_id),
+                       selector_evidence=tuple(seamed),
+                       resolution_codes=[s.resolution_code for s in seamed],
+                       error_text=inspection.error_text)
+
+        # --- the backend's own rule code, which is exact where it is emitted
+        if _E4_CODE in text:
+            return out(FailureClass.SELECTOR_MATCHED_NOTHING,
+                       "the backend reported rule E4: the selector matched "
+                       "no edge of its target",
+                       selector_evidence=inspection.selector_evidence,
+                       error_text=inspection.error_text)
+        if _E5_CODE in text:
+            return out(FailureClass.SELECTOR_GEOMETRY_REJECTED,
+                       "the backend reported rule E5: the selector matched "
+                       "edges the kernel then refused -- the selection was "
+                       "right, a parameter was not",
+                       affected=tuple(
+                           s.operation_id for s in inspection.selector_evidence
+                           if s.operation_id),
+                       selector_evidence=inspection.selector_evidence,
+                       error_text=inspection.error_text)
+
+        # --- prose, last and marked as such
+        if any(m in text for m in _E4_MARKERS):
             return out(FailureClass.SELECTOR_MATCHED_NOTHING,
                        "an edge selector matched no edge of its target (E4)",
-                       selectors=[dict(s) for s in inspection.selectors],
+                       selector_evidence=inspection.selector_evidence,
+                       classified_by="error text, not typed evidence",
                        error_text=inspection.error_text)
-        if _E5_CODE in text or any(m in text for m in _E5_MARKERS):
+        if any(m in text for m in _E5_MARKERS):
             return out(FailureClass.SELECTOR_GEOMETRY_REJECTED,
                        "the selector matched edges the kernel then refused "
                        "(E5): the selection was right, a parameter was not",
-                       selectors=[dict(s) for s in inspection.selectors],
+                       selector_evidence=inspection.selector_evidence,
+                       classified_by="error text, not typed evidence",
                        error_text=inspection.error_text)
         return out(FailureClass.EXECUTION_ERROR,
                    "the build failed for a reason this layer cannot classify",
+                   selector_evidence=inspection.selector_evidence,
                    error_text=inspection.error_text)
 
     if (task.expected_solid_count is not None
@@ -521,11 +806,22 @@ def diagnose(
                    expected_solid_count=task.expected_solid_count,
                    solid_count=inspection.solid_count)
 
+    within = None
     if task.expected_volume_mm3 is not None and inspection.volume_mm3 is not None:
         want, got = task.expected_volume_mm3, inspection.volume_mm3
-        if abs(want - got) > task.volume_rtol * max(abs(want), abs(got), 1.0):
+        within = abs(want - got) <= task.volume_rtol * max(
+            abs(want), abs(got), 1.0)
+        if not within:
             return out(FailureClass.MEASUREMENT_MISMATCH,
                        f"volume {got} does not match the expected {want}",
+                       measurement_evidence=MeasurementEvidence(
+                           expected_volume_mm3=want, volume_mm3=got,
+                           volume_within_tolerance=False,
+                           expected_solid_count=task.expected_solid_count,
+                           solid_count=inspection.solid_count,
+                           face_count=inspection.face_count,
+                           edge_count=inspection.edge_count,
+                           comparison_level=None),
                        expected_volume_mm3=want, volume_mm3=got,
                        difference=got - want)
 
@@ -535,17 +831,53 @@ def diagnose(
         if not any(_selector_agrees(want, s) for s in got):
             missing = [k for k, v in want.items()
                        if not any(s.get(k) == v for s in got)]
+            affected = tuple(
+                s.operation_id for s in inspection.selector_evidence
+                if s.operation_id and not _selector_agrees(want, s.selector))
             return out(FailureClass.SEMANTIC_MISMATCH,
                        "the geometry is valid but the selector is not the one "
                        "the task required -- volume cannot see this",
+                       affected=affected,
+                       selector_evidence=inspection.selector_evidence,
                        expected_selector=want, selectors=got,
                        disagreeing_fields=missing)
 
+    level = _comparison_level(task, inspection, within)
     return FailureDiagnosis(
         failure_class=FailureClass.SUCCESS,
-        summary="validated, built, and every stated expectation met",
-        revisable=False,
+        summary=("validated, built, and every stated expectation met "
+                 f"({level.value})"),
+        measurement_evidence=MeasurementEvidence(
+            expected_volume_mm3=task.expected_volume_mm3,
+            volume_mm3=inspection.volume_mm3,
+            volume_within_tolerance=within,
+            expected_solid_count=task.expected_solid_count,
+            solid_count=inspection.solid_count,
+            face_count=inspection.face_count,
+            edge_count=inspection.edge_count,
+            comparison_level=level.value),
+        selector_evidence=inspection.selector_evidence,
+        backend=inspection.backend,
+        revision_allowed=False,
     )
+
+
+def _comparison_level(
+    task: Task, inspection: InspectionResult, volume_ok: Optional[bool],
+) -> ComparisonLevel:
+    """How strongly this result was shown to match -- never overstated.
+
+    Reports the **strongest level the available evidence supports**, and no
+    higher. A task that stated no selector cannot reach ``SEMANTIC``, and a
+    backend that reported no face or edge counts cannot reach ``TOPOLOGY``:
+    in both cases the check was not performed, and a level claimed without
+    its check would be a claim about nothing.
+    """
+    if task.expected_selector and inspection.selector_evidence:
+        return ComparisonLevel.SEMANTIC
+    if inspection.face_count is not None and inspection.edge_count is not None:
+        return ComparisonLevel.TOPOLOGY
+    return ComparisonLevel.MEASUREMENT
 
 
 def _selector_agrees(want: Mapping[str, Any], got: Mapping[str, Any]) -> bool:
@@ -739,9 +1071,19 @@ def _execute(
     if not validation.valid:
         return validation, None, InspectionResult(built=False)
     if candidate.plan.status is not PlanStatus.GENERATED:
+        # The model answered with a question or a refusal rather than a
+        # plan. That is NOT a build failure and must not be reported as
+        # one: nothing was executed, no geometry was attempted, and a
+        # reviser asked to "fix the build" would be answering a question
+        # that was never asked. Stage 60 found this misclassified as
+        # EXECUTION_ERROR when a live model quite reasonably asked for
+        # clarification instead of inventing a selector.
         return validation, None, InspectionResult(
             built=False,
-            error_text=f"the plan's status is {candidate.plan.status.value}")
+            plan_status=candidate.plan.status.value,
+            error_text=(
+                f"the model did not offer a plan: its status is "
+                f"{candidate.plan.status.value}"))
     try:
         build = build_plan(service, candidate.plan)
     except ExecutionUnsupported as error:
@@ -761,6 +1103,10 @@ def _execute(
 
 __all__ = [
     "DEFAULT_MAX_REVISIONS",
+    "ComparisonLevel",
+    "MeasurementEvidence",
+    "SelectorEvidence",
+    "selector_evidence_for",
     "REVISABLE",
     "ExecutionAttempt",
     "FailureClass",

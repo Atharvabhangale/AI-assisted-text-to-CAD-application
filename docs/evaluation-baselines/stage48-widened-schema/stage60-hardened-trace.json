@@ -1,0 +1,517 @@
+[
+  {
+    "task": {
+      "task_id": "task-81c78694",
+      "description": "Create a 100 mm by 60 mm by 10 mm plate, then chamfer the circular edges of the plate by 1 mm.",
+      "expected_volume_mm3": null,
+      "volume_rtol": 1e-06,
+      "expected_solid_count": 1,
+      "expected_selector": {}
+    },
+    "success": false,
+    "failure_class": "no_plan_produced",
+    "attempt_count": 1,
+    "accepted_because": "",
+    "stopped_because": "no_plan_produced is not something a revision can address; no reviser was asked",
+    "attempts": [
+      {
+        "attempt_id": "attempt-d05bd729",
+        "attempt_number": 1,
+        "parent_attempt_id": null,
+        "backend": "cadquery",
+        "candidate": {
+          "candidate_id": "plan-7c186c00",
+          "source": "planner",
+          "parent_candidate_id": null,
+          "payload": {
+            "status": "needs_clarification",
+            "summary": "A plate has no circular edges; a 100\u00d760\u00d710 mm box has straight edges only.",
+            "questions": [
+              "Did you mean to chamfer the straight edges (corners) of the plate?",
+              "Or did you want to drill a hole through the plate first, then chamfer its circular rim?"
+            ],
+            "operations": []
+          },
+          "parsed": true,
+          "parse_error": null
+        },
+        "validation": {
+          "valid": true,
+          "problems": []
+        },
+        "inspection": {
+          "built": false,
+          "solid_count": null,
+          "volume_mm3": null,
+          "bounding_box": {},
+          "face_count": null,
+          "edge_count": null,
+          "triangle_count": null,
+          "render_available": false,
+          "executed_by_graph": false,
+          "selectors": [],
+          "selector_evidence": [],
+          "unsupported_types": [],
+          "backend": null,
+          "plan_status": "needs_clarification",
+          "error_text": "the model did not offer a plan: its status is needs_clarification"
+        },
+        "diagnosis": {
+          "failure_class": "no_plan_produced",
+          "summary": "the model answered 'needs_clarification' rather than offering a plan; nothing was built and nothing failed",
+          "affected_operation_ids": [],
+          "evidence": {
+            "plan_status": "needs_clarification"
+          },
+          "selector_evidence": [],
+          "measurement_evidence": null,
+          "backend": null,
+          "retryable": false,
+          "revision_allowed": false,
+          "facts": {
+            "plan_status": "needs_clarification"
+          },
+          "revisable": false
+        },
+        "revision_request": null,
+        "succeeded": false,
+        "elapsed_seconds": 0.0
+      }
+    ]
+  },
+  {
+    "task": {
+      "task_id": "task-a49ba59e",
+      "description": "Create a 100 mm by 60 mm by 10 mm plate with a 20 mm diameter hole through the centre, then fillet the rim of the hole with a 25 mm radius.",
+      "expected_volume_mm3": null,
+      "volume_rtol": 1e-06,
+      "expected_solid_count": 1,
+      "expected_selector": {}
+    },
+    "success": true,
+    "failure_class": "success",
+    "attempt_count": 2,
+    "accepted_because": "validated, built, and every stated expectation met (measurement_match)",
+    "stopped_because": "accepted on attempt 2",
+    "attempts": [
+      {
+        "attempt_id": "attempt-66773912",
+        "attempt_number": 1,
+        "parent_attempt_id": null,
+        "backend": "cadquery",
+        "candidate": {
+          "candidate_id": "plan-0835f4d4",
+          "source": "planner",
+          "parent_candidate_id": null,
+          "payload": {
+            "status": "generated",
+            "summary": "A 100\u00d760\u00d710 mm plate with a 20 mm diameter hole through the centre and a 25 mm radius fillet on the hole rim.",
+            "operations": [
+              {
+                "id": "plate",
+                "type": "box",
+                "parameters": {
+                  "x": 100,
+                  "y": 60,
+                  "z": 10
+                }
+              },
+              {
+                "id": "hole",
+                "type": "through_hole",
+                "target": "plate",
+                "parameters": {
+                  "diameter": 20,
+                  "position": {
+                    "x": 50,
+                    "y": 30,
+                    "z": 0
+                  }
+                }
+              },
+              {
+                "id": "rim_fillet",
+                "type": "fillet",
+                "target": "plate",
+                "parameters": {
+                  "radius": 25,
+                  "edges": {
+                    "select": "circular",
+                    "position": "top",
+                    "axis": "Z"
+                  }
+                }
+              }
+            ]
+          },
+          "parsed": true,
+          "parse_error": null
+        },
+        "validation": {
+          "valid": true,
+          "problems": []
+        },
+        "inspection": {
+          "built": false,
+          "solid_count": null,
+          "volume_mm3": null,
+          "bounding_box": {},
+          "face_count": null,
+          "edge_count": null,
+          "triangle_count": null,
+          "render_available": false,
+          "executed_by_graph": false,
+          "selectors": [
+            {
+              "select": "circular",
+              "position": "top",
+              "axis": "Z"
+            }
+          ],
+          "selector_evidence": [
+            {
+              "selector": {
+                "select": "circular",
+                "position": "top",
+                "axis": "Z"
+              },
+              "operation_id": "rim_fillet",
+              "selected_edge_count": null,
+              "candidate_edge_count": null,
+              "seam_count": null,
+              "resolution_code": null,
+              "resolution_message": null
+            }
+          ],
+          "unsupported_types": [],
+          "backend": "cadquery",
+          "plan_status": null,
+          "error_text": "[backend] the kernel refused the fillet (rule E5): BRep_API: command not done"
+        },
+        "diagnosis": {
+          "failure_class": "selector_geometry_rejected",
+          "summary": "the backend reported rule E5: the selector matched edges the kernel then refused -- the selection was right, a parameter was not",
+          "affected_operation_ids": [
+            "rim_fillet"
+          ],
+          "evidence": {
+            "error_text": "[backend] the kernel refused the fillet (rule E5): BRep_API: command not done"
+          },
+          "selector_evidence": [
+            {
+              "selector": {
+                "select": "circular",
+                "position": "top",
+                "axis": "Z"
+              },
+              "operation_id": "rim_fillet",
+              "selected_edge_count": null,
+              "candidate_edge_count": null,
+              "seam_count": null,
+              "resolution_code": null,
+              "resolution_message": null
+            }
+          ],
+          "measurement_evidence": null,
+          "backend": "cadquery",
+          "retryable": false,
+          "revision_allowed": true,
+          "facts": {
+            "error_text": "[backend] the kernel refused the fillet (rule E5): BRep_API: command not done"
+          },
+          "revisable": true
+        },
+        "revision_request": {
+          "failed_candidate_id": "plan-0835f4d4",
+          "failure_class": "selector_geometry_rejected",
+          "diagnostic_facts": {
+            "error_text": "[backend] the kernel refused the fillet (rule E5): BRep_API: command not done"
+          },
+          "affected_operation_ids": [
+            "rim_fillet"
+          ],
+          "requested_change": "keep the selector and change the parameter the kernel refused",
+          "preserved_constraints": [
+            "every operation the diagnosis does not name",
+            "the units, dimensions and ids already agreed",
+            "the selector mode, which was correct"
+          ]
+        },
+        "succeeded": false,
+        "elapsed_seconds": 0.032
+      },
+      {
+        "attempt_id": "attempt-1580f32a",
+        "attempt_number": 2,
+        "parent_attempt_id": "attempt-66773912",
+        "backend": "cadquery",
+        "candidate": {
+          "candidate_id": "plan-069dad05",
+          "source": "reviser",
+          "parent_candidate_id": "plan-0835f4d4",
+          "payload": {
+            "status": "generated",
+            "summary": "100 x 60 x 10 mm plate with 20 mm diameter hole through centre, fillet radius reduced to 2 mm on hole rim.",
+            "operations": [
+              {
+                "id": "plate",
+                "type": "box",
+                "parameters": {
+                  "x": 100,
+                  "y": 60,
+                  "z": 10
+                }
+              },
+              {
+                "id": "hole",
+                "type": "through_hole",
+                "target": "plate",
+                "parameters": {
+                  "diameter": 20,
+                  "position": {
+                    "x": 50,
+                    "y": 30,
+                    "z": 0
+                  }
+                }
+              },
+              {
+                "id": "rim_fillet",
+                "type": "fillet",
+                "target": "plate",
+                "parameters": {
+                  "radius": 2,
+                  "edges": {
+                    "select": "circular",
+                    "position": "top",
+                    "axis": "Z"
+                  }
+                }
+              }
+            ]
+          },
+          "parsed": true,
+          "parse_error": null
+        },
+        "validation": {
+          "valid": true,
+          "problems": []
+        },
+        "inspection": {
+          "built": true,
+          "solid_count": 1,
+          "volume_mm3": 56802.062537701306,
+          "bounding_box": {
+            "x": 100.0,
+            "y": 60.0,
+            "z": 10.0
+          },
+          "face_count": null,
+          "edge_count": null,
+          "triangle_count": null,
+          "render_available": false,
+          "executed_by_graph": true,
+          "selectors": [
+            {
+              "select": "circular",
+              "position": "top",
+              "axis": "Z"
+            }
+          ],
+          "selector_evidence": [
+            {
+              "selector": {
+                "select": "circular",
+                "position": "top",
+                "axis": "Z"
+              },
+              "operation_id": "rim_fillet",
+              "selected_edge_count": null,
+              "candidate_edge_count": null,
+              "seam_count": null,
+              "resolution_code": null,
+              "resolution_message": null
+            }
+          ],
+          "unsupported_types": [],
+          "backend": "cadquery",
+          "plan_status": null,
+          "error_text": null
+        },
+        "diagnosis": {
+          "failure_class": "success",
+          "summary": "validated, built, and every stated expectation met (measurement_match)",
+          "affected_operation_ids": [],
+          "evidence": {},
+          "selector_evidence": [
+            {
+              "selector": {
+                "select": "circular",
+                "position": "top",
+                "axis": "Z"
+              },
+              "operation_id": "rim_fillet",
+              "selected_edge_count": null,
+              "candidate_edge_count": null,
+              "seam_count": null,
+              "resolution_code": null,
+              "resolution_message": null
+            }
+          ],
+          "measurement_evidence": {
+            "expected_volume_mm3": null,
+            "volume_mm3": 56802.062537701306,
+            "volume_within_tolerance": null,
+            "expected_solid_count": 1,
+            "solid_count": 1,
+            "face_count": null,
+            "edge_count": null,
+            "comparison_level": "measurement_match"
+          },
+          "backend": "cadquery",
+          "retryable": false,
+          "revision_allowed": false,
+          "facts": {},
+          "revisable": false
+        },
+        "revision_request": null,
+        "succeeded": true,
+        "elapsed_seconds": 0.063
+      }
+    ]
+  },
+  {
+    "task": {
+      "task_id": "task-025f2915",
+      "description": "Create a 100 mm by 60 mm by 10 mm plate. Then chamfer the edges of the bracket by 2 mm.",
+      "expected_volume_mm3": null,
+      "volume_rtol": 1e-06,
+      "expected_solid_count": 1,
+      "expected_selector": {}
+    },
+    "success": true,
+    "failure_class": "success",
+    "attempt_count": 1,
+    "accepted_because": "validated, built, and every stated expectation met (measurement_match)",
+    "stopped_because": "accepted on attempt 1",
+    "attempts": [
+      {
+        "attempt_id": "attempt-3d5c4a8b",
+        "attempt_number": 1,
+        "parent_attempt_id": null,
+        "backend": "cadquery",
+        "candidate": {
+          "candidate_id": "plan-3c4b5a6a",
+          "source": "planner",
+          "parent_candidate_id": null,
+          "payload": {
+            "status": "generated",
+            "summary": "A 100 mm by 60 mm by 10 mm plate with all edges chamfered by 2 mm.",
+            "operations": [
+              {
+                "id": "plate",
+                "type": "box",
+                "parameters": {
+                  "x": 100,
+                  "y": 60,
+                  "z": 10
+                }
+              },
+              {
+                "id": "chamfer_edges",
+                "type": "chamfer",
+                "target": "plate",
+                "parameters": {
+                  "edges": {
+                    "select": "all"
+                  },
+                  "distance": 2
+                }
+              }
+            ]
+          },
+          "parsed": true,
+          "parse_error": null
+        },
+        "validation": {
+          "valid": true,
+          "problems": []
+        },
+        "inspection": {
+          "built": true,
+          "solid_count": 1,
+          "volume_mm3": 58682.666666666664,
+          "bounding_box": {
+            "x": 100.0,
+            "y": 60.00000000000001,
+            "z": 10.00000000000001
+          },
+          "face_count": null,
+          "edge_count": null,
+          "triangle_count": 44,
+          "render_available": true,
+          "executed_by_graph": false,
+          "selectors": [
+            {
+              "select": "all"
+            }
+          ],
+          "selector_evidence": [
+            {
+              "selector": {
+                "select": "all"
+              },
+              "operation_id": "chamfer_edges",
+              "selected_edge_count": null,
+              "candidate_edge_count": null,
+              "seam_count": null,
+              "resolution_code": null,
+              "resolution_message": null
+            }
+          ],
+          "unsupported_types": [],
+          "backend": "cadquery",
+          "plan_status": null,
+          "error_text": null
+        },
+        "diagnosis": {
+          "failure_class": "success",
+          "summary": "validated, built, and every stated expectation met (measurement_match)",
+          "affected_operation_ids": [],
+          "evidence": {},
+          "selector_evidence": [
+            {
+              "selector": {
+                "select": "all"
+              },
+              "operation_id": "chamfer_edges",
+              "selected_edge_count": null,
+              "candidate_edge_count": null,
+              "seam_count": null,
+              "resolution_code": null,
+              "resolution_message": null
+            }
+          ],
+          "measurement_evidence": {
+            "expected_volume_mm3": null,
+            "volume_mm3": 58682.666666666664,
+            "volume_within_tolerance": null,
+            "expected_solid_count": 1,
+            "solid_count": 1,
+            "face_count": null,
+            "edge_count": null,
+            "comparison_level": "measurement_match"
+          },
+          "backend": "cadquery",
+          "retryable": false,
+          "revision_allowed": false,
+          "facts": {},
+          "revisable": false
+        },
+        "revision_request": null,
+        "succeeded": true,
+        "elapsed_seconds": 6.953
+      }
+    ]
+  }
+]
