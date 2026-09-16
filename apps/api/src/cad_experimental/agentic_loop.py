@@ -558,8 +558,6 @@ def selector_evidence_for(
     backend without ``describe_edges``) yields evidence with ``None`` counts
     rather than a guess. Absent evidence is reported as absent.
     """
-    from . import edge_semantics as semantics
-
     operations = [
         (operation.get("id"), edges)
         for operation in (payload.get("operations") or ())
@@ -569,30 +567,32 @@ def selector_evidence_for(
     if not operations:
         return ()
 
-    facts = None
-    shape = getattr(build, "shape", None) or getattr(
-        getattr(build, "outcome", None), "shape", None)
-    if shape is not None:
-        try:
-            from .cad_backend import resolve_backend
-            facts = resolve_backend().describe_edges(shape)
-        except Exception:
-            facts = None
+    # The executor already did this work and kept it. `_blend` resolves every
+    # selector it applies and records the Resolution under the operation's own
+    # id, and ExecutionResult carries that mapping on the failure path as well
+    # as the success path -- its own comment calls it "the diagnostic an agent
+    # needs to see why an edge operation did what it did".
+    #
+    # Reading it rather than re-resolving matters for three reasons. It is the
+    # resolution that was actually *used*, not one recomputed afterwards from
+    # a possibly different shape. It survives a failed build, where there is
+    # no final shape to describe edges from -- which is precisely when a
+    # diagnosis is needed. And it does not require ``describe_edges``, which
+    # FreeCadBackend does not implement, so the evidence is available wherever
+    # the executor ran rather than on one engine.
+    resolutions = dict(
+        getattr(getattr(build, "execution", None), "selections", None) or {})
 
     evidence: List[SelectorEvidence] = []
     for operation_id, edges in operations:
-        if facts is None:
+        resolution = resolutions.get(operation_id)
+        if resolution is None:
+            # The executor never reached this operation -- an earlier one
+            # failed, or this build did not go through the graph path.
+            # Absent evidence is reported as absent rather than invented.
             evidence.append(SelectorEvidence(
                 selector=dict(edges), operation_id=operation_id))
             continue
-        resolution = semantics.resolve(
-            semantics.SemanticSelector(
-                select=edges.get("select"),
-                axis=edges.get("axis"),
-                position=edges.get("position"),
-            ),
-            facts,
-        )
         evidence.append(SelectorEvidence(
             selector=dict(edges),
             operation_id=operation_id,

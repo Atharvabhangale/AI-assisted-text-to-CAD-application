@@ -3421,12 +3421,55 @@ rather than emitting an impossible selector, so no live answer ever carried
 one. E4 is proven deterministically, including classification with
 `error_text=None`.
 
+### Correction: the evidence was already there
+
+A parallel read of the codebase found that this stage had **rebuilt
+something the executor already does**. `executor._blend` resolves every
+selector it applies and records the `Resolution` under the operation's own
+id; `ExecutionResult.selections` carries that mapping, and its own comment
+calls it *"the diagnostic an agent needs to see why an edge operation did
+what it did"*. Crucially `failed()` returns it too, so it survives a build
+that did not finish.
+
+The first implementation here re-derived it by calling `describe_edges` on
+the final shape. That was worse in three ways, all now fixed by reading
+`build.execution.selections` instead:
+
+- it needed a **final shape**, so it produced nothing on a failed build —
+  exactly when a diagnosis is needed;
+- it was **CadQuery-only**, because `FreeCadBackend` does not implement
+  `describe_edges`;
+- it reported a resolution recomputed afterwards rather than **the one
+  actually used** to cut the part.
+
+The loop now imports **no backend module at all** — not `cad_backend`, not
+`edge_semantics` — and the architecture test was tightened from
+"`resolve_backend` is the one seam" to "no backend module is imported",
+which is the stronger claim the code now supports.
+
+Measured on the failed E5 attempt of the live checkpoint, evidence present
+on a build that did not finish:
+
+```json
+{"operation_id": "rim_fillet",
+ "selector": {"select": "circular", "position": "top", "axis": "Z"},
+ "selected_edge_count": 1, "candidate_edge_count": 2, "seam_count": 0}
+```
+
+One of two candidate rims named — so the *selector was right and the radius
+was not*, which is E5 as data rather than as an inference from a sentence.
+
 ### Limits
 
-- **E4 has no live proof.** Deterministic only.
-- Selector evidence needs a shape to resolve against, so a build that fails
-  *before* producing one yields evidence with `None` counts — the typed path
-  covers a bad selector on a built solid, not every failure.
-- `TOPOLOGY` depends on face/edge counts that `_measure` does not currently
-  return, so most runs report `MEASUREMENT` or `SEMANTIC`.
-- Prose matching still exists as a last resort, and says so when used.
+- **E4 has no live proof.** Deterministic only: the model asked a question
+  rather than emitting an impossible selector, so no live answer carried one.
+- **E5 beyond the seam case is still not typed.** `R2` covers a seam, but a
+  kernel refusal on radius surfaces only as `BackendOperationError` prose
+  carrying `rule E5` — exact where a backend emits that code, with no typed
+  field behind it.
+- Evidence is absent for an operation the executor never reached, and is
+  reported absent rather than invented.
+- `TOPOLOGY` depends on face/edge counts `_measure` does not return, so runs
+  report `MEASUREMENT` or `SEMANTIC`.
+- Prose matching survives as a last resort and records `classified_by` when
+  it is what decided.

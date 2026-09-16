@@ -283,12 +283,35 @@ class BackendIndependenceTests(unittest.TestCase):
         self.assertNotIn("cadquery_backend", joined)
         self.assertNotIn("freecad_backend", joined)
 
-    def test_the_only_backend_module_used_is_the_abstraction(self) -> None:
-        """resolve_backend is the one seam, and it never falls back."""
-        source = self.source()
-        self.assertIn("resolve_backend", source)
-        from cad_experimental.cad_backend import resolve_backend
+    def test_the_loop_touches_no_backend_module_at_all(self) -> None:
+        """Stronger than it was: the loop needs no backend seam whatsoever.
+
+        Selector evidence is read from the ExecutionResult the executor
+        already produced, so this module no longer calls a backend even
+        indirectly. It was previously reaching for ``resolve_backend`` to
+        re-describe edges; that is gone, and with it the dependency on
+        ``describe_edges`` -- which FreeCadBackend does not implement.
+        """
+        import ast
+
+        tree = ast.parse(self.source())
+        modules = []
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom):
+                modules.append(node.module or "")
+            elif isinstance(node, ast.Import):
+                modules += [alias.name for alias in node.names]
+        for forbidden in ("cad_backend", "cadquery_backend",
+                          "freecad_backend", "edge_semantics"):
+            self.assertFalse(
+                any(forbidden in module for module in modules), forbidden)
+
+    def test_resolve_backend_itself_still_never_falls_back(self) -> None:
+        """The project-wide rule, asserted where it lives."""
         import inspect
+
+        from cad_experimental.cad_backend import resolve_backend
+
         self.assertNotIn("except", inspect.getsource(resolve_backend))
 
     def test_diagnosis_consumes_only_neutral_types(self) -> None:

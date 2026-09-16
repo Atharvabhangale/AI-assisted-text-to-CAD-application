@@ -1,7 +1,7 @@
 [
   {
     "task": {
-      "task_id": "task-81c78694",
+      "task_id": "task-a4672fa0",
       "description": "Create a 100 mm by 60 mm by 10 mm plate, then chamfer the circular edges of the plate by 1 mm.",
       "expected_volume_mm3": null,
       "volume_rtol": 1e-06,
@@ -15,20 +15,21 @@
     "stopped_because": "no_plan_produced is not something a revision can address; no reviser was asked",
     "attempts": [
       {
-        "attempt_id": "attempt-d05bd729",
+        "attempt_id": "attempt-b401b7f0",
         "attempt_number": 1,
         "parent_attempt_id": null,
         "backend": "cadquery",
         "candidate": {
-          "candidate_id": "plan-7c186c00",
+          "candidate_id": "plan-176d53a7",
           "source": "planner",
           "parent_candidate_id": null,
           "payload": {
             "status": "needs_clarification",
-            "summary": "A plate has no circular edges; a 100\u00d760\u00d710 mm box has straight edges only.",
+            "summary": "The description asks to chamfer circular edges of a rectangular plate, but a box has only straight edges.",
             "questions": [
-              "Did you mean to chamfer the straight edges (corners) of the plate?",
-              "Or did you want to drill a hole through the plate first, then chamfer its circular rim?"
+              "Do you mean the edges around the perimeter of the plate (the straight edges parallel to the Z axis)? Or do you intend the plate to have circular features such as holes that need chamfering?",
+              " The plate as described is a simple rectangular box with four straight vertical edges and no circular edges. Please clarify what circular edges you want chamfered.",
+              " If you meant to chamfer the outer corners where the top surface meets the sides, those are straight edges running along the X and Y axes, not circular edges."
             ],
             "operations": []
           },
@@ -81,7 +82,7 @@
   },
   {
     "task": {
-      "task_id": "task-a49ba59e",
+      "task_id": "task-16f0fb50",
       "description": "Create a 100 mm by 60 mm by 10 mm plate with a 20 mm diameter hole through the centre, then fillet the rim of the hole with a 25 mm radius.",
       "expected_volume_mm3": null,
       "volume_rtol": 1e-06,
@@ -95,17 +96,17 @@
     "stopped_because": "accepted on attempt 2",
     "attempts": [
       {
-        "attempt_id": "attempt-66773912",
+        "attempt_id": "attempt-c79be48e",
         "attempt_number": 1,
         "parent_attempt_id": null,
         "backend": "cadquery",
         "candidate": {
-          "candidate_id": "plan-0835f4d4",
+          "candidate_id": "plan-20a8ac18",
           "source": "planner",
           "parent_candidate_id": null,
           "payload": {
             "status": "generated",
-            "summary": "A 100\u00d760\u00d710 mm plate with a 20 mm diameter hole through the centre and a 25 mm radius fillet on the hole rim.",
+            "summary": "100 x 60 x 10 mm plate with a 20 mm diameter through-hole at the centre and a 25 mm fillet on the hole's rim.",
             "operations": [
               {
                 "id": "plate",
@@ -176,9 +177,9 @@
                 "axis": "Z"
               },
               "operation_id": "rim_fillet",
-              "selected_edge_count": null,
-              "candidate_edge_count": null,
-              "seam_count": null,
+              "selected_edge_count": 1,
+              "candidate_edge_count": 2,
+              "seam_count": 0,
               "resolution_code": null,
               "resolution_message": null
             }
@@ -205,9 +206,9 @@
                 "axis": "Z"
               },
               "operation_id": "rim_fillet",
-              "selected_edge_count": null,
-              "candidate_edge_count": null,
-              "seam_count": null,
+              "selected_edge_count": 1,
+              "candidate_edge_count": 2,
+              "seam_count": 0,
               "resolution_code": null,
               "resolution_message": null
             }
@@ -222,7 +223,7 @@
           "revisable": true
         },
         "revision_request": {
-          "failed_candidate_id": "plan-0835f4d4",
+          "failed_candidate_id": "plan-20a8ac18",
           "failure_class": "selector_geometry_rejected",
           "diagnostic_facts": {
             "error_text": "[backend] the kernel refused the fillet (rule E5): BRep_API: command not done"
@@ -238,20 +239,20 @@
           ]
         },
         "succeeded": false,
-        "elapsed_seconds": 0.032
+        "elapsed_seconds": 0.031
       },
       {
-        "attempt_id": "attempt-1580f32a",
+        "attempt_id": "attempt-c8962589",
         "attempt_number": 2,
-        "parent_attempt_id": "attempt-66773912",
+        "parent_attempt_id": "attempt-c79be48e",
         "backend": "cadquery",
         "candidate": {
-          "candidate_id": "plan-069dad05",
+          "candidate_id": "plan-d094c529",
           "source": "reviser",
-          "parent_candidate_id": "plan-0835f4d4",
+          "parent_candidate_id": "plan-20a8ac18",
           "payload": {
             "status": "generated",
-            "summary": "100 x 60 x 10 mm plate with 20 mm diameter hole through centre, fillet radius reduced to 2 mm on hole rim.",
+            "summary": "100x60x10 mm plate with 20 mm diameter through-hole, filleted with reduced radius.",
             "operations": [
               {
                 "id": "plate",
@@ -326,9 +327,9 @@
                 "axis": "Z"
               },
               "operation_id": "rim_fillet",
-              "selected_edge_count": null,
-              "candidate_edge_count": null,
-              "seam_count": null,
+              "selected_edge_count": 1,
+              "candidate_edge_count": 2,
+              "seam_count": 0,
               "resolution_code": null,
               "resolution_message": null
             }
@@ -351,9 +352,9 @@
                 "axis": "Z"
               },
               "operation_id": "rim_fillet",
-              "selected_edge_count": null,
-              "candidate_edge_count": null,
-              "seam_count": null,
+              "selected_edge_count": 1,
+              "candidate_edge_count": 2,
+              "seam_count": 0,
               "resolution_code": null,
               "resolution_message": null
             }
@@ -376,13 +377,13 @@
         },
         "revision_request": null,
         "succeeded": true,
-        "elapsed_seconds": 0.063
+        "elapsed_seconds": 0.078
       }
     ]
   },
   {
     "task": {
-      "task_id": "task-025f2915",
+      "task_id": "task-dba2b534",
       "description": "Create a 100 mm by 60 mm by 10 mm plate. Then chamfer the edges of the bracket by 2 mm.",
       "expected_volume_mm3": null,
       "volume_rtol": 1e-06,
@@ -396,17 +397,17 @@
     "stopped_because": "accepted on attempt 1",
     "attempts": [
       {
-        "attempt_id": "attempt-3d5c4a8b",
+        "attempt_id": "attempt-56f2d9b7",
         "attempt_number": 1,
         "parent_attempt_id": null,
         "backend": "cadquery",
         "candidate": {
-          "candidate_id": "plan-3c4b5a6a",
+          "candidate_id": "plan-185b3e1c",
           "source": "planner",
           "parent_candidate_id": null,
           "payload": {
             "status": "generated",
-            "summary": "A 100 mm by 60 mm by 10 mm plate with all edges chamfered by 2 mm.",
+            "summary": "A 100 \u00d7 60 \u00d7 10 mm plate with 2 mm chamfers on all edges.",
             "operations": [
               {
                 "id": "plate",
@@ -510,7 +511,7 @@
         },
         "revision_request": null,
         "succeeded": true,
-        "elapsed_seconds": 6.953
+        "elapsed_seconds": 6.547
       }
     ]
   }
