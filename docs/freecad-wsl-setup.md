@@ -419,3 +419,118 @@ still silently drops a seam handed to `makeFillet`, which never reaches a
 caller because the shared resolver refuses such a selection first.
 
 **CadQuery remains the default and there is no automatic fallback anywhere.**
+
+---
+
+# Running the experimental frontend against FreeCAD: the two-terminal workflow
+
+Developer convenience only. Nothing here adds CAD behaviour, and nothing
+here is FreeCAD-specific outside the launcher itself.
+
+## What is and is not backend-specific
+
+**FreeCAD is the selected execution backend.** `scripts/freecad_api.sh` sets
+`CAD_BACKEND=freecad` and the ordinary resolution applies:
+`resolve_backend()` returns the FreeCAD backend, contains no `except`, and
+never substitutes another engine. If FreeCAD cannot be imported the
+application says so and builds nothing.
+
+**The frontend stays backend-agnostic.** It was not changed for this and
+knows nothing about FreeCAD. It talks to `/api` on port 8001, consumes the
+one neutral `RenderModel`, and displays the `backend` field the API reports
+rather than deciding anything from it. Point the same page at a CadQuery
+deployment and it behaves identically -- which is the property worth
+keeping, and the reason the launcher lives in `scripts/` rather than in
+`apps/web-experimental/`.
+
+## Terminal 1 -- the FreeCAD-backed API (WSL2)
+
+```sh
+cd /mnt/c/path/to/repo
+bash scripts/freecad_api.sh
+```
+
+From a Windows terminal instead:
+
+```powershell
+wsl.exe -e bash -c "cd /mnt/c/path/to/repo && bash scripts/freecad_api.sh"
+```
+
+The script derives the repository root from its own location, so there is no
+absolute path and no user name written down anywhere. Everything it needs is
+overridable:
+
+| variable | default |
+|---|---|
+| `CAD_FREECAD_HOME` | `~/freecad/squashfs-root` |
+| `CAD_FREECAD_PYTHON` | `$CAD_FREECAD_HOME/usr/bin/python` |
+| `CAD_REPO` | derived from the script's location |
+| `CAD_EXPERIMENTAL_PORT` | `8001` |
+| `CAD_EXPERIMENTAL_HOST` | `0.0.0.0`, so Windows can reach the WSL2 server |
+| `CAD_EXPERIMENTAL_CACHE_ROOT` | under `$TMPDIR` |
+
+`CAD_FREECAD_PYTHON` usually needs setting. The API needs `fastapi`,
+`uvicorn` and the Anthropic SDK, and -- until the AI layer's import chain is
+decoupled -- CadQuery importable as well, none of which the bundled FreeCAD
+interpreter has. A venv created *from* that interpreter satisfies both:
+
+```sh
+~/freecad/squashfs-root/usr/bin/python -m venv ~/fcvenv
+~/fcvenv/bin/python -m pip install fastapi uvicorn anthropic cadquery
+export CAD_FREECAD_PYTHON=~/fcvenv/bin/python
+```
+
+CadQuery being installed there is an **import** requirement, not an
+execution one. FreeCAD is still what builds the geometry; the next section
+is how to see that for yourself.
+
+The launcher bridges `ANTHROPIC_API_KEY` from `apps/api/.env` if the
+variable is not already set. The application itself never reads that file --
+the caller is expected to export the value, and the launcher is that caller.
+The key is read into the environment and never printed; the banner reports
+only `present` or `absent`.
+
+## Terminal 2 -- the experimental web frontend (Windows)
+
+```powershell
+cd apps\web-experimental
+npm install      # first time only
+npm run dev
+```
+
+Vite serves the page on **5174** and proxies `/api` to `127.0.0.1:8001`,
+unchanged. WSL2 forwards localhost, so a server bound to `0.0.0.0` inside
+WSL2 is reachable from the Windows-side browser with no extra configuration.
+
+## Browser -- confirming FreeCAD, not CadQuery, executed the build
+
+Three independent places say it, and none of them require trusting the
+others:
+
+1. **Ask the API directly.** `http://localhost:5174/api/experimental/health`
+   in the browser (or `curl http://127.0.0.1:8001/experimental/health`):
+
+   ```json
+   "backend": {"name": "freecad", "available": true, "version": "1.0.0"}
+   ```
+
+   That is read from the resolver, so it reports the engine that *would*
+   run, not the environment string that was requested.
+
+2. **Build something and read the panel.** Generate or paste a plan and
+   press Build. The measurements panel shows `backend  freecad` and
+   `path  graph executor · freecad`. Under `CAD_BACKEND=freecad` every
+   executable plan takes the graph path, because the V1 document path *is*
+   the CadQuery engine -- so seeing `v1_document` there would itself be the
+   signal that something was wrong.
+
+3. **Check the build response.** Every `POST /experimental/build-plan`
+   answer carries `backend` and `execution_path` at the top level, on both
+   paths. Nothing has to be inferred from which fields are present.
+
+A cross-check that does not rely on any label: build the 100 x 60 x 10 mm
+plate with a centred d20 bore and a 1 mm chamfer on the top rim. Both
+engines give `56825.944222323116` mm3 with 8 faces and 17 edges -- they sit
+on the same kernel -- but the **mesh** differs, because the tessellators
+differ. FreeCAD draws it with 1850 triangles and CadQuery with 898. The mesh
+note under the viewport reports the count.

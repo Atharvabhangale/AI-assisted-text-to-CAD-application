@@ -24,6 +24,7 @@ BOX = "box"
 CYLINDER = "cylinder"
 THROUGH_HOLE = "through_hole"
 SUBTRACT = "subtract"
+UNION = "union"
 FILLET = "fillet"
 CHAMFER = "chamfer"
 SKETCH = "sketch"
@@ -31,7 +32,7 @@ EXTRUDE = "extrude"
 REVOLVE = "revolve"
 PATTERN = "pattern"
 OPERATION_TYPES: Tuple[str, ...] = (
-    BOX, CYLINDER, THROUGH_HOLE, SUBTRACT, FILLET, CHAMFER, SKETCH,
+    BOX, CYLINDER, THROUGH_HOLE, SUBTRACT, UNION, FILLET, CHAMFER, SKETCH,
     EXTRUDE, REVOLVE, PATTERN,
 )
 
@@ -62,6 +63,10 @@ V1_FEATURE_TYPES: Tuple[str, ...] = (
     BOX, CYLINDER, THROUGH_HOLE, SUBTRACT, FILLET, CHAMFER,
 )
 
+#: `union` is executable but is NOT a V1 feature: the V1 document has no
+#: join, so a plan containing one has no document form and runs on the graph
+#: executor. Kept out of `V1_FEATURE_TYPES` for exactly that reason.
+
 #: Operations the adapter can translate at all. The rest are represented and
 #: validated here and then refused with an explicit unsupported result --
 #: never approximated. See `cad_experimental.sketch` for why.
@@ -70,7 +75,20 @@ V1_FEATURE_TYPES: Tuple[str, ...] = (
 #: feature and has no id of its own in the document: it EXPANDS into one
 #: feature per instance. "Executable" is a question about the adapter, not
 #: about how many features come out the other side.
-EXECUTABLE_TYPES: Tuple[str, ...] = V1_FEATURE_TYPES + (PATTERN,)
+EXECUTABLE_TYPES: Tuple[str, ...] = V1_FEATURE_TYPES + (PATTERN, UNION)
+
+#: Executable operations a V1 document can carry. ``pattern`` is here because
+#: it EXPANDS into one V1 feature per instance, so the document never sees the
+#: pattern itself; ``union`` is absent because V1 has no join to expand into.
+V1_EXPRESSIBLE_TYPES: Tuple[str, ...] = V1_FEATURE_TYPES + (PATTERN,)
+
+#: Executable operations with no document form at all, so a plan carrying one
+#: must take the graph executor. Derived rather than listed, so an operation
+#: added to :data:`EXECUTABLE_TYPES` and not to :data:`V1_EXPRESSIBLE_TYPES`
+#: is routed correctly without a second edit anyone could forget.
+EXECUTOR_ONLY_TYPES: Tuple[str, ...] = tuple(
+    kind for kind in EXECUTABLE_TYPES if kind not in V1_EXPRESSIBLE_TYPES
+)
 
 #: Operations a ``pattern`` may repeat.
 #:
@@ -130,14 +148,14 @@ SOLID_DECLARING_TYPES: Tuple[str, ...] = (
 #: **target's** id -- the modifier's own id never names a solid. So four
 #: holes in a plate all target the plate, and never each other.
 MODIFIER_TYPES: Tuple[str, ...] = (
-    THROUGH_HOLE, SUBTRACT, FILLET, CHAMFER,
+    THROUGH_HOLE, SUBTRACT, UNION, FILLET, CHAMFER,
 )
 
 #: Modifiers that additionally **consume** solids: each id in ``tools`` is
 #: removed from the solid set and can never be referenced again (Section
 #: C.4). Only ``subtract`` does this, and it is the whole reason this stage
 #: exists -- it is the first operation with history.
-CONSUMING_TYPES: Tuple[str, ...] = (SUBTRACT,)
+CONSUMING_TYPES: Tuple[str, ...] = (SUBTRACT, UNION)
 
 #: Operations that repeat an earlier **feature**. Their own category, and
 #: not a modifier: a modifier names the body it changes, and a pattern names
@@ -295,6 +313,9 @@ PARAMETERS: Dict[str, Tuple[Tuple[str, ...], Tuple[str, ...]]] = {
     # references. It therefore carries no `parameters` key, exactly as the
     # V1 feature carries no parameter fields -- see OPERATION_FIELDS.
     SUBTRACT: ((), ()),
+    # `union` is subtract's mirror and carries no parameters either: which
+    # solids are joined is the whole of it.
+    UNION: ((), ()),
     FILLET: (FILLET_REQUIRED, FILLET_OPTIONAL),
     CHAMFER: (CHAMFER_REQUIRED, CHAMFER_OPTIONAL),
     SKETCH: (SKETCH_REQUIRED, SKETCH_OPTIONAL),
@@ -320,6 +341,8 @@ OPERATION_FIELDS: Dict[str, Tuple[str, ...]] = {
     # even an empty one -- is an unknown field, so there is exactly one
     # shape for a subtract rather than two.
     SUBTRACT: ("id", "type", "target", "tools"),
+    # The same shape, for the same reason.
+    UNION: ("id", "type", "target", "tools"),
     FILLET: ("id", "type", "target", "parameters"),
     CHAMFER: ("id", "type", "target", "parameters"),
     SKETCH: ("id", "type", "parameters"),
@@ -805,6 +828,41 @@ class SubtractOperation:
 
     def parameters(self) -> Dict[str, Any]:
         """No parameters. A subtract is entirely references."""
+        return {}
+
+
+@dataclass(frozen=True)
+class UnionOperation:
+    """Boolean union: every solid in ``tools`` is fused into ``target``.
+
+    The counterpart of :class:`SubtractOperation`, and deliberately its exact
+    shape -- same references, same consumption, same in-place result:
+
+    * the tools are fused **in list order**;
+    * the result replaces the target in place and keeps the **target's** id;
+    * every tool solid is **consumed**, so a fused plate cannot be reused;
+    * the result must be ONE connected solid. Fusing solids that do not
+      touch would leave a disconnected body, which rule E3 already refuses.
+
+    Why the language now has a join
+    -------------------------------
+    It had none, and that was a deliberate V1 restriction: a part that was
+    only meaningful as several primitives joined was reported UNSUPPORTED
+    rather than approximated. But an enclosure made of plates is an ordinary
+    mechanical part that cannot be said any other way -- six boxes leave six
+    solids, which rule S9 refuses. This is the smallest operation that closes
+    that gap, and it introduces no new reference kind, no new placement and
+    no backend-specific concept.
+    """
+
+    TYPE = UNION
+
+    id: str
+    target: str
+    tools: Tuple[str, ...]
+
+    def parameters(self) -> Dict[str, Any]:
+        """No parameters. A union, like a subtract, is entirely references."""
         return {}
 
 
@@ -1578,6 +1636,50 @@ def strict_selector_provider_schema() -> Dict[str, Any]:
     )
 
 
+#: The selector modes a pattern-carrying encoding can afford. `axis_parallel`
+#: is dropped from the ENCODING -- not from the language, not from the parser,
+#: and not from any plan already written. It is the one mode that includes a
+#: cylindrical face's parameterisation seam, so on any drilled part it is the
+#: mode that FAILS (code R2); `straight` is the same selection with the seam
+#: removed, which is what a person asking to "round the vertical edges" means.
+#: Dropping it costs no reachable capability and buys the 188 characters that
+#: let `pattern` exist at all.
+PATTERN_SELECT_MODES: Tuple[str, ...] = (SELECT_ALL, SELECT_STRAIGHT, SELECT_CIRCULAR)
+
+
+def pattern_provider_schema() -> Dict[str, Any]:
+    """Every executable operation, `pattern` included, with strict selectors.
+
+    **Measured 4445 inlined characters**, against a point measured ACCEPTED at
+    4481 and one measured REFUSED at 4551. The whole ten-type grammar is 7351
+    and is refused outright; the seven executable types with all four selector
+    modes is 4633, also past the refusal. This is the encoding that fits.
+
+    What it expresses that `strict_selector_provider_schema` cannot: the
+    `pattern` operation -- a real, buildable, graph-native operation whose
+    arithmetic lives in `cad_experimental.pattern` and which the executor has
+    supported since Stage 46, but which no compilable encoding had ever been
+    able to say.
+
+    What it gives up, recorded rather than hidden: the `axis_parallel`
+    selector mode. See :data:`PATTERN_SELECT_MODES` for why that costs nothing
+    a caller can reach. `sketch`, `extrude` and `revolve` remain unsayable, as
+    in every encoding that compiles -- the execution boundary refuses them
+    anyway -- and a circular selector still must name its end.
+
+    The canonical IR is untouched. This is an encoding of it: the parser and
+    the validator accept exactly what they accepted before, including
+    `axis_parallel` from a fixture, a saved plan or a hand-written request.
+    """
+    return _plan_document(
+        EXECUTABLE_TYPES,
+        merged=MERGED_SCHEMA_GROUPS,
+        selector_modes=PATTERN_SELECT_MODES,
+        selector_branches=True,
+        require_circular_position=True,
+    )
+
+
 def selector_provider_schema() -> Dict[str, Any]:
     """The six solid operations, able to *name the edges they mean*.
 
@@ -1638,6 +1740,7 @@ __all__ = [
     "SELECT_STRAIGHT",
     "REPEATING_TYPES",
     "instance_id",
+    "V1_EXPRESSIBLE_TYPES",
     "V1_FEATURE_TYPES",
     "RadialPlacement",
     "MIN_PATTERN_COUNT",
@@ -1660,10 +1763,12 @@ __all__ = [
     "SELECTOR_FIELDS",
     "SELECT_ALL",
     "SELECT_AXIS_PARALLEL",
+    "PATTERN_SELECT_MODES",
     "SELECT_MODES",
     "CHAMFER",
     "EDGE_MODIFIER_TYPES",
     "EXECUTABLE_TYPES",
+    "EXECUTOR_ONLY_TYPES",
     "MERGED_SCHEMA_GROUPS",
     "PROFILE_TYPES",
     "SKETCH",
@@ -1677,6 +1782,8 @@ __all__ = [
     "FilletOperation",
     "SUBTRACT",
     "SubtractOperation",
+    "UNION",
+    "UnionOperation",
     "is_consuming",
     "tools_of",
     "CYLINDER",
@@ -1698,6 +1805,7 @@ __all__ = [
     "selector_provider_schema",
     "strict_selector_provider_schema",
     "profile_union_provider_schema",
+    "pattern_provider_schema",
     "provider_schema",
     "PROFILE_SOLID_TYPES",
     "REVOLVE",

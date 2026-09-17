@@ -232,6 +232,18 @@ export interface Health {
   readonly prompt_version: string;
   readonly local_development_plan_available?: boolean;
   readonly local_development_label?: string;
+  /**
+   * Which engine this deployment would actually execute on. Reported by the
+   * API from its own resolver, so the workspace displays the backend rather
+   * than inferring or assuming one.
+   */
+  readonly backend?: {
+    readonly name: string | null;
+    readonly available: boolean;
+    readonly version?: string;
+    readonly error?: string;
+  };
+  readonly v1_document_path_available?: boolean;
 }
 
 export async function health(): Promise<Health> {
@@ -240,6 +252,149 @@ export async function health(): Promise<Health> {
     throw new ApiError("the experimental API is not reachable", response.status);
   }
   return (await response.json()) as Health;
+}
+
+// --- the multi-turn copilot session ----------------------------------------
+//
+// One call per turn. The server holds the current Operation Plan, so the page
+// never sends the part back in order to change it -- and never holds a second
+// copy of CAD state that could drift from the one that builds.
+
+export interface SessionTurn {
+  readonly role: string;
+  readonly text: string;
+  readonly at: number;
+}
+
+export interface SessionState {
+  readonly session_id: string;
+  readonly has_model: boolean;
+  readonly can_undo: boolean;
+  readonly revisions: number;
+  readonly conversation: readonly SessionTurn[];
+  readonly current: {
+    readonly summary: string;
+    readonly request: string;
+    readonly backend: string;
+    readonly measurement: Readonly<Record<string, unknown>>;
+  } | null;
+}
+
+/**
+ * One turn's answer.
+ *
+ * `status` says what happened, and only `"built"` carries geometry. Every
+ * other status means the part was left exactly as it was -- which is the
+ * whole point: a refused edit must never blank the viewport.
+ */
+export interface SessionReply {
+  readonly status:
+    | "built"
+    | "needs_clarification"
+    | "unsupported"
+    | "invalid_plan"
+    | "invalid_model_output"
+    | "execution_unsupported"
+    | "build_failed"
+    | "nothing_to_undo"
+    | "reset"
+    | "unavailable";
+  readonly reply?: string;
+  readonly editing?: boolean;
+  readonly session_id: string;
+  readonly session: SessionState;
+  readonly questions?: readonly string[];
+  readonly plan?: unknown;
+  readonly backend?: string;
+  readonly execution_path?: string;
+  readonly measurement?: Readonly<Record<string, unknown>>;
+  readonly execution?: ExecutionReport;
+  readonly render?: unknown;
+  readonly failure?: { readonly message?: string; readonly operation?: string } | null;
+  readonly problems?: readonly PlanProblem[];
+  readonly error?: string;
+  readonly metadata?: Readonly<Record<string, unknown>>;
+}
+
+export function sendTurn(sessionId: string, text: string): Promise<SessionReply> {
+  return post<SessionReply>("/experimental/session/message", {
+    session_id: sessionId,
+    text,
+  });
+}
+
+export function undoTurn(sessionId: string): Promise<SessionReply> {
+  return post<SessionReply>("/experimental/session/undo", { session_id: sessionId });
+}
+
+export function resetSession(sessionId: string): Promise<SessionReply> {
+  return post<SessionReply>("/experimental/session/reset", { session_id: sessionId });
+}
+
+export function sessionState(sessionId: string): Promise<SessionReply> {
+  return post<SessionReply>("/experimental/session/state", { session_id: sessionId });
+}
+
+/** Download the current part. Throws if there is nothing built. */
+export async function exportPart(
+  sessionId: string,
+  format: "step" | "stl",
+): Promise<Blob> {
+  const response = await fetch(`${API_BASE}/experimental/session/export`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ session_id: sessionId, format }),
+  });
+  if (!response.ok) {
+    let message = `export failed with ${response.status}`;
+    try {
+      message = ((await response.json()) as { error?: string }).error ?? message;
+    } catch {
+      /* not JSON */
+    }
+    throw new ApiError(message, response.status);
+  }
+  return response.blob();
+}
+
+// --- product surfaces -------------------------------------------------------
+
+export interface Finding {
+  readonly label: string;
+  readonly value: string;
+  readonly kind: "measured" | "calculated";
+  readonly working?: string | null;
+}
+
+export function createDrawing(sessionId: string): Promise<Record<string, any>> {
+  return post("/experimental/session/drawing", { session_id: sessionId });
+}
+
+export function askEngineering(
+  sessionId: string,
+  text?: string,
+): Promise<Record<string, any>> {
+  return post("/experimental/session/engineering",
+              { session_id: sessionId, text: text ?? null });
+}
+
+export function searchCatalog(text: string): Promise<Record<string, any>> {
+  return post("/experimental/catalog/search", { text });
+}
+
+export function listMacros(sessionId: string): Promise<Record<string, any>> {
+  return post("/experimental/session/macros", { session_id: sessionId });
+}
+
+export function createMacro(
+  sessionId: string, name: string, text: string,
+): Promise<Record<string, any>> {
+  return post("/experimental/session/macros",
+              { session_id: sessionId, name, text, description: text });
+}
+
+export function runMacro(sessionId: string, name: string): Promise<Record<string, any>> {
+  return post("/experimental/session/macros/run", { session_id: sessionId, name });
 }
 
 export type { RenderModel };

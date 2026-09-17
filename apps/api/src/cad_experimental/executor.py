@@ -65,12 +65,15 @@ from .plan import (
     CYLINDER,
     DEFAULT_AXIS,
     EXECUTABLE_TYPES,
+    EXECUTOR_ONLY_TYPES,
     FILLET,
     PATTERN,
     SUBTRACT,
+    UNION,
     THROUGH_HOLE,
     OperationPlan,
     PlanStatus,
+    operation_type,
 )
 
 #: Why an execution stopped. Machine-readable, and deliberately distinct from
@@ -309,18 +312,21 @@ def _apply(
             )
             return None
 
-        if kind == SUBTRACT:
+        if kind in (SUBTRACT, UNION):
             tools = []
             for tool in step.consumes:
                 shape = state.shapes.get(tool)
                 if shape is None:
                     return ExecutionFailure(
                         MISSING_BODY,
-                        f"{tool!r} names no live body to subtract",
+                        f"{tool!r} names no live body to combine",
                         operation.id,
                     )
                 tools.append(shape)
-            state.shapes[body] = state.backend.subtract(target, tools)
+            state.shapes[body] = (
+                state.backend.union(target, tools) if kind == UNION
+                else state.backend.subtract(target, tools)
+            )
             for tool in step.consumes:
                 state.shapes.pop(tool, None)
             return None
@@ -435,13 +441,27 @@ def _point(position: Any) -> Tuple[float, float, float]:
 
 
 def plan_needs_executor(plan: OperationPlan) -> bool:
-    """Whether any selector in ``plan`` is richer than a V1 document.
+    """Whether this plan is beyond what a V1 document can carry.
 
     The one explicit question :func:`cad_experimental.build.build_plan` asks
     to choose a path. Stated as a property of the plan rather than decided by
     catching a failure, so the choice is visible before anything is built.
+
+    Two ways a plan outruns the document, and they are different facts:
+
+    * a **selector** richer than Section C.7 -- `straight`, `circular`, or a
+      rim's `position`. The operation exists in V1; the way it names its
+      edges does not.
+    * an **operation** with no document form at all, today `union`. V1 has no
+      join, so there is nothing to write down rather than a different way of
+      writing it.
+
+    Both answer yes here, because the routing question is the same one: can
+    a V1 document carry this? Why it cannot is reported elsewhere.
     """
     for operation in plan.operations:
+        if operation_type(operation) in EXECUTOR_ONLY_TYPES:
+            return True
         selector = getattr(operation, "edges", None)
         if selector is not None and not selector.is_v1:
             return True

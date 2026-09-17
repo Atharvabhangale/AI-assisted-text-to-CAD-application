@@ -76,6 +76,8 @@ from .plan import (
     RevolveOperation,
     SketchOperation,
     SubtractOperation,
+    UNION,
+    UnionOperation,
     ThroughHoleOperation,
 )
 from .sketch import (
@@ -267,7 +269,10 @@ def _operation(entry: Any, index: int) -> Operation:
 
     if kind in CONSUMING_TYPES:
         assert target is not None
-        return SubtractOperation(
+        # Both consuming operations carry exactly the same references, so
+        # the same checks serve both; only the type differs.
+        built = UnionOperation if kind == UNION else SubtractOperation
+        return built(
             id=identifier,
             target=target,
             tools=_tools(mapping.get("tools"), where),

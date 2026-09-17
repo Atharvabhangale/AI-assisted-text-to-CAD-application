@@ -123,6 +123,27 @@ class CadQueryBackend(CadBackend):
         )
         return self._cut(target, [cutter], require_removal=False)
 
+    def union(self, target, tools: Sequence[Any]) -> Any:
+        """Fuse the tools into the target, then insist on one solid."""
+        if not tools:
+            raise BackendOperationError("a union needs at least one tool")
+        result = target
+        for tool in tools:
+            result = result.fuse(tool)
+        if result is None or not result.Solids():
+            raise BackendOperationError("the fuse produced no solid")
+        try:
+            result = result.clean()
+        except Exception:
+            pass  # refinement is cosmetic
+        if len(result.Solids()) != 1:
+            raise BackendOperationError(
+                f"the fuse left {len(result.Solids())} separate solids; the "
+                "parts do not all touch, so they cannot form one body "
+                "(rule E3)"
+            )
+        return result
+
     def subtract(self, target, tools: Sequence[Any]) -> Any:
         if not tools:
             raise BackendOperationError("a subtract needs at least one tool")
@@ -366,6 +387,25 @@ class CadQueryBackend(CadBackend):
 
     def export_step(self, shape, path) -> Path:
         return export_step(self._result(shape, "part", "shape"), path)
+
+    def export_stl(self, shape, path) -> Path:
+        """Write STL with CadQuery's own exporter, then check it exists.
+
+        `cad_core.stl_export` is not used here: it takes a `LocalCadResult`
+        from `build_part`, and a shape reaching this backend came from the
+        graph executor and never was one. The kernel's own writer is the
+        same mesher either way.
+        """
+        destination = Path(path)
+        try:
+            shape.exportStl(str(destination))
+        except Exception as exc:
+            raise BackendOperationError(
+                f"the STL export failed: {exc}"
+            ) from exc
+        if not destination.exists() or destination.stat().st_size == 0:
+            raise BackendOperationError("the STL export produced no file")
+        return destination
 
     def read_step(self, path) -> Any:
         """Return the kernel shape, not the engine's wrapper.

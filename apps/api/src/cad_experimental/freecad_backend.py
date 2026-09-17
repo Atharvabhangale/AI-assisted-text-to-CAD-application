@@ -292,6 +292,37 @@ class FreeCadBackend(CadBackend):
         )
         return self._cut(target, [cutter], require_removal=False)
 
+    def union(self, target, tools: Sequence[Any]) -> Any:
+        """Fuse the tools into the target, then insist on one solid.
+
+        `refine()` removes the coincident faces a fuse leaves behind where
+        two plates meet. Without it the result is geometrically correct but
+        carries every internal face, which inflates the face count and makes
+        a later edge selector see seams that are not really there.
+        """
+        if not tools:
+            raise BackendOperationError("a union needs at least one tool")
+        result = target
+        for tool in tools:
+            result = result.fuse(tool)
+            if result is None or result.isNull():
+                raise BackendOperationError(
+                    "the kernel returned a null shape from the fuse"
+                )
+        try:
+            result = result.removeSplitter()
+        except Exception:
+            pass  # refinement is cosmetic; the solid is already correct
+        if not result.Solids:
+            raise BackendOperationError("the fuse produced no solid")
+        if len(result.Solids) != 1:
+            raise BackendOperationError(
+                f"the fuse left {len(result.Solids)} separate solids; the "
+                "parts do not all touch, so they cannot form one body "
+                "(rule E3)"
+            )
+        return result
+
     def subtract(self, target, tools: Sequence[Any]) -> Any:
         """Section C.4. The target survives; the tools are consumed.
 
@@ -636,6 +667,67 @@ class FreeCadBackend(CadBackend):
                 "the STEP writer returned without leaving a non-empty file"
             )
         return destination
+
+    def export_stl(self, shape, path) -> Path:
+        """Write STL with FreeCAD's own mesher.
+
+        Verified by size and header rather than by the call not raising: an
+        exporter that writes an empty file has not exported anything, which
+        is the same standard `export_step` above is held to.
+        """
+        destination = Path(path)
+        try:
+            shape.exportStl(str(destination))
+        except Exception as exc:
+            raise BackendOperationError(
+                f"the STL export failed: {exc}"
+            ) from exc
+        if not destination.exists() or destination.stat().st_size == 0:
+            raise BackendOperationError(
+                "the STL export produced no file"
+            )
+        return destination
+
+    def project_edges(self, shape, direction) -> Tuple[Tuple[Tuple[float, float], ...], ...]:
+        """Visible outline via FreeCAD's own hidden-line projection.
+
+        `TechDraw.projectEx` returns groups; group 0 is the visible edge set,
+        which is what a drawing view shows. Hidden lines are deliberately not
+        drawn: this is a readable MVP view, not a standards-compliant
+        drawing, and showing some hidden detail but not all would be worse
+        than showing none.
+        """
+        try:
+            import TechDraw  # noqa: PLC0415 - part of the FreeCAD distribution
+        except ImportError as exc:
+            raise BackendOperationError(
+                "this FreeCAD build has no TechDraw module, so it cannot "
+                "project a drawing view"
+            ) from exc
+
+        try:
+            groups = TechDraw.projectEx(shape, self._vector(direction))
+        except Exception as exc:
+            raise BackendOperationError(
+                f"the projection failed: {exc}"
+            ) from exc
+        if not groups:
+            return ()
+
+        polylines: List[Tuple[Tuple[float, float], ...]] = []
+        for edge in groups[0].Edges:
+            try:
+                points = edge.discretize(Deflection=0.05)
+            except Exception:
+                points = edge.Vertexes
+            line = tuple(
+                (float(getattr(p, "x", getattr(p, "X", 0.0))),
+                 float(getattr(p, "y", getattr(p, "Y", 0.0))))
+                for p in points
+            )
+            if len(line) >= 2:
+                polylines.append(line)
+        return tuple(polylines)
 
     def read_step(self, path) -> Any:
         source = Path(path)

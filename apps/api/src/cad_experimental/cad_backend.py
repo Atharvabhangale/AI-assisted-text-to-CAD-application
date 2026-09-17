@@ -207,6 +207,16 @@ class CadBackend:
         """Section C.3. The centreline is infinite, so the sign is dropped."""
         raise NotImplementedError
 
+    def union(self, target: Any, tools: Sequence[Any]) -> Any:
+        """Fuse every solid in ``tools`` into ``target``.
+
+        The counterpart of :meth:`subtract`, held to the same standard: the
+        result must be ONE connected solid. Fusing solids that do not touch
+        leaves a disconnected body, and rule E3 refuses that here rather than
+        letting a scattering of fragments reach a caller as a part.
+        """
+        raise NotImplementedError
+
     def subtract(self, target: Any, tools: Sequence[Any]) -> Any:
         """Section C.4. The target survives; the tools are consumed."""
         raise NotImplementedError
@@ -277,8 +287,38 @@ class CadBackend:
     def export_step(self, shape: Any, path: Any) -> Any:
         raise NotImplementedError
 
+    def export_stl(self, shape: Any, path: Any) -> Any:
+        """Write a binary/ASCII STL of ``shape``, using the engine's own writer.
+
+        At the abstraction boundary rather than in a caller, for the same
+        reason every other output is: a mesh derived from the RenderModel in
+        the frontend would be a second tessellation of the same solid, and
+        the two would drift. Each engine already has a tessellator and a
+        writer; this asks for them.
+
+        Like :meth:`export_step`, an implementation is expected to VERIFY the
+        file it wrote rather than trust that writing succeeded.
+        """
+        raise NotImplementedError
+
     def read_step(self, path: Any) -> Any:
         """Read a STEP file back, so an export can be verified and not assumed."""
+        raise NotImplementedError
+
+    def project_edges(
+        self, shape: Any, direction: Sequence[float]
+    ) -> Tuple[Tuple[Tuple[float, float], ...], ...]:
+        """The shape's visible outline seen along ``direction``, as polylines.
+
+        Plain 2D points and nothing else -- no kernel object, no curve type,
+        no engine enumeration. A drawing is then a matter of arranging
+        polylines on a sheet, which needs no CAD knowledge and cannot drift
+        from the geometry it came from.
+
+        Curves are discretised rather than described: a polyline is the one
+        form every engine can produce and every renderer can draw, and a
+        drawing view is a picture, not a model.
+        """
         raise NotImplementedError
 
     def render_model(self, shape: Any, *, part_name: str, feature_id: str) -> Any:

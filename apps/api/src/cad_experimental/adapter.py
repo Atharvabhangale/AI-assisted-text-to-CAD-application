@@ -77,6 +77,7 @@ from .plan import (
     EXECUTABLE_TYPES,
     FILLET,
     SUBTRACT,
+    UNION,
     THROUGH_HOLE,
     UNITS,
     OperationPlan,
@@ -184,7 +185,8 @@ def plan_to_document(
     unexecutable = tuple(
         operation
         for operation in plan.operations
-        if getattr(operation, "TYPE", None) not in EXECUTABLE_TYPES
+        if getattr(operation, "TYPE", None) in (UNION,)
+        or getattr(operation, "TYPE", None) not in EXECUTABLE_TYPES
     )
     if unexecutable:
         raise ExecutionUnsupported(

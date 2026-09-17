@@ -45,6 +45,19 @@ from .local_plan_provider import (
     stamp,
 )
 from .parser import PlanParseError, parse_plan
+from . import catalog as catalogue
+from . import engineering as eng
+from .drawing import build_drawing
+from .macros import ACTIONS, MacroError, MacroStore, steps_from_language
+from .session import (
+    ASSISTANT,
+    USER,
+    Revision,
+    SessionStore,
+    describe_model,
+    measurement_answer,
+    revision_context,
+)
 from .plan import PlanStatus, plan_schema
 from .graph import feature_graph
 from .history import plan_history
@@ -61,6 +74,23 @@ BUILD_PATH = "/experimental/build-plan"
 #: Never a model result -- every response is stamped LOCAL_DEVELOPMENT_PLAN.
 LOCAL_PLAN_PATH = "/experimental/local-plan"
 LOCAL_FIXTURES_PATH = "/experimental/local-plan/fixtures"
+
+#: The multi-turn copilot. One call per turn: the server holds the current
+#: plan, so the client does not have to send the part back to modify it.
+SESSION_MESSAGE_PATH = "/experimental/session/message"
+SESSION_UNDO_PATH = "/experimental/session/undo"
+SESSION_RESET_PATH = "/experimental/session/reset"
+SESSION_STATE_PATH = "/experimental/session/state"
+SESSION_EXPORT_PATH = "/experimental/session/export"
+DRAWING_PATH = "/experimental/session/drawing"
+ENGINEERING_PATH = "/experimental/session/engineering"
+CATALOG_PATH = "/experimental/catalog/search"
+MACRO_PATH = "/experimental/session/macros"
+MACRO_RUN_PATH = "/experimental/session/macros/run"
+
+#: A revision returns a COMPLETE plan for the whole part, so its reply can be
+#: legitimately longer than a first answer. Raised only on that path.
+REVISION_OUTPUT_TOKENS = 3072
 
 OK_STATUS = 200
 BAD_REQUEST_STATUS = 400
@@ -88,6 +118,51 @@ class PlanBody(BaseModel):
 
     plan: Dict[str, Any]
     name: Optional[str] = Field(default=None, max_length=120)
+
+
+class SessionBody(BaseModel):
+    """Which workspace session a request belongs to."""
+
+    session_id: Optional[str] = Field(default=None, max_length=80)
+
+
+class DrawingBody(SessionBody):
+    """Which part to draw. The session's current one, by definition."""
+
+    part_name: Optional[str] = Field(default=None, max_length=80)
+
+
+class EngineeringBody(SessionBody):
+    """A question about the current part, or none for the full report."""
+
+    text: Optional[str] = Field(default=None, max_length=MAX_DESCRIPTION_CHARS)
+
+
+class CatalogBody(BaseModel):
+    """A plain-language catalogue query."""
+
+    text: str = Field(..., max_length=400)
+
+
+class MacroBody(SessionBody):
+    """Create or run a macro. `steps` is checked against a closed vocabulary."""
+
+    name: Optional[str] = Field(default=None, max_length=80)
+    description: Optional[str] = Field(default=None, max_length=400)
+    steps: Optional[List[Dict[str, Any]]] = None
+    text: Optional[str] = Field(default=None, max_length=400)
+
+
+class SessionExportBody(SessionBody):
+    """Which format to export the current part as."""
+
+    format: str = Field(default="step", max_length=10)
+
+
+class SessionMessageBody(SessionBody):
+    """One conversational turn."""
+
+    text: str = Field(..., max_length=MAX_DESCRIPTION_CHARS)
 
 
 class LocalPlanBody(BaseModel):
@@ -146,6 +221,10 @@ def create_app(
     app.state.config = settings
     app.state.service = service
     app.state.planner = planner
+    # Experimental, in-memory, bounded. Deliberately on the app rather than a
+    # module global so a test gets a fresh store per application.
+    app.state.sessions = SessionStore()
+    app.state.macros = MacroStore()
 
     def _planner() -> Optional[OperationPlanService]:
         return app.state.planner
@@ -409,6 +488,602 @@ def create_app(
         if render is not None:
             payload["render"] = render.to_dict()
         return JSONResponse(status_code=OK_STATUS, content=payload)
+
+    # --- the multi-turn copilot ------------------------------------------
+    #
+    # One route per turn, because the server is what remembers the part. It
+    # composes the SAME three steps the individual routes expose -- generate,
+    # validate, build -- and adds no CAD logic of its own. The canonical
+    # Operation Plan stays the authoritative representation throughout; there
+    # is no second CAD state anywhere in this block.
+
+    def _facts(build: Any) -> Dict[str, Any]:
+        """The measurement, from whichever path built it."""
+        if build.executed and build.execution.bodies:
+            measured = build.execution.bodies[0].measurement
+            return measured.to_dict() if hasattr(measured, "to_dict") else {}
+        if build.outcome is not None:
+            for artifact in (build.outcome.to_dict().get("manifest") or {}).get(
+                "artifacts", []
+            ):
+                if artifact.get("kind") == "geometry":
+                    detail = artifact.get("details") or {}
+                    box = (detail.get("bounding_box") or {}).get("size") or {}
+                    return {
+                        "is_valid": True,
+                        "solid_count": detail.get("solid_count"),
+                        "volume": detail.get("volume_mm3"),
+                        "face_count": detail.get("face_count"),
+                        "edge_count": detail.get("edge_count"),
+                        "size": [box.get(axis) for axis in ("x", "y", "z")],
+                    }
+        return {}
+
+    def _built_payload(build: Any, session: Any) -> Dict[str, Any]:
+        """What the page needs to draw and describe a successful build."""
+        payload: Dict[str, Any] = {
+            "backend": build.backend,
+            "execution_path": build.execution_path,
+            "measurement": _facts(build),
+        }
+        if build.executed:
+            payload["execution"] = build.execution.to_dict()
+        if build.render is not None:
+            payload["render"] = build.render.to_dict()
+        elif build.outcome is not None and build.outcome.render_model is not None:
+            payload["render"] = build.outcome.render_model.to_dict()
+        payload["session"] = session.to_dict()
+        return payload
+
+    def _rebuild(plan_payload: Dict[str, Any], service: Any) -> Any:
+        """Parse, validate and build one plan. Never raises for its content."""
+        plan = parse_plan(plan_payload)
+        verdict = validate_plan(plan)
+        if not verdict.valid:
+            return None, verdict, None
+        return plan, verdict, build_plan(service, plan, name="experimental-part")
+
+    def _commit_build(
+        session: Any, base: Dict[str, Any], request_text: str,
+        plan: Any, verdict: Any, build: Any, *,
+        editing: bool, summary: Optional[str], prefix: str = "",
+    ) -> Optional[JSONResponse]:
+        """Advance the session, but only for a plan that actually built.
+
+        The single place the current model moves, whichever route produced
+        the plan. Returns ``None`` when the plan did not validate, had no
+        execution path or failed in the kernel -- so a caller with another
+        route left may try it, and one without falls through to reporting
+        the failure in its own words. Nothing is committed in that case,
+        which is the rule this route exists to keep.
+        """
+        if plan is None or build is None or not build.built:
+            return None
+        if build.execution_unsupported:
+            return None
+        session.commit(Revision(
+            plan=plan.to_dict(),
+            summary=summary or "the part",
+            request=request_text,
+            measurement=_facts(build),
+            backend=build.backend,
+        ))
+        reply = (
+            prefix
+            + ("Updated " if editing else "Created ")
+            + describe_model(session.current)
+            + "."
+        )
+        session.said(ASSISTANT, reply)
+        return JSONResponse(
+            status_code=OK_STATUS,
+            content={**base, "status": "built", "reply": reply,
+                     "plan": plan.to_dict(), **_built_payload(build, session)},
+        )
+
+    @app.post(SESSION_MESSAGE_PATH)
+    async def session_message(
+        body: SessionMessageBody,
+        planner: Optional[OperationPlanService] = Depends(_planner),
+        service: Optional["CadApplicationService"] = Depends(_service),
+    ) -> JSONResponse:
+        """One conversational turn against the session's current part.
+
+        The rule this route exists to keep: **a failed edit never replaces the
+        model that still builds.** The session's current plan is advanced only
+        after a build has actually succeeded, so a refusal, a clarification,
+        an invalid plan or a kernel error all leave the previous part intact
+        and on screen.
+        """
+        session = app.state.sessions.get(body.session_id)
+        request_text = (body.text or "").strip()
+        if not request_text:
+            return JSONResponse(
+                status_code=BAD_REQUEST_STATUS,
+                content={"error": "say what you would like to build or change"},
+            )
+        if planner is None:
+            return JSONResponse(
+                status_code=UNAVAILABLE_STATUS,
+                content={
+                    "status": "unavailable",
+                    "error": "no interpretation model is configured",
+                    "session": session.to_dict(),
+                },
+            )
+
+        session.said(USER, request_text)
+
+        # A question about the part we already built is answered from the
+        # executor's own measurement, not by asking a model to recall
+        # geometry it cannot see. No call is made and nothing is rebuilt.
+        answered = measurement_answer(session, request_text)
+        if answered is not None:
+            session.said(ASSISTANT, answered)
+            return JSONResponse(
+                status_code=OK_STATUS,
+                content={"session_id": session.session_id, "editing": True,
+                         "status": "answered", "reply": answered,
+                         "from_evidence": True,
+                         "measurement": dict(session.current.measurement),
+                         "session": session.to_dict()},
+            )
+
+        # A first request is interpreted exactly as it always was. A later one
+        # carries the current plan and a bounded slice of the conversation, so
+        # "make it wider" has something to be wider than.
+        editing = session.has_model
+        context = revision_context(session, request_text) if editing else None
+        result = planner.generate(
+            request_text,
+            context=context,
+            max_output_tokens=REVISION_OUTPUT_TOKENS if editing else None,
+        )
+
+        base: Dict[str, Any] = {
+            "session_id": session.session_id,
+            "editing": editing,
+            "metadata": result.metadata.to_dict(),
+        }
+
+        # One question, asked once, whatever the provider did: is there a
+        # plan to build? A provider that answered usefully is believed; one
+        # that did not hands the same request to the deterministic reader,
+        # which either reads it completely or declines. Both routes end at
+        # the same parser, validator and executor below -- nothing here
+        # shortcuts to geometry, and `interpreted_by` says which ran.
+        reading = interpret(request_text, result)
+        if reading.source == SOURCE_DETERMINISTIC and reading.understood:
+            base["interpreted_by"] = reading.to_dict()
+            plan, verdict, build = _rebuild(reading.plan.to_dict(), service)
+            outcome = _commit_build(
+                session, base, request_text, plan, verdict, build,
+                editing=editing,
+                summary=(reading.plan.summary if reading.plan else None),
+                prefix=DETERMINISTIC_NOTE + " ",
+            )
+            if outcome is not None:
+                return outcome
+
+        if result.outcome is PlanOutcome.MODEL_ERROR:
+            session.said(ASSISTANT, "I could not reach the model.")
+            return JSONResponse(
+                status_code=UNAVAILABLE_STATUS,
+                content={**base, "status": "unavailable",
+                         "error": result.error or "the model did not answer",
+                         "session": session.to_dict()},
+            )
+
+        if result.outcome is PlanOutcome.NEEDS_CLARIFICATION:
+            questions = list(result.plan.questions) if result.plan else []
+            reply = " ".join(questions) or "Could you be more specific?"
+            session.said(ASSISTANT, reply)
+            # Nothing is built and nothing is replaced.
+            return JSONResponse(
+                status_code=OK_STATUS,
+                content={**base, "status": "needs_clarification",
+                         "questions": questions, "reply": reply,
+                         "session": session.to_dict()},
+            )
+
+        if result.outcome is PlanOutcome.UNSUPPORTED:
+            reply = (result.plan.reason if result.plan else None) or (
+                "That is outside what this CAD language can express."
+            )
+            session.said(ASSISTANT, reply)
+            return JSONResponse(
+                status_code=OK_STATUS,
+                content={**base, "status": "unsupported", "reply": reply,
+                         "session": session.to_dict()},
+            )
+
+        if result.outcome is not PlanOutcome.GENERATED or result.plan is None:
+            reply = "The model's answer was not a usable plan, so I left the part as it was."
+            session.said(ASSISTANT, reply)
+            return JSONResponse(
+                status_code=OK_STATUS,
+                content={**base, "status": "invalid_model_output",
+                         "reply": reply, "session": session.to_dict()},
+            )
+
+        revised = result.plan.to_dict()
+        plan, verdict, build = _rebuild(revised, service)
+        if plan is None:
+            reply = "The revised plan did not pass validation, so I kept the previous part."
+            session.said(ASSISTANT, reply)
+            return JSONResponse(
+                status_code=OK_STATUS,
+                content={**base, "status": "invalid_plan", "reply": reply,
+                         "problems": [p.to_dict() for p in verdict.problems],
+                         "session": session.to_dict()},
+            )
+
+        if build.execution_unsupported:
+            reply = (
+                "The plan is valid, but this backend cannot execute "
+                f"{', '.join(build.unsupported_types)}. The part is unchanged."
+            )
+            session.said(ASSISTANT, reply)
+            return JSONResponse(
+                status_code=OK_STATUS,
+                content={**base, "status": "execution_unsupported",
+                         "reply": reply, "session": session.to_dict()},
+            )
+
+        if not build.built:
+            failure = (
+                build.execution.failure if build.executed and build.execution else None
+            )
+            detail = failure.message if failure is not None else (build.error or "")
+            reply = f"That change did not build: {detail} The previous part is unchanged."
+            session.said(ASSISTANT, reply)
+            return JSONResponse(
+                status_code=OK_STATUS,
+                content={**base, "status": "build_failed", "reply": reply,
+                         "failure": failure.to_dict() if failure else None,
+                         "session": session.to_dict()},
+            )
+
+        committed = _commit_build(
+            session, base, request_text, plan, verdict, build,
+            editing=editing, summary=result.plan.summary,
+        )
+        assert committed is not None  # every failure branch returned above
+        return committed
+
+    @app.post(SESSION_UNDO_PATH)
+    async def session_undo(
+        body: SessionBody,
+        service: Optional["CadApplicationService"] = Depends(_service),
+    ) -> JSONResponse:
+        """Step back to the previous plan that built, and rebuild it.
+
+        Server-side, from the revision stack -- never from anything the
+        browser is holding. The restored plan is rebuilt rather than trusted,
+        so what returns to the viewport is geometry the engine produced now.
+        """
+        session = app.state.sessions.get(body.session_id)
+        restored = session.undo()
+        if restored is None:
+            reply = "There is nothing to undo."
+            session.said(ASSISTANT, reply)
+            return JSONResponse(
+                status_code=OK_STATUS,
+                content={"status": "nothing_to_undo", "reply": reply,
+                         "session_id": session.session_id,
+                         "session": session.to_dict()},
+            )
+
+        plan, verdict, build = _rebuild(restored.plan, service)
+        if plan is None or not build.built:
+            reply = "The previous plan no longer builds, so nothing was changed."
+            session.said(ASSISTANT, reply)
+            return JSONResponse(
+                status_code=OK_STATUS,
+                content={"status": "build_failed", "reply": reply,
+                         "session_id": session.session_id,
+                         "session": session.to_dict()},
+            )
+
+        reply = f"Undone. Back to {describe_model(restored)}."
+        session.said(USER, "Undo")
+        session.said(ASSISTANT, reply)
+        return JSONResponse(
+            status_code=OK_STATUS,
+            content={"status": "built", "reply": reply,
+                     "session_id": session.session_id,
+                     "plan": restored.plan, **_built_payload(build, session)},
+        )
+
+    @app.post(SESSION_RESET_PATH)
+    async def session_reset(body: SessionBody) -> JSONResponse:
+        """Start a new part.
+
+        The CAD state -- plan, evidence and revision history -- is cleared.
+        The conversation is KEPT and a marker turn appended, because a thread
+        that silently empties itself destroys the record of what was built;
+        the next request simply has no current model, so it is interpreted as
+        a first request again.
+        """
+        session = app.state.sessions.get(body.session_id)
+        session.reset(keep_conversation=True)
+        reply = "Started a new part. Describe what you would like to build."
+        session.said(ASSISTANT, reply)
+        return JSONResponse(
+            status_code=OK_STATUS,
+            content={"status": "reset", "reply": reply,
+                     "session_id": session.session_id,
+                     "session": session.to_dict()},
+        )
+
+    @app.post(SESSION_STATE_PATH)
+    async def session_state(body: SessionBody) -> JSONResponse:
+        """What this session currently holds. Reads nothing, changes nothing."""
+        session = app.state.sessions.get(body.session_id)
+        return JSONResponse(
+            status_code=OK_STATUS,
+            content={"session_id": session.session_id,
+                     "session": session.to_dict()},
+        )
+
+    @app.post(SESSION_EXPORT_PATH)
+    async def session_export(
+        body: SessionExportBody,
+        service: Optional["CadApplicationService"] = Depends(_service),
+    ) -> Any:
+        """Export the session's CURRENT successful part.
+
+        Exports the plan the session committed -- never whatever was last
+        asked for. A refused or failed edit leaves `current` untouched, so it
+        is structurally impossible to export a part that did not build.
+
+        The shape is produced by rebuilding that plan on the selected
+        backend and handing it to the backend's own exporter. No second
+        exporter exists here and no geometry is written by this module.
+        """
+        from fastapi.responses import Response
+
+        session = app.state.sessions.get(body.session_id)
+        if session.current is None:
+            return JSONResponse(
+                status_code=BAD_REQUEST_STATUS,
+                content={"error": "there is no built part to export"},
+            )
+        fmt = (body.format or "step").lower()
+        if fmt not in ("step", "stl"):
+            return JSONResponse(
+                status_code=NOT_IMPLEMENTED_STATUS,
+                content={"error": f"{fmt} export is not available",
+                         "available": ["step", "stl"]},
+            )
+
+        import tempfile
+        from pathlib import Path as _Path
+
+        from .cad_backend import BackendError, resolve_backend
+        from .executor import execute_plan
+
+        try:
+            engine = resolve_backend()
+            plan = parse_plan(session.current.plan)
+            result = execute_plan(plan, part_name="experimental-part",
+                                  backend=engine)
+            if not result.succeeded or not result.bodies:
+                raise BackendError("the current part did not rebuild")
+            shape = result.shapes.get(result.bodies[0].id)
+            with tempfile.TemporaryDirectory() as folder:
+                target = _Path(folder) / f"part.{fmt}"
+                if fmt == "step":
+                    engine.export_step(shape, target)
+                else:
+                    engine.export_stl(shape, target)
+                data = target.read_bytes()
+        except BackendError as exc:
+            return JSONResponse(status_code=BAD_REQUEST_STATUS,
+                                content={"error": str(exc)})
+
+        return Response(
+            content=data,
+            media_type="application/step" if fmt == "step" else "model/stl",
+            headers={"content-disposition": f'attachment; filename="part.{fmt}"',
+                     "x-cad-backend": engine.name},
+        )
+
+    # --- the product surfaces --------------------------------------------
+    #
+    # Each one reads the session's CURRENT part. None of them holds CAD state
+    # of its own, and none reaches past the backend abstraction.
+
+    def _current_shape(session: Any) -> Any:
+        """Rebuild the session's current plan and hand back the shape.
+
+        Rebuilt rather than cached: the shape is an execution result, and the
+        plan is what the session actually stores. This is the one place the
+        surfaces get geometry, so they cannot disagree about what "the
+        current part" is.
+        """
+        from .cad_backend import BackendError, resolve_backend
+        from .executor import execute_plan
+
+        engine = resolve_backend()
+        plan = parse_plan(session.current.plan)
+        result = execute_plan(plan, part_name="experimental-part",
+                              backend=engine)
+        if not result.succeeded or not result.bodies:
+            raise BackendError("the current part did not rebuild")
+        return engine, result.shapes.get(result.bodies[0].id)
+
+    @app.post(DRAWING_PATH)
+    async def drawing(body: DrawingBody) -> JSONResponse:
+        """A basic engineering drawing of the current part.
+
+        Views are real projections from the backend; every dimension comes
+        from the measurement of the build that succeeded. A backend that
+        cannot project says so rather than returning an empty sheet.
+        """
+        from .cad_backend import BackendError
+
+        session = app.state.sessions.get(body.session_id)
+        if session.current is None:
+            return JSONResponse(status_code=BAD_REQUEST_STATUS,
+                                content={"error": "there is no part to draw"})
+        try:
+            engine, shape = _current_shape(session)
+            sheet = build_drawing(
+                engine, shape,
+                part_name=(body.part_name or session.current.summary
+                           or "experimental-part"),
+                measurement=session.current.measurement)
+        except NotImplementedError:
+            return JSONResponse(
+                status_code=NOT_IMPLEMENTED_STATUS,
+                content={"error": "this backend cannot project drawing views",
+                         "capability": "project_edges"})
+        except (BackendError, ValueError) as exc:
+            return JSONResponse(status_code=BAD_REQUEST_STATUS,
+                                content={"error": str(exc)})
+        return JSONResponse(status_code=OK_STATUS,
+                            content={"session_id": session.session_id,
+                                     "drawing": sheet.to_dict()})
+
+    @app.post(ENGINEERING_PATH)
+    async def engineering(body: EngineeringBody) -> JSONResponse:
+        """Answer an engineering question, or report everything known.
+
+        Measured and calculated values are returned in separate lists and
+        each finding names which it is, so a caller cannot present a
+        calculation as something the engine measured.
+        """
+        session = app.state.sessions.get(body.session_id)
+        if session.current is None:
+            return JSONResponse(status_code=BAD_REQUEST_STATUS,
+                                content={"error": "there is no part to analyse"})
+        plan = session.current.plan
+        measurement = session.current.measurement
+        if body.text:
+            answered = eng.analyse(plan, measurement, body.text)
+            if answered is None:
+                return JSONResponse(
+                    status_code=OK_STATUS,
+                    content={"session_id": session.session_id,
+                             "answered": False,
+                             "reply": ("I can answer questions about the "
+                                       "current part's size, volume, holes, "
+                                       "fillets and how much material the "
+                                       "holes remove.")})
+            return JSONResponse(
+                status_code=OK_STATUS,
+                content={"session_id": session.session_id, "answered": True,
+                         "reply": eng.as_text(answered), **answered})
+        return JSONResponse(status_code=OK_STATUS,
+                            content={"session_id": session.session_id,
+                                     "answered": True,
+                                     **eng.report(plan, measurement)})
+
+    @app.post(CATALOG_PATH)
+    async def catalog_search(body: CatalogBody) -> JSONResponse:
+        """Search the LOCAL reference catalogue. No network, no supplier."""
+        return JSONResponse(status_code=OK_STATUS,
+                            content=catalogue.search(body.text))
+
+    @app.post(MACRO_PATH)
+    async def macros(body: MacroBody) -> JSONResponse:
+        """Create or list macros for this session.
+
+        Steps are validated against a closed vocabulary before anything is
+        stored, so a macro that cannot be run also cannot be saved.
+        """
+        session = app.state.sessions.get(body.session_id)
+        store = app.state.macros
+        if body.name is None and body.steps is None and body.text is None:
+            return JSONResponse(
+                status_code=OK_STATUS,
+                content={"session_id": session.session_id,
+                         "macros": [m.to_dict() for m in store.list(session.session_id)],
+                         "actions": {k: v["summary"] for k, v in ACTIONS.items()}})
+
+        steps = body.steps
+        if steps is None and body.text:
+            # Read the request against the same closed vocabulary. Anything
+            # unrecognised is simply not included, and the caller is told.
+            steps = list(steps_from_language(body.text))
+        try:
+            macro = store.create(session.session_id, body.name or "",
+                                 body.description or "", steps or [])
+        except MacroError as exc:
+            return JSONResponse(status_code=BAD_REQUEST_STATUS,
+                                content={"error": str(exc),
+                                         "actions": sorted(ACTIONS)})
+        return JSONResponse(status_code=OK_STATUS,
+                            content={"session_id": session.session_id,
+                                     "macro": macro.to_dict()})
+
+    @app.post(MACRO_RUN_PATH)
+    async def macro_run(body: MacroBody) -> JSONResponse:
+        """Run a stored macro against the current part.
+
+        Every step performs an action the workspace already exposes. A step
+        that fails stops the run and is reported with the steps that did
+        succeed -- a macro is not a transaction, and pretending otherwise
+        would hide what actually happened.
+        """
+        from .cad_backend import BackendError
+
+        session = app.state.sessions.get(body.session_id)
+        store = app.state.macros
+        try:
+            macro = store.get(session.session_id, body.name or "")
+        except MacroError as exc:
+            return JSONResponse(status_code=BAD_REQUEST_STATUS,
+                                content={"error": str(exc)})
+        if session.current is None:
+            return JSONResponse(status_code=BAD_REQUEST_STATUS,
+                                content={"error": "there is no part to run this on"})
+
+        import tempfile
+        from pathlib import Path as _Path
+
+        results: List[Dict[str, Any]] = []
+        for step in macro.steps:
+            entry: Dict[str, Any] = {"action": step.action}
+            try:
+                if step.action in ("export_step", "export_stl"):
+                    engine, shape = _current_shape(session)
+                    suffix = "step" if step.action == "export_step" else "stl"
+                    with tempfile.TemporaryDirectory() as folder:
+                        target = _Path(folder) / f"part.{suffix}"
+                        if suffix == "step":
+                            engine.export_step(shape, target)
+                        else:
+                            engine.export_stl(shape, target)
+                        entry.update(ok=True, bytes=target.stat().st_size,
+                                     format=suffix, backend=engine.name)
+                elif step.action == "drawing":
+                    engine, shape = _current_shape(session)
+                    sheet = build_drawing(
+                        engine, shape, part_name=session.current.summary or "part",
+                        measurement=session.current.measurement)
+                    entry.update(ok=True, views=len(sheet.views),
+                                 scale=sheet.scale)
+                elif step.action == "engineering_report":
+                    payload = eng.report(session.current.plan,
+                                         session.current.measurement)
+                    entry.update(ok=True, findings=len(payload["findings"]))
+                elif step.action == "rename":
+                    entry.update(ok=True, name=step.parameters.get("name"))
+                else:  # unreachable: the vocabulary is closed
+                    entry.update(ok=False, error="unknown action")
+            except (BackendError, NotImplementedError, ValueError) as exc:
+                entry.update(ok=False, error=str(exc))
+                results.append(entry)
+                break
+            results.append(entry)
+
+        return JSONResponse(
+            status_code=OK_STATUS,
+            content={"session_id": session.session_id, "macro": macro.name,
+                     "steps": results,
+                     "ok": all(r.get("ok") for r in results)})
 
     # --- development routes ---------------------------------------------
     #

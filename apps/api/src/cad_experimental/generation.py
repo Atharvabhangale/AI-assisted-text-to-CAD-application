@@ -170,8 +170,28 @@ class OperationPlanService:
     def config(self) -> ExperimentalConfig:
         return self._config
 
-    def generate(self, description: str) -> PlanGenerationResult:
-        """Interpret one description. Never raises for a model's mistake."""
+    def generate(
+        self,
+        description: str,
+        *,
+        context: Optional[str] = None,
+        max_output_tokens: Optional[int] = None,
+    ) -> PlanGenerationResult:
+        """Interpret one description. Never raises for a model's mistake.
+
+        ``context``, when given, replaces the user message with one that
+        carries the current Operation Plan and a bounded slice of the
+        conversation -- see :func:`cad_experimental.session.revision_context`.
+        It changes **only the user turn**: the system prompt is the same
+        string with the same fingerprint, and the output schema is the same
+        `strict_selector` encoding, so a revision is interpreted by exactly
+        the instrument that interprets a first request. ``description`` is
+        still what gets recorded and reported as the request.
+
+        ``max_output_tokens`` raises the reply budget for a revision, which
+        must return a *complete* plan for the whole part rather than one
+        operation, and so can legitimately be longer than a first answer.
+        """
         text = (description or "").strip()
         metadata = PlanGenerationMetadata(
             provider=self._config.provider, model=self._config.model
@@ -193,7 +213,10 @@ class OperationPlanService:
 
         request = ModelRequest(
             system=system_prompt(),
-            user_text=text,
+            # The composed revision message when this is an edit, the user's
+            # own words when it is a first request. Same system prompt and
+            # same schema either way.
+            user_text=context if context is not None else text,
             # `provider_schema` stood here and the provider REFUSED it on
             # every live call -- "The compiled grammar is too large" -- so
             # this route answered 503 for every request while the rest of
@@ -231,7 +254,7 @@ class OperationPlanService:
             # regardless. The chosen encoding is reported in the metadata so
             # a caller can tell which grammar produced an answer.
             output_schema=strict_selector_provider_schema(),
-            max_output_tokens=MAX_OUTPUT_TOKENS,
+            max_output_tokens=max_output_tokens or MAX_OUTPUT_TOKENS,
         )
 
         try:

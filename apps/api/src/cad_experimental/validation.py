@@ -56,7 +56,8 @@ from .plan import (
     SELECT_MODES,
     SELECTOR_AXES,
     SKETCH,
-    SUBTRACT,
+    CONSUMING_TYPES,
+    UNION,
     THROUGH_HOLE,
     OperationPlan,
     PlanStatus,
@@ -294,10 +295,10 @@ def validate_plan(plan: OperationPlan) -> PlanValidation:
                 operation.target, f"{where}.target", operation.id, index,
                 declared, live, consumed, problems, profiles,
             )
-        elif kind == SUBTRACT:
-            _subtract(
-                operation, index, where, declared, live, consumed, problems,
-                profiles,
+        elif kind in CONSUMING_TYPES:
+            _combine(
+                operation, kind, index, where, declared, live, consumed,
+                problems, profiles,
             )
         elif kind == PATTERN:
             _pattern(
@@ -833,8 +834,9 @@ def _selector(
         )
 
 
-def _subtract(
+def _combine(
     operation: object,
+    kind: Optional[str],
     index: int,
     where: str,
     declared: Dict[str, int],
@@ -843,14 +845,20 @@ def _subtract(
     problems: List[PlanProblem],
     profiles: Dict[str, int],
 ) -> None:
-    """Judge one subtract: its target, its tool list, and every tool.
+    """Judge one consuming operation: its target, its tools, and each tool.
 
-    The tool list's *shape* (rule S14) is the parser's job, so by the time a
-    ``SubtractOperation`` exists ``tools`` is a non-empty tuple of
-    well-formed ids. What is left for here is S15 -- no self-subtraction, no
-    repeats -- and the same four reference checks the target gets, once per
-    tool.
+    Subtract and union are the same shape and take the same judgement: a
+    target, a non-empty ordered tool list, every tool a live solid, no solid
+    listed twice, and no solid combined with itself. Only the wording
+    differs, so only the wording branches.
+
+    The tool list's *shape* (rule S14) is the parser's job, so by the time an
+    operation exists ``tools`` is a non-empty tuple of well-formed ids. What
+    is left for here is S15 -- no self-reference, no repeats -- and the same
+    four reference checks the target gets, once per tool.
     """
+    joining = kind == UNION
+    verb = "union" if joining else "subtract"
     target = getattr(operation, "target", None)
     owner_id = getattr(operation, "id", "")
     _reference(
@@ -865,7 +873,7 @@ def _subtract(
         problems.append(
             PlanProblem(
                 P13,
-                "a subtract must remove at least one solid",
+                f"a {verb} must name at least one solid",
                 f"{where}.tools",
             )
         )
@@ -879,8 +887,9 @@ def _subtract(
             problems.append(
                 PlanProblem(
                     P14,
-                    f"{tool!r} is this subtract's own target; a solid cannot "
-                    "be subtracted from itself",
+                    f"{tool!r} is this {verb}'s own target; a solid cannot "
+                    f"be {'fused with' if joining else 'subtracted from'} "
+                    "itself",
                     path,
                 )
             )

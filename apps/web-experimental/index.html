@@ -3,106 +3,249 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Experimental — CAD operation plan</title>
+    <title>CAD Workspace — experimental</title>
+    <!-- Inline so the browser's automatic /favicon.ico request cannot 404.
+         A console error, however harmless, trains people to ignore them. -->
     <link
       rel="icon"
-      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%23e0b341'/%3E%3Ctext x='8' y='12' font-size='11' font-family='sans-serif' text-anchor='middle' fill='%231a1200'%3E%CE%B2%3C/text%3E%3C/svg%3E"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%230e1116'/%3E%3Cpath d='M8 3l4 2.5v5L8 13 4 10.5v-5z' fill='none' stroke='%234f9dff' stroke-width='1.3'/%3E%3C/svg%3E"
     />
     <link rel="stylesheet" href="/src/styles.css" />
   </head>
   <body>
-    <header>
-      <h1>CAD operation plan <span class="tag">experimental</span></h1>
-      <p class="sub">
-        Describe a part in words. The model answers with an operation plan —
-        <code>box</code>, <code>cylinder</code>, <code>through_hole</code>,
-        <code>subtract</code> and <code>fillet</code> are the only operations
-        that exist. The plan is parsed, validated,
-        converted to a canonical V1 document, then built by the same CAD engine
-        the stable application uses.
-      </p>
-      <p class="sub warn">
-        Not the stable text-to-CAD path. That one is on
-        <a href="http://localhost:5173/">port 5173</a> and is unchanged.
-      </p>
-    </header>
-
-    <main>
-      <section>
-        <h2>1 · Describe a part</h2>
-        <textarea
-          id="description"
-          rows="3"
-          placeholder="Create a rectangular plate 100 mm long, 60 mm wide and 10 mm thick."
-        ></textarea>
-        <div class="row">
-          <button id="generate" type="button">Generate</button>
-          <span id="generate-status" class="status"></span>
+    <!--
+      Three regions, and the proportions say what the product is: navigation
+      is narrow, the viewport is the centre, and the copilot is the control
+      surface beside it. The model stays on screen while you talk to it.
+    -->
+    <div class="workspace">
+      <!-- ── workspace navigation ─────────────────────────────────────── -->
+      <nav class="rail" aria-label="Workspace">
+        <div class="rail-brand">
+          <span class="rail-mark" aria-hidden="true">◈</span>
+          <span class="rail-title">CAD Workspace</span>
+          <span class="tag tag-warn" title="Experimental application">EXP</span>
         </div>
-        <div class="local-panel">
-          <div class="local-head">
-            <span class="local-tag">LOCAL DEVELOPMENT PLAN</span>
-            <span class="local-note">no model is called &middot; not a Claude result</span>
+        <ul class="rail-list" id="surfaces" role="tablist">
+          <li><button class="rail-item is-active" role="tab" data-surface="copilot" title="Copilot"><span class="rail-icon">✦</span><span class="rail-label">Copilot</span></button></li>
+          <li><button class="rail-item" role="tab" data-surface="model" title="Model"><span class="rail-icon">◆</span><span class="rail-label">Model</span></button></li>
+          <li><button class="rail-item" role="tab" data-surface="parts" title="Parts"><span class="rail-icon">▣</span><span class="rail-label">Parts</span></button></li>
+          <li><button class="rail-item" role="tab" data-surface="drawings" title="Drawings"><span class="rail-icon">▤</span><span class="rail-label">Drawings</span></button></li>
+          <li><button class="rail-item" role="tab" data-surface="macros" title="Macros"><span class="rail-icon">⌘</span><span class="rail-label">Macros</span></button></li>
+          <li><button class="rail-item" role="tab" data-surface="engineering" title="Engineering"><span class="rail-icon">∑</span><span class="rail-label">Engineering</span></button></li>
+          <li><button class="rail-item" role="tab" data-surface="finder" title="Part Finder"><span class="rail-icon">⌕</span><span class="rail-label">Part Finder</span></button></li>
+          <li><button class="rail-item" role="tab" data-surface="settings" title="Settings"><span class="rail-icon">⚙</span><span class="rail-label">Settings</span></button></li>
+        </ul>
+        <div class="rail-foot">
+          <div class="rail-status">
+            <span class="dot" id="health-dot" aria-hidden="true"></span>
+            <span id="health-label">connecting…</span>
           </div>
-          <p class="local-help">
-            The Anthropic credential is unavailable in this environment, so
-            generation cannot run. These fixtures are
-            <strong>developer-written plans</strong>; everything after the plan
-            &mdash; parser, plan validation, V1 conversion, the existing
-            validator, the CAD engine and the RenderModel &mdash; is the real
-            implementation.
+        </div>
+      </nav>
+
+      <!-- ── centre: the model ────────────────────────────────────────── -->
+      <main class="stage">
+        <header class="stage-bar">
+          <div class="stage-title">
+            <h1 id="part-title">Untitled part</h1>
+            <span class="stage-sub" id="part-sub">no model yet</span>
+          </div>
+          <div class="stage-actions">
+            <button class="btn btn-ghost" id="fit-view" title="Frame the model">Fit</button>
+          </div>
+        </header>
+
+        <div class="viewport-wrap">
+          <canvas id="viewport" aria-label="3D model viewport"></canvas>
+          <div class="viewport-empty" id="viewport-empty">
+            <p class="empty-mark">◆</p>
+            <p class="empty-title">No model yet</p>
+            <p class="empty-hint">Describe a part in the Copilot to build one.</p>
+          </div>
+          <div class="viewport-busy" id="viewport-busy" hidden>
+            <span class="spinner" aria-hidden="true"></span>
+            <span id="viewport-busy-label">working…</span>
+          </div>
+          <p class="viewport-note" id="mesh-note"></p>
+        </div>
+
+        <!-- Status strip: what ran, on what, and what came out. -->
+        <section class="statusbar" aria-label="Model status">
+          <div class="stat"><span class="stat-key">backend</span><span class="stat-val" id="stat-backend">—</span></div>
+          <div class="stat"><span class="stat-key">model</span><span class="stat-val" id="stat-model">—</span></div>
+          <div class="stat"><span class="stat-key">path</span><span class="stat-val" id="stat-path">—</span></div>
+          <div class="stat"><span class="stat-key">build</span><span class="stat-val" id="stat-build">—</span></div>
+          <div class="stat"><span class="stat-key">last operation</span><span class="stat-val" id="stat-last">—</span></div>
+          <div class="stat stat-grow"><span class="stat-key">measurements</span><span class="stat-val" id="stat-measure">—</span></div>
+          <button class="btn btn-ghost btn-sm" id="details-toggle" aria-expanded="false">Technical details</button>
+        </section>
+
+        <!-- Everything the executor already produced, folded away by default. -->
+        <section class="details" id="details" hidden aria-label="Technical details">
+          <div class="details-grid">
+            <section class="details-block">
+              <h2>Operations</h2>
+              <ol class="op-list" id="op-list"><li class="muted">nothing built yet</li></ol>
+            </section>
+            <section class="details-block">
+              <h2>Selector evidence</h2>
+              <dl class="kv" id="selector-evidence"><dd class="muted">no semantic selector resolved yet</dd></dl>
+            </section>
+            <section class="details-block">
+              <h2>Measurements</h2>
+              <dl class="kv" id="measurements"><dd class="muted">—</dd></dl>
+            </section>
+            <section class="details-block details-wide">
+              <h2>Operation Plan <span class="muted">— canonical execution IR</span></h2>
+              <pre class="code" id="plan-json">—</pre>
+            </section>
+          </div>
+        </section>
+      </main>
+
+      <!-- ── right: the copilot ───────────────────────────────────────── -->
+      <aside class="copilot" id="panel-copilot">
+        <header class="panel-head">
+          <h2>Copilot</h2>
+          <span class="muted" id="copilot-sub">describe a part or a change</span>
+          <div class="panel-actions">
+            <button class="btn btn-ghost btn-sm" id="undo" type="button"
+                    title="Restore the previous model" disabled>Undo</button>
+            <button class="btn btn-ghost btn-sm" id="new-part" type="button"
+                    title="Clear the current part and start again">New part</button>
+          </div>
+        </header>
+
+        <div class="thread" id="thread" aria-live="polite"></div>
+
+        <form class="composer" id="composer">
+          <textarea
+            id="prompt"
+            rows="3"
+            placeholder="Create a 100 x 60 x 10 mm plate with an 8 mm through hole at x=10, y=10, then fillet the four vertical edges by 2 mm."
+            aria-label="Describe the part or the change"
+          ></textarea>
+          <div class="composer-row">
+            <span class="muted" id="composer-hint">Enter to send · Shift+Enter for a new line</span>
+            <button class="btn btn-primary" id="send" type="submit">Run</button>
+          </div>
+        </form>
+      </aside>
+
+      <!-- ── placeholder surfaces ─────────────────────────────────────── -->
+      <aside class="panel" id="panel-model" hidden>
+        <header class="panel-head">
+          <h2>Model</h2><span class="muted">the built part</span>
+          <div class="panel-actions">
+            <button class="btn btn-ghost btn-sm" id="export-step" type="button" disabled>STEP</button>
+            <button class="btn btn-ghost btn-sm" id="export-stl" type="button" disabled>STL</button>
+          </div>
+        </header>
+        <div class="panel-body">
+          <section class="model-block">
+            <h3>Operations</h3>
+            <ul class="tree" id="op-tree"><li class="muted">no model yet</li></ul>
+          </section>
+          <section class="model-block">
+            <h3>Inspect</h3>
+            <dl class="kv" id="inspect"><dd class="muted">build a part to measure it</dd></dl>
+            <p class="ph-note" id="inspect-source"></p>
+          </section>
+          <p class="ph-note" id="export-note"></p>
+        </div>
+      </aside>
+
+      <aside class="panel" id="panel-parts" hidden>
+        <header class="panel-head"><h2>Parts</h2><span class="muted">this session</span></header>
+        <div class="panel-body">
+          <dl class="kv" id="parts-current"><dd class="muted">no part built yet</dd></dl>
+          <p class="ph-note">
+            One part per session for now. Saved libraries, revisions across
+            sessions and reopening a part are not built yet — a session holds
+            the current part and its undo history, and nothing is persisted.
           </p>
-          <div class="row">
-            <select id="fixture"></select>
-            <button id="run-local" type="button">Run local plan</button>
-            <span id="local-status" class="status"></span>
+        </div>
+      </aside>
+
+      <aside class="panel" id="panel-drawings" hidden>
+        <header class="panel-head"><h2>Drawings</h2><span class="muted">from the current part</span>
+          <div class="panel-actions">
+            <button class="btn btn-primary btn-sm" id="make-drawing" type="button">Create drawing</button>
           </div>
+        </header>
+        <div class="panel-body">
+          <p class="ph-note" id="drawing-note">Build a part, then create a drawing of it.</p>
+          <dl class="kv" id="drawing-facts"></dl>
+          <div class="sheet" id="drawing-sheet"></div>
         </div>
+      </aside>
 
-        <div class="examples">
-          <span>Prompts (need a credential):</span>
-          <button class="example" type="button" data-text="Create a rectangular plate 100 mm long, 60 mm wide and 10 mm thick.">a plate</button>
-          <button class="example" type="button" data-text="Create a cylinder 20 mm in diameter and 50 mm tall along the +Z axis.">a cylinder</button>
-          <button class="example" type="button" data-text="Create a sphere with a 20 mm diameter.">a sphere (unsupported)</button>
-          <button class="example" type="button" data-text="Create a cylinder and a box joined together.">a join (unsupported)</button>
+      <aside class="panel" id="panel-macros" hidden>
+        <header class="panel-head"><h2>Macros</h2><span class="muted">repeatable actions</span></header>
+        <div class="panel-body">
+          <p class="ph-note">
+            A macro is a named list of actions from a fixed vocabulary. It is
+            not a scripting system: nothing here is executed as code.
+          </p>
+          <input class="field" id="macro-name" placeholder="Macro name, e.g. Manufacturing Package" />
+          <input class="field" id="macro-text" placeholder="What should it do? e.g. export STEP and STL" />
+          <div class="dev-row">
+            <button class="btn btn-primary btn-sm" id="macro-create" type="button">Create</button>
+          </div>
+          <p class="ph-note" id="macro-note"></p>
+          <ul class="tree" id="macro-list"><li class="muted">no macros yet</li></ul>
+          <details class="dev"><summary>Available actions</summary>
+            <dl class="kv" id="macro-actions"></dl>
+          </details>
         </div>
-      </section>
+      </aside>
 
-      <section>
-        <h2>2 · Operation plan</h2>
-        <div id="plan-source" class="source-badge" hidden></div>
-        <div id="plan-summary" class="summary empty">Nothing generated yet.</div>
-        <ol id="operation-tree" class="tree"></ol>
-        <details>
-          <summary>Plan JSON</summary>
-          <textarea id="plan-json" rows="12" spellcheck="false"></textarea>
-        </details>
-      </section>
-
-      <section>
-        <h2>3 · Validation</h2>
-        <div class="row">
-          <button id="validate" type="button">Validate</button>
-          <span id="validate-status" class="status"></span>
+      <aside class="panel" id="panel-engineering" hidden>
+        <header class="panel-head"><h2>Engineering</h2><span class="muted">measured vs calculated</span></header>
+        <div class="panel-body">
+          <input class="field" id="eng-question" placeholder="What is the volume? How much material do the holes remove?" />
+          <div class="dev-row">
+            <button class="btn btn-primary btn-sm" id="eng-ask" type="button">Ask</button>
+            <button class="btn btn-ghost btn-sm" id="eng-report" type="button">Full report</button>
+          </div>
+          <p class="ph-note" id="eng-note">Build a part, then ask about it.</p>
+          <ul class="findings" id="eng-findings"></ul>
         </div>
-        <ul id="problems" class="problems"></ul>
-      </section>
+      </aside>
 
-      <section>
-        <h2>4 · Build</h2>
-        <div class="row">
-          <button id="build" type="button">Build</button>
-          <span id="build-status" class="status"></span>
+      <aside class="panel" id="panel-finder" hidden>
+        <header class="panel-head"><h2>Part Finder</h2><span class="muted">local reference catalogue</span></header>
+        <div class="panel-body">
+          <input class="field" id="finder-query" placeholder="Find an M8 socket head cap screw" />
+          <div class="dev-row">
+            <button class="btn btn-primary btn-sm" id="finder-search" type="button">Search</button>
+          </div>
+          <p class="ph-note" id="finder-note"></p>
+          <ul class="findings" id="finder-results"></ul>
         </div>
-        <dl id="measurements" class="measurements"></dl>
-      </section>
+      </aside>
 
-      <section class="viewer-section">
-        <h2>5 · Result</h2>
-        <canvas id="viewport" width="900" height="520"></canvas>
-        <p id="mesh-note" class="status"></p>
-      </section>
-    </main>
+      <aside class="panel placeholder" id="panel-settings" hidden>
+        <header class="panel-head"><h2>Settings</h2><span class="muted">environment &amp; developer tools</span></header>
+        <div class="panel-body">
+          <dl class="kv" id="settings-env"></dl>
+          <details class="dev">
+            <summary>Developer fixtures</summary>
+            <p class="ph-note">
+              Developer-written plans that call no model. They exist for
+              regression work and are deliberately out of the product flow —
+              nothing here is a Claude result.
+            </p>
+            <div class="dev-row">
+              <select id="fixture" aria-label="Developer fixture"></select>
+              <button class="btn btn-ghost btn-sm" id="run-local" type="button">Run fixture</button>
+            </div>
+            <p class="muted" id="local-status"></p>
+          </details>
+        </div>
+      </aside>
+    </div>
 
     <script type="module" src="/src/main.ts"></script>
   </body>
