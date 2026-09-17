@@ -44,6 +44,13 @@ from .local_plan_provider import (
     run_fixture,
     stamp,
 )
+from .interpretation import (
+    DETERMINISTIC_NOTE,
+    NO_MODEL_NOTE,
+    SOURCE_DETERMINISTIC,
+    deterministic_interpretation,
+    interpret,
+)
 from .parser import PlanParseError, parse_plan
 from . import catalog as catalogue
 from . import engineering as eng
@@ -602,7 +609,36 @@ def create_app(
                 status_code=BAD_REQUEST_STATUS,
                 content={"error": "say what you would like to build or change"},
             )
+
+        # No model configured is the *hardest* case of "the model was no
+        # use", not a different one, so it goes to the same deterministic
+        # reader rather than short-circuiting past it. Returning 503 here
+        # made the provider-neutral route unreachable precisely when it was
+        # the only route left -- a request this project can read without any
+        # model at all was refused for want of one.
+        #
+        # The reader either understands the request completely or declines,
+        # and a decline still ends in the 503 below. Nothing is guessed to
+        # avoid an error.
         if planner is None:
+            session.said(USER, request_text)
+            reading = deterministic_interpretation(
+                request_text, note=NO_MODEL_NOTE)
+            if reading.understood:
+                base: Dict[str, Any] = {
+                    "session_id": session.session_id,
+                    "editing": session.has_model,
+                    "interpreted_by": reading.to_dict(),
+                }
+                plan, verdict, build = _rebuild(reading.plan.to_dict(), service)
+                outcome = _commit_build(
+                    session, base, request_text, plan, verdict, build,
+                    editing=session.has_model,
+                    summary=(reading.plan.summary if reading.plan else None),
+                    prefix=NO_MODEL_NOTE + " ",
+                )
+                if outcome is not None:
+                    return outcome
             return JSONResponse(
                 status_code=UNAVAILABLE_STATUS,
                 content={

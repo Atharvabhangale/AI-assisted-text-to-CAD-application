@@ -128,8 +128,31 @@ _TRIPLE = re.compile(
 #: "20*20", "20 x 20" -- two numbers, thickness left to inherit.
 _PAIR = re.compile(
     r"(\d+(?:\.\d+)?)\s*[*x×]\s*(\d+(?:\.\d+)?)", re.I)
-#: "(4)plates", "(4) plates", "4 plates"
-_COUNT = re.compile(r"\((\d+)\)|\b(\d+)\s*(?:no\.?\s*)?plates?\b", re.I)
+#: Counts a drawing writes in words. Only up to the number of faces a box
+#: has plus a little headroom: beyond that a request states a numeral, and
+#: accepting "seventeen" would be inventing a dialect nobody writes.
+_WORD_COUNTS: Dict[str, int] = {
+    "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6,
+    "seven": 7, "eight": 8, "nine": 9, "ten": 10, "twelve": 12,
+}
+_WORDS = "|".join(sorted(_WORD_COUNTS, key=len, reverse=True))
+
+#: "(4)plates", "(4) plates", "4 plates", "four plates".
+#:
+#: A word count is accepted **only when it is attached to the noun**, exactly
+#: as the numeral form is. That is not fussiness: in "four 40x20x5 plates and
+#: two 20x20 plates" a bare `\btwo\b` sits inside the first group's forward
+#: window and would silently give the 40x20 plates a count of two.
+_COUNT = re.compile(
+    r"\((\d+)\)"
+    r"|\b(\d+)\s*(?:no\.?\s*)?plates?\b"
+    rf"|\b({_WORDS})\s*(?:no\.?\s*)?plates?\b", re.I)
+
+#: The same counts, written *before* the size: "four 40x20x5 plates". Read
+#: from a short window ending at the size, and only as a last resort.
+_COUNT_BEFORE = re.compile(
+    rf"(?:\((\d+)\)|\b(\d+)\b|\b({_WORDS})\b)"
+    r"\s*(?:off\s+|no\.?\s+)?(?:plates?\s+(?:of\s+)?)?$", re.I)
 #: "8mm diameter", "8 mm holes", "8 mm dia", a leading diameter sign, or
 #: "diameter 8". Every common way a drawing states a bore.
 _DIAMETER = re.compile(
@@ -167,13 +190,44 @@ def _diameter(text: str) -> Optional[float]:
     return None
 
 
-def _count_after(text: str, position: int) -> int:
-    """How many plates the size just read applies to. Defaults to one."""
-    window = text[position:position + 40]
-    match = _COUNT.search(window)
-    if match:
-        return int(match.group(1) or match.group(2))
-    return 1
+def _count_groups(match: "re.Match[str]") -> int:
+    """One count out of whichever alternative matched."""
+    numeral = match.group(1) or match.group(2)
+    if numeral:
+        return int(numeral)
+    word = match.group(3)
+    return _WORD_COUNTS[word.lower()] if word else 1
+
+
+def _count_after(text: str, position: int) -> Optional[int]:
+    """A count stated after the size: "40x20x5 (4) plates"."""
+    match = _COUNT.search(text[position:position + 40])
+    return _count_groups(match) if match else None
+
+
+def _count_before(text: str, position: int) -> Optional[int]:
+    """A count stated before the size: "four 40x20x5 plates".
+
+    Anchored to the end of a short window so only a count immediately
+    preceding the size can match. A number further back belongs to
+    something else -- another plate group, or a dimension.
+    """
+    start = max(0, position - 24)
+    match = _COUNT_BEFORE.search(text[start:position])
+    return _count_groups(match) if match else None
+
+
+def _count_for(text: str, start: int, end: int) -> int:
+    """How many plates this size applies to. Defaults to one.
+
+    After the size first, because that is how the golden request and most
+    drawings write it; before it only when nothing followed.
+    """
+    after = _count_after(text, end)
+    if after is not None:
+        return after
+    before = _count_before(text, start)
+    return before if before is not None else 1
 
 
 def extract_intent(text: str) -> PlateAssemblyIntent:
@@ -196,9 +250,10 @@ def extract_intent(text: str) -> PlateAssemblyIntent:
         width, height, thickness = (float(g) for g in match.groups())
         if inherited is None:
             inherited = thickness
-        groups.append(PlateGroup(width=width, height=height,
-                                 count=_count_after(lowered, match.end()),
-                                 thickness=thickness))
+        groups.append(PlateGroup(
+            width=width, height=height,
+            count=_count_for(lowered, match.start(), match.end()),
+            thickness=thickness))
         consumed.append((match.start(), match.end()))
 
     # Then the pairs that were not part of a triple.
@@ -206,9 +261,10 @@ def extract_intent(text: str) -> PlateAssemblyIntent:
         if any(start <= match.start() < end for start, end in consumed):
             continue
         width, height = (float(g) for g in match.groups())
-        groups.append(PlateGroup(width=width, height=height,
-                                 count=_count_after(lowered, match.end()),
-                                 thickness=None))
+        groups.append(PlateGroup(
+            width=width, height=height,
+            count=_count_for(lowered, match.start(), match.end()),
+            thickness=None))
 
     if not groups:
         raise IntentError("no plate sizes were given")

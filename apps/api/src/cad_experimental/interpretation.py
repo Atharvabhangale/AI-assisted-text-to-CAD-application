@@ -54,6 +54,14 @@ DETERMINISTIC_NOTE = (
     "The model's plan was not usable, so I read the request directly."
 )
 
+#: Said when there is no model configured at all. A separate sentence from
+#: :data:`DETERMINISTIC_NOTE` because it is a separate fact: nothing fell
+#: short, nothing was asked. Telling a user their model answered badly when
+#: no model was ever configured would be a lie about their own setup.
+NO_MODEL_NOTE = (
+    "No interpretation model is configured, so I read the request directly."
+)
+
 
 @dataclass(frozen=True)
 class Interpretation:
@@ -103,8 +111,15 @@ def provider_interpretation(
                           error=result.error or result.outcome.value)
 
 
-def deterministic_interpretation(text: str) -> Interpretation:
+def deterministic_interpretation(
+    text: str, *, note: str = DETERMINISTIC_NOTE,
+) -> Interpretation:
     """Read the request locally, against the provider-neutral grammar.
+
+    ``note`` is what the user is told about why this route ran. It is a
+    parameter because there are two different true answers -- a model
+    answered badly, or no model was configured -- and saying the first when
+    the second happened misdescribes the user's own setup.
 
     Calls no model of any kind. Either the grammar reads the request
     completely -- every plate, its thickness and its hole -- or this returns
@@ -124,7 +139,7 @@ def deterministic_interpretation(text: str) -> Interpretation:
     except PlanParseError as exc:  # pragma: no cover - a bug in lowering
         return Interpretation(source=SOURCE_DETERMINISTIC, error=str(exc))
     return Interpretation(source=SOURCE_DETERMINISTIC, plan=plan,
-                          intent=intent, note=DETERMINISTIC_NOTE)
+                          intent=intent, note=note)
 
 
 def intent_interpretation(intent: PlateAssemblyIntent) -> Interpretation:
@@ -159,6 +174,7 @@ def interpret(text: str, result: PlanGenerationResult) -> Interpretation:
 
 __all__ = [
     "DETERMINISTIC_NOTE",
+    "NO_MODEL_NOTE",
     "SOURCE_DETERMINISTIC",
     "SOURCE_PROVIDER",
     "Interpretation",

@@ -9,7 +9,8 @@
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "e2e": "node e2e/drive.mjs",
-    "e2e:cases": "node e2e/regression-cases.mjs"
+    "e2e:cases": "node e2e/regression-cases.mjs",
+    "e2e:assembly": "node e2e/assembly.mjs"
   },
   "dependencies": {
     "three": "^0.185.1"
