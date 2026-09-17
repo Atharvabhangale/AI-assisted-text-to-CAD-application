@@ -333,6 +333,24 @@ def _apply(
 
     except BackendError as exc:
         return ExecutionFailure(BACKEND, str(exc), operation.id)
+    except NotImplementedError as exc:
+        # A capability this backend does not implement at all. It is NOT a
+        # `BackendError`, so without this clause it escaped `execute_plan`
+        # entirely -- breaking the contract three lines of docstring up
+        # ("Never raises for a plan's fault or a kernel's") and reaching the
+        # caller as a bare Python error with no operation attached.
+        #
+        # It is reported as UNSUPPORTED rather than BACKEND because the two
+        # say different things and the difference is the one this project
+        # cares about: BACKEND means the engine tried and the geometry
+        # refused; UNSUPPORTED means the engine never had a path to try. The
+        # plan is valid in both cases, and neither is a plan error.
+        detail = str(exc) or "the backend does not implement this capability"
+        return ExecutionFailure(
+            UNSUPPORTED,
+            f"this backend has no path for {kind!r}: {detail}",
+            operation.id,
+        )
 
     return ExecutionFailure(
         UNSUPPORTED, f"no execution path for {kind!r}", operation.id

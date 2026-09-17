@@ -755,13 +755,42 @@ class BackendIndependenceTests(unittest.TestCase):
                 with self.subTest(name=name, syntax=syntax):
                     self.assertNotIn(syntax, text)
 
-    def test_the_second_backend_is_honest_about_not_implementing_this(self):
-        """FreeCAD inherits `describe_edges` and therefore raises rather than
-        answering wrongly. Not implementing it is a gap, not a fallback."""
+    def test_the_second_backend_implements_this_without_borrowing_the_first(
+        self,
+    ):
+        """FreeCAD now answers `describe_edges` itself.
+
+        At Stage 47 it did not, and this test asserted the absence -- the
+        principle being protected was never 'FreeCAD must not implement
+        this' but 'a gap is a gap, never a fallback'. That principle is what
+        is checked now that the gap is closed: the second backend answers
+        the neutral contract with its own kernel, and nothing about the
+        first one is imported, referenced or delegated to.
+        """
         from cad_experimental import freecad_backend
 
-        self.assertFalse("describe_edges" in vars(
-            freecad_backend.FreeCadBackend))
+        self.assertIn("describe_edges", vars(freecad_backend.FreeCadBackend))
+        self.assertIn("edges_at", vars(freecad_backend.FreeCadBackend))
+        self.assertIn("fillet_edges", vars(freecad_backend.FreeCadBackend))
+        self.assertIn("chamfer_edges", vars(freecad_backend.FreeCadBackend))
+
+        source = (SOURCE / "freecad_backend.py").read_text(encoding="utf-8")
+        for borrowed in ("cadquery", "OCP", "CadQueryBackend"):
+            with self.subTest(borrowed=borrowed):
+                self.assertNotIn(borrowed, source)
+
+    def test_the_second_backend_reimplements_no_selector_logic(self):
+        """The selector engine stays the single source of truth.
+
+        A backend that decided for itself what `circular` or `top` meant
+        would make parity vacuous: the two engines could agree on every
+        number while answering different questions.
+        """
+        source = (SOURCE / "freecad_backend.py").read_text(encoding="utf-8")
+        for concept in ('"straight"', '"circular"', '"top"', '"bottom"',
+                        "position ==", "SemanticSelector"):
+            with self.subTest(concept=concept):
+                self.assertNotIn(concept, source)
 
 
 class ExistingSelectorCompatibilityTests(unittest.TestCase):

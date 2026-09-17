@@ -43,19 +43,6 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
-from cad_core.render_model import (
-    COORDINATE_SYSTEM,
-    DEFAULT_ANGULAR_DEFLECTION_RAD,
-    DEFAULT_LINEAR_DEFLECTION_MM,
-    NORMAL_BINDING,
-    RENDER_FORMAT_VERSION,
-    RENDER_UNITS,
-    WINDING,
-    RenderBounds,
-    RenderModel,
-    TessellationSettings,
-)
-
 from .cad_backend import (
     FREECAD,
     FREECAD_HOME_VARIABLE,
@@ -68,6 +55,50 @@ from .cad_backend import (
     axis_direction,
     axis_index,
 )
+from .edge_semantics import (
+    CIRCLE,
+    CYLINDER,
+    LINE,
+    OTHER,
+    PLANE,
+    EdgeFacts,
+)
+
+#: FreeCAD's own geometry class names, reduced to the neutral vocabulary that
+#: :mod:`cad_experimental.edge_semantics` speaks. The same mapping the
+#: CadQuery backend performs on OCC's ``GeomAbs_*`` enumerations, so neither
+#: backend's type names ever reach the selector engine.
+_CURVE_NAMES = {"Line": LINE, "Circle": CIRCLE}
+_SURFACE_NAMES = {"Plane": PLANE, "Cylinder": CYLINDER}
+
+
+def _index_of(edges: Sequence[Any], raw: Any) -> Optional[int]:
+    """Which entry of ``edges`` is the same topological edge as ``raw``.
+
+    By FreeCAD's ``Shape.isSame``, which is OpenCascade's ``TopoDS_Shape::
+    IsSame`` -- two handles to one edge compare same whatever their
+    orientation. Never by coordinates: a seam and an outer corner can share
+    every coordinate this project measures, and only identity separates them.
+    """
+    for index, edge in enumerate(edges):
+        try:
+            if edge.isSame(raw):
+                return index
+        except Exception:
+            continue
+    return None
+
+
+def _midpoint(edge: Any) -> Tuple[float, float, float]:
+    """The point halfway along the edge, in parameter space.
+
+    Used only to order edges, never to decide what one is. Parameter space
+    matches the CadQuery backend, so an edge that is 'first' on one backend
+    is 'first' on the other for the same geometric reason.
+    """
+    first, last = edge.FirstParameter, edge.LastParameter
+    point = edge.valueAt(first + (last - first) / 2.0)
+    return (point.x, point.y, point.z)
 
 #: Angular tolerance for the parallel test, in radians. OpenCascade's own
 #: ``Precision::Angular()`` is 1e-12; this matches the order of magnitude the
@@ -330,6 +361,154 @@ class FreeCadBackend(CadBackend):
             ) from exc
         return self._require_solid(result, "chamfer")
 
+    # --- topology inspection ---------------------------------------------
+
+    def describe_edges(self, shape) -> Tuple[EdgeFacts, ...]:
+        """Every edge of ``shape`` as plain numbers, for the selector engine.
+
+        The FreeCAD counterpart of the CadQuery backend's method, and the one
+        place FreeCAD topology is read for selection. It answers the same
+        neutral :class:`EdgeFacts` contract, so
+        :mod:`cad_experimental.edge_semantics` stays the single source of
+        truth about what a selector *means* -- no selector logic is
+        reimplemented here, and nothing FreeCAD-specific escapes.
+
+        Seams
+        -----
+        A seam is decided by FreeCAD's own predicate, ``Edge.isSeam(face)``,
+        which is the direct equivalent of the CadQuery path's
+        ``BRepTools::IsReallyClosed``: it answers whether the edge closes a
+        periodic face. This is a topological fact and nothing else will do --
+        on a drilled plate the hole's seam and an outer corner are both 10 mm
+        straight edges running along Z, identical in every measurable way.
+
+        It matters more here than on the other backend. Handed a selection
+        containing a seam, OpenCascade through CadQuery refuses the blend
+        (rule E5), but FreeCAD's ``makeFillet`` **silently drops the seam and
+        blends the rest** -- measured: an ``axis_parallel``/Z fillet on this
+        plate returns exactly the four-corner result, as though the seam had
+        never been selected. A silently skipped edge is precisely what this
+        project forbids. Reporting ``is_seam`` correctly is what prevents it:
+        the selector engine refuses such a selection (code R2) before any
+        kernel is asked, so both backends refuse it identically and for the
+        same stated reason.
+
+        Indices are FreeCAD's own and are **not** expected to agree with
+        CadQuery's. They are opaque handles; the selector engine orders by
+        geometry and uses an index only to settle coincident edges.
+        """
+        edges = list(shape.Edges)
+
+        seams: set = set()
+        adjacent: Dict[int, set] = {}
+        for face in shape.Faces:
+            name = _SURFACE_NAMES.get(
+                type(face.Surface).__name__, OTHER
+            )
+            for raw in face.Edges:
+                index = _index_of(edges, raw)
+                if index is None:
+                    continue
+                adjacent.setdefault(index, set()).add(name)
+                try:
+                    if raw.isSeam(face):
+                        seams.add(index)
+                except Exception:
+                    # `isSeam` is only meaningful for an edge of that face.
+                    # A refusal is not a seam, and is not an error either --
+                    # but it is never silently turned INTO a seam.
+                    pass
+
+        facts: List[EdgeFacts] = []
+        for index, edge in enumerate(edges):
+            curve = edge.Curve
+            kind = _CURVE_NAMES.get(type(curve).__name__, OTHER)
+            direction = centre = normal = None
+            radius = None
+            if kind == LINE:
+                raw = curve.Direction
+                direction = (raw.x, raw.y, raw.z)
+            elif kind == CIRCLE:
+                location, axis = curve.Center, curve.Axis
+                centre = (location.x, location.y, location.z)
+                normal = (axis.x, axis.y, axis.z)
+                radius = float(curve.Radius)
+            facts.append(EdgeFacts(
+                index=index,
+                curve=kind,
+                is_seam=index in seams,
+                midpoint=_midpoint(edge),
+                direction=direction,
+                centre=centre,
+                normal=normal,
+                radius=radius,
+                # Parameter span, matching the CadQuery backend's convention
+                # rather than FreeCAD's arc-length `Edge.Length`, so the two
+                # report one quantity. Descriptive only: the selector engine
+                # never reads it.
+                length=float(edge.LastParameter - edge.FirstParameter),
+                adjacent=tuple(sorted(adjacent.get(index, ()))),
+            ))
+        return tuple(facts)
+
+    def edges_at(self, shape, indices) -> Tuple[Any, ...]:
+        """The kernel edges the selector engine named, by its own indices.
+
+        Bounds are checked rather than trusted: an out-of-range index is a
+        programming error in the caller, and reporting it is better than
+        letting Python's negative indexing silently choose a different edge.
+        """
+        edges = list(shape.Edges)
+        chosen = []
+        for index in indices:
+            if not 0 <= index < len(edges):
+                raise BackendOperationError(
+                    f"edge {index} does not exist on this shape, which has "
+                    f"{len(edges)}"
+                )
+            chosen.append(edges[index])
+        return tuple(chosen)
+
+    # --- edge modifiers over already-resolved edges -----------------------
+
+    def fillet_edges(self, target, radius, edges) -> Any:
+        """Section C.5 over edges the selector engine already resolved.
+
+        Distinct from :meth:`fillet`, which takes a Section C.7 selector and
+        resolves it here. This one is the graph executor's entry point: the
+        edges arrive already chosen by the backend-neutral engine, so this
+        method decides nothing about *which* edges a plan meant.
+        """
+        if not radius > 0:
+            raise BackendOperationError(
+                f"a fillet needs a positive radius; got {radius!r}"
+            )
+        if not edges:
+            raise BackendOperationError("a fillet needs at least one edge")
+        try:
+            result = target.makeFillet(float(radius), list(edges))
+        except Exception as exc:
+            raise BackendOperationError(
+                f"the kernel refused the fillet (rule E5): {exc}"
+            ) from exc
+        return self._require_solid(result, "fillet")
+
+    def chamfer_edges(self, target, distance, edges) -> Any:
+        """Section C.6 over edges the selector engine already resolved."""
+        if not distance > 0:
+            raise BackendOperationError(
+                f"a chamfer needs a positive distance; got {distance!r}"
+            )
+        if not edges:
+            raise BackendOperationError("a chamfer needs at least one edge")
+        try:
+            result = target.makeChamfer(float(distance), list(edges))
+        except Exception as exc:
+            raise BackendOperationError(
+                f"the kernel refused the chamfer (rule E5): {exc}"
+            ) from exc
+        return self._require_solid(result, "chamfer")
+
     @staticmethod
     def _require_matches(edges, selector: Selector) -> None:
         if not edges:
@@ -480,7 +659,29 @@ class FreeCadBackend(CadBackend):
 
         Normals are per-vertex and computed from the triangles that meet at
         each vertex, matching the existing model's ``normal_binding``.
+
+        The render-model import is **deliberately lazy**. At module scope it
+        made this backend unimportable without CadQuery: ``render_model``
+        pulls in ``cad_core.local_cad``, which raises when CadQuery is
+        absent -- so the second backend could not be loaded on a machine that
+        had only the second kernel, which is exactly the machine it exists
+        for. Everything else here (construction, booleans, topology,
+        selectors, blends, measurement) needs no such import, and now none is
+        taken until a caller actually asks for a render model.
         """
+        from cad_core.render_model import (  # noqa: PLC0415
+            COORDINATE_SYSTEM,
+            DEFAULT_ANGULAR_DEFLECTION_RAD,
+            DEFAULT_LINEAR_DEFLECTION_MM,
+            NORMAL_BINDING,
+            RENDER_FORMAT_VERSION,
+            RENDER_UNITS,
+            WINDING,
+            RenderBounds,
+            RenderModel,
+            TessellationSettings,
+        )
+
         vertices, triangles = shape.tessellate(DEFAULT_LINEAR_DEFLECTION_MM)
         if not triangles:
             raise BackendOperationError(
