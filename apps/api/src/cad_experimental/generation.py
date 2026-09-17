@@ -25,10 +25,27 @@ from cad_ai.provider import (
 )
 
 from .config import MAX_OUTPUT_TOKENS, ExperimentalConfig
-from .plan import OperationPlan, PlanStatus, provider_schema
+from .plan import (
+    OperationPlan,
+    PlanStatus,
+    strict_selector_provider_schema,
+)
 from .prompt import PROMPT_VERSION, prompt_fingerprint, system_prompt
 from .parser import PlanParseError, parse_plan_text
+from .schema_ladder import grammar_metrics
 from .validation import PlanValidation, validate_plan
+
+#: Which encoding of the plan this route asks the model to decode against.
+#: Recorded on every answer: a narrowed grammar that went unnamed would make
+#: a refusal indistinguishable from an inexpressible request, which is the
+#: mistake Stage 44 made and Stage 48 found again.
+PLAN_SCHEMA_NAME = "strict_selector"
+
+#: Computed once, from the one definition in :mod:`schema_ladder`, so this
+#: cannot drift from what the ladder measures.
+_PLAN_SCHEMA_METRICS = grammar_metrics(strict_selector_provider_schema())
+PLAN_SCHEMA_FINGERPRINT: str = _PLAN_SCHEMA_METRICS["fingerprint"]
+PLAN_SCHEMA_INLINED: int = _PLAN_SCHEMA_METRICS["inlined_characters"]
 
 
 class PlanOutcome(Enum):
@@ -73,6 +90,8 @@ class PlanGenerationMetadata:
     structured_output: bool = False
     stop_reason: Optional[str] = None
     usage: Mapping[str, int] = field(default_factory=dict)
+    plan_schema: str = PLAN_SCHEMA_NAME
+    plan_schema_fingerprint: str = PLAN_SCHEMA_FINGERPRINT
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -83,6 +102,8 @@ class PlanGenerationMetadata:
             "structured_output": self.structured_output,
             "stop_reason": self.stop_reason,
             "usage": dict(self.usage),
+            "plan_schema": self.plan_schema,
+            "plan_schema_fingerprint": self.plan_schema_fingerprint,
         }
 
 
@@ -173,15 +194,43 @@ class OperationPlanService:
         request = ModelRequest(
             system=system_prompt(),
             user_text=text,
-            # The provider-compatible projection, not the full schema:
-            # Anthropic's structured-output grammar has a branch ceiling and
-            # will not compile nine (Stage 41). `provider_schema` covers all
-            # nine TYPES in eight branches by merging fillet and chamfer
-            # (Stage 44), so a constrained decoder can still emit a sketch,
-            # an extrude and a revolve -- which under the Stage 43 schema it
-            # could not, making refusal its only reachable answer. The parser
-            # re-derives every per-type requirement regardless.
-            output_schema=provider_schema(),
+            # `provider_schema` stood here and the provider REFUSED it on
+            # every live call -- "The compiled grammar is too large" -- so
+            # this route answered 503 for every request while the rest of
+            # the stack was healthy. It measures 7351 inlined characters
+            # against a ceiling Stages 50/51 bounded to (4481, 4551] by real
+            # calls. Nothing was wrong with the model, the credential or the
+            # transport; the encoding simply did not fit.
+            #
+            # This one does, and is the largest that both fits and answers
+            # the requests this experiment makes. Measured 3619 inlined --
+            # 862 below the proven-accepted 4481 -- and already exercised
+            # live in Stage 55, where the provider compiled it and the model
+            # scored 4/4 on naming a rim's end under this very prompt.
+            #
+            # Why the strict (branched) selector rather than the flat one,
+            # which is smaller still at 3134: Stage 54 measured the flat
+            # encoding at *0/4* on `selector_position_correct` -- an
+            # optional field is one a grammar-constrained decoder declines
+            # to use -- and Stage 55 measured 4/4 once each mode became its
+            # own branch and the circular branch required `position`. A
+            # top-rim chamfer is unreachable under the flat encoding in
+            # practice, so the extra 485 characters buy the capability back.
+            #
+            # What this encoding cannot SAY, recorded rather than hidden:
+            # `sketch`, `extrude` and `revolve` (which the execution
+            # boundary refuses anyway, so no buildable part is lost);
+            # `pattern`, which IS buildable and is a real narrowing --
+            # adding it measures 4633, past the 4551 refusal, and the only
+            # trim that would fit strips `axis`, which these selectors need;
+            # and a circular selector with no `position`, meaning both rims,
+            # which the parser still accepts from any other source.
+            #
+            # A schema is what the model may SAY, never what the engine can
+            # BUILD, and the parser re-derives every per-type requirement
+            # regardless. The chosen encoding is reported in the metadata so
+            # a caller can tell which grammar produced an answer.
+            output_schema=strict_selector_provider_schema(),
             max_output_tokens=MAX_OUTPUT_TOKENS,
         )
 
@@ -241,6 +290,9 @@ class OperationPlanService:
 
 __all__ = [
     "STATUS_OUTCOMES",
+    "PLAN_SCHEMA_FINGERPRINT",
+    "PLAN_SCHEMA_INLINED",
+    "PLAN_SCHEMA_NAME",
     "OperationPlanService",
     "PlanGenerationMetadata",
     "PlanGenerationResult",

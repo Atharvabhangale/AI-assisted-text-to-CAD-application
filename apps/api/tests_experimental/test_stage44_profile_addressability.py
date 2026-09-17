@@ -38,7 +38,12 @@ from stubs import StubModel
 from cad_experimental.adapter import ExecutionUnsupported, plan_to_document
 from cad_experimental.build import build_plan
 from cad_experimental.config import ExperimentalConfig
-from cad_experimental.generation import OperationPlanService, PlanOutcome
+from cad_experimental.generation import (
+    PLAN_SCHEMA_FINGERPRINT,
+    PLAN_SCHEMA_NAME,
+    OperationPlanService,
+    PlanOutcome,
+)
 from cad_experimental.parser import parse_plan
 from cad_experimental.plan import (
     EXECUTABLE_TYPES,
@@ -324,16 +329,75 @@ class AProfilePlanSurvivesTheWholePathTests(unittest.TestCase):
         self.assertEqual([o.TYPE for o in result.plan.operations],
                          [SKETCH, REVOLVE])
 
-    def test_the_service_hands_the_model_a_grammar_that_admits_the_answer(self):
-        """The two halves joined: the schema the service actually sends must
-        admit the plan the service is willing to accept back."""
+    def test_the_service_hands_the_model_a_grammar_that_admits_what_it_builds(
+        self,
+    ):
+        """The schema the service sends must admit every operation the engine
+        can BUILD, so that a refusal is the model's judgement and not the
+        grammar's. That is Stage 44's lesson and it is unchanged.
+
+        What changed is which grammar can carry it. Stage 44 asserted the
+        sent schema admits a `sketch` and an `extrude` too, and that was
+        right while the wide grammar was believed to compile. Stages 50/51
+        then measured that it does not: the provider refuses it outright --
+        "The compiled grammar is too large" -- so the route answered 503 to
+        every request and admitted nothing at all, profiles included.
+
+        The ceiling is bounded to (4481, 4551] inlined characters, and a
+        grammar carrying the profile pipeline AND the edge treatments
+        measures 4741. Admitting both is therefore not reachable, and the
+        choice is forced rather than preferred. The route keeps the
+        operations the engine can build and the selectors Stages 47-55 gave
+        them; the profile operations stay parseable and valid (the two tests
+        above still pass on the same plan) but are not sayable under this
+        encoding.
+        """
         result = self.generated(RECTANGLE_PROFILE, EXTRUDE_OF_PROFILE)
         self.assertIs(result.outcome, PlanOutcome.GENERATED)
         schema = self.model.requests[0].output_schema
         self.assertIsNotNone(schema)
-        for operation in (RECTANGLE_PROFILE, EXTRUDE_OF_PROFILE):
-            with self.subTest(type=operation["type"]):
+
+        buildable = (
+            {"id": "plate", "type": "box",
+             "parameters": {"x": 100.0, "y": 60.0, "z": 10.0}},
+            {"id": "hole", "type": "through_hole", "target": "plate",
+             "parameters": {"diameter": 20.0,
+                            "position": {"x": 50.0, "y": 30.0, "z": 0.0}}},
+            {"id": "rim", "type": "chamfer", "target": "plate",
+             "parameters": {"distance": 1.0,
+                            "edges": {"select": "circular", "axis": "Z",
+                                      "position": "top"}}},
+        )
+        for operation in buildable:
+            with self.subTest(admits=operation["type"]):
                 self.assertEqual(len(admitting_branches(schema, operation)), 1)
+
+    def test_the_sent_grammar_cannot_say_a_profile_and_that_is_recorded(self):
+        """The narrowing, pinned so it cannot be forgotten or drift.
+
+        Not an endorsement: if a future encoding buys profiles back under
+        the ceiling, this test fails and is the right place to say so.
+        """
+        result = self.generated(RECTANGLE_PROFILE, EXTRUDE_OF_PROFILE)
+        schema = self.model.requests[0].output_schema
+        for operation in (RECTANGLE_PROFILE, EXTRUDE_OF_PROFILE):
+            with self.subTest(cannot_say=operation["type"]):
+                self.assertEqual(admitting_branches(schema, operation), [])
+
+        # ...and yet the language itself is untouched: the same plan the
+        # grammar cannot express still parses and validates.
+        self.assertIs(result.outcome, PlanOutcome.GENERATED)
+        self.assertTrue(result.plan_validation.valid)
+
+    def test_the_service_reports_which_grammar_produced_the_answer(self):
+        """A narrowed encoding that went unnamed would make an inexpressible
+        request indistinguishable from a refusal -- the Stage 44 mistake in
+        a new place. The name and fingerprint ride on every answer."""
+        result = self.generated(RECTANGLE_PROFILE, EXTRUDE_OF_PROFILE)
+        reported = result.metadata.to_dict()
+        self.assertEqual(reported["plan_schema"], PLAN_SCHEMA_NAME)
+        self.assertEqual(reported["plan_schema_fingerprint"],
+                         PLAN_SCHEMA_FINGERPRINT)
 
     def test_the_service_sends_the_stage_44_prompt(self):
         self.generated(RECTANGLE_PROFILE, EXTRUDE_OF_PROFILE)

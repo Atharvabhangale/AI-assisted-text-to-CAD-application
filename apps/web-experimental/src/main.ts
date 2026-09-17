@@ -22,6 +22,7 @@ import {
   runLocalFixture,
   validatePlan,
   type BuildResponse,
+  type ExecutionReport,
   type PlanOperation,
   type PlanResponse,
 } from "./api";
@@ -308,7 +309,75 @@ function showMeasurements(entries: readonly (readonly [string, string])[]): void
  * drift, and so a fixture is measured by exactly the code that measures a
  * generated plan.
  */
+/**
+ * Show what the graph-driven executor reported.
+ *
+ * A graph-executed build carries no `build` and no `document` by design, so
+ * it cannot go through the V1 reader below. It reports the same facts in its
+ * own shape -- and one the V1 path has no word for: which edges the selector
+ * actually named, which is the whole point of a `straight` or a `circular`.
+ *
+ * Nothing is computed here. Every number is a field the executor sent.
+ */
+function renderExecution(execution: ExecutionReport): void {
+  const body = execution.bodies[0];
+  const measured = (body?.measurement ?? {}) as Record<string, unknown>;
+  const size = (measured["size"] ?? []) as unknown[];
+  const entries: (readonly [string, string])[] = [
+    ["backend", execution.backend],
+    ["path", `graph executor · ${execution.backend}`],
+    ["order", execution.order.join(" → ")],
+    ["solids", String(measured["solid_count"] ?? "—")],
+    ["volume mm³", String(measured["volume"] ?? "—")],
+    ["faces", String(measured["face_count"] ?? "—")],
+    ["edges", String(measured["edge_count"] ?? "—")],
+    [
+      "size mm",
+      size.length === 3
+        ? `${String(size[0])} × ${String(size[1])} × ${String(size[2])}`
+        : "—",
+    ],
+  ];
+  // The selector's own resolution, per operation: how many edges it named
+  // out of how many it considered. A volume alone could never show this --
+  // a top rim and a bottom rim chamfer to the same number.
+  for (const [operation, resolution] of Object.entries(
+    execution.selections ?? {},
+  )) {
+    const named = resolution.indices ?? [];
+    const considered = resolution.candidates ?? [];
+    const seams = resolution.seams ?? [];
+    entries.push([
+      `selector · ${operation}`,
+      `${named.length} of ${considered.length} edge(s)` +
+        (seams.length > 0 ? `, ${seams.length} seam(s) excluded` : ""),
+    ]);
+  }
+  showMeasurements(entries);
+}
+
 function renderBuild(result: BuildResponse): void {
+  if (result.executed_by_graph === true) {
+    if (result.execution !== undefined) {
+      renderExecution(result.execution);
+    }
+    // The graph path now carries the same neutral RenderModel the document
+    // path does, built by whichever engine executed -- so the mesh is drawn
+    // by exactly the code below, and the page cannot tell the backends
+    // apart. When a backend cannot render, that is said plainly rather than
+    // shown as an empty viewport: the geometry was still built and measured.
+    if (result.render === undefined || result.render === null) {
+      say(
+        meshNote,
+        "built and measured by the graph executor, which returned no render " +
+          "model — the geometry is real, there is simply nothing to draw",
+        "warn",
+      );
+      return;
+    }
+    drawMesh(result.render);
+    return;
+  }
   const build = result.build;
   if (build === undefined) {
     showMeasurements([]);
@@ -336,8 +405,20 @@ function renderBuild(result: BuildResponse): void {
     say(meshNote, "the build returned no render model", "warn");
     return;
   }
+  drawMesh(result.render);
+}
+
+/**
+ * Draw one neutral RenderModel.
+ *
+ * Shared by both execution paths on purpose: the render contract is the same
+ * dataclass whichever engine produced it, so if the page drew them with two
+ * pieces of code it could start telling the backends apart -- which is
+ * exactly what the neutral format exists to prevent.
+ */
+function drawMesh(payload: unknown): void {
   try {
-    const model = assertRenderModel(result.render);
+    const model = assertRenderModel(payload);
     if (viewer === null) {
       viewer = createViewer(canvas);
     }
@@ -382,6 +463,34 @@ buildButton.addEventListener("click", async () => {
   say(buildStatus, "building…");
   try {
     const result = await buildPlan(payload);
+    // A graph-executed plan is answered 200 with `executed_by_graph` and an
+    // `execution`, and with NO `build` -- the two paths never both report.
+    // Testing `build` alone therefore called every successful semantic
+    // selector a failure, which is what put "the build failed" on the page
+    // for plans the backend had built correctly. Ask which path ran first.
+    if (result.executed_by_graph === true) {
+      const execution = result.execution;
+      if (execution === undefined || !execution.succeeded) {
+        // The executor's structured failure, not a guess at one: it names
+        // the rule and the operation, and its selections survive the
+        // failure -- so the evidence stays on screen.
+        say(
+          buildStatus,
+          execution?.failure?.message ?? "the build failed",
+          "bad",
+        );
+        if (execution !== undefined) {
+          renderExecution(execution);
+        } else {
+          showMeasurements([]);
+        }
+        return;
+      }
+      renderBuild(result);
+      say(buildStatus, "built", "ok");
+      return;
+    }
+
     // `build` is optional on the shared response type because the
     // local-development route omits it when nothing was built.
     if (result.build === undefined || !result.build.succeeded) {

@@ -3473,3 +3473,114 @@ was not*, which is E5 as data rather than as an inference from a sentence.
   report `MEASUREMENT` or `SEMANTIC`.
 - Prose matching survives as a last resort and records `classified_by` when
   it is what decided.
+
+## Live generation restored: the route was sending a grammar the provider refuses
+
+### The defect
+
+`POST /experimental/generate-plan` answered **503 to every request**. The
+credential was valid, the model reachable and the rest of the stack healthy:
+`/experimental/health` was 200, the local fixtures built, and a plain
+`messages.create` to `claude-haiku-4-5-20251001` returned normally. Only this
+route failed, and it failed on the provider's own words:
+
+> `400 invalid_request_error` — *"The compiled grammar is too large, which
+> would cause performance issues. Simplify your tool schemas or reduce the
+> number of strict tools."*
+
+`generation.py` was sending `provider_schema()` — the ten-type, eight-branch
+encoding built in Stage 44 and **never measured against the compiler**. Stages
+50/51 had since bounded the ceiling to **(4481, 4551]** inlined characters by
+real calls. `provider_schema()` measures **7351**. It could never have
+compiled, so from the moment structured output was turned on this route was
+dead, and its 503 was a schema-selection bug wearing a provider outage as a
+disguise.
+
+Nothing about the canonical IR was involved, and nothing about it changed.
+
+### The tradeoff, measured before any code moved
+
+All figures are ref-inlined characters on the schema sent verbatim to
+`messages.create` (the experimental path applies no sanitiser; the plan schema
+is already free of the rejected keywords, and `sanitise_schema` is a proven
+no-op on it).
+
+| encoding | inlined | br | vs ceiling | operations sayable | selectors |
+|---|---:|---:|---|---|---|
+| `provider_schema` (was sent) | **7351** | 8 | **OVER, refused live** | all ten | full |
+| `compact_provider_schema` | 6190 | 8 | OVER, refused live | all ten | full |
+| `profile_union` | 4481 | 6 | accepted live | 7, no edge pair | **none** |
+| 7 types + strict selector | 4633 | 6 | **OVER** (>4551) | all executable | full |
+| 7 types + flat selector | 4148 | 6 | under | all executable | full but **0/4** |
+| **`strict_selector` (now sent)** | **3619** | 5 | **under by 862** | 6 buildable | **full, 4/4** |
+| `selector` (flat) | 3134 | 5 | under | 6 buildable | full but **0/4** |
+
+Two rows decide it. **`pattern` cannot be afforded**: adding it to the strict
+selector measures 4633, past the 4551 refusal, and the only trim that would
+fit (4505) both lands in the unmeasured band and strips `axis`, which these
+selectors need. And the **flat** selector, though smaller and able to carry
+`pattern`, was measured by Stage 54 at **0/4** on `selector_position_correct`
+— an optional field is one a grammar-constrained decoder declines to use — so
+a top-rim chamfer is unreachable under it in practice. Stage 55's discriminated
+union scored **4/4** on the same prompt. The extra 485 characters buy back the
+capability the whole selector line of work exists for.
+
+### What was changed
+
+One line of behaviour: the route now sends
+`strict_selector_provider_schema()`, which Stage 55 had already built,
+measured and **proven live** — same fingerprint, `887718d3e5387529`. The
+schema was not redesigned and the canonical IR was not touched.
+
+Two fields were added to `PlanGenerationMetadata`, `plan_schema` and
+`plan_schema_fingerprint`, so every answer says which grammar produced it. A
+narrowed encoding that went unnamed would make an *inexpressible* request
+indistinguishable from a *refusal*, which is exactly the Stage 44 mistake that
+Stage 48 then found a second time.
+
+### Capabilities retained and lost, stated plainly
+
+**Retained:** all six operations the engine can build (`box`, `cylinder`,
+`through_hole`, `subtract`, `fillet`, `chamfer`) and the **whole** selector
+vocabulary — `all`, `axis_parallel`, `straight`, `circular`, a rim's
+`position`, and `axis`.
+
+**Lost, and not silently:**
+
+- `sketch`, `extrude`, `revolve` — **not buildable** in any case; the
+  execution boundary refuses them, so no part that could be made is now
+  unreachable. They still parse and validate, and two Stage 44 tests assert
+  that on the very plan the grammar cannot express.
+- `pattern` — **buildable, and a real loss.** Measured unaffordable above.
+- a `circular` selector with no `position`, meaning *both* rims. The parser
+  still accepts it from any other source.
+
+Stage 44's test asserting the sent grammar admits a profile was updated rather
+than deleted: it now asserts the grammar admits everything the engine can
+**build**, and a companion test pins the profile narrowing so that a future
+encoding which buys profiles back under the ceiling will fail it and say so.
+
+### Verification
+
+`claude-haiku-4-5-20251001`, prompt `2026-09-16.1`
+(`a1f9991c7327fb9dc028aba8f37b29a53f3751fe16855f173149249b7134e960`), schema
+`strict_selector` / `887718d3e5387529` / 3619 inlined, `structured_output`
+true on every answer. Five live calls: one probe, four cases.
+
+| case | plan | selector emitted | path | volume mm3 |
+|---|---|---|---|---|
+| simple plate | `box` | — | V1 document | built |
+| plate + hole | `box`, `through_hole` | — | V1 document | built |
+| top rim chamfer | + `chamfer` | `circular` / `Z` / **`top`** | **graph executor** | **56825.944222323116** |
+| vertical corner fillet | + `fillet` | **`straight`** / `Z` | **graph executor** | **59785.39816339745** |
+
+Every plan parsed and validated with **no problems**. The rim chamfer selected
+**one of two candidate rims** (`indices [9]`, `candidates [13, 9]`, no seam)
+and reproduces the Stage 55 one-rim figure exactly; the corner fillet selected
+`[0, 2, 4, 6]` — the four vertical corners, the seam excluded by `straight` —
+against a closed form of `60000 - 4(25 - 25pi/4)(10) = 59785.398...`.
+
+**No local fixture was involved.** These answers carry neither `source:
+LOCAL_DEVELOPMENT_PLAN` nor `is_live_model_result: false`; they carry real
+Anthropic provider and model metadata. The fixture route is untouched and
+still stamps both.

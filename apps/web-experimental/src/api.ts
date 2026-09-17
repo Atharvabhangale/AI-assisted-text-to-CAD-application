@@ -76,6 +76,53 @@ export interface BuildResponse {
   readonly execution_unsupported?: boolean;
   readonly unsupported_types?: readonly string[];
   readonly unsupported_operations?: readonly string[];
+  /**
+   * Set when the graph-driven executor built the plan rather than a V1
+   * document -- which happens exactly when a selector is richer than
+   * Section C.7 can express: a `straight`, a `circular`, or a rim's
+   * `position`. Such a build has **no `build` and no `document`** by design,
+   * so a reader that tests `build` alone concludes a successful build
+   * failed. That is precisely what this page did.
+   */
+  readonly executed_by_graph?: boolean;
+  readonly execution?: ExecutionReport;
+  /**
+   * Which engine built this, and by which route. Sent on both paths so the
+   * page never has to infer the backend from which fields are present -- a
+   * build whose engine had to be guessed is one nobody can attribute.
+   */
+  readonly backend?: string;
+  readonly execution_path?: string;
+}
+
+/** The executor's own report. Measurements and selections, never a shape. */
+export interface ExecutionReport {
+  readonly succeeded: boolean;
+  readonly backend: string;
+  readonly order: readonly string[];
+  readonly bodies: readonly {
+    readonly id: string;
+    readonly features: readonly string[];
+    readonly measurement?: Readonly<Record<string, unknown>> | null;
+  }[];
+  readonly failure?: {
+    readonly code?: string;
+    readonly message?: string;
+    readonly operation?: string;
+  } | null;
+  /** One resolution per selector-bearing operation, keyed by operation id. */
+  readonly selections?: Readonly<
+    Record<
+      string,
+      {
+        readonly indices?: readonly number[];
+        readonly candidates?: readonly number[];
+        readonly seams?: readonly number[];
+        readonly code?: string | null;
+        readonly message?: string;
+      }
+    >
+  >;
 }
 
 /** A failed request, carrying whatever the server said. */
