@@ -29,8 +29,6 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from cad_core.application_service import CadApplicationService
-
 from . import EXPERIMENT_NAME, PLAN_SCHEMA_VERSION
 from .build import build_plan
 from .config import (
@@ -102,7 +100,7 @@ class LocalPlanBody(BaseModel):
 
 def create_app(
     *,
-    service: Optional[CadApplicationService] = None,
+    service: Optional["CadApplicationService"] = None,
     planner: Optional[OperationPlanService] = None,
     config: Optional[ExperimentalConfig] = None,
     cache_root: Optional[str] = None,
@@ -126,7 +124,24 @@ def create_app(
     )
 
     if service is None and cache_root is not None:
-        service = CadApplicationService.local(cache_root)
+        try:
+            # Imported here, not at module scope: this reaches CadQuery
+            # through `cad_core`, and hoisting it made the whole HTTP layer
+            # unimportable on a machine that has only the other engine --
+            # which is exactly the machine `CAD_BACKEND=freecad` is for.
+            from cad_core.application_service import CadApplicationService
+
+            service = CadApplicationService.local(cache_root)
+        except ImportError:
+            # No CadQuery here, so no V1 document path. The app still starts
+            # and still builds: a plan routed to the graph executor never
+            # needed this. Left as None rather than substituted, and the
+            # document path says so if something asks for it.
+            logger.info(
+                "no V1 document service available (CadQuery absent); "
+                "builds will run on the selected backend only"
+            )
+            service = None
 
     app.state.config = settings
     app.state.service = service
@@ -135,8 +150,27 @@ def create_app(
     def _planner() -> Optional[OperationPlanService]:
         return app.state.planner
 
-    def _service() -> Optional[CadApplicationService]:
+    def _service() -> Optional["CadApplicationService"]:
         return app.state.service
+
+    def _backend_report() -> Dict[str, Any]:
+        """Which engine this deployment would execute on, and whether it can.
+
+        Asked of the resolver, so a misconfigured `CAD_BACKEND` surfaces as
+        an unavailable backend rather than as a successful build on some
+        other engine.
+        """
+        from .cad_backend import BackendError, resolve_backend
+
+        try:
+            engine = resolve_backend()
+        except BackendError as exc:
+            return {"name": None, "available": False, "error": str(exc)}
+        return {
+            "name": engine.name,
+            "available": bool(engine.available()),
+            "version": engine.version(),
+        }
 
     @app.exception_handler(RequestValidationError)
     async def _malformed(
@@ -169,6 +203,16 @@ def create_app(
             "provider": settings.provider,
             "model": settings.model,
             "model_configured": credential_available(),
+            # Which engine this deployment will actually execute on, read
+            # from the resolver rather than from the environment string, so
+            # what is reported is what would run. Never a fallback: if the
+            # selected engine is unavailable this says so.
+            "backend": _backend_report(),
+            # True when the V1 document path is available. A build can still
+            # succeed without it -- the graph executor needs no service --
+            # so this is reported separately from `backend` rather than
+            # standing in for "can this deployment build at all".
+            "v1_document_path_available": app.state.service is not None,
             "build_available": app.state.service is not None,
             # Development routes are always available: they need no
             # credential, and they never produce a model result.
@@ -263,14 +307,18 @@ def create_app(
     @app.post(BUILD_PATH)
     async def build(
         body: PlanBody,
-        service: Optional[CadApplicationService] = Depends(_service),
+        service: Optional["CadApplicationService"] = Depends(_service),
     ) -> JSONResponse:
-        """Build a plan with the existing CAD service. No new CAD logic."""
-        if service is None:
-            return JSONResponse(
-                status_code=UNAVAILABLE_STATUS,
-                content={"error": "no build service is configured"},
-            )
+        """Build a plan on the selected backend. No new CAD logic.
+
+        The service is **not** required up front any more. It belongs to the
+        V1 document path, which is the CadQuery engine; a plan routed to the
+        graph executor never touches it, and on a machine that has only the
+        other engine there is no service to configure. Refusing every build
+        here would have made `CAD_BACKEND=freecad` unusable on exactly the
+        machine it exists for. `build_plan` asks for the service only on the
+        path that uses one, and says so plainly when it is missing.
+        """
         try:
             plan = parse_plan(body.plan)
         except PlanParseError as exc:
@@ -330,13 +378,22 @@ def create_app(
             # path returns the same shape rather than a bare message.
             execution = result.execution
             status = OK_STATUS if result.built else BAD_REQUEST_STATUS
-            return JSONResponse(
-                status_code=status,
-                content={
-                    "executed_by_graph": True,
-                    "execution": execution.to_dict(),
-                },
-            )
+            graph_payload: Dict[str, Any] = {
+                "executed_by_graph": True,
+                # Stated on every answer, never left to be inferred from
+                # which field happens to be present: a caller who asked for
+                # one engine must be able to read back which one ran.
+                "backend": result.backend,
+                "execution_path": result.execution_path,
+                "execution": execution.to_dict(),
+            }
+            # The same neutral RenderModel the document path returns, built
+            # by whichever engine executed. Its absence is not a failure --
+            # the geometry is measured either way -- so it is omitted rather
+            # than sent as null, exactly as the document path does.
+            if result.render is not None:
+                graph_payload["render"] = result.render.to_dict()
+            return JSONResponse(status_code=status, content=graph_payload)
         if result.outcome is None:
             return JSONResponse(
                 status_code=BAD_REQUEST_STATUS,
@@ -345,6 +402,8 @@ def create_app(
         payload: Dict[str, Any] = {
             "document": result.document,
             "build": result.outcome.to_dict(),
+            "backend": result.backend,
+            "execution_path": result.execution_path,
         }
         render = result.outcome.render_model
         if render is not None:
@@ -368,7 +427,7 @@ def create_app(
     @app.post(LOCAL_PLAN_PATH)
     async def local_plan(
         body: LocalPlanBody,
-        service: Optional[CadApplicationService] = Depends(_service),
+        service: Optional["CadApplicationService"] = Depends(_service),
     ) -> JSONResponse:
         """Run a fixture, or a supplied plan, through the whole real path.
 

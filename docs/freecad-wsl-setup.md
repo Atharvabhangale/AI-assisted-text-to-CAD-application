@@ -279,3 +279,143 @@ means *not measured here*, never *passed*. On this machine that is 12 tests
 on Windows and 26 in WSL; the 2 cross-backend tests skip in both, which is
 why the JSON report above exists.
 
+---
+
+# FreeCAD as the selected execution backend: routing, rendering, live proof
+
+The previous section made FreeCAD answer the topology and selector contract.
+This one makes `CAD_BACKEND` actually govern execution, gives the graph path
+a render model, and records what was proved live in a browser.
+
+## What `CAD_BACKEND=freecad` now means
+
+It selects FreeCAD for **every executable experimental Operation Plan**, not
+only plans carrying a semantic selector.
+
+Before, `resolve_backend()` had one production call site and the V1 document
+path went straight to `CadApplicationService` -- which *is* the CadQuery
+engine. A plain box therefore built on CadQuery whatever `CAD_BACKEND` said,
+and nothing in the result revealed it. `build_plan` now routes on two
+questions asked in order:
+
+1. Does the plan need the executor (a `straight`, `circular`, or a rim's
+   `position` cannot be written in Section C.7)?
+2. Is the requested engine not the one the document path embodies?
+
+Either answer sends the plan to the graph executor on the requested engine.
+Nothing falls back in either direction, and every result carries `backend`
+and `execution_path` so the engine never has to be inferred.
+
+| plan | `CAD_BACKEND=cadquery` | `CAD_BACKEND=freecad` |
+|---|---|---|
+| 40 mm cube | `v1_document` | `graph_executor` |
+| plate + hole | `v1_document` | `graph_executor` |
+| + corner fillets | `graph_executor` | `graph_executor` |
+| + rim chamfer | `graph_executor` | `graph_executor` |
+
+The document path is kept for CadQuery rather than retired: it carries the
+build cache, the build key, process isolation, the artifact registry and the
+STEP/STL exports, none of which the executor has. Retiring it would mean
+writing a second implementation of all of that.
+
+## RenderModel
+
+One render contract, unchanged. There is no `FreeCADRenderModel`, no second
+mesh format, and the frontend cannot tell which engine produced a mesh.
+
+`cad_core.render_model` previously imported `cad_core.local_cad`, which
+raises without CadQuery -- so the render *contract*, which is plain data, was
+unimportable without a kernel it does not use. Two changes fixed it:
+`SUPPORTED_UNITS` now comes from `cad_core.model` (the contract's own source,
+an identical `("mm",)`), and `LocalCadResult` is imported inside
+`build_render_model`, the only function that needs it.
+
+The graph path now builds its render model through `backend.render_model`,
+so a semantic-selector build draws in the viewport instead of reporting a
+successful build with nothing to show.
+
+## Three claims that must not be blurred
+
+**1. The experimental execution/build path works without CadQuery.** Proved:
+on a machine with FreeCAD and no CadQuery, `cad_experimental.build` imports
+and builds all four cases, producing measurements and a RenderModel.
+
+**2. The full HTTP application still requires CadQuery to be installed.**
+`app.py` imports `cad_experimental.generation`, which imports
+`cad_ai.provider`; `cad_ai/__init__` eagerly imports `cad_ai.generation`,
+which imports `cad_core.application_service` -> `artifact_registry` ->
+`iges_export` -> `local_cad` -> CadQuery. That is the **AI layer**, shared
+with the stable branch, and it was deliberately not touched. So a server
+that can answer `/experimental/generate-plan` needs CadQuery importable even
+when it never executes a single operation with it.
+
+**3. Installed is not used.** In the live run below CadQuery was installed in
+the WSL environment *solely* to satisfy that import chain. The execution
+backend was FreeCAD, and every response says so. The two facts are separate
+and neither implies the other.
+
+## Live browser verification
+
+Backend started in WSL with `CAD_BACKEND=freecad`, the existing experimental
+page on 5174 proxying to it, real `claude-haiku-4-5-20251001` generation,
+driven through the page's own buttons.
+
+| | CASE A corner fillets | CASE B top rim chamfer |
+|---|---|---|
+| generation | succeeded | succeeded |
+| validation | valid | valid |
+| `backend` | **freecad** | **freecad** |
+| `execution_path` | `graph_executor` | `graph_executor` |
+| selector | `straight`/Z, **4 of 4** | `circular`/Z/`top`, **1 of 2** |
+| volume mm3 | 56824.0710525538 | 56825.944222323116 |
+| faces / edges | 11 / 27 | 8 / 17 |
+| mesh | 1860 triangles | 1850 triangles |
+| console errors | none | none |
+
+The same two cases on `CAD_BACKEND=cadquery` give identical volumes, face
+and edge counts and selector evidence, with 1032 and 898 triangles. Triangle
+counts differ because the tessellators differ; that is a rendering detail,
+not a geometric one, and is reported rather than compared.
+
+## Running the FreeCAD-backed API
+
+```sh
+export CAD_FREECAD_HOME=~/freecad/squashfs-root
+export LD_LIBRARY_PATH=$CAD_FREECAD_HOME/usr/lib      # before Python starts
+export PYTHONPATH=$CAD_FREECAD_HOME/usr/lib:$CAD_FREECAD_HOME/usr/Ext:\
+packages/cad-core/src:apps/api/src
+export CAD_BACKEND=freecad
+export CAD_EXPERIMENTAL_CACHE_ROOT=/tmp/fc-cache
+python -m uvicorn --factory cad_experimental.app:app_from_environment \
+  --host 0.0.0.0 --port 8001
+```
+
+That interpreter needs `fastapi`, `uvicorn`, `anthropic` **and** CadQuery --
+the last only for the import chain in claim 2 above. `GET
+/experimental/health` reports the engine that would actually run:
+
+```json
+"backend": {"name": "freecad", "available": true, "version": "1.0.0"}
+```
+
+`v1_document_path_available` is reported separately, because a build can
+succeed without it.
+
+## Status summary
+
+**Supported on FreeCAD:** the whole executable Operation Plan -- `box`,
+`cylinder`, `through_hole`, `subtract`, `fillet`, `chamfer`, `pattern`; all
+semantic selectors (`all`, `axis_parallel`, `straight`, `circular`, `axis`,
+`position`); topology inspection; `render_model`; full backend execution for
+every executable plan.
+
+**Experimental:** the FreeCAD runtime itself, under WSL2, from an extracted
+AppImage.
+
+**Remaining:** `sketch`, `extrude` and `revolve` are refused at the execution
+boundary for *both* backends -- an adapter decision, not a kernel limit. The
+full HTTP application still needs CadQuery importable (claim 2). And FreeCAD
+still silently drops a seam handed to `makeFillet`, which never reaches a
+caller because the shared resolver refuses such a selection first.
+
+**CadQuery remains the default and there is no automatic fallback anywhere.**

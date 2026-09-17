@@ -453,5 +453,173 @@ class SemanticComparisonTests(unittest.TestCase):
         self.assertEqual(sum(f.is_seam for f in self.right_facts), 1)
 
 
+
+
+# --- routing: the backend abstraction as the execution boundary ------------
+
+
+CUBE = {
+    "status": "generated", "summary": "a cube",
+    "operations": [{"id": "cube", "type": "box",
+                    "parameters": {"x": 40.0, "y": 40.0, "z": 40.0}}],
+}
+PLATE_HOLE = {
+    "status": "generated", "summary": "a bored plate",
+    "operations": [
+        {"id": "plate", "type": "box",
+         "parameters": {"x": 100.0, "y": 60.0, "z": 10.0}},
+        {"id": "hole", "type": "through_hole", "target": "plate",
+         "parameters": {"diameter": 20.0,
+                        "position": {"x": 50.0, "y": 30.0, "z": 0.0}}},
+    ],
+}
+PLATE_FILLET = {
+    "status": "generated", "summary": "corners rounded",
+    "operations": PLATE_HOLE["operations"] + [
+        {"id": "corners", "type": "fillet", "target": "plate",
+         "parameters": {"radius": 2.0,
+                        "edges": {"select": "straight", "axis": "Z"}}}],
+}
+PLATE_CHAMFER = {
+    "status": "generated", "summary": "top rim broken",
+    "operations": PLATE_HOLE["operations"] + [
+        {"id": "rim", "type": "chamfer", "target": "plate",
+         "parameters": {"distance": 1.0,
+                        "edges": {"select": "circular", "axis": "Z",
+                                  "position": "top"}}}],
+}
+
+
+def _built(payload, backend):
+    """Build one plan on one backend through the real routing."""
+    from cad_experimental.build import build_plan
+    from cad_experimental.parser import parse_plan
+
+    service = None
+    if CADQUERY_READY:
+        import tempfile
+
+        from cad_core.application_service import CadApplicationService
+        service = CadApplicationService.local(tempfile.mkdtemp())
+    return build_plan(service, parse_plan(payload), name="t", backend=backend)
+
+
+class RoutingMixin:
+    """Whatever engine was asked for is the engine that runs."""
+
+    backend_factory: Any = None
+    expected_name: str = ""
+
+    def test_an_executable_plan_runs_on_the_requested_backend(self) -> None:
+        for payload in (CUBE, PLATE_HOLE, PLATE_FILLET, PLATE_CHAMFER):
+            with self.subTest(summary=payload["summary"]):
+                build = _built(payload, self.backend_factory())
+                self.assertTrue(build.built, build.error)
+                self.assertEqual(build.backend, self.expected_name)
+
+    def test_the_route_is_named_rather_than_inferred(self) -> None:
+        build = _built(CUBE, self.backend_factory())
+        self.assertIn(build.execution_path, {"v1_document", "graph_executor"})
+
+    def test_a_render_model_exists_and_is_not_empty(self) -> None:
+        """The same neutral contract whichever engine and route ran."""
+        for payload in (CUBE, PLATE_FILLET, PLATE_CHAMFER):
+            with self.subTest(summary=payload["summary"]):
+                build = _built(payload, self.backend_factory())
+                model = build.render
+                if model is None and build.outcome is not None:
+                    model = build.outcome.render_model
+                self.assertIsNotNone(model)
+                payload_out = model.to_dict()
+                self.assertGreater(len(payload_out["triangles"]), 0)
+                self.assertGreater(len(payload_out["vertices"]), 0)
+                self.assertEqual(payload_out["format_version"], "1.0.0")
+                self.assertEqual(payload_out["units"], "mm")
+
+    def test_semantic_selectors_carry_their_evidence(self) -> None:
+        build = _built(PLATE_CHAMFER, self.backend_factory())
+        self.assertTrue(build.executed)
+        rim = build.execution.to_dict()["selections"]["rim"]
+        self.assertEqual(len(rim["indices"]), 1)
+        self.assertEqual(len(rim["candidates"]), 2)
+
+    def test_nothing_falls_back_to_another_engine(self) -> None:
+        """The invariant this whole milestone rests on."""
+        for payload in (CUBE, PLATE_HOLE, PLATE_FILLET, PLATE_CHAMFER):
+            with self.subTest(summary=payload["summary"]):
+                build = _built(payload, self.backend_factory())
+                self.assertEqual(build.backend, self.expected_name)
+
+
+@requires_cadquery
+class CadQueryRoutingTests(RoutingMixin, unittest.TestCase):
+    backend_factory = CadQueryBackend
+    expected_name = "cadquery"
+
+    def test_a_v1_expressible_plan_keeps_the_document_path(self) -> None:
+        """The document path carries the cache, the build key, the artifact
+        registry and the exports. It is kept for the engine it embodies."""
+        self.assertEqual(_built(CUBE, CadQueryBackend()).execution_path,
+                         "v1_document")
+
+    def test_a_semantic_selector_still_takes_the_graph_path(self) -> None:
+        self.assertEqual(_built(PLATE_FILLET, CadQueryBackend()).execution_path,
+                         "graph_executor")
+
+
+@requires_freecad
+class FreeCadRoutingTests(RoutingMixin, unittest.TestCase):
+    backend_factory = FreeCadBackend
+    expected_name = "freecad"
+
+    def test_every_plan_takes_the_graph_path(self) -> None:
+        """The document path IS the CadQuery engine, so a plan asked to run
+        on FreeCAD cannot take it -- and is not quietly handed over."""
+        for payload in (CUBE, PLATE_HOLE, PLATE_FILLET, PLATE_CHAMFER):
+            with self.subTest(summary=payload["summary"]):
+                build = _built(payload, FreeCadBackend())
+                self.assertEqual(build.execution_path, "graph_executor")
+                self.assertEqual(build.backend, "freecad")
+
+
+@requires_freecad
+class FreeCadOnlyImportabilityTests(unittest.TestCase):
+    """The experimental execution path must load without the other kernel.
+
+    Asserted by source inspection rather than by uninstalling CadQuery: the
+    modules on the execution path must not import it at module scope, which
+    is the property that makes a FreeCAD-only machine work.
+    """
+
+    def test_the_build_module_imports_the_service_lazily(self) -> None:
+        """No RUNTIME module-level import of the CadQuery-backed service.
+
+        Checked with `ast` over top-level statements only, so an import
+        parked under `if TYPE_CHECKING:` does not count -- that one is never
+        executed and cannot stop the module loading. A plain string search
+        cannot tell those apart, and reported a false failure when it tried.
+        """
+        import ast
+        from pathlib import Path
+
+        import cad_experimental.build as module
+
+        tree = ast.parse(
+            Path(module.__file__).read_text(encoding="utf-8"))
+        offenders = [
+            node.module
+            for node in tree.body                      # top level only
+            if isinstance(node, ast.ImportFrom)
+            and (node.module or "").startswith("cad_core.application_service")
+        ]
+        self.assertEqual(offenders, [], offenders)
+
+    def test_the_render_contract_needs_no_kernel(self) -> None:
+        """`cad_core.render_model` is plain data and must import anywhere."""
+        import cad_core.render_model as render
+
+        self.assertEqual(render.RENDER_UNITS, "mm")
+        self.assertEqual(render.RENDER_FORMAT_VERSION, "1.0.0")
+
 if __name__ == "__main__":
     unittest.main()

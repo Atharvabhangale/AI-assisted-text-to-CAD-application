@@ -76,9 +76,18 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Any, Dict, List, Sequence, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Sequence, Tuple
 
-from cad_core.local_cad import SUPPORTED_UNITS, LocalCadResult
+# The units constant comes from the document model, which is the contract's
+# own source for it and needs no CAD kernel. `local_cad` re-declares an
+# identical `("mm",)`, and importing it from there made this whole module --
+# the render CONTRACT, which is plain data -- unimportable without CadQuery.
+# That blocked a second backend from producing a RenderModel at all, even
+# though it tessellates with its own kernel and never calls `build_part`.
+from cad_core.model import SUPPORTED_UNITS
+
+if TYPE_CHECKING:  # pragma: no cover - typing only, never imported at runtime
+    from cad_core.local_cad import LocalCadResult
 
 #: Version of this render contract, independent of the CAD specification's
 #: schema version. Bump it when the emitted structure changes meaning.
@@ -203,7 +212,7 @@ class RenderModel:
 
 
 def build_render_model(
-    result: LocalCadResult,
+    result: "LocalCadResult",
     *,
     tolerance: float = DEFAULT_LINEAR_DEFLECTION_MM,
     angular_tolerance: float = DEFAULT_ANGULAR_DEFLECTION_RAD,
@@ -226,6 +235,11 @@ def build_render_model(
         RenderModelError: if tessellation produced no triangles, or produced
             an index outside the vertex array.
     """
+    # Imported here rather than at module scope: this is the only function
+    # that needs the CadQuery-backed engine, and hoisting it would make the
+    # render contract itself require a kernel it does not use.
+    from cad_core.local_cad import LocalCadResult
+
     if not isinstance(result, LocalCadResult):
         raise TypeError(
             "build_render_model requires a cad_core.local_cad.LocalCadResult, "
