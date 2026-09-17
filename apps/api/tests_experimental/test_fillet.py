@@ -132,7 +132,7 @@ class VocabularyTests(unittest.TestCase):
         """
         for absent in (
             "sweep", "loft",
-            "mirror", "union", "assembly", "joint", "drawing",
+            "mirror", "assembly", "joint", "drawing",
             "material",
         ):
             self.assertNotIn(absent, OPERATION_TYPES)

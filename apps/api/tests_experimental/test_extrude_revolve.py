@@ -171,7 +171,7 @@ class VocabularyTests(unittest.TestCase):
         """Unlike a subtract's tools. Extruding a sketch does not destroy it."""
         for kind in PROFILE_SOLID_TYPES:
             self.assertNotIn(kind, CONSUMING_TYPES)
-        self.assertEqual(CONSUMING_TYPES, ("subtract",))
+        self.assertEqual(CONSUMING_TYPES, ("subtract", "union"))
 
     def test_neither_is_executable(self):
         for kind in PROFILE_SOLID_TYPES:
@@ -250,7 +250,7 @@ class VocabularyTests(unittest.TestCase):
         )), [])
 
     def test_no_further_operation_crept_in(self):
-        for absent in ("sweep", "loft", "mirror", "union",
+        for absent in ("sweep", "loft", "mirror",
                        "intersect", "assembly", "shell", "rib", "thread"):
             self.assertNotIn(absent, OPERATION_TYPES)
 
@@ -1145,8 +1145,14 @@ class PromptTests(unittest.TestCase):
         the unsupported list -- Stage 46 added the operation and left the
         refusal standing, so the prompt told the model to decline something
         the language has. The same mistake Stage 44 found, in a new place.
+
+        `2026-09-17.1` is the multi-plate assembly, and it is that mistake a
+        third time: `union` was implemented -- parser, rules, graph, both
+        backends, a schema branch -- while the prompt still said "There is
+        no union in this language" and listed it as unsupported. The prompt
+        now documents it, and the refusal list names only `intersection`.
         """
-        self.assertEqual(self.version, "2026-09-15.5")
+        self.assertEqual(self.version, "2026-09-17.1")
         self.assertEqual(len(self.fingerprint), 64)
 
 

@@ -81,8 +81,14 @@ class MeasuredFingerprintTests(unittest.TestCase):
 
 class CanonicalIrIsUnchangedTests(unittest.TestCase):
 
-    def test_the_language_still_has_ten_operations(self) -> None:
-        self.assertEqual(len(canonical.OPERATION_TYPES), 10)
+    def test_the_language_has_eleven_operations(self) -> None:
+        """Ten until `union` was implemented for the plate assembly.
+
+        A count, spelled out, so growing the vocabulary is always a
+        deliberate edit here and never a silent one.
+        """
+        self.assertEqual(len(canonical.OPERATION_TYPES), 11)
+        self.assertIn("union", canonical.OPERATION_TYPES)
 
     def test_plan_schema_still_describes_every_one(self) -> None:
         schema = canonical.plan_schema()
@@ -91,18 +97,57 @@ class CanonicalIrIsUnchangedTests(unittest.TestCase):
             len(canonical.OPERATION_TYPES),
         )
 
-    def test_the_historical_encodings_are_untouched(self) -> None:
-        """Their meaning is a recorded fact; they may not be redefined."""
+    #: What `provider` and `compact` measured before `union` existed. Kept
+    #: as history rather than overwritten: Stage 49 refused both at these
+    #: sizes, and a recorded measurement describes the object that was
+    #: measured, not whatever the name points at later.
+    PRE_UNION_SIZES = {"compact": 6190, "provider": 7351}
+
+    def test_the_frozen_encoding_is_untouched(self) -> None:
+        """`executable` is the one that may never move.
+
+        Stage 43 was run against it and a recorded result must stay
+        attributable to the instrument that produced it. `union` is
+        deliberately **not** in ``V1_FEATURE_TYPES``, so this encoding is
+        byte-identical across the whole assembly milestone -- which is the
+        check, not a hope.
+        """
         self.assertEqual(
             ladder.grammar_metrics(
                 canonical.executable_schema())["inlined_characters"], 3622)
-        self.assertEqual(
-            ladder.grammar_metrics(
-                canonical.compact_provider_schema())["inlined_characters"],
-            6190)
-        self.assertEqual(
-            ladder.grammar_metrics(
-                canonical.provider_schema())["inlined_characters"], 7351)
+        self.assertNotIn("union", canonical.V1_FEATURE_TYPES)
+
+    def test_every_proven_compilable_encoding_is_untouched(self) -> None:
+        """None of the six may move either: each was accepted at its size."""
+        for name, inlined in stage48.PROVEN_COMPILABLE.items():
+            self.assertEqual(
+                ladder.grammar_metrics(
+                    stage48.PLAN_SCHEMAS[name]())["inlined_characters"],
+                inlined, name,
+            )
+
+    def test_the_two_refused_encodings_grew_only_slightly(self) -> None:
+        """`provider` and `compact` cover the WHOLE vocabulary, so a new
+        operation necessarily changes them -- but not by a branch.
+
+        Adding `union` took both to nine branches, one past the ceiling
+        Stage 41 measured, which would have made the grammar refuse for a
+        new reason. Merging `subtract` with `union` brought them back to
+        eight: the two share an operation-level shape exactly, so the
+        merged branch describes each of them as its own branch did.
+
+        Eleven operation types in eight branches, then, and the cost is a
+        handful of characters rather than a branch.
+        """
+        for name in stage48.PROVEN_REFUSED:
+            schema = stage48.PLAN_SCHEMAS[name]()
+            now = ladder.grammar_metrics(schema)["inlined_characters"]
+            self.assertGreater(now, self.PRE_UNION_SIZES[name], name)
+            self.assertLess(now, self.PRE_UNION_SIZES[name] + 50, name)
+            self.assertEqual(
+                len(schema["properties"]["operations"]["items"]["anyOf"]),
+                8, name)
+            self.assertIn("union", stage48.SCHEMA_CAPABILITIES[name], name)
 
     def test_no_encoding_invents_an_operation(self) -> None:
         known = set(canonical.OPERATION_TYPES)

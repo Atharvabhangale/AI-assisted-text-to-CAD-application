@@ -243,6 +243,20 @@ class CoverageTests(unittest.TestCase):
     def branches(self, schema):
         return schema["properties"]["operations"]["items"]["anyOf"]
 
+    def merged_branch(self, kinds):
+        """The merged branch carrying exactly ``kinds``.
+
+        Named rather than "the first branch with an enum": there are three
+        merged groups now, and picking the first would silently test a
+        different pair than the docstring claims.
+        """
+        wanted = list(kinds)
+        for branch in self.branches(provider_schema()):
+            if "enum" in branch["properties"]["type"]:
+                if self.types_of(branch) == wanted:
+                    return branch
+        raise AssertionError(f"no merged branch for {wanted}")
+
     def types_of(self, branch):
         discriminator = branch["properties"]["type"]
         if "const" in discriminator:
@@ -293,16 +307,24 @@ class CoverageTests(unittest.TestCase):
         `MERGED_SCHEMA_GROUPS` says so, and every other type keeps its own
         branch and so its own exact `required` list.
 
-        Two groups since Stage 46 added a tenth operation type: `fillet` with
-        `chamfer`, and `extrude` with `revolve`. Both pairs share their
-        operation-level shape and differ only in their parameters.
+        Three groups since `union` became the eleventh operation type:
+        `fillet` with `chamfer`, `extrude` with `revolve`, and `subtract`
+        with `union`. Each pair shares its operation-level shape. The first
+        two differ in their parameters; the third does not differ at all,
+        which is why it merges without loosening anything.
         """
         from cad_experimental.plan import MERGED_SCHEMA_GROUPS
 
         merged = [self.types_of(b) for b in self.branches(provider_schema())
                   if "enum" in b["properties"]["type"]]
+        # Compared as a set of groups, not a sequence: branches are emitted
+        # in vocabulary order and the groups are declared in the order they
+        # were discovered, so requiring the two to coincide would pin an
+        # accident. What matters is that the merges are exactly these and
+        # that each group's own membership and order are intact.
         self.assertEqual(
-            merged, [list(group) for group in MERGED_SCHEMA_GROUPS]
+            sorted(merged),
+            sorted(list(group) for group in MERGED_SCHEMA_GROUPS),
         )
         self.assertIn(list(EDGE_MODIFIER_TYPES), merged)
 
@@ -338,8 +360,7 @@ class CoverageTests(unittest.TestCase):
         the grammar."""
         from cad_experimental.plan import PARAMETERS
 
-        branch = next(b for b in self.branches(provider_schema())
-                      if "enum" in b["properties"]["type"])
+        branch = self.merged_branch(EDGE_MODIFIER_TYPES)
         self.assertIn("target", branch["required"])
         parameters = branch["properties"]["parameters"]
         self.assertEqual(parameters["required"], ["edges"])
@@ -354,8 +375,7 @@ class CoverageTests(unittest.TestCase):
         refuses it anyway."""
         from cad_experimental.parser import PlanParseError, parse_plan
 
-        branch = next(b for b in self.branches(provider_schema())
-                      if "enum" in b["properties"]["type"])
+        branch = self.merged_branch(EDGE_MODIFIER_TYPES)
         self.assertNotIn("radius",
                          branch["properties"]["parameters"]["required"])
         with self.assertRaises(PlanParseError):

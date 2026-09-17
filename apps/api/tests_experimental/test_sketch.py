@@ -195,8 +195,13 @@ class SketchVocabularyTests(unittest.TestCase):
             {"box", "cylinder", "through_hole", "subtract", "fillet",
              "chamfer"},
         )
+        # `union` joined `pattern` as executable-but-not-a-V1-feature: the
+        # graph executor fuses solids on the backend, and no V1 document can
+        # carry the result, so it has no feature of its own either.
+        from cad_experimental.plan import UNION
+
         self.assertEqual(
-            set(EXECUTABLE_TYPES), set(V1_FEATURE_TYPES) | {PATTERN}
+            set(EXECUTABLE_TYPES), set(V1_FEATURE_TYPES) | {PATTERN, UNION}
         )
         self.assertNotIn(SKETCH, EXECUTABLE_TYPES)
 

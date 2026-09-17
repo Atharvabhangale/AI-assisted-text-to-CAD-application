@@ -230,10 +230,13 @@ class ExpectationTableTests(unittest.TestCase):
     def test_a_pattern_source_must_be_a_feature(self):
         self.assertEqual(G.expectation(PATTERN, G.SOURCE), G.EXPECT_FEATURE)
 
-    def test_only_a_subtract_has_tools(self):
+    def test_only_the_consuming_operations_have_tools(self):
+        """`subtract` alone until `union` arrived. Both take a list of
+        solids and use them up; nothing else takes tools at all."""
         for kind in OPERATION_TYPES:
             with self.subTest(kind=kind):
-                expected = G.EXPECT_SOLID if kind == "subtract" else None
+                expected = (G.EXPECT_SOLID
+                            if kind in ("subtract", "union") else None)
                 self.assertEqual(G.expectation(kind, G.TOOL), expected)
 
     def test_a_combination_that_does_not_occur_answers_none(self):

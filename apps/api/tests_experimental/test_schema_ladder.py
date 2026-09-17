@@ -28,8 +28,10 @@ from cad_experimental.parser import PlanParseError, parse_plan
 class CanonicalIrIsUnchangedTests(unittest.TestCase):
     """The ladder may re-encode the plan. It may not redefine it."""
 
-    def test_the_vocabulary_is_still_ten_operations(self) -> None:
-        self.assertEqual(len(canonical.OPERATION_TYPES), 10)
+    def test_the_vocabulary_is_eleven_operations(self) -> None:
+        """Ten until `union` arrived. The ladder's own variants are frozen
+        at the vocabulary they were measured against -- see below."""
+        self.assertEqual(len(canonical.OPERATION_TYPES), 11)
 
     def test_the_v1_six_are_still_the_v1_six(self) -> None:
         self.assertEqual(
@@ -71,12 +73,30 @@ class RecordedInstrumentsAreUnchangedTests(unittest.TestCase):
             canonical.executable_schema(),
         )
 
-    def test_c2_reproduces_the_measured_compact_schema(self) -> None:
-        """C2 is the variant the provider actually refused; keep it exact."""
+    def test_c2_still_reproduces_the_schema_that_was_refused(self) -> None:
+        """C2 is the variant the provider actually refused; keep it exact.
+
+        It used to be asserted equal to ``compact_provider_schema()``, and
+        that held only while the vocabulary stood still. `union` made them
+        diverge **correctly**: the live schema follows the language, and a
+        ladder variant is a recorded instrument that must keep describing
+        the object whose refusal was measured. So the check is against the
+        measurement, not against today's schema.
+        """
+        schema = ladder.variant("C2-no-constraints").schema()
         self.assertEqual(
-            ladder.variant("C2-no-constraints").schema(),
-            canonical.compact_provider_schema(),
+            ladder.grammar_metrics(schema)["inlined_characters"],
+            ladder.KNOWN_REFUSED_INLINED,
         )
+        kinds = set()
+        for branch in schema["properties"]["operations"]["items"]["anyOf"]:
+            discriminator = branch["properties"]["type"]
+            kinds |= set(
+                [discriminator["const"]] if "const" in discriminator
+                else discriminator["enum"]
+            )
+        self.assertNotIn("union", kinds)
+        self.assertEqual(len(kinds), 10)
 
     def test_the_protected_baselines_are_still_intact(self) -> None:
         check = stage48._baseline_check()
@@ -148,15 +168,30 @@ class SizeProxyTests(unittest.TestCase):
         self.assertNotIn("$defs", text)
 
     def test_the_known_bounds_are_the_measured_ones(self) -> None:
+        """Both bounds are recorded facts, and neither may drift.
+
+        The accepted bound is still ``executable_schema()`` exactly --
+        `union` is deliberately not a V1 feature, so that schema did not
+        move at all. The refused bound belongs to the C2 variant, which is
+        frozen; ``compact_provider_schema()`` has since grown `union` and is
+        therefore a little larger, which is checked separately rather than
+        by redefining what was measured.
+        """
         self.assertEqual(
             ladder.grammar_metrics(canonical.executable_schema())[
                 "inlined_characters"],
             ladder.KNOWN_ACCEPTED_INLINED,
         )
         self.assertEqual(
-            ladder.grammar_metrics(canonical.compact_provider_schema())[
+            ladder.grammar_metrics(
+                ladder.variant("C2-no-constraints").schema())[
                 "inlined_characters"],
             ladder.KNOWN_REFUSED_INLINED,
+        )
+        self.assertGreater(
+            ladder.grammar_metrics(canonical.compact_provider_schema())[
+                "inlined_characters"],
+            ladder.KNOWN_ACCEPTED_INLINED,
         )
 
     def test_a_prediction_is_only_made_against_measured_points(self) -> None:

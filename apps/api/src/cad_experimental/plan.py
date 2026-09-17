@@ -108,6 +108,13 @@ PATTERNABLE_TYPES: Tuple[str, ...] = (THROUGH_HOLE,)
 #: ``distance`` sets back on both adjoining faces.
 EDGE_MODIFIER_TYPES: Tuple[str, ...] = (FILLET, CHAMFER)
 
+#: The two operations whose whole input is references: a target and a list
+#: of tools, and no ``parameters`` at all. Named for that SHAPE rather than
+#: for what they do -- they also happen to be
+#: :data:`CONSUMING_TYPES`, but the schema merges on shape, and an operation
+#: that consumed its tools with a different shape must not join this group.
+TOOL_MODIFIER_TYPES: Tuple[str, ...] = (SUBTRACT, UNION)
+
 #: Operation types that share ONE schema branch, rather than one each.
 #:
 #: A provider that compiles a schema into a decoding grammar has a ceiling on
@@ -125,10 +132,21 @@ EDGE_MODIFIER_TYPES: Tuple[str, ...] = (FILLET, CHAMFER)
 #: their one length (:data:`EDGE_MODIFIER_LENGTH`). Merging them makes
 #: ``radius`` and ``distance`` both optional *in the grammar*, which is the
 #: whole cost -- and the parser still requires exactly the right one, from
-#: :data:`PARAMETERS`, as it always has. Nothing else is loosened, and no
-#: other pair would merge this cheaply.
+#: :data:`PARAMETERS`, as it always has. Nothing else is loosened.
+#:
+#: ``subtract`` and ``union`` are the second such pair, and they merge for
+#: **free**: their operation-level shape is not merely similar but
+#: identical -- ``{id, type, target, tools}``, no ``parameters`` at all --
+#: so the merged branch describes each of them exactly as its own branch
+#: did. Nothing becomes optional, because there was nothing optional to
+#: begin with.
+#:
+#: That pair had to be found. Adding ``union`` as an eleventh type took the
+#: schema to **nine** branches, one past the measured ceiling, which would
+#: have made the whole grammar un-compilable -- the Stage 43 failure again,
+#: reached from the other direction. Eleven types, eight branches.
 MERGED_SCHEMA_GROUPS: Tuple[Tuple[str, ...], ...] = (
-    EDGE_MODIFIER_TYPES, PROFILE_SOLID_TYPES,
+    EDGE_MODIFIER_TYPES, PROFILE_SOLID_TYPES, TOOL_MODIFIER_TYPES,
 )
 
 #: Operations that add a solid to the solid set, named by their own id
@@ -1767,6 +1785,7 @@ __all__ = [
     "SELECT_MODES",
     "CHAMFER",
     "EDGE_MODIFIER_TYPES",
+    "TOOL_MODIFIER_TYPES",
     "EXECUTABLE_TYPES",
     "EXECUTOR_ONLY_TYPES",
     "MERGED_SCHEMA_GROUPS",
@@ -1777,6 +1796,7 @@ __all__ = [
     "is_profile",
     "EDGE_MODIFIER_LENGTH",
     "EDGE_MODIFIER_TYPES",
+    "TOOL_MODIFIER_TYPES",
     "ChamferOperation",
     "EdgeSelector",
     "FilletOperation",

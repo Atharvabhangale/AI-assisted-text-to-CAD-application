@@ -553,14 +553,14 @@ class SchemaTests(unittest.TestCase):
         """Spelled out, not derived: a new type must be a deliberate edit.
 
         Updated at Stage 36 (chamfer), 37 (sketch), 38 (extrude, revolve),
-        41 (the flat `type` enum became one branch per type) and 46
-        (pattern). Deriving this from ``OPERATION_TYPES`` would make it pass
-        for free.
+        41 (the flat `type` enum became one branch per type), 46 (pattern)
+        and again when `union` arrived for the multi-plate assembly.
+        Deriving this from ``OPERATION_TYPES`` would make it pass for free.
         """
         self.assertEqual(
             self.discriminators(),
-            {"box", "cylinder", "through_hole", "subtract", "fillet",
-             "chamfer", "sketch", "extrude", "revolve", "pattern"},
+            {"box", "cylinder", "through_hole", "subtract", "union",
+             "fillet", "chamfer", "sketch", "extrude", "revolve", "pattern"},
         )
 
     def test_there_is_exactly_one_branch_per_operation_type(self):
@@ -570,10 +570,17 @@ class SchemaTests(unittest.TestCase):
         self.assertEqual(self.discriminators(), set(OPERATION_TYPES))
 
     def test_the_schema_lists_no_unimplemented_operation(self):
-        for absent in (
-            "sweep", "loft", "mirror", "union", "assembly",
-        ):
+        """`union` left this list when it was implemented.
+
+        It sat here because for a long time nothing could fuse two solids,
+        and the single-solid rule made a second body an error. The
+        multi-plate assembly needed a real fuse, so `union` is now an
+        operation with a parser branch, P-rules, graph semantics and a
+        method on both backends. The rest are still absent.
+        """
+        for absent in ("sweep", "loft", "mirror", "assembly"):
             self.assertNotIn(absent, self.discriminators())
+        self.assertIn("union", self.discriminators())
 
     def test_the_schema_forbids_extra_fields(self):
         schema = plan_schema()

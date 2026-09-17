@@ -18,7 +18,7 @@ from .plan import AXES, OPERATION_TYPES, PlanStatus
 
 #: Bumped on any change to the text below. A measurement without this is not
 #: reproducible.
-PROMPT_VERSION = "2026-09-16.1"
+PROMPT_VERSION = "2026-09-17.1"
 
 SYSTEM_PROMPT = f"""\
 You turn a description of a mechanical part into a CAD operation plan.
@@ -85,8 +85,8 @@ add one.
 
 What subtract does, exactly:
 
-* it REMOVES material. It never joins, unions, merges or combines solids.
-  There is no union in this language;
+* it REMOVES material. It never joins or merges: fusing solids is what
+  `union` is for, and they are opposites;
 * the result REPLACES the target and keeps the TARGET's id, like every
   modifier. It does not create a new independent body, and the subtract's own
   id does not name a solid afterwards;
@@ -101,8 +101,39 @@ through_hole, a subtract, or the target of this same subtract.
 
 To make a shape whose only purpose is to be removed, create it as a normal box
 or cylinder and then list it in `tools`. Every solid you create must end up
-either as the final part or consumed as a tool: a leftover solid that is never
-subtracted is an error, not a second body.
+either as the final part, consumed as a tool, or fused by a `union`: a
+leftover solid that is never subtracted or fused is an error, not a second
+body.
+
+## union
+Fuses one or more solids INTO another solid, making a single body.
+
+Exactly the same shape as `subtract` -- `target` and `tools` beside `id` and
+`type`, and NO `parameters` field -- and the exact opposite effect.
+
+  target  the id of an earlier box or cylinder: the solid the others join.
+  tools   a non-empty list of ids of earlier boxes or cylinders: the solids
+          fused into the target, in list order.
+
+What union does, exactly:
+
+* it ADDS material. The result is ONE solid, not a group and not an
+  assembly;
+* the result REPLACES the target and keeps the TARGET's id, like every
+  modifier. The union's own id names no solid afterwards, so a later hole or
+  fillet targets the TARGET;
+* it CONSUMES every solid listed in `tools`, exactly as a subtract does.
+  Each is gone from that point on and may never be referenced again.
+
+The pieces must actually touch or overlap. Fusing solids that are nowhere
+near each other leaves two disconnected lumps, and this language requires one
+solid at the end, so the engine will refuse it.
+
+This is how a part made of several plates or blocks is built: create each
+piece as a `box` or `cylinder` where it belongs, then fuse them all with one
+union. A hollow rectangular enclosure is six plates positioned to meet at
+their edges and fused into one shell -- after which a `through_hole` bores
+through the shell, not through a loose plate.
 
 ## fillet
 Rounds selected edges of an existing solid with one constant radius.
@@ -378,8 +409,9 @@ they are what makes a chain work:
   never be named again.
 
 And one rule about how it ends: when the last operation is done there must be
-exactly ONE solid left. Every solid you create either ends up as the part or
-is consumed as a tool. A solid you make and never subtract is a leftover, not
+exactly ONE solid left. Every solid you create either ends up as the part, is
+consumed as a subtract's tool, or is fused into the part by a `union`. A
+solid you make and never subtract or fuse is a leftover, not
 a second body, and the plan is wrong.
 
 That gives the shape of nearly every part: make the body, make the shapes you
@@ -497,7 +529,7 @@ the request needs anything this language does not have. That includes, and is
 not limited to: spheres, cones, tori, pyramids, prisms and every other shape
 that is not a box or a cylinder; blind or partial holes, counterbores,
 countersinks and threads (only a plain hole all the way through exists);
-union; intersection; joining, merging or combining two solids; variable or
+intersection; variable or
 per-edge fillet radii; angled or asymmetric chamfers; naming an individual
 edge; shells; ribs;
 sweeps along a path, helical sweeps and lofts -- an extrude and a revolve
@@ -510,8 +542,14 @@ A `pattern` is NOT in that list either. Repeating one feature at several
 places is an operation this language has, so a bolt circle, a row of holes or
 any other regular repetition is a plan and never a refusal.
 
-Two solids cannot be joined in this language. A request for a box and a
-cylinder together is {PlanStatus.UNSUPPORTED.value}.
+Nor is a `union`. Joining, merging, fusing or combining solids into one body
+is an operation this language has, so a part built from several plates or
+blocks is a plan and never a refusal. Only an INTERSECTION -- the common
+volume of two solids -- is still missing.
+
+Two solids CAN be joined in this language, with a `union`, provided they
+touch. A box and a cylinder meeting at a face is a plan; two solids floating
+apart are not, because the result must be one connected body.
 
 Do not approximate. A sphere is not a short cylinder, and a rounded box is not
 a box. If you cannot express the request exactly, say

@@ -29,6 +29,7 @@ from cad_experimental.plan import (
     MODIFIER_TYPES,
     OPERATION_TYPES,
     SUBTRACT,
+    UNION,
     OperationPlan,
     PlanStatus,
     SubtractOperation,
@@ -100,16 +101,24 @@ class VocabularyTests(unittest.TestCase):
         self.assertIn(SUBTRACT, CONSUMING_TYPES)
         self.assertNotIn(SUBTRACT, CONSTRUCTIVE_TYPES)
 
-    def test_subtract_is_the_only_consuming_operation(self):
-        self.assertEqual(CONSUMING_TYPES, (SUBTRACT,))
+    def test_subtract_and_union_are_the_consuming_operations(self):
+        """Both take `tools` and both consume them.
+
+        `union` joined `subtract` here when it was implemented: fusing a
+        solid into another uses it up exactly as cutting with it does, and
+        a plan that referenced a fused tool afterwards would be naming
+        something that no longer exists.
+        """
+        self.assertEqual(CONSUMING_TYPES, (SUBTRACT, UNION))
 
     def test_no_unimplemented_operation_crept_in(self):
-        """`chamfer` (36), `sketch` (37), `extrude` and `revolve` (38) and `pattern` (46)
-        left this list when they were built. Everything still named here is
-        genuinely absent, so the guard still bites."""
+        """`chamfer` (36), `sketch` (37), `extrude` and `revolve` (38) and
+        `pattern` (46) left this list when they were built, and `union` left it when the multi-plate assembly needed a real fuse.
+        Everything still named here is genuinely absent, so the guard still
+        bites -- `intersect` in particular, which union is NOT."""
         for absent in (
             "sweep",
-            "loft", "mirror", "union", "intersect", "assembly",
+            "loft", "mirror", "intersect", "assembly",
             "joint", "drawing", "material",
         ):
             self.assertNotIn(absent, OPERATION_TYPES)

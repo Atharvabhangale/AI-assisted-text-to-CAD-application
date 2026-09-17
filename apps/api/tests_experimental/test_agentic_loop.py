@@ -441,7 +441,8 @@ class ArchitectureTests(unittest.TestCase):
         self.assertEqual(assigned_backends, [])
 
     def test_the_canonical_ir_is_unchanged(self) -> None:
-        self.assertEqual(len(canonical.OPERATION_TYPES), 10)
+        """Eleven since `union` was implemented for the plate assembly."""
+        self.assertEqual(len(canonical.OPERATION_TYPES), 11)
         self.assertEqual(
             len(canonical.plan_schema()["properties"]["operations"]["items"]
                 ["anyOf"]),
