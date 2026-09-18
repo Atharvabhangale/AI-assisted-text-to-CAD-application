@@ -30,15 +30,17 @@ provider whose wire format changes entirely does not reach this file.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Mapping, Optional
 
 from .generation import PlanGenerationResult, PlanOutcome
 from .intent import (
     IntentError,
+    looks_like_plate_assembly,
     PlateAssemblyIntent,
     lower_to_plan,
     plan_from_request,
 )
+from .normalize import Reading, Refusal, read_request
 from .parser import PlanParseError, parse_plan
 from .plan import OperationPlan
 
@@ -78,6 +80,20 @@ class Interpretation:
     intent: Optional[PlateAssemblyIntent] = None
     note: Optional[str] = None
     error: Optional[str] = None
+    #: True only when a grammar RECOGNISED the request and cannot honour it --
+    #: a hole wider than the stock, five plates for a six-sided box.
+    #:
+    #: Distinct from ``error`` alone, which also covers "no grammar claimed
+    #: this sentence". The two want opposite handling: a refusal is an answer
+    #: to give the person, and a non-understanding must fall through to the
+    #: model. Conflating them turns every unreadable request into a confident
+    #: "no" -- which is how "design me a gearbox" came back as a refusal
+    #: rather than as a question for a model.
+    refused: bool = False
+    #: Set when one of the general mechanical readers understood the request.
+    #: Carries the reader's name and the conventions it applied, so a person
+    #: can see that "wider" was taken as X and say otherwise.
+    reading: Optional[Any] = None
 
     @property
     def understood(self) -> bool:
@@ -88,10 +104,14 @@ class Interpretation:
                                    "understood": self.understood}
         if self.intent is not None:
             payload["intent"] = self.intent.to_dict()
+        if self.reading is not None:
+            payload["reading"] = self.reading.to_dict()
         if self.note:
             payload["note"] = self.note
         if self.error:
             payload["error"] = self.error
+        if self.refused:
+            payload["refused"] = True
         return payload
 
 
@@ -112,9 +132,30 @@ def provider_interpretation(
 
 
 def deterministic_interpretation(
-    text: str, *, note: str = DETERMINISTIC_NOTE,
+    text: str,
+    plan: Optional[Mapping[str, Any]] = None,
+    *,
+    note: str = DETERMINISTIC_NOTE,
 ) -> Interpretation:
-    """Read the request locally, against the provider-neutral grammar.
+    """Read the request locally, against the provider-neutral grammars.
+
+    Two grammars are offered the request, narrowest first:
+
+    1. the **counted plate assembly** (:mod:`cad_experimental.intent`), which
+       owns sentences like "a hollow box from 4 plates and 2 plates";
+    2. the **general mechanical readers** (:mod:`cad_experimental.normalize`)
+       -- primitives, holes, edge treatments, resizes, removals and patterns.
+
+    Order matters and is not a preference. An assembly request says "plate"
+    and carries three numbers, so the general box reader matches it too and
+    would build ONE of its six plates. The assembly grammar is asked first,
+    and the box reader independently declines anything the assembly grammar
+    claims, because relying on ordering alone would be relying on this
+    function never being refactored.
+
+    ``plan`` is the part as it stands. The second grammar needs it -- "make it
+    5 mm taller" has nothing to be taller than without it -- and passing
+    ``None`` simply limits the reading to requests that create a part.
 
     ``note`` is what the user is told about why this route ran. It is a
     parameter because there are two different true answers -- a model
@@ -130,15 +171,41 @@ def deterministic_interpretation(
     model's plan meets. There is no shorter path to the kernel from here
     than there is from a provider.
     """
+    claimed = looks_like_plate_assembly(text)
     try:
         intent, payload = plan_from_request(text)
-    except IntentError as exc:
-        return Interpretation(source=SOURCE_DETERMINISTIC, error=str(exc))
+    except IntentError as assembly_error:
+        reading = read_request(text, plan)
+        if isinstance(reading, Refusal):
+            # The grammar recognised the request and cannot honour it. That is
+            # an answer, not a failure to understand, so it is reported as the
+            # reason rather than falling through to a model that would be
+            # asked to do the impossible.
+            return Interpretation(source=SOURCE_DETERMINISTIC,
+                                  error=reading.reason, refused=True)
+        if isinstance(reading, Reading):
+            try:
+                parsed = parse_plan(reading.plan)
+            except PlanParseError as exc:  # pragma: no cover - lowering bug
+                return Interpretation(source=SOURCE_DETERMINISTIC,
+                                      error=str(exc))
+            return Interpretation(
+                source=SOURCE_DETERMINISTIC, plan=parsed, note=note,
+                reading=reading,
+            )
+        # The assembly grammar refuses two different ways. When the sentence
+        # LOOKS like a plate assembly and still fails, that is a refusal with
+        # a reason worth reading ("closed by 6 plates; this describes 5").
+        # When it never looked like one, the message is only "not mine", and
+        # saying that to a person as though it were a verdict would be
+        # answering a question nobody asked.
+        return Interpretation(source=SOURCE_DETERMINISTIC,
+                              error=str(assembly_error), refused=claimed)
     try:
-        plan = parse_plan(payload)
+        parsed = parse_plan(payload)
     except PlanParseError as exc:  # pragma: no cover - a bug in lowering
         return Interpretation(source=SOURCE_DETERMINISTIC, error=str(exc))
-    return Interpretation(source=SOURCE_DETERMINISTIC, plan=plan,
+    return Interpretation(source=SOURCE_DETERMINISTIC, plan=parsed,
                           intent=intent, note=note)
 
 
@@ -156,7 +223,11 @@ def intent_interpretation(intent: PlateAssemblyIntent) -> Interpretation:
                           intent=intent)
 
 
-def interpret(text: str, result: PlanGenerationResult) -> Interpretation:
+def interpret(
+    text: str,
+    result: PlanGenerationResult,
+    plan: Optional[Mapping[str, Any]] = None,
+) -> Interpretation:
     """The one question the request path asks: what shall we build?
 
     The provider is asked first and believed when it answers usefully. When
@@ -168,8 +239,13 @@ def interpret(text: str, result: PlanGenerationResult) -> Interpretation:
     attempt = provider_interpretation(result)
     if attempt.understood:
         return attempt
-    fallback = deterministic_interpretation(text)
-    return fallback if fallback.understood else attempt
+    fallback = deterministic_interpretation(text, plan)
+    if fallback.understood:
+        return fallback
+    # A deterministic REFUSAL outranks a provider non-answer: the local
+    # grammar recognised the request and knows why it cannot be done, which
+    # is a better thing to tell someone than "the model did not answer".
+    return fallback if fallback.error and not attempt.error else attempt
 
 
 __all__ = [

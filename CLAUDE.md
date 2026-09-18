@@ -1046,22 +1046,39 @@ section is the index.
 
 ### Where this branch stands, and what is next
 
-Stages 32–48 are complete and pushed. The subsections below are the index, in
-order; the five most recent are:
+Stages 32–61 are complete and pushed. The subsections below are the index,
+in order; they stop at Stage 48, and **Stages 49–61 are documented only in
+`docs/experimental-operation-plan.md`** — read its `## Stage NN` headings for
+those. The five most recent are:
 
 | Stage | What it settled |
 |---|---|
-| **44** | The Stage 43 profile refusals were **forced, not chosen** — the schema had no `sketch`/`extrude`/`revolve` branch, so the model could not emit one. `provider_schema()` now covers the whole vocabulary. |
-| **45** | The plan's dependency and history graph made visible: one shared solid-set walk, `derivation()`, `depth`, terminal solids. |
-| **46** | A real feature graph — role-tagged edges, derived per-body sequencing, deterministic topological order — and `pattern` as its first graph-native operation. |
-| **47** | Semantic edge selection: `straight` and `circular`, the seam told apart from the rim by topology, and a graph-driven executor. |
-| **48** | The **evaluation instrument** for all of the above: a 30-case capability corpus, the widened schema, two separate result groups, a free offline preflight — and the prompt contradiction that would have wrecked the run. |
+| **56–57** | Backend parity: FreeCAD 1.0.0 runs headlessly beside CadQuery, and the two agree bit-for-bit on every golden part where both can execute. |
+| **59** | The agentic control loop. |
+| **60** | Hardening that loop on **typed** evidence — E4/E5 decided by `edge_semantics.resolve`'s own `R1`/`R2`/`R3` codes rather than by matching words in a backend's error string. Verified live on `claude-haiku-4-5-20251001`. |
+| **61** | **A CAD session that needs no model at all**: `union` (eleventh type, still eight schema branches), two provider-neutral grammars, and an evidence answerer that labels every number `MEASURED` / `DECLARED` / `CALCULATED`. |
 
-**Everything built since Stage 43 is still unmeasured against a model.** What
-changed at Stage 48 is that the instrument to measure it now exists, is fully
-exercised offline, and refuses to start if it would not measure what it
-claims. The next step is **running it on the local machine**, with the real
-credential.
+**A model is one route to a plan, not the way in.** Stage 61 is the rule
+applied: every route ends at the same parser, validator, feature graph and
+kernel, and the deterministic route gets no shortcut. A whole session —
+build, edit, and nine questions answered — was driven with the credential
+deliberately **absent**, building real geometry that matches its closed forms
+to 2e-11, and the golden six-plate assembly passes through a real browser the
+same way. That says nothing whatever about model quality; it is a statement
+about the grammars, which are narrow by construction and decline everything
+outside their vocabulary.
+
+Three refusal behaviours are kept apart, and conflating the first two was a
+real bug: a grammar that **recognised** a request and cannot honour it
+answers **200 refused**; a request **no grammar claimed** is **503** and is a
+question for a model; a request that is answerable but underspecified (mass,
+with no material named) asks for what it needs rather than assuming a
+density.
+
+**Everything built between Stages 43 and 59 was unmeasured against a model**
+until Stage 60, which carries a live `claude-haiku-4-5-20251001` verification
+with real provider metadata and no fixture involved. The Stage 48 instrument
+below still has not been run in full.
 
 Stage 48 removed the two blockers that stood in the way:
 
@@ -1108,12 +1125,17 @@ edges, a shared solid-set walk, semantic edge selection and a graph-driven
 executor, a V1 adapter, its own prompt and FastAPI app, and two CAD
 backends), `apps/api/tests_experimental/`, and
 `apps/web-experimental/` on port 5174. The **operation plan** drops `units`,
-`schema_version` and `features` for a flat ordered `operations` list. **Ten**
-operation types; **seven are executable** — `sketch`, `extrude` and `revolve`
-are represented and validated, then explicitly refused at the execution
-boundary rather than approximated. Of the seven, six map one-to-one onto a V1
-feature (`V1_FEATURE_TYPES`) and `pattern` expands into one feature per
-instance.
+`schema_version` and `features` for a flat ordered `operations` list.
+**Eleven** operation types; **eight are executable** — `sketch`, `extrude`
+and `revolve` are represented and validated, then explicitly refused at the
+execution boundary rather than approximated. Of the eight, six map
+one-to-one onto a V1 feature (`V1_FEATURE_TYPES`), `pattern` expands into
+one feature per instance, and **`union` has no V1 form at all**: V1 cannot
+join two solids, so `plan_to_document` raises `ExecutionUnsupported` for it
+and such a plan is built by the **graph executor** instead. The schema the
+provider sees still has **eight branches** — the measured ceiling —
+because `subtract` and `union` are shape-identical and merge into one, as
+`fillet` and `chamfer` already do.
 
 ### Findings worth not re-deriving
 
@@ -1639,9 +1661,11 @@ The POSIX forms remain correct on Linux/macOS, where `python3` and a
 `CAD_FREECAD_HOME` plus `LD_LIBRARY_PATH=$CAD_FREECAD_HOME/usr/lib` set
 **before Python starts**, or `test_cad_backends` skips.
 
-**1188 tests, 2 skipped** with FreeCAD present on Linux, as of Stage 47 (at
-Stage 43 that was 897 tests, 33 skipped on the Windows environment, where the
-extra skips are the FreeCAD backend). Run the whole suite before finishing a
+**1767 passed, 72 skipped** with FreeCAD 1.0.0 present on Linux, measured at
+Stage 61 (1188 tests, 2 skipped at Stage 47; 897 tests, 33 skipped at Stage
+43 on the Windows environment, where the extra skips are the FreeCAD
+backend). `cad-core` is **1481 passed** on Linux — §5's six errors there are
+Windows-only. Run the whole suite before finishing a
 stage here: package-wide guard tests in older modules are routinely tripped
 by newer ones, and focused subsets have missed that twice.
 

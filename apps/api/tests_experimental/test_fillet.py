@@ -943,6 +943,27 @@ class EngineAuthorityTests(unittest.TestCase):
         # edge geometry.
         backends = {"cad_backend.py", "cadquery_backend.py",
                     "freecad_backend.py"}
+
+        # Two different things the names below can mean, and only one is a
+        # violation:
+        #
+        #   backend.select_edges(...)        delegation THROUGH the interface
+        #   edge_selection.select_edges(...) reaching PAST it, into geometry
+        #
+        # A name-level check cannot tell them apart, so `backend_parity_probe`
+        # -- the diagnostic that audits the interface by calling every
+        # capability on it and reporting which answer -- trips on the first.
+        # Auditing a capability means naming it. It is therefore excused the
+        # three INTERFACE METHOD names and nothing else: the kernel and
+        # module names below stay forbidden for it, so a probe that started
+        # importing `cad_core.edge_selection` or touching `BRepFilletAPI`
+        # would still fail this test. A blanket exclusion would have bought
+        # the pass by giving up the guard.
+        interface_methods = {"select_edges", "is_straight_edge",
+                             "line_direction"}
+        reaches_past = {"GeomAbs", "BRepFilletAPI", "edge_selection"}
+        callers = {"backend_parity_probe.py"}
+
         root = pathlib.Path(cad_experimental.__file__).resolve().parent
         for path in root.rglob("*.py"):
             if path.name in backends:
@@ -959,10 +980,10 @@ class EngineAuthorityTests(unittest.TestCase):
                         names.add(alias.name)
                     if isinstance(node, ast.ImportFrom) and node.module:
                         names.add(node.module)
-            for forbidden in (
-                "GeomAbs", "select_edges", "is_straight_edge",
-                "line_direction", "BRepFilletAPI", "edge_selection",
-            ):
+            forbidden_here = reaches_past | interface_methods
+            if path.name in callers:
+                forbidden_here = reaches_past
+            for forbidden in sorted(forbidden_here):
                 self.assertNotIn(forbidden, names, path.name)
 
 

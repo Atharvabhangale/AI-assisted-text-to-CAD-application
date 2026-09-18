@@ -52,6 +52,7 @@ from .interpretation import (
     interpret,
 )
 from .parser import PlanParseError, parse_plan
+from .questions import answer as answer_from_evidence
 from . import catalog as catalogue
 from . import engineering as eng
 from .drawing import build_drawing
@@ -610,6 +611,56 @@ def create_app(
                 content={"error": "say what you would like to build or change"},
             )
 
+        session.said(USER, request_text)
+
+        # A question about the part we already built is answered from the
+        # executor's own measurement and the plan's own declarations, not by
+        # asking a model to recall geometry it cannot see. No call is made
+        # and nothing is rebuilt.
+        #
+        # This is asked BEFORE the no-model branch below, because answering
+        # it needs no planner -- it reads a build that already happened. Put
+        # after, "how many holes does it have?" returned 503 "no
+        # interpretation model is configured" about a part sitting in the
+        # session with its holes already counted: the one question in this
+        # file that provably needs no model was the one refused for want of
+        # one.
+        #
+        # The richer answerer is asked first: it can say how many holes there
+        # are, what they measure, what the part would weigh in a named
+        # material -- and it says of every number whether it was MEASURED,
+        # DECLARED or CALCULATED. The older one remains as the fallback for
+        # the broad "tell me about it" questions it already handled.
+        if session.current is not None:
+            evidence = answer_from_evidence(
+                session.current.plan, session.current.measurement,
+                session.current.backend or "the CAD engine", request_text,
+            )
+            if evidence is not None:
+                session.said(ASSISTANT, evidence.text)
+                return JSONResponse(
+                    status_code=OK_STATUS,
+                    content={"session_id": session.session_id,
+                             "editing": True, "status": "answered",
+                             "reply": evidence.text,
+                             "from_evidence": True,
+                             "evidence": evidence.to_dict(),
+                             "measurement": dict(session.current.measurement),
+                             "session": session.to_dict()},
+                )
+
+            answered = measurement_answer(session, request_text)
+            if answered is not None:
+                session.said(ASSISTANT, answered)
+                return JSONResponse(
+                    status_code=OK_STATUS,
+                    content={"session_id": session.session_id, "editing": True,
+                             "status": "answered", "reply": answered,
+                             "from_evidence": True,
+                             "measurement": dict(session.current.measurement),
+                             "session": session.to_dict()},
+                )
+
         # No model configured is the *hardest* case of "the model was no
         # use", not a different one, so it goes to the same deterministic
         # reader rather than short-circuiting past it. Returning 503 here
@@ -621,9 +672,10 @@ def create_app(
         # and a decline still ends in the 503 below. Nothing is guessed to
         # avoid an error.
         if planner is None:
-            session.said(USER, request_text)
+            current_plan = (session.current.plan
+                            if session.current is not None else None)
             reading = deterministic_interpretation(
-                request_text, note=NO_MODEL_NOTE)
+                request_text, current_plan, note=NO_MODEL_NOTE)
             if reading.understood:
                 base: Dict[str, Any] = {
                     "session_id": session.session_id,
@@ -639,6 +691,21 @@ def create_app(
                 )
                 if outcome is not None:
                     return outcome
+            if reading.refused and reading.error:
+                # The local grammar recognised the request and knows exactly
+                # why it cannot be done -- a hole wider than the stock, a
+                # length in inches. That is a far better thing to tell someone
+                # than "no model is configured", which is true and useless:
+                # configuring a model would not make the hole fit.
+                session.said(ASSISTANT, reading.error)
+                return JSONResponse(
+                    status_code=OK_STATUS,
+                    content={"session_id": session.session_id,
+                             "status": "refused",
+                             "interpreted_by": reading.to_dict(),
+                             "reply": reading.error,
+                             "session": session.to_dict()},
+                )
             return JSONResponse(
                 status_code=UNAVAILABLE_STATUS,
                 content={
@@ -646,23 +713,6 @@ def create_app(
                     "error": "no interpretation model is configured",
                     "session": session.to_dict(),
                 },
-            )
-
-        session.said(USER, request_text)
-
-        # A question about the part we already built is answered from the
-        # executor's own measurement, not by asking a model to recall
-        # geometry it cannot see. No call is made and nothing is rebuilt.
-        answered = measurement_answer(session, request_text)
-        if answered is not None:
-            session.said(ASSISTANT, answered)
-            return JSONResponse(
-                status_code=OK_STATUS,
-                content={"session_id": session.session_id, "editing": True,
-                         "status": "answered", "reply": answered,
-                         "from_evidence": True,
-                         "measurement": dict(session.current.measurement),
-                         "session": session.to_dict()},
             )
 
         # A first request is interpreted exactly as it always was. A later one
@@ -688,7 +738,10 @@ def create_app(
         # which either reads it completely or declines. Both routes end at
         # the same parser, validator and executor below -- nothing here
         # shortcuts to geometry, and `interpreted_by` says which ran.
-        reading = interpret(request_text, result)
+        reading = interpret(
+            request_text, result,
+            session.current.plan if session.current is not None else None,
+        )
         if reading.source == SOURCE_DETERMINISTIC and reading.understood:
             base["interpreted_by"] = reading.to_dict()
             plan, verdict, build = _rebuild(reading.plan.to_dict(), service)

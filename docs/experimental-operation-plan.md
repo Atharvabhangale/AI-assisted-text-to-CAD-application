@@ -3584,3 +3584,197 @@ against a closed form of `60000 - 4(25 - 25pi/4)(10) = 59785.398...`.
 LOCAL_DEVELOPMENT_PLAN` nor `is_live_model_result: false`; they carry real
 Anthropic provider and model metadata. The fixture route is untouched and
 still stamps both.
+
+## Stage 61: a CAD session that needs no model at all
+
+Three commits form one milestone, and the question behind all of them is the
+same: **how much of this product actually requires a hosted model?** The
+honest answer turned out to be "less than the code assumed", and every place
+that assumed otherwise was a place where a request this project can read was
+refused for want of a credential.
+
+The rule the stage is organised around: **a model is one route to a plan, not
+the way in.** Every route ends at the same parser, the same validator, the
+same feature graph and the same kernel. The deterministic route is not a
+bypass and gets no shortcut — it reaches the pipeline at exactly the place a
+provider's answer does, and is judged by exactly the same rules.
+
+### `union`, so that "join these" is a sentence the language has
+
+`union` is the eleventh operation type. It was the missing half of a
+long-standing awkwardness: the prompt told the model *"there is no union in
+this language"* and *"two solids cannot be joined"*, which was true and which
+made every assembly request unanswerable — a hollow box out of six plates is
+six solids that must become one.
+
+Adding it cost **no grammar budget**. `provider_schema()` had eight branches
+and eight is the measured ceiling (Stage 44); `subtract` and `union` differ
+only in name — both take a `target` and an ordered `tools` list — so they
+merge into one branch exactly as `fillet` and `chamfer` already do:
+
+| | before | after |
+|---|---:|---:|
+| operation types | 10 | **11** |
+| schema branches | 8 | **8** |
+
+`executable_schema()` is untouched and still fingerprints `54759d1e16cfe634`,
+because Stage 43 must keep reproducing Stage 43.
+
+Prompt `2026-09-17.1` (`4e270378e5d6826a`) gained a `union` section and lost
+both refusal sentences. **The refusal list is part of the operation** — the
+Stage 44 and Stage 48 lesson, applied on purpose this time rather than found
+afterwards: adding an operation and leaving it in the UNSUPPORTED list makes
+the model decline something the language has, and the run then records the
+contradiction as the model's judgement.
+
+### Two provider-neutral grammars
+
+`intent.py` reads a **counted plate assembly** — *"a hollow rectangular box
+with 40\*20\*5 (4) plates and 20\*20 (2) plates with 8 mm diameter holes in
+centre of each plate"* — into canonical intent, which lowers to a plan.
+
+`normalize.py` reads **general mechanical requests** through eight readers:
+`box`, `cylinder`, `corner_holes`, `pattern`, `centre_hole`,
+`edge_treatment`, `remove`, `resize`.
+
+Order matters and is not a preference. An assembly sentence says "plate" and
+carries three numbers, so the general box reader matches it too — and would
+build **one** of its six plates. The assembly grammar is asked first, *and*
+`read_box` independently declines anything `looks_like_plate_assembly`
+claims. Relying on the ordering alone would be relying on this function never
+being refactored.
+
+Either grammar reads a request **completely or not at all**. A partial
+reading would be a guess dressed as a fact, and the readers are the one part
+of this system with no model to blame for a guess.
+
+### Evidence, and where a number came from
+
+`questions.py` answers eleven kinds of question about the part that is
+already built, and labels every number with how it was arrived at:
+
+| provenance | meaning | example |
+|---|---|---|
+| `MEASURED` | the kernel measured it on the build that succeeded | volume, faces, edges |
+| `DECLARED` | the plan asks for it; the kernel was *told* it | hole diameter, count |
+| `CALCULATED` | worked out from the two above, with the working shown | mass, removed material |
+
+The distinction is the point. "The holes are 12 mm in diameter" is a
+different kind of claim from "volume 58869.027 mm³", and a session that
+reports both in the same voice invites a reader to trust the weaker one as
+much as the stronger. So a declared answer says so: *"That is what the plan
+asks for; the kernel was told it rather than asked."*
+
+**Mass requires a named material or a stated density.** Asked cold, it does
+not pick one — it says what it needs. A density silently assumed is a
+fabricated number wearing three decimal places.
+
+### The bug this stage's own wiring introduced, and the test that pins it
+
+The evidence answerer was wired in **after** the `planner is None` branch. So
+with no model configured:
+
+```
+>>> how many holes does it have?
+    HTTP 503   no interpretation model is configured
+```
+
+— about a part sitting in the session with its holes already counted. The one
+question in the route that provably needs no model was the only one refused
+for want of one. Answering reads a build that already happened; it is now
+asked first, and `test_a_question_is_answered_with_no_model_configured`
+fails if the ordering is ever restored. (Verified by reintroducing the bug:
+the test goes red with exactly the 503 above, and green again on revert.)
+
+### Measured — a whole session, no credential present
+
+The backend was started with `ANTHROPIC_API_KEY` and `CAD_ANTHROPIC_API_KEY`
+unset; `/experimental/health` reports `model_configured: false` throughout.
+Backend FreeCAD 1.0.0.
+
+| turn | status | route | volume mm³ | closed form | delta |
+|---|---|---|---:|---:|---:|
+| `a 100 x 60 x 10 mm plate` | built | deterministic | `60000.0` | `60000` | **0** |
+| `put a 12 mm hole through the centre` | built | deterministic | `58869.02664470768` | `60000 − π·6²·10` | `7.3e-12` |
+| `add four 6 mm holes 10 mm in from each corner` | built | deterministic | `57738.053289415366` | `− 4π·3²·10` | `2.2e-11` |
+| `how many holes does it have?` | answered | — | — | declared | `There is 1 hole.` |
+| `what size are the holes?` | answered | — | — | declared | `12 mm` |
+| `what is the volume?` | answered | — | — | measured | — |
+| `how much material was removed?` | answered | — | `1130.973` | `1 × π(12/2)²×10` | working shown |
+| `what does it weigh in aluminium?` | answered | — | `162.0 g` | `60 cm³ × 2.7` | working shown |
+| `what would it weigh in steel?` | answered | — | `471.0 g` | `60 cm³ × 7.85` | working shown |
+
+Three refusal behaviours, kept apart on purpose:
+
+| request | answer | why it differs |
+|---|---|---|
+| `put a 60 mm hole through the centre` (of a 40 mm plate) | **200 refused** — *"a 60 mm hole does not fit through a 40 mm section"* | a grammar **recognised** it and cannot honour it |
+| `design me a differential gearbox` | **503 unavailable** | **no grammar claimed it** — it is a question for a model |
+| `what does it weigh?` (no material) | **200 answered** | answerable, but not without a density |
+
+Conflating the first two is what made "design me a gearbox" come back as a
+confident *no* rather than as a question nobody had asked yet. `Interpretation`
+now carries `refused` separately from `error` for exactly this reason: a
+refusal is an answer to give the person; a non-understanding must fall
+through.
+
+### The golden assembly, through a real browser, with no model
+
+`npm run e2e:assembly` — real Chromium, real HTTP, real WebGL surface:
+
+| | |
+|---|---|
+| interpreted by | **deterministic**, `model_configured: false` |
+| solids | **1**, valid |
+| volume | **11492.035526276897 mm³** — matches the closed form |
+| envelope | 40 × 20 × 20 mm |
+| topology | 18 faces, 42 edges |
+| mesh | 5544 triangles, 2764 vertices |
+| backend | freecad |
+| failed requests / console errors | 0 / 0 |
+
+Six plates become **one solid** via `union`, and the six 8 mm holes were
+confirmed from real kernel topology — 12 circular edges of r = 4 lying in 12
+distinct planes — rather than inferred from the fact that the plan contains
+hole operations.
+
+### A guard repaired rather than excused
+
+`test_the_plan_layer_does_not_special_case_the_seam` asserts no plan-layer
+module implements edge geometry, by forbidding six names. It had started
+failing on `backend_parity_probe.py` — the diagnostic that audits the backend
+interface by **calling** every capability on it. Auditing a capability means
+naming it.
+
+A name-level check cannot tell these apart:
+
+```
+backend.select_edges(...)          delegation THROUGH the interface  — wanted
+edge_selection.select_edges(...)   reaching PAST it, into geometry   — forbidden
+```
+
+The probe is therefore excused the three **interface method** names and
+nothing else; `GeomAbs`, `BRepFilletAPI` and `edge_selection` stay forbidden
+for it. A blanket file exclusion would have bought the pass by giving up the
+guard — confirmed by mutation: a probe that imports `edge_selection` still
+fails, and so does a plan-layer module that names `select_edges`.
+
+### Suite
+
+| suite | result |
+|---|---|
+| `tests_experimental` | **1767 passed, 72 skipped** (Linux, FreeCAD 1.0.0 present) |
+| `cad-core` | **1481 passed** |
+| frontend `tsc --noEmit` | clean |
+| frontend `vite build` | succeeds |
+| `e2e:assembly` | **PASS** |
+
+### What this stage does NOT claim
+
+It says **nothing about model quality**. No live provider call was made; the
+credential was deliberately absent. Every number above is either the kernel's
+own measurement or arithmetic on the request's own figures. That a request
+can be read without a model is a statement about the *grammars*, and the
+grammars are narrow by construction — they cover the vocabulary above and
+decline everything else, which is why `design me a differential gearbox`
+still needs one.
