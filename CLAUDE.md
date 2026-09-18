@@ -17,13 +17,23 @@ written**, and §19 is authoritative instead:
 - **`start.ps1` and `stop.ps1` do not exist on this branch.** §14 presents
   them as "the normal way in"; they arrived on stable after the fork. Use the
   manual `uvicorn` / `npm run dev` sequence, or §19's commands.
-- **§5's test counts are stable's.** On this branch the measured figures are
-  **cad-core 1481 run with 6 pre-existing errors** and **`tests_experimental`
-  897 passed, 33 skipped** (see §5's own note and §19). §5's "no known
-  failing tests" is a statement about stable only.
+- **§5's test counts are stable's.** On this branch the current measured
+  figures are **`tests_experimental` 1800 passed, 72 skipped** and
+  **cad-core 1481 passed**, both on Linux with FreeCAD 1.0.0 present
+  (Stage 63). §5's own note carries the older Windows figures as history.
+  §5's "no known failing tests" is a statement about stable only.
 - **§17's structure map omits this branch's three experimental trees**:
   `apps/api/src/cad_experimental/`, `apps/api/tests_experimental/` and
   `apps/web-experimental/`. They exist here and are described in §19.
+- **§6's "Nothing joins" is about V1, and V1 only.** The stable V1 document
+  genuinely has no `union`, and §6 and §11 are right to say so. **This
+  branch's operation plan HAS `union`** — it is the eleventh operation type,
+  both CAD backends implement it, and the graph executor builds it. Do not
+  carry §6's rule across; see §19.
+- **§7's credential rule is superseded.** It says Claude Code Web runs only
+  on a local fixture provider. The current policy is §19's **AI provider
+  usage policy**: when a credential is available, a real provider is used,
+  and live calls are encouraged.
 
 Everything else in 1–18 — the CAD contract, the architectural principles, the
 invariants in §12, and the Windows traps in §15 — applies to both branches.
@@ -277,9 +287,16 @@ during Stage 28A; do not remove it.
 **On stable** there are no known failing tests, and no test is quarantined,
 skipped or weakened to make the suite pass.
 
-**On `experiment/cad-operation-graph` the numbers above are stable's, and six
-cad-core tests fail.** Measured on this branch: cad-core runs **1481 tests
-with 6 errors**, and `tests_experimental` was **897 passed, 33 skipped** at
+**On `experiment/cad-operation-graph` the numbers above are stable's.**
+
+**CURRENT (Stage 63, Linux, FreeCAD 1.0.0 present):** `tests_experimental`
+**1800 passed, 72 skipped, 0 failed**; cad-core **1481 passed, 0 failed**.
+The six cad-core errors described below are **Windows-only** and do not
+reproduce on Linux.
+
+**HISTORICAL**, kept because each figure describes a real environment:
+cad-core runs **1481 tests with 6 errors** on Windows, and
+`tests_experimental` was **897 passed, 33 skipped** at
 Stage 43 on Windows (the skips are the FreeCAD backend, absent there) and is
 **1263 passed, 33 skipped (1296 collected)** as of Stage 48, measured on a
 Linux container without FreeCAD. Note for anyone reproducing that figure in a
@@ -479,12 +496,23 @@ Saved runs are preserved under `docs/evaluation-baselines/`.
   process. Budget for this — it is the most common reason a live run reports
   "credential absent" while the file plainly contains one.
 - **Local live Anthropic runs use the real key** from that file, against
-  `claude-haiku-4-5-20251001`. **Claude Code Web does not**: there the
-  experimental work runs on `cad_experimental.local_plan_provider`, the
-  clearly labelled **local development provider**, which serves
-  developer-written fixture plans and calls no model at all. Never describe a
-  local-development-provider result as a Haiku result, or as a model result
-  of any kind — it says nothing about model quality.
+  `claude-haiku-4-5-20251001`.
+- **SUPERSEDED — this row used to forbid Claude Code Web a real model**,
+  directing the experimental work to `cad_experimental.local_plan_provider`
+  and its fixture plans instead. **That restriction is retired.** See §19's
+  *AI provider usage policy*:
+  where a credential is available, Claude Code Web uses a real provider, and
+  live calls are encouraged for schema experiments, semantic-quality
+  measurement and product verification. Kept as a pointer rather than
+  deleted, because a reader who remembers the old rule needs to find out it
+  changed.
+- **What has NOT changed:** `local_plan_provider` still exists and is still
+  the clearly labelled local development provider, serving
+  developer-written fixture plans and calling no model. **Never describe a
+  fixture result as a Haiku result, or as a model result of any kind** — it
+  says nothing about model quality, and every fixture answer is stamped
+  `source: LOCAL_DEVELOPMENT_PLAN` / `is_live_model_result: false` so it
+  cannot be mistaken for one.
 - **Secrets are never committed.** No key appears in source, tests, docs or
   saved evaluation results; the saved results were scanned to confirm it.
   Tests use an obviously synthetic placeholder. `.env*` is gitignored.
@@ -1027,7 +1055,7 @@ they are authoritative, this list is a snapshot.
 ## 19. A second experiment branch: `experiment/cad-operation-graph`
 
 **Read the stage-number warning first.** This branch numbers its own stages
-32–51. The stable branch *also* has a Stage 30, 31 and 32. **They are
+**32–64**. The stable branch *also* has a Stage 30, 31 and 32. **They are
 different work and the numbers collide.** "Stage 32" on stable is the Windows
 test fixes; "Stage 32" here is the first commit of an alternative CAD
 representation. Nothing reconciles them — when reading a commit message, check
@@ -1044,10 +1072,183 @@ Checked out as a git worktree beside the repo (`git worktree list`). Full
 detail lives on that branch in `docs/experimental-operation-plan.md`; this
 section is the index.
 
+### VERIFIED CURRENT STATE — read this first
+
+Everything in this subsection was **measured on the current tree**, not
+recalled. Four kinds of statement are kept apart on purpose: **verified
+current facts** (here), **historical milestone facts** (the per-stage
+subsections below, which are a record and are not rewritten), **known
+limitations** and **planned work**.
+
+**Branch and checkpoint.** `experiment/cad-operation-graph`, Stages 32–63
+complete and pushed. `git log --oneline -5` and `git status` are
+authoritative; this is a snapshot.
+
+**Operation vocabulary — eleven types.** `plan.OPERATION_TYPES` is the
+authority:
+
+| tuple | count | members |
+|---|---:|---|
+| `OPERATION_TYPES` | **11** | box, cylinder, through_hole, subtract, **union**, fillet, chamfer, pattern, sketch, extrude, revolve |
+| `EXECUTABLE_TYPES` | 8 | the above minus sketch/extrude/revolve |
+| `V1_FEATURE_TYPES` | 6 | the V1 document's own six — **frozen**, and `union` is deliberately not in it |
+| `V1_EXPRESSIBLE_TYPES` | 7 | the six plus `pattern`, which expands into one feature per instance |
+| `EXECUTOR_ONLY_TYPES` | 1 | `('union',)` — derived, not listed |
+| `TOOL_MODIFIER_TYPES` | 2 | `subtract`, `union` — both consume their tools |
+| `PATTERNABLE_TYPES` | 1 | `through_hole` |
+| `SELECT_MODES` | 4 | all, axis_parallel, straight, circular |
+
+Plan rules are **P1–P32**. `sketch`, `extrude` and `revolve` are represented
+and validated, then refused at the execution boundary rather than
+approximated. `union` has **no V1 document form** (V1 cannot join solids), so
+a plan using it is built by the **graph executor**.
+
+**Architecture — provider-independent, and what that means.** The canonical
+pipeline is:
+
+```
+natural language
+  → provider (any) OR a deterministic reader
+  → canonical intent            (intent.py, for the assembly grammar)
+  → Operation Plan              (the canonical representation)
+  → parser  → validator (P1-P32) → feature graph
+  → backend (CadQuery | FreeCAD)
+  → RenderModel
+```
+
+**Verified structurally:** none of the 19 canonical-pipeline modules imports
+a vendor SDK or `cad_ai`; `edge_semantics.py` imports only the standard
+library. Asserted by `test_provider_policy.py`. **Vendor-neutral core, and
+live vendor calls are encouraged** — see the policy below.
+
+**Two deterministic routes, both reaching the same kernel:**
+- `intent.py` — the counted plate-assembly grammar → canonical intent →
+  `lower_to_plan`;
+- `normalize.py` — eight general readers (box, cylinder, corner_holes,
+  pattern, centre_hole, edge_treatment, remove, resize).
+
+Both go through the same parser and validator; neither is a shortcut.
+`_body_id` reads `history.plan_history(...).live_bodies` — **the one**
+solid-set walk.
+
+**Evidence layer.** `questions.py` answers eleven kinds of question about the
+built part and labels every number `MEASURED` (the kernel measured it),
+`DECLARED` (the plan asks for it) or `CALCULATED` (worked out, with the
+working shown). Mass **requires** a named material or stated density.
+
+**Interpretation and refusal semantics — three distinct answers:**
+
+| request | answer | why |
+|---|---|---|
+| a grammar recognised it and cannot honour it | **200 `refused`** | e.g. *"a 60 mm hole does not fit through a 40 mm section"* |
+| no grammar claimed it, no model configured | **503 `unavailable`** | a question for a model |
+| answerable but underspecified | **200 `answered`** | asks for what it needs (mass with no material) |
+
+Conflating the first two was a real bug; `Interpretation.refused` is separate
+from `Interpretation.error` for exactly this reason.
+
+**Live provider — VERIFIED (Stage 63).** Model
+**`claude-haiku-4-5-20251001`**, 5 attempts at the golden six-plate request:
+
+| | |
+|---|---|
+| encoding sent | `strict_selector_union` |
+| inlined characters | **3628** |
+| fingerprint | `07ab6305e836271ec0d1b49baa62e0fb3ff312aafeefa21e8e5b0b48de119ec3` |
+| branches | **5** — box, cylinder, through_hole, `subtract\|union`, `fillet\|chamfer` |
+| prompt | `2026-09-18.1` / `aa0a407bd02b18e4` / 26081 chars |
+| grammar compiled | **YES, 5/5** — `structured_output` true, `stop_reason` `end_turn`, **0/5 fenced** |
+| model used `union` | **4/5** |
+| **built** | **0/5** |
+
+**The exact failure is P11, and nothing else** — all 24 problems across the
+four plans. The model pointed every hole at `assembly`, the union
+operation's **own** id, instead of `plate_long_1`, the target whose id a
+union keeps. The fifth attempt asked for clarification.
+
+**This is a model-behaviour finding, not a prompt gap.** The prompt already
+states the rule in its `union` section: *"the union's own id names no solid
+afterwards, so a later hole or fillet targets the TARGET"*. Nothing was
+repaired and no validation was weakened — there is no repair loop by design.
+
+**The deterministic reader builds the same sentence correctly** (one valid
+solid, 11492.035526276897 mm³). That is `DETERMINISTIC`, and it says nothing
+about the model.
+
+**Schema measurements — proven vs historical.** `PROVEN_COMPILABLE` means
+*a live probe accepted this size*, never *we expect it to be accepted*:
+
+| encoding | inlined | branches | live verdict |
+|---|---:|---:|---|
+| `selector` | 3134 | 5 | **PROVEN** (Stage 53) |
+| `profile` | 3487 | 4 | **PROVEN** (Stage 50) |
+| `strict_selector` | 3619 | 5 | **PROVEN** (Stage 55) |
+| `executable` | 3622 | 6 | **PROVEN** (Stage 43) — frozen, fp `54759d1e16cfe634` |
+| **`strict_selector_union`** | **3628** | **5** | **PROVEN (Stage 63)** — what the live route sends |
+| `profile_hole` | 4030 | 5 | **PROVEN** (Stage 51) |
+| `profile_union` | 4481 | 6 | **PROVEN** (Stage 51) — largest ever accepted |
+| `compact` | 6199 | 8 | **REFUSED** |
+| `provider` | 7360 | 8 | **REFUSED** |
+
+Ceiling bracket **(4481, 4551]** — a bound, not a number — derived in
+`schema_ladder` from tuples of every live verdict rather than hard-coded.
+No ladder rung now sits inside it.
+
+**Engines — both verified.** FreeCAD **1.0.0** (headless, from the AppImage)
+and CadQuery **2.8.0**. On the golden six-plate assembly both produce
+**11492.035526276897 mm³**, 18 faces, 42 edges — **bit-identical**.
+`CAD_BACKEND` defaults to `cadquery` and `resolve_backend()` never falls
+back.
+
+**Product smoke test — 9/9 on real FreeCAD, no model configured:**
+
+| # | flow | measured |
+|---|---|---|
+| 1 | create simple box | 60000.0000 mm³ |
+| 2 | create cylinder | 15707.9633 = π·10²·50 |
+| 3 | add centre hole | 58869.0266 |
+| 4 | resize | 70869.0266 |
+| 5 | remove last feature | 72000.0000 |
+| 6 | geometry question | answered from evidence |
+| 7 | undo | back to 70869.0266 |
+| 8 | reset | clean |
+| 9 | six-plate hollow assembly | 11492.0355, one solid |
+
+**Browser E2E — PASS** (`npm run e2e:assembly`): real Chromium, real WebGL
+surface, one valid solid, 18 faces, 42 edges, 5544 triangles, 0 failed
+requests, 0 console errors.
+
+**Test counts (current):** `tests_experimental` **1800 passed, 72 skipped, 0
+failed**; cad-core **1481 passed**. Frontend `tsc --noEmit` clean,
+`vite build` succeeds. **The 72 skips** are the FreeCAD-dependent modules
+when FreeCAD is absent from the interpreter, plus the deliberately gated
+live-provider tests.
+
+**Local development providers — what each proves.**
+`local_intent_provider.FakeLocalProvider` is **not a model**: it holds
+canonical intent, ignores the request text, imports no SDK and is
+deliberately *not* wired to the deterministic reader. Verified end to end —
+it reached the kernel at 11492.035526276897 mm³ through the same parser,
+validator and graph. `DecliningProvider` answers `None`.
+`local_plan_provider` serves developer-written fixture **plans** and stamps
+every answer `LOCAL_DEVELOPMENT_PLAN` / `is_live_model_result: false`.
+**Neither says anything about model quality.**
+
+**Capability modules that exist and are covered by the passing suite:**
+`drawing.py`, `catalog.py`, `engineering.py`, `macros.py`, `agentic_loop.py`,
+`sketch.py`, plus 17 HTTP routes including `/session/drawing`,
+`/session/export`, `/session/macros`, `/session/macros/run`,
+`/catalog/search` and `/session/engineering`. **Scope of that claim:** they
+import, they are exercised by `tests_experimental`, and the suite is green.
+They have **not** been driven through the product in a smoke test, so no
+claim is made here about drawings being engineering-grade, the catalogue
+being a supplier integration, or export coverage beyond STEP/STL from the
+build path.
+
 ### Where this branch stands, and what is next
 
-Stages 32–63 are complete and pushed. The subsections below are the index,
-in order; they stop at Stage 48, and **Stages 49–63 are documented only in
+Stages 32–64 are complete and pushed. The subsections below are the index,
+in order; they stop at Stage 48, and **Stages 49–64 are documented only in
 `docs/experimental-operation-plan.md`** — read its `## Stage NN` headings for
 those. The five most recent are:
 
@@ -1058,6 +1259,7 @@ those. The five most recent are:
 | **60** | Hardening that loop on **typed** evidence — E4/E5 decided by `edge_semantics.resolve`'s own `R1`/`R2`/`R3` codes rather than by matching words in a backend's error string. Verified live on `claude-haiku-4-5-20251001`. |
 | **61** | **A CAD session that needs no model at all**: `union` (eleventh type, still eight schema branches), two provider-neutral grammars, and an evidence answerer that labels every number `MEASURED` / `DECLARED` / `CALCULATED`. |
 | **62** | The four defects Stage 61 left behind — **an operation is not one edit.** The live route could not *say* `union` (Stage 44's defect a third time); a `union` plan could lose a solid silently; `ExecutionUnsupported` named the wrong reason for it; and a recorded schema size had drifted unpinned. |
+| **64** | **The AI provider usage policy, and CLAUDE.md reconciled.** The rule forbidding Claude Code Web a real credential is retired: where one is available a real provider is used, and live calls are encouraged. `CREDENTIAL_PRECEDENCE` makes the two-variable behaviour explicit instead of implicit. 22 guards now pin the policy and stop the document drifting from the code. |
 | **63** | **The audit closed and `union` measured live.** All 39 findings classified (0 false positives), 20 more fixed — including a resize that silently broke the part, a second solid-set walk, three duplicated authority tables and four tests that passed without proving their name. `strict_selector_union` (3628) is **PROVEN compilable**, the model emits `union` 4/5, and 0/5 build: **P11 only**, the union's own id used as a solid. |
 
 **A model is one route to a plan, not the way in.** Stage 61 is the rule
@@ -1128,8 +1330,134 @@ schema?** Every offline limit is satisfied and asserted; compiled-grammar
 size can only be measured by sending it. `--plan-schema compact` is the
 documented fallback, and nothing selects it automatically.
 
-The credential is `CAD_ANTHROPIC_API_KEY` (§7 and the Commands block below).
-**Nothing in Claude Code Web may use or request it.**
+### AI provider usage policy — authoritative, supersedes §7
+
+**When a credential is available, use a real provider.** Claude Code Web is
+**explicitly permitted** to use `CAD_ANTHROPIC_API_KEY` when it is present.
+The previous rule here — which forbade Claude Code Web from using or
+requesting that credential at all — is **retired**.
+
+**What "provider-independent architecture" means.** It means the **core does
+not depend on a vendor** — the canonical pipeline (canonical intent →
+operation plan → parser → validator → feature graph → backend →
+RenderModel) imports no vendor SDK and no provider module, so a different
+provider is a different adapter and nothing else. Provider independence is a
+statement about what the core depends on, and **not that live vendor calls
+are forbidden**. The core being **vendor-neutral** is an architectural
+property; avoiding Anthropic is not a goal and never was. A configured real
+model is meant to be *used*.
+
+**The order of preference:**
+
+1. **A configured provider is the default.** If one is available, it does the
+   AI interpretation and generation.
+2. **No provider configured** → the deterministic readers may be used where
+   they support the request.
+3. **Deterministic readers are NOT the default replacement for a configured
+   model.** They are narrow by construction; reaching for them while a model
+   is available hides what the model would have done.
+
+**Live calls are encouraged for:** schema-compilation experiments,
+semantic-quality measurement, golden-request validation, provider regression
+tests, real product-path verification, and comparison against deterministic
+interpretation.
+
+**Credential names and precedence.** Both names may be *documented*; neither
+value may ever be surfaced.
+
+| variable | who sets it | note |
+|---|---|---|
+| `CAD_ANTHROPIC_API_KEY` | the operator | what Claude Code Web supplies, because that platform reserves and strips the SDK's own name |
+| `ANTHROPIC_API_KEY` | the SDK's convention | the **only** name the Anthropic SDK reads |
+
+`cad_experimental.config.CREDENTIAL_PRECEDENCE` is
+`("CAD_ANTHROPIC_API_KEY", "ANTHROPIC_API_KEY")` — **the operator-supplied
+name wins when both are set**, because it is the one exported deliberately
+for this run while the SDK name may be ambient. `bridge_credential()` copies
+the chosen key onto the SDK's name for the life of the process and returns
+the **variable name** it came from, never the value. `credential_available()`
+and `credential_variable()` consider both. This is written down rather than
+left to whichever code path looks first — and it is a real fix, not only
+documentation: reading `ANTHROPIC_API_KEY` alone is exactly why a live run in
+Web could report "credential absent" with a perfectly good key present.
+
+**Never surface a key.** Not in source, tests, test output, browser output,
+reports, screenshots, logs, or git history. Only presence and variable names
+are ever read or printed.
+
+**Never claim a live model result without a live call.** Five outcomes, kept
+distinct in every report:
+
+| label | means |
+|---|---|
+| `MODEL_GENERATED` | a real provider API call returned this |
+| `DETERMINISTIC` | a local grammar read the request; no model involved |
+| `FALLBACK` | a model was asked, was not usable, and a local grammar answered — and the note says so |
+| `REFUSED` | a grammar recognised the request and cannot honour it |
+| `PROVIDER_ERROR` | the call itself failed |
+
+`interpretation.SOURCE_PROVIDER` / `SOURCE_DETERMINISTIC` record the route on
+every answer, and `DETERMINISTIC_NOTE` ("the model's plan was not usable")
+and `NO_MODEL_NOTE` ("no interpretation model is configured") are separate
+sentences because they are separate facts.
+
+**Do not weaken the provider abstraction to satisfy this policy.** Vendor
+SDK and API code stays behind `cad_ai.provider` and the provider adapters.
+`apps/api/tests_experimental/test_provider_policy.py` pins both halves — the
+permissive half and the vendor-neutrality half — because the old restriction
+survived only as prose and nothing noticed when it stopped being the intent.
+
+### KNOWN LIMITATIONS AND UNRESOLVED ITEMS (current)
+
+Separate from the historical record, and none of these is a plan.
+
+- **The live model does not build the golden request.** 0/5, P11 only (above).
+  This is the standing open problem and the recommended next milestone.
+- **`comparison_corpus.py` case `12-union` is stale** — it expects
+  `unsupported` for a request the language now answers. **Deliberately not
+  edited**: it is a frozen instrument and Stage 48's `legacy` group reads out
+  of it. Re-baselining is its own stage.
+- **Selector resolution is implemented twice** — `edge_semantics.resolve` and
+  the backends' own `select_edges` — and an audit claims they disagree on a
+  parameterisation seam. **Not reproduced**, recorded as unverified, not
+  claimed real.
+- **34 of 39 audit findings from the Stage 62 sweep were never verified by
+  the audit itself**; Stage 63 classified all 39 and fixed 25 in total. One
+  (#35, a missing `__all__` entry) **could not be reproduced**.
+- **Multi-body is refused, by design.** More than one live body fails with
+  `multiple_solids`. That is correct today and is what the multi-body design
+  must preserve for the undeclared case.
+- **No live corpus benchmark exists** on this branch. Stage 48's instrument
+  is complete and has never been run in full; the Stage 43 comparison is the
+  only full live run, and its schema and prompt are both superseded.
+- **Security and performance, on this branch as on stable:** no
+  authentication, no authorization, no user isolation, no rate limiting, no
+  payload size limit, no CORS policy, no TLS, no audit trail. Process
+  isolation is **crash containment, not a security sandbox**. Session state
+  is in-memory, bounded and thrown away when the process exits — no
+  database, no persistence, no cross-process sharing. **None of this has been
+  security-reviewed or load-tested**, and no measurement of throughput or
+  build latency has been taken, so no performance claim is made either way.
+- **`sketch`, `extrude` and `revolve` are not buildable.** Represented,
+  validated, then explicitly refused. No grammar carrying a full-fidelity
+  sketch is expected to compile against the measured ceiling.
+- **`describe_edges` is CadQuery-only.** FreeCAD raises rather than answering
+  wrongly, so semantic selectors are a CadQuery capability today.
+
+### RECOMMENDED NEXT MILESTONE
+
+**Fix the P11 failure before starting multi-body.** It is the only thing
+between the live model and a working multi-plate part, it is measured and
+reproducible 4/4, and the multi-body design's own §4 argues that starting
+multi-body now would measure two unknowns at once.
+
+Two hypotheses, in order: (a) the prompt's worked examples never show a hole
+*after* a union — add one and re-measure; (b) if prose does not move it, the
+`id` the model mints for the union is the lever, since a grammar cannot
+restrict `target` to live solids.
+
+Then the multi-body slice, **step 1 only** — `part` plus P33–P36 plus the
+test that every existing schema fingerprint is unchanged.
 
 ### Next: multi-body semantics (design only, nothing implemented)
 
@@ -1373,9 +1701,10 @@ that exactly one solid must be left; a test parses its worked example out of
 the prompt and validates it, so the prompt cannot teach a plan the validator
 rejects.
 
-**No new operation was added** — no pattern, no instance. The vocabulary is
-still nine types, `history.py` imports no kernel and computes no geometry, and
-P1–P26 are unchanged.
+**No new operation was added** — no pattern, no instance. The vocabulary was
+still nine types **at this stage** (it is eleven now — `pattern` arrived at
+Stage 46 and `union` at Stage 61), `history.py` imports no kernel and
+computes no geometry, and P1–P26 were unchanged.
 
 Read `docs/experimental-operation-plan.md` → *Stage 45* for the full detail.
 
@@ -1500,8 +1829,11 @@ has not been run live. (The prompt is `2026-09-15.5` since Stage 48; it was
 
 ### Stages 48–49: the provider's compiled-grammar ceiling blocks measurement
 
-**Stage 48 exists and cannot run.** Its instrument is complete; the provider
-refuses the operation-plan grammar. Measured by a five-call diagnostic probe,
+**Stage 48 exists and cannot run** — *as of Stage 48-49, and no longer
+true.* Stages 50-51 found encodings that compile (see *RESOLVED* below), and
+Stage 63 measured the one the live route sends. Read this subsection as the
+record of how the ceiling was found. At the time: its instrument was
+complete and the provider refused the operation-plan grammar. Measured by a five-call diagnostic probe,
 in the provider's own words on all four plan requests:
 
 > `400 invalid_request_error` — *"The compiled grammar is too large, which
@@ -1711,13 +2043,16 @@ The POSIX forms remain correct on Linux/macOS, where `python3` and a
 `CAD_FREECAD_HOME` plus `LD_LIBRARY_PATH=$CAD_FREECAD_HOME/usr/lib` set
 **before Python starts**, or `test_cad_backends` skips.
 
-**1778 passed, 72 skipped** with FreeCAD 1.0.0 present on Linux, measured at
-Stage 63 (1188 tests, 2 skipped at Stage 47; 897 tests, 33 skipped at Stage
-43 on the Windows environment, where the extra skips are the FreeCAD
-backend). `cad-core` is **1481 passed** on Linux — §5's six errors there are
-Windows-only. Run the whole suite before finishing a
-stage here: package-wide guard tests in older modules are routinely tripped
-by newer ones, and focused subsets have missed that twice.
+**1800 passed, 72 skipped** with FreeCAD 1.0.0 present on Linux, measured at
+Stage 64. Earlier figures, each describing a real environment: 1778 at Stage
+63 (before this stage's 22 policy and drift guards); 1188 tests, 2 skipped
+at Stage 47; 897 tests, 33 skipped at Stage 43 on the Windows environment,
+where the extra skips are the FreeCAD backend. `cad-core` is **1481 passed**
+on Linux — §5's six errors there are Windows-only.
+
+Run the whole suite before finishing a stage here: package-wide guard tests
+in older modules are routinely tripped by newer ones, and focused subsets
+have missed that twice.
 
 Note that a `python.exe` run which imports `cad_core` may exit non-zero
 (`139`, `116`, `5`) *after* printing a correct result — that is §15's

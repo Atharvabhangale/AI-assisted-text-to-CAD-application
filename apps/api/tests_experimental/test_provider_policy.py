@@ -178,5 +178,97 @@ class OutcomeVocabularyTests(unittest.TestCase):
         self.assertIn("no interpretation model", NO_MODEL_NOTE.lower())
 
 
+class ThePolicyIsStatedInClaudeMdTests(unittest.TestCase):
+    """The document and the code must not drift apart again.
+
+    The previous restriction survived only as prose, so nothing noticed when
+    it stopped being the intent. These assertions are deliberately about
+    MEANING rather than phrasing: they check the retired sentence is gone and
+    the two load-bearing ideas are present.
+    """
+
+    def setUp(self) -> None:
+        raw = (REPO / "CLAUDE.md").read_text(encoding="utf-8")
+        self.text = self._normalise(raw)
+
+    @staticmethod
+    def _normalise(markdown: str) -> str:
+        """Collapse whitespace and drop emphasis before matching.
+
+        A phrase in a hard-wrapped Markdown document is routinely split
+        across a line and dressed in `**` -- so a raw substring guard fails
+        the moment someone rewraps a paragraph, which is a nuisance failure
+        rather than a real one. Matching on normalised text means the guard
+        is about the WORDS, which is what the policy actually requires.
+        """
+        import re
+
+        without_emphasis = markdown.replace("**", "").replace("*", "")
+        return re.sub(r"\s+", " ", without_emphasis).lower()
+
+    def _assert_says(self, phrase: str, why: str) -> None:
+        """Assert on a BOOLEAN, never with `assertIn` on the document.
+
+        `assertIn(phrase, whole_document)` dumps all of CLAUDE.md into the
+        failure message -- measured at 203 KB, which buries the one line that
+        matters and makes the output useless. The phrase and the reason are
+        all a reader needs.
+        """
+        import re
+        wanted = re.sub(r"\s+", " ",
+                        phrase.replace("**", "")).lower()
+        self.assertTrue(wanted in self.text,
+                        f"CLAUDE.md does not say {phrase!r}: {why}")
+
+    def _assert_does_not_say(self, phrase: str, why: str) -> None:
+        import re
+        unwanted = re.sub(r"\s+", " ",
+                          phrase.replace("**", "")).lower()
+        self.assertFalse(unwanted in self.text,
+                         f"CLAUDE.md still says {phrase!r}: {why}")
+
+    def test_the_retired_prohibition_is_gone(self) -> None:
+        self._assert_does_not_say(
+            "Nothing in Claude Code Web may use or request",
+            "that restriction was retired -- a configured provider is to be "
+            "used, and live calls are encouraged",
+        )
+
+    def test_both_credential_names_are_documented(self) -> None:
+        for name in experimental_config.CREDENTIAL_PRECEDENCE:
+            self._assert_says(
+                name, "both credential names may be named in documentation; "
+                      "only their values must never be surfaced")
+
+    def test_the_precedence_is_documented_not_implicit(self) -> None:
+        self._assert_says(
+            "CREDENTIAL_PRECEDENCE",
+            "policy 9: document the exact precedence rather than relying on "
+            "implicit environment behaviour",
+        )
+
+    def test_provider_independence_is_defined_as_core_neutrality(
+        self,
+    ) -> None:
+        """The sentence that stops this drifting back: independence is about
+        what the CORE depends on, not about whether calls may be made."""
+        self._assert_says(
+            "vendor-neutral",
+            "provider independence must be defined as core neutrality",
+        )
+        self._assert_says(
+            "not that live vendor calls are forbidden",
+            "the two halves of the policy must be stated together, or the "
+            "permissive half drifts back into a prohibition",
+        )
+
+    def test_deterministic_readers_are_not_the_default(self) -> None:
+        self._assert_says(
+            "not the default replacement",
+            "policy 3: deterministic readers are a fallback, not a "
+            "substitute for a configured model",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
