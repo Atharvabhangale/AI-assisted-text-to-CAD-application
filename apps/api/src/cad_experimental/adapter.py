@@ -75,6 +75,7 @@ from .plan import (
     instance_id,
     CYLINDER,
     EXECUTABLE_TYPES,
+    EXECUTOR_ONLY_TYPES,
     FILLET,
     SUBTRACT,
     UNION,
@@ -151,10 +152,37 @@ class ExecutionUnsupported(AdapterError):
         operation_ids: Tuple[str, ...],
     ) -> None:
         listed = ", ".join(repr(kind) for kind in operation_types)
-        super().__init__(
-            f"this backend cannot execute {listed}: the plan is valid, but "
-            f"the engine implements the V1 feature set only"
+        # Two different reasons wear this one exception, and saying the wrong
+        # one sends a reader to the wrong layer:
+        #
+        #   sketch/extrude/revolve  the ENGINE cannot build it -- there is no
+        #                           implementation behind them at all;
+        #   union                   the engine builds it fine (both backends
+        #                           implement `CadBackend.union` and the
+        #                           graph executor uses it). What is missing
+        #                           is a V1 DOCUMENT form: V1 has no join, so
+        #                           there is nothing to translate INTO.
+        #
+        # The second is a routing fact, not a capability limit -- `build_plan`
+        # sends such plans to the graph executor and they build. Reporting it
+        # as "the engine implements the V1 feature set only" would send
+        # someone looking for a missing backend method that is already there.
+        executor_only = tuple(
+            kind for kind in operation_types if kind in EXECUTOR_ONLY_TYPES
         )
+        if executor_only and len(executor_only) == len(operation_types):
+            reason = ("the plan is valid and the engine can build it, but a "
+                      "V1 document has no form for it -- it needs the graph "
+                      "executor")
+        elif executor_only:
+            reason = ("the plan is valid, but the engine implements the V1 "
+                      "feature set only, and "
+                      + ", ".join(repr(k) for k in executor_only)
+                      + " additionally has no V1 document form")
+        else:
+            reason = ("the plan is valid, but the engine implements the V1 "
+                      "feature set only")
+        super().__init__(f"this backend cannot execute {listed}: {reason}")
         self.operation_types = operation_types
         self.operation_ids = operation_ids
 

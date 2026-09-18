@@ -28,7 +28,7 @@ from .config import MAX_OUTPUT_TOKENS, ExperimentalConfig
 from .plan import (
     OperationPlan,
     PlanStatus,
-    strict_selector_provider_schema,
+    strict_selector_union_provider_schema,
 )
 from .prompt import PROMPT_VERSION, prompt_fingerprint, system_prompt
 from .parser import PlanParseError, parse_plan_text
@@ -39,11 +39,19 @@ from .validation import PlanValidation, validate_plan
 #: Recorded on every answer: a narrowed grammar that went unnamed would make
 #: a refusal indistinguishable from an inexpressible request, which is the
 #: mistake Stage 44 made and Stage 48 found again.
-PLAN_SCHEMA_NAME = "strict_selector"
+#:
+#: `strict_selector_union` rather than `strict_selector`, since prompt
+#: `2026-09-17.1`: the prompt teaches `union` as how a multi-plate part is
+#: built, and decoding against a grammar with no `union` branch would make
+#: every such request a forced refusal recorded as the model's judgement --
+#: the same mistake a third time. The widening costs nine characters and no
+#: branch. Its live compilability is NOT yet measured; see
+#: :func:`~cad_experimental.plan.strict_selector_union_provider_schema`.
+PLAN_SCHEMA_NAME = "strict_selector_union"
 
 #: Computed once, from the one definition in :mod:`schema_ladder`, so this
 #: cannot drift from what the ladder measures.
-_PLAN_SCHEMA_METRICS = grammar_metrics(strict_selector_provider_schema())
+_PLAN_SCHEMA_METRICS = grammar_metrics(strict_selector_union_provider_schema())
 PLAN_SCHEMA_FINGERPRINT: str = _PLAN_SCHEMA_METRICS["fingerprint"]
 PLAN_SCHEMA_INLINED: int = _PLAN_SCHEMA_METRICS["inlined_characters"]
 
@@ -184,8 +192,8 @@ class OperationPlanService:
         conversation -- see :func:`cad_experimental.session.revision_context`.
         It changes **only the user turn**: the system prompt is the same
         string with the same fingerprint, and the output schema is the same
-        `strict_selector` encoding, so a revision is interpreted by exactly
-        the instrument that interprets a first request. ``description`` is
+        `strict_selector_union` encoding, so a revision is interpreted by
+        exactly the instrument that interprets a first request. ``description`` is
         still what gets recorded and reported as the request.
 
         ``max_output_tokens`` raises the reply budget for a revision, which
@@ -253,7 +261,7 @@ class OperationPlanService:
             # BUILD, and the parser re-derives every per-type requirement
             # regardless. The chosen encoding is reported in the metadata so
             # a caller can tell which grammar produced an answer.
-            output_schema=strict_selector_provider_schema(),
+            output_schema=strict_selector_union_provider_schema(),
             max_output_tokens=max_output_tokens or MAX_OUTPUT_TOKENS,
         )
 

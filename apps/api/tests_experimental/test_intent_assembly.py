@@ -710,5 +710,96 @@ class FakeProviderBuildsTheRealPartTests(unittest.TestCase):
                                      rel_tol=1e-9))
 
 
+class SingleSolidOnTheExecutorPathTests(unittest.TestCase):
+    """The executor's own S9.
+
+    The document path gets the single-solid rule for free: `plan_to_document`
+    emits a V1 document and the V1 validator refuses two solids. A plan that
+    uses `union` has NO document form, so it takes the graph executor -- and
+    nothing there applied the rule. Stage 45 recorded the gap ("S9 never runs
+    and a leftover solid is otherwise invisible"); `union` turned invisible
+    into wrong, because such a plan builds.
+
+    Measured before the fix: `succeeded=True`, `failure=None`, two live
+    bodies, and the caller took `bodies[0]` -- so the second solid vanished
+    from the render, the measurement and every export with nothing saying so.
+    """
+
+    @staticmethod
+    def _box(identifier, x, y, z, px=0.0, py=0.0, pz=0.0):
+        return {"id": identifier, "type": "box",
+                "parameters": {"x": x, "y": y, "z": z,
+                               "position": {"x": px, "y": py, "z": pz}}}
+
+    def _run(self, operations):
+        from cad_experimental.cad_backend import resolve_backend
+        from cad_experimental.executor import execute_plan
+        from cad_experimental.parser import parse_plan
+        plan = parse_plan({"status": "generated", "summary": "t",
+                           "operations": operations})
+        return execute_plan(plan, backend=resolve_backend())
+
+    def test_a_union_that_leaves_an_orphan_solid_is_refused(self):
+        from cad_experimental.executor import MULTIPLE_SOLIDS
+
+        result = self._run([
+            self._box("a", 10, 10, 10),
+            self._box("b", 10, 10, 10, px=10.0),
+            self._box("orphan", 5, 5, 5, px=100.0, py=100.0, pz=100.0),
+            {"id": "u", "type": "union", "target": "a", "tools": ["b"]},
+        ])
+        self.assertFalse(result.succeeded)
+        self.assertEqual(result.failure.code, MULTIPLE_SOLIDS)
+        # It names the solids, because "there are two" is not actionable and
+        # "'a' and 'orphan'" is.
+        self.assertIn("'orphan'", result.failure.message)
+        self.assertIn("'a'", result.failure.message)
+
+    def test_nothing_is_fused_or_dropped_to_make_the_count_come_out(self):
+        """Reported, never repaired.
+
+        The two obvious "helpful" repairs -- fuse the orphan in, or discard
+        it -- are both guesses about what the author meant, and both produce
+        a part nobody asked for. The bodies are still all there to look at.
+        """
+        result = self._run([
+            self._box("a", 10, 10, 10),
+            self._box("b", 10, 10, 10, px=10.0),
+            self._box("orphan", 5, 5, 5, px=100.0, py=100.0, pz=100.0),
+            {"id": "u", "type": "union", "target": "a", "tools": ["b"]},
+        ])
+        self.assertEqual({body.id for body in result.bodies}, {"a", "orphan"})
+        volumes = {body.id: body.measurement.volume for body in result.bodies}
+        self.assertAlmostEqual(volumes["a"], 2000.0, places=6)
+        self.assertAlmostEqual(volumes["orphan"], 125.0, places=6)
+
+    def test_a_union_that_leaves_exactly_one_solid_still_builds(self):
+        """The rule must not cost the capability it exists to protect."""
+        result = self._run([
+            self._box("a", 10, 10, 10),
+            self._box("b", 10, 10, 10, px=10.0),
+            {"id": "u", "type": "union", "target": "a", "tools": ["b"]},
+        ])
+        self.assertTrue(result.succeeded, result.failure)
+        self.assertEqual(result.part, "a")
+        self.assertAlmostEqual(result.bodies[0].measurement.volume,
+                               20.0 * 10.0 * 10.0, places=6)
+        self.assertEqual(result.bodies[0].measurement.solid_count, 1)
+
+    def test_the_render_is_taken_from_the_one_body_not_the_first(self):
+        """`build.py` asked for `bodies[0]`; it now asks for `result.part`.
+
+        `part` is the single live body or `None`, so the render cannot be
+        built from "whichever body happened to be first" even if some future
+        path reaches it without the check above.
+        """
+        import inspect
+        from cad_experimental import build as build_module
+
+        source = inspect.getsource(build_module)
+        self.assertNotIn("result.bodies[0]", source)
+        self.assertIn("result.part", source)
+
+
 if __name__ == "__main__":
     unittest.main()

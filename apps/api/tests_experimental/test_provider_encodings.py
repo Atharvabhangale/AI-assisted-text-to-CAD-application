@@ -126,6 +126,60 @@ class CanonicalIrIsUnchangedTests(unittest.TestCase):
                 inlined, name,
             )
 
+    #: Encodings whose size is recorded in their own docstring but which are
+    #: NOT in `PROVEN_COMPILABLE`, because no live probe has accepted them.
+    #: Pinned all the same: a figure written down as "measured" must keep
+    #: describing the object it measured, and `pattern_provider_schema`
+    #: drifted 4445 -> 4454 unnoticed when `union` joined EXECUTABLE_TYPES
+    #: precisely because nothing here pinned it.
+    DOCUMENTED_SIZES = {
+        "pattern_provider_schema": 4454,
+        "strict_selector_union_provider_schema": 3628,
+    }
+
+    def test_the_documented_but_unproven_sizes_are_pinned(self) -> None:
+        for name, inlined in self.DOCUMENTED_SIZES.items():
+            with self.subTest(name):
+                schema = getattr(canonical, name)()
+                self.assertEqual(
+                    ladder.grammar_metrics(schema)["inlined_characters"],
+                    inlined, name,
+                )
+                # Each states its own size in its docstring. If the two ever
+                # disagree the docstring is the thing that lied, so assert
+                # the number is actually written there.
+                self.assertIn(str(inlined), getattr(canonical, name).__doc__,
+                              f"{name} docstring does not state {inlined}")
+
+    def test_the_live_route_can_express_union(self) -> None:
+        """The grammar the live path sends must admit what the prompt teaches.
+
+        Prompt 2026-09-17.1 teaches `union` as how a multi-plate part is
+        built and removed it from the UNSUPPORTED list. Decoding that against
+        a grammar with no union branch makes every multi-plate request a
+        FORCED refusal, which a run then records as the model's judgement --
+        Stage 44's defect for `sketch`, Stage 48's for `pattern`, and this
+        one for `union`.
+
+        Asserted against `generation`'s own choice rather than a name typed
+        here, so repointing the route at a narrower grammar fails this test.
+        """
+        from cad_experimental import generation, prompt
+
+        schema = stage48.PLAN_SCHEMAS[generation.PLAN_SCHEMA_NAME]()
+        kinds = set()
+        for branch in schema["properties"]["operations"]["items"]["anyOf"]:
+            spec = branch["properties"]["type"]
+            if "const" in spec:
+                kinds.add(spec["const"])
+            kinds.update(spec.get("enum", ()))
+        self.assertIn("union", kinds,
+                      f"{generation.PLAN_SCHEMA_NAME} cannot say `union`")
+
+        # ...and the prompt really does teach it, so this test keeps testing
+        # something if the prompt ever goes back.
+        self.assertIn("union", prompt.system_prompt())
+
     def test_the_two_refused_encodings_grew_only_slightly(self) -> None:
         """`provider` and `compact` cover the WHOLE vocabulary, so a new
         operation necessarily changes them -- but not by a branch.

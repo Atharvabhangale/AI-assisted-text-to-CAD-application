@@ -82,6 +82,7 @@ from cad_ai.provider import ModelRequest, ModelResponse, ProviderError
 from .adapter import ExecutionUnsupported, SelectorNotExpressible
 from .build import build_plan
 from .plan import (
+    V1_FEATURE_TYPES_WITH_UNION,
     OPERATION_TYPES,
     POSITION_MODES,
     SELECT_MODES,
@@ -93,6 +94,7 @@ from .plan import (
     profile_provider_schema,
     selector_provider_schema,
     strict_selector_provider_schema,
+    strict_selector_union_provider_schema,
     profile_union_provider_schema,
     provider_schema,
 )
@@ -227,6 +229,11 @@ PLAN_SCHEMAS: Mapping[str, Any] = {
     # a discriminated union and a circular branch REQUIRES its end. A
     # deliberate narrowing of the encoding, never of the language.
     "strict_selector": strict_selector_provider_schema,
+    # Stage 61: the same encoding able to say `union`, which prompt
+    # 2026-09-17.1 teaches as how a multi-plate part is built. Nine
+    # characters and no extra branch. This is what the LIVE route sends;
+    # `strict_selector` stays as the frozen 3619 measurement point.
+    "strict_selector_union": strict_selector_union_provider_schema,
     # Present so a caller can reproduce Stage 43's grammar deliberately and
     # see the difference. Never the default, and never selected for anyone.
     "executable": executable_schema,
@@ -246,6 +253,7 @@ SCHEMA_CAPABILITIES: Mapping[str, Tuple[str, ...]] = {
                       "sketch", "extrude", "revolve"),
     "selector": V1_FEATURE_TYPES,
     "strict_selector": V1_FEATURE_TYPES,
+    "strict_selector_union": V1_FEATURE_TYPES_WITH_UNION,
     "executable": V1_FEATURE_TYPES,
 }
 
@@ -281,6 +289,9 @@ SCHEMA_SELECTOR_MODES: Mapping[str, Tuple[str, ...]] = {
     "executable": V1_SELECT_MODES,
     "selector": SELECT_MODES,
     "strict_selector": SELECT_MODES,
+    # Identical selector arm to `strict_selector`: Stage 61 widened the
+    # operation union only, so the selector vocabulary is unchanged.
+    "strict_selector_union": SELECT_MODES,
     # No fillet or chamfer, so nothing in these grammars selects an edge.
     "profile": (),
     "profile_hole": (),

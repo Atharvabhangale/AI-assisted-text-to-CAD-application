@@ -85,6 +85,7 @@ NOT_GENERATED = "not_generated"    # a refusal has no geometry
 MISSING_BODY = "missing_body"      # a reference resolved to no live shape
 BACKEND = "backend"                # the engine refused (E1-E5 territory)
 PLACEMENT = "placement"            # a pattern's instances cannot be placed
+MULTIPLE_SOLIDS = "multiple_solids"  # the plan left more than one live body
 
 #: Resolution codes (R1-R3) are passed through from
 #: :mod:`cad_experimental.edge_semantics` unchanged, so a caller sees the
@@ -263,6 +264,43 @@ class _State:
                 features=body.features,
                 measurement=self.backend.measure(shape),
             ))
+
+        # The executor's own S9. The document path gets the single-solid rule
+        # for free -- `plan_to_document` emits a V1 document and the V1
+        # validator refuses two solids. This path never builds a document, so
+        # until now NOTHING applied the rule here, and Stage 45 said as much:
+        # "a plan containing a profile operation is refused by the adapter
+        # before a document exists, so S9 never runs and a leftover solid is
+        # otherwise invisible."
+        #
+        # `union` turned that from invisible into wrong. A plan that fuses
+        # two boxes and leaves a third standing somewhere else executed with
+        # `succeeded=True` and no failure, and the caller then took
+        # `bodies[0]` -- so the third solid vanished from the render, the
+        # measurement and every export, with nothing anywhere saying so. A
+        # part quietly missing a piece is the exact thing this project's "no
+        # silent geometry behaviour" rule exists to prevent.
+        #
+        # Reported, never repaired: the extra body is NOT fused in, and no
+        # body is dropped to make the count come out. Both would be guessing
+        # at what the author meant. They are named instead.
+        if len(bodies) > 1:
+            named = ", ".join(repr(body.id) for body in bodies)
+            return ExecutionResult(
+                order=self.order,
+                bodies=tuple(bodies),
+                shapes=dict(self.shapes),
+                failure=ExecutionFailure(
+                    MULTIPLE_SOLIDS,
+                    f"the plan leaves {len(bodies)} separate solids "
+                    f"({named}); a part is exactly one. Join them with a "
+                    f"`union`, or remove the ones that are not part of it",
+                    bodies[-1].id,
+                ),
+                backend=getattr(self.backend, "name", ""),
+                selections=dict(self.selections),
+            )
+
         return ExecutionResult(
             order=self.order,
             bodies=tuple(bodies),

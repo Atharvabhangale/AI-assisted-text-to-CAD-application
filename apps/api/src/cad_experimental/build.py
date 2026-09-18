@@ -222,12 +222,20 @@ def _executed(
     # correctly and drew nothing, so the page reported a successful build it
     # could not show. A backend that cannot render says so and the build
     # still stands: the geometry is real either way.
+    #
+    # Drawn from `result.part`, which is the single live body or `None`, and
+    # never from `bodies[0]`. With two live bodies the first one is merely
+    # the first -- rendering it would put a part on screen that is missing a
+    # piece, with the page reporting a successful build. The executor now
+    # refuses that case outright; this asks for the body BY the property that
+    # means "the one", so the two do not have to agree by convention.
     render = None
     try:
-        shape = result.shapes.get(result.bodies[0].id) if result.bodies else None
+        part_id = result.part
+        shape = result.shapes.get(part_id) if part_id is not None else None
         if shape is not None:
             render = backend.render_model(
-                shape, part_name=name, feature_id=result.bodies[0].id)
+                shape, part_name=name, feature_id=part_id)
     except Exception:  # noqa: BLE001 - a missing mesh is not a failed build
         render = None
 

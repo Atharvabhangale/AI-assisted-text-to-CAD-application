@@ -1046,8 +1046,8 @@ section is the index.
 
 ### Where this branch stands, and what is next
 
-Stages 32–61 are complete and pushed. The subsections below are the index,
-in order; they stop at Stage 48, and **Stages 49–61 are documented only in
+Stages 32–62 are complete and pushed. The subsections below are the index,
+in order; they stop at Stage 48, and **Stages 49–62 are documented only in
 `docs/experimental-operation-plan.md`** — read its `## Stage NN` headings for
 those. The five most recent are:
 
@@ -1057,6 +1057,7 @@ those. The five most recent are:
 | **59** | The agentic control loop. |
 | **60** | Hardening that loop on **typed** evidence — E4/E5 decided by `edge_semantics.resolve`'s own `R1`/`R2`/`R3` codes rather than by matching words in a backend's error string. Verified live on `claude-haiku-4-5-20251001`. |
 | **61** | **A CAD session that needs no model at all**: `union` (eleventh type, still eight schema branches), two provider-neutral grammars, and an evidence answerer that labels every number `MEASURED` / `DECLARED` / `CALCULATED`. |
+| **62** | The four defects Stage 61 left behind — **an operation is not one edit.** The live route could not *say* `union` (Stage 44's defect a third time); a `union` plan could lose a solid silently; `ExecutionUnsupported` named the wrong reason for it; and a recorded schema size had drifted unpinned. |
 
 **A model is one route to a plan, not the way in.** Stage 61 is the rule
 applied: every route ends at the same parser, validator, feature graph and
@@ -1661,8 +1662,8 @@ The POSIX forms remain correct on Linux/macOS, where `python3` and a
 `CAD_FREECAD_HOME` plus `LD_LIBRARY_PATH=$CAD_FREECAD_HOME/usr/lib` set
 **before Python starts**, or `test_cad_backends` skips.
 
-**1767 passed, 72 skipped** with FreeCAD 1.0.0 present on Linux, measured at
-Stage 61 (1188 tests, 2 skipped at Stage 47; 897 tests, 33 skipped at Stage
+**1775 passed, 72 skipped** with FreeCAD 1.0.0 present on Linux, measured at
+Stage 62 (1188 tests, 2 skipped at Stage 47; 897 tests, 33 skipped at Stage
 43 on the Windows environment, where the extra skips are the FreeCAD
 backend). `cad-core` is **1481 passed** on Linux — §5's six errors there are
 Windows-only. Run the whole suite before finishing a
@@ -1702,7 +1703,29 @@ output, not the exit code.
 - **The Stage 40 and Stage 43 baseline files are immutable, and enforced.**
   Stage 48 records their SHA-256, refuses to run if one moved, and refuses
   any output path inside either directory.
-- **A prompt's refusal list is part of the vocabulary.** Adding an operation
-  and leaving it in the UNSUPPORTED list makes the model decline something
-  the language has, and the run records the contradiction as the model's
-  judgement. Stage 44 found this for `sketch`, Stage 48 for `pattern`.
+- **An operation is not one edit.** It is a type, a parser rule, a validator
+  rule, a backend method, an executor branch, a prompt section, a refusal
+  list, **the grammar the live route actually sends**, every measurement
+  instrument that names it, and every error message explaining why it cannot
+  be done. Miss any one and the model is scored for an answer it could not
+  give. Stage 44 found this for `sketch`, Stage 48 for `pattern`, Stage 62
+  for `union` — three times, in three different places, so treat the list as
+  a checklist rather than a story about past mistakes.
+- **A prompt's refusal list is part of the vocabulary**, and so is the
+  grammar. Adding an operation and leaving it in the UNSUPPORTED list, *or
+  leaving it out of the encoding the live route sends*, makes the model
+  decline something the language has, and the run records the contradiction
+  as the model's judgement.
+- **`PROVEN_COMPILABLE` means "a live probe accepted this size"**, never "we
+  expect it to be accepted". An encoding whose compilability has not been
+  measured stays out of it however far under the known ceiling it sits.
+- **The graph executor needs its own S9.** The document path inherits the
+  single-solid rule from the V1 validator; an executor-only plan (`union`
+  today) never builds a document, so more than one live body must be refused
+  there explicitly. Reported, never repaired — neither fusing the extra body
+  in nor dropping it is a guess this layer may make.
+- **A stale measurement case is marked, not edited.** When the language moves
+  under a case, its expectation stops describing the right answer. Mark it
+  stale, keep running it, report it, and hold it out of every quality
+  denominator — a number mixing "the model was wrong" with "the question was
+  wrong" means neither. Re-baselining is its own stage.

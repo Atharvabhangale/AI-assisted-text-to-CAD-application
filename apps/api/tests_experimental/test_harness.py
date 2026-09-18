@@ -15,6 +15,7 @@ from cad_core.application_service import CadApplicationService
 from cad_experimental import harness
 from cad_experimental.config import DEFAULT_MODEL, ExperimentalConfig
 from cad_experimental.generation import OperationPlanService, PlanOutcome
+from cad_experimental.prompt import system_prompt
 
 from stubs import FailingModel, StubModel, box_plan
 
@@ -42,11 +43,68 @@ class CaseTests(unittest.TestCase):
         )
 
     def test_the_two_refusal_cases_expect_unsupported(self):
+        """Both expectations are left exactly as authored.
+
+        `5-join-unsupported` is now STALE -- `union` is implemented and the
+        prompt teaches it -- but its expectation is deliberately unchanged:
+        editing it would make this instrument describe something other than
+        what it measured. It is marked stale and held out of the totals
+        instead, which the next two tests check.
+        """
         by_id = {case.id: case for case in harness.CASES}
         for case_id in ("4-sphere-unsupported", "5-join-unsupported"):
             self.assertIs(
                 by_id[case_id].expectation.outcome, PlanOutcome.UNSUPPORTED
             )
+
+    def test_the_join_case_is_declared_stale(self):
+        """A case the language moved under must SAY so.
+
+        Union is implemented -- `EXECUTABLE_TYPES` carries it, both backends
+        implement it, the graph executor builds it, and the prompt teaches
+        it. So `unsupported` is no longer the right answer here, and a live
+        run that scored this case would record a correct answer as a model
+        refusal: the Stage 44 defect (for `sketch`) and the Stage 48 defect
+        (for `pattern`) a third time.
+        """
+        from cad_experimental.plan import EXECUTABLE_TYPES, UNION
+
+        by_id = {case.id: case for case in harness.CASES}
+        self.assertTrue(by_id["5-join-unsupported"].stale,
+                        "the join case must declare why it is stale")
+        # The reason it is stale, asserted rather than trusted.
+        self.assertIn(UNION, EXECUTABLE_TYPES)
+        self.assertIn("union", system_prompt())
+        # The sphere case is genuinely still unsupported, so it must NOT be
+        # marked stale -- otherwise "stale" would just mean "a refusal".
+        self.assertFalse(by_id["4-sphere-unsupported"].stale)
+
+    def test_a_stale_case_is_held_out_of_every_quality_total(self):
+        """Reported, never scored.
+
+        A number mixing "the model was wrong" with "the question was wrong"
+        means neither. So `scored` is the denominator for the quality
+        totals, and it excludes the stale case while `answered` -- a
+        coverage fact about the provider -- still counts it.
+        """
+        planner = OperationPlanService(StubModel(box_plan()),
+                                       ExperimentalConfig())
+        run_data = harness.run(planner, None, cases=harness.CASES)
+        totals = run_data["totals"]
+
+        self.assertEqual(totals["cases"], len(harness.CASES))
+        self.assertEqual(run_data["stale_cases"].keys(),
+                         {"5-join-unsupported"})
+        self.assertEqual(totals["scored"], totals["answered"] - 1)
+        for key in ("outcome_match", "semantically_correct", "built",
+                    "parse_failures"):
+            self.assertLessEqual(totals[key], totals["scored"], key)
+
+        # ...and the report says so rather than leaving a reader to notice
+        # a denominator that does not match the case count.
+        report = harness.format_report(run_data)
+        self.assertIn("STALE CASES", report)
+        self.assertIn("5-join-unsupported", report)
 
     def test_expected_volumes_are_computed_not_transcribed(self):
         by_id = {case.id: case for case in harness.CASES}
@@ -66,6 +124,14 @@ class RunTests(unittest.TestCase):
         cls.service = CadApplicationService.local(tempfile.mkdtemp())
 
     def test_the_self_check_stub_answers_every_case(self):
+        """Coverage counts five; quality scores four.
+
+        `answered` is a coverage fact about the provider and still counts
+        all five. The quality totals are out of `scored`, which excludes
+        `5-join-unsupported` -- STALE since Stage 61, because `union` is
+        implemented and the prompt teaches it, so `unsupported` is no longer
+        the right answer to score against.
+        """
         planner = OperationPlanService(
             harness._CorpusStub(), ExperimentalConfig(model="corpus-stub")
         )
@@ -73,8 +139,9 @@ class RunTests(unittest.TestCase):
         totals = data["totals"]
         self.assertEqual(totals["cases"], 5)
         self.assertEqual(totals["answered"], 5)
-        self.assertEqual(totals["outcome_match"], 5)
-        self.assertEqual(totals["semantically_correct"], 5)
+        self.assertEqual(totals["scored"], 4)
+        self.assertEqual(totals["outcome_match"], 4)
+        self.assertEqual(totals["semantically_correct"], 4)
         self.assertEqual(totals["built"], 3)
 
     def test_every_built_case_has_the_expected_volume(self):

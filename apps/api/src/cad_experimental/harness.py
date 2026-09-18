@@ -24,6 +24,7 @@ import json
 import math
 import sys
 import tempfile
+import textwrap
 import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
@@ -70,6 +71,16 @@ class Case:
     text: str
     expectation: Expectation
     note: str = ""
+    #: Why this case's expectation no longer describes the right answer.
+    #:
+    #: Set when the LANGUAGE moved under a case rather than when a score
+    #: was disliked. The expectation itself is left exactly as authored --
+    #: editing it would make this instrument describe something other than
+    #: what it measured -- and a stale case is reported separately instead
+    #: of being folded into any rate. Following CLAUDE.md's rule for the
+    #: five stale corpus E-cases: do not edit a case to raise a score, and
+    #: treat a re-baseline as its own stage.
+    stale: str = ""
 
 
 #: The five cases this stage was asked to measure, verbatim.
@@ -125,6 +136,16 @@ CASES: Tuple[Case, ...] = (
         text="Create a cylinder and a box joined together.",
         expectation=Expectation(outcome=PlanOutcome.UNSUPPORTED),
         note="union/join is not implemented in this stage",
+        stale=(
+            "STALE since Stage 61. `union` IS implemented -- it is in "
+            "`EXECUTABLE_TYPES`, both backends implement `CadBackend.union`, "
+            "the graph executor builds it, and prompt 2026-09-17.1 teaches "
+            "it and removed it from the UNSUPPORTED list. So the right "
+            "answer to this request is now a PLAN, and a live run scoring "
+            "this case would record a correct answer as a model refusal -- "
+            "the Stage 44/48 mistake again. The expectation and its note are "
+            "left as authored on purpose; re-baselining is its own stage."
+        ),
     ),
 )
 
@@ -319,6 +340,15 @@ def run(
     """Run every case and summarise. Reliability and quality stay separate."""
     results = [run_case(case, planner, service) for case in cases]
     answered = [r for r in results if r.answered]
+
+    # A stale case is one the LANGUAGE moved under: its expectation no
+    # longer describes the right answer, so scoring it would record a
+    # correct answer as a model failure. It is kept, run and reported --
+    # dropping it would hide that the instrument needs re-baselining -- but
+    # it is held out of every quality total, because a number that mixes
+    # "the model was wrong" with "the question was wrong" means neither.
+    stale_ids = {case.id for case in cases if case.stale}
+    scored = [r for r in answered if r.case_id not in stale_ids]
     return {
         "experiment": EXPERIMENT_NAME,
         "plan_schema_version": PLAN_SCHEMA_VERSION,
@@ -332,12 +362,18 @@ def run(
             # Coverage is a provider fact. It is never merged into quality.
             "answered": len(answered),
             "unanswered": len(results) - len(answered),
-            "outcome_match": sum(1 for r in answered if r.outcome_match),
+            # Quality totals exclude the stale cases named below, and
+            # `scored` is their denominator -- never `answered`.
+            "scored": len(scored),
+            "outcome_match": sum(1 for r in scored if r.outcome_match),
             "semantically_correct": sum(
-                1 for r in answered if r.semantically_correct
+                1 for r in scored if r.semantically_correct
             ),
-            "built": sum(1 for r in answered if r.built),
-            "parse_failures": sum(1 for r in answered if not r.parsed),
+            "built": sum(1 for r in scored if r.built),
+            "parse_failures": sum(1 for r in scored if not r.parsed),
+        },
+        "stale_cases": {
+            case.id: case.stale for case in cases if case.stale
         },
         "results": [r.to_dict() for r in results],
     }
@@ -406,10 +442,24 @@ def format_report(run_data: Dict[str, Any]) -> str:
     lines.append(f"  cases                 {totals['cases']}")
     lines.append(f"  answered              {totals['answered']}")
     lines.append(f"  unanswered            {totals['unanswered']}")
+    lines.append(f"  scored                {totals.get('scored', '-')}"
+                 "   <- denominator for everything below")
     lines.append(f"  outcome match         {totals['outcome_match']}")
     lines.append(f"  semantically correct  {totals['semantically_correct']}")
     lines.append(f"  built                 {totals['built']}")
     lines.append(f"  parse failures        {totals['parse_failures']}")
+
+    stale = run_data.get("stale_cases") or {}
+    if stale:
+        lines.append("")
+        lines.append("STALE CASES -- run and shown, held OUT of every total "
+                     "above. Their expectations no longer describe the right "
+                     "answer, so scoring them would record a correct answer "
+                     "as a model failure. Re-baselining is its own stage.")
+        for case_id, why in sorted(stale.items()):
+            lines.append(f"  {case_id}")
+            for chunk in textwrap.wrap(why, 68):
+                lines.append(f"      {chunk}")
     lines.append("=" * 74)
     return "\n".join(lines)
 

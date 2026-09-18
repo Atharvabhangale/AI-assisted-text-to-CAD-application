@@ -3778,3 +3778,194 @@ can be read without a model is a statement about the *grammars*, and the
 grammars are narrow by construction — they cover the vocabulary above and
 decline everything else, which is why `design me a differential gearbox`
 still needs one.
+
+## Stage 62: four defects the `union` work left behind
+
+A multi-lens audit of the branch produced 39 raw findings. **Its verification
+stage never ran** — the budget for it was exhausted mid-run — so every finding
+arrived unconfirmed, and an unverified finding is a rumour. Each one below was
+re-derived by executing code before anything was changed; the rest are not
+reported here as though they had been.
+
+Four held up, and all four are consequences of adding `union` in Stage 61.
+That is the theme worth keeping: **an operation is not one edit.** It is a
+type, a parser rule, a validator rule, a backend method, an executor branch,
+a prompt section, a refusal list, *the grammar the live route sends*, every
+measurement instrument that names it, and every error message that explains
+why it cannot be done.
+
+### 1. The live route could not say `union` — Stage 44 for the third time
+
+**Measured.** `generation.py` sent `strict_selector_provider_schema()`, whose
+branches are built from `V1_FEATURE_TYPES` — and `union` is deliberately not
+in that tuple:
+
+```
+strict_selector   5 branches   box, cylinder, through_hole, subtract, fillet|chamfer
+                  union present: False
+```
+
+Meanwhile prompt `2026-09-17.1` teaches `union` as *the* way a multi-plate
+part is built and removed it from the UNSUPPORTED list. So the prompt said
+"use a union" to a decoder that had no union branch to emit. **Every
+multi-plate request was a forced refusal**, and a run would have recorded it
+as the model's judgement — Stage 44's defect for `sketch`, Stage 48's for
+`pattern`, this one for `union`.
+
+Worse, **not one proven-compilable encoding could express it.** The only two
+that could were both already measured REFUSED on grammar size:
+
+| encoding | inlined | branches | union |
+|---|---:|---:|:---:|
+| `selector` | 3134 | 5 | — |
+| `strict_selector` | 3619 | 5 | — |
+| `executable` | 3622 | 6 | — |
+| `profile` / `profile_hole` / `profile_union` | 3487 / 4030 / 4481 | 4 / 5 / 6 | — |
+| `compact` | 6199 | 8 | yes — **refused** |
+| `provider` | 7360 | 8 | yes — **refused** |
+
+**The fix, and what it cost.** `subtract` and `union` share an
+operation-level shape exactly — a `target` and an ordered `tools` list — so
+they merge into one branch as `fillet` and `chamfer` already do:
+
+| encoding | inlined | branches |
+|---|---:|---:|
+| `strict_selector` | 3619 | 5 |
+| **`strict_selector_union`** | **3628** | **5** |
+
+Nine characters, no branch. The live route now sends it.
+
+**Its compilability is NOT measured**, and it is therefore deliberately
+**absent from `PROVEN_COMPILABLE`** — that table means "a live probe accepted
+this", not "we expect it to be accepted". 3628 sits 853 below the highest
+ACCEPTED measurement (4481) and 923 below the lowest REFUSED (4551), so it is
+very likely to compile. Likely is not measured.
+
+`strict_selector_provider_schema()` is left **byte-identical at 3619**. It is
+a recorded measurement point, and a recorded measurement describes the object
+that was measured rather than whatever the name later points at.
+
+A test now asserts the live route can say what the prompt teaches — read off
+`generation.PLAN_SCHEMA_NAME` rather than a name typed in the test, so
+repointing the route at a narrower grammar fails it. Verified by mutation:
+reverting to `strict_selector` turns it red.
+
+### 2. A `union` plan could lose a solid silently
+
+**Measured**, before the fix — a plan that fuses two boxes and leaves a third
+standing elsewhere:
+
+```
+validate valid : True   problems: []
+succeeded      : True   failure: None
+bodies         : [('a', 2000.0), ('orphan', 125.0)]
+```
+
+`succeeded=True` on a part that is **two separate solids**. The document path
+gets the single-solid rule for free — it emits a V1 document and the V1
+validator refuses two solids — but a `union` plan has no document form, so it
+takes the graph executor, and **nothing there applied the rule**. Stage 45
+recorded the gap exactly ("S9 never runs and a leftover solid is otherwise
+invisible"); `union` turned invisible into wrong, because such a plan builds.
+
+And the caller then took `result.bodies[0]`, so the second solid vanished from
+the render, the measurement and every export **with nothing anywhere saying
+so** — precisely what this project's *no silent geometry behaviour* rule
+exists to prevent.
+
+Two halves to the fix:
+
+- **The executor's own S9.** More than one live body is now a failure,
+  `multiple_solids`, naming the solids: *"the plan leaves 2 separate solids
+  ('a', 'orphan'); a part is exactly one. Join them with a `union`, or remove
+  the ones that are not part of it."*
+- **Ask for the one body by the property that means "the one".** `build.py`
+  now renders from `result.part` — the single live body, or `None` — never
+  from `bodies[0]`. The two no longer have to agree by convention.
+
+**Reported, never repaired.** The two obvious helpful repairs — fuse the
+orphan in, or discard it — are both guesses about what the author meant, and
+both produce a part nobody asked for. All the bodies are still there to
+inspect. Tests pin the refusal, the non-repair, and that a legitimate union
+still builds (20 × 10 × 10 = 2000 mm³, one solid).
+
+### 3. `ExecutionUnsupported` named the wrong reason for `union`
+
+It said *"the engine implements the V1 feature set only"*. For `union` that is
+false in a way that sends a reader to the wrong layer: the engine builds it
+fine — both backends implement `CadBackend.union` and the graph executor uses
+it. What is missing is a **V1 document form**, because V1 has no join, so
+there is nothing to translate *into*. That is a routing fact, not a capability
+limit, and `build_plan` duly routes such plans to the executor, where they
+build.
+
+The message now distinguishes the two, and says so per operation:
+
+| operations | message |
+|---|---|
+| `sketch` | the engine implements the V1 feature set only |
+| `union` | the plan is valid and the engine can build it, but a V1 document has no form for it — it needs the graph executor |
+| `sketch`, `union` | …V1 feature set only, **and** `'union'` additionally has no V1 document form |
+
+### 4. A recorded measurement had drifted, unpinned
+
+`pattern_provider_schema()`'s docstring claimed **4445 inlined characters**;
+it measures **4454**. `union` joining `EXECUTABLE_TYPES`, which that schema is
+built from, moved it — nine characters again, still inside the accepted band,
+and **silently**, because nothing pinned it.
+
+Corrected, with the reason recorded, and now pinned:
+`test_the_documented_but_unproven_sizes_are_pinned` asserts both the measured
+size *and* that the docstring actually states that number — so the two cannot
+disagree without a test failing.
+
+### The stale case, handled without editing it
+
+`harness.py`'s `5-join-unsupported` — *"Create a cylinder and a box joined
+together"*, expecting `unsupported`, noted *"union/join is not implemented in
+this stage"* — is now **factually wrong**: union is implemented and the prompt
+teaches it. A live run scoring it would record a correct answer as a model
+refusal. A Stage 38 test was actively pinning the stale expectation, so the
+suite held the error rather than catching it — the same shape as Stage 48's
+`patterns` finding.
+
+**The expectation was not edited.** Following CLAUDE.md's rule for the five
+stale corpus E-cases, the case is marked `stale` with its reason, and:
+
+- it is still **run and reported**, because dropping it would hide that the
+  instrument needs re-baselining;
+- it is held out of **every quality total** — `run()` now reports `scored`,
+  which excludes stale cases, and that is the denominator for
+  `outcome_match`, `semantically_correct`, `built` and `parse_failures`;
+- `answered` still counts it, because coverage is a fact about the provider,
+  not about quality;
+- `format_report` prints a **STALE CASES** block explaining why, so a reader
+  cannot mistake a denominator of 4 out of 5 cases for a lost case.
+
+A number that mixes "the model was wrong" with "the question was wrong" means
+neither. Re-baselining remains its own stage.
+
+### What was NOT done, and why
+
+- **`comparison_corpus.py` case `12-union` is stale the same way** and was
+  **left completely alone.** It is a frozen instrument by CLAUDE.md's
+  invariants, and Stage 48's `legacy` group reads out of it; touching it would
+  change what Stage 40 and Stage 43 measured. It is recorded here as known,
+  for the re-baseline stage.
+- **Selector resolution is implemented twice** — `edge_semantics.resolve` and
+  the backends' own `select_edges` — and the audit claims they disagree on a
+  seam. That is an architectural finding about pre-existing code, not a
+  `union` consequence, and it is too large to fold into this stage. Recorded,
+  not fixed.
+- **The remaining 34 findings are unverified.** They are not fixed and are not
+  reported as real.
+
+### Suite
+
+| suite | result |
+|---|---|
+| `tests_experimental` | **1775 passed, 72 skipped** |
+| `cad-core` | **1481 passed** |
+| frontend `tsc --noEmit` | clean |
+| frontend `vite build` | succeeds |
+| `e2e:assembly` | **PASS** — 11492.035526276897 mm³, 18 faces, 42 edges, 5544 triangles, unchanged through the new render path |

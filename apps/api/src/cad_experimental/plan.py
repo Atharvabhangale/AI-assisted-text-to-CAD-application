@@ -1654,6 +1654,69 @@ def strict_selector_provider_schema() -> Dict[str, Any]:
     )
 
 
+#: :data:`V1_FEATURE_TYPES` plus ``union``, for an encoding that must be able
+#: to say "join these plates into one body".
+#:
+#: Not :data:`EXECUTABLE_TYPES`, which also carries ``pattern`` and costs a
+#: sixth branch. This tuple is the smallest widening that closes the gap
+#: below.
+V1_FEATURE_TYPES_WITH_UNION: Tuple[str, ...] = V1_FEATURE_TYPES + (UNION,)
+
+
+def strict_selector_union_provider_schema() -> Dict[str, Any]:
+    """:func:`strict_selector_provider_schema`, able to say ``union``.
+
+    **The gap this closes.** Prompt ``2026-09-17.1`` teaches ``union`` as the
+    way a part made of several plates is built, and removed it from the
+    UNSUPPORTED list. The live generation path, however, was still decoding
+    against :func:`strict_selector_provider_schema`, whose five branches are
+    built from :data:`V1_FEATURE_TYPES` -- and ``union`` is deliberately not
+    in that tuple. So the prompt said "use a union" to a decoder that had no
+    union branch to emit, and every multi-plate request came back a refusal
+    that the run would have recorded as the model's judgement.
+
+    **That is the Stage 44 defect exactly**, in a third place: a schema is
+    what the model may SAY, and narrowing it to something the prompt
+    contradicts removes an answer from the model's reach and then scores the
+    model for not giving it. Stage 44 found it for ``sketch``, Stage 48 for
+    ``pattern``, this for ``union``. When an operation is added, the
+    **grammar the live path sends** is part of the operation, alongside the
+    refusal list.
+
+    **The cost is nine characters and no branch.** ``subtract`` and ``union``
+    share an operation-level shape exactly -- a ``target`` and an ordered
+    ``tools`` list -- so they merge into one branch the way ``fillet`` and
+    ``chamfer`` already do:
+
+    ============================== ======== ========
+    encoding                       inlined  branches
+    ============================== ======== ========
+    ``strict_selector``                3619        5
+    ``strict_selector_union``          3628        5
+    ============================== ======== ========
+
+    **Compilability is NOT measured.** 3628 sits below every size this
+    project has measured ACCEPTED live (the highest is 4481) and far below
+    the lowest measured REFUSED (4551), so it is very likely to compile --
+    but "likely" is not "measured", and only a live call settles it. This
+    encoding is therefore deliberately **absent from
+    ``stage48.PROVEN_COMPILABLE``**, which means "measured accepted", not
+    "expected to be accepted".
+
+    :func:`strict_selector_provider_schema` is left byte-identical at 3619.
+    It is a recorded measurement point, and a recorded measurement describes
+    the object that was measured rather than whatever the name later points
+    at.
+    """
+    return _plan_document(
+        V1_FEATURE_TYPES_WITH_UNION,
+        merged=MERGED_SCHEMA_GROUPS,
+        selector_modes=SELECT_MODES,
+        selector_branches=True,
+        require_circular_position=True,
+    )
+
+
 #: The selector modes a pattern-carrying encoding can afford. `axis_parallel`
 #: is dropped from the ENCODING -- not from the language, not from the parser,
 #: and not from any plan already written. It is the one mode that includes a
@@ -1668,10 +1731,16 @@ PATTERN_SELECT_MODES: Tuple[str, ...] = (SELECT_ALL, SELECT_STRAIGHT, SELECT_CIR
 def pattern_provider_schema() -> Dict[str, Any]:
     """Every executable operation, `pattern` included, with strict selectors.
 
-    **Measured 4445 inlined characters**, against a point measured ACCEPTED at
-    4481 and one measured REFUSED at 4551. The whole ten-type grammar is 7351
-    and is refused outright; the seven executable types with all four selector
-    modes is 4633, also past the refusal. This is the encoding that fits.
+    **Measured 4454 inlined characters**, against a point measured ACCEPTED at
+    4481 and one measured REFUSED at 4551. The whole vocabulary is refused
+    outright; the executable types with all four selector modes is past the
+    refusal too. This is the encoding that fits.
+
+    It read **4445** until ``union`` joined :data:`EXECUTABLE_TYPES`, which
+    this schema is built from -- nine characters, no extra branch, and still
+    inside the accepted band. The figure drifted silently because no test
+    pinned it; `test_provider_encodings` now does, so the next such change
+    has to be deliberate.
 
     What it expresses that `strict_selector_provider_schema` cannot: the
     `pattern` operation -- a real, buildable, graph-native operation whose
@@ -1760,6 +1829,7 @@ __all__ = [
     "instance_id",
     "V1_EXPRESSIBLE_TYPES",
     "V1_FEATURE_TYPES",
+    "V1_FEATURE_TYPES_WITH_UNION",
     "RadialPlacement",
     "MIN_PATTERN_COUNT",
     "MAX_PATTERN_COUNT",
@@ -1824,6 +1894,7 @@ __all__ = [
     "profile_provider_schema",
     "selector_provider_schema",
     "strict_selector_provider_schema",
+    "strict_selector_union_provider_schema",
     "profile_union_provider_schema",
     "pattern_provider_schema",
     "provider_schema",
