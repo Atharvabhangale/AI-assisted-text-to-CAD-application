@@ -271,6 +271,11 @@ PROVEN_COMPILABLE: Mapping[str, int] = {
     "executable": 3622,
     "profile_hole": 4030,
     "profile_union": 4481,
+    # Stage 63, measured live on claude-haiku-4-5-20251001: 5/5 calls
+    # compiled, `structured_output` true on every one, 0/5 fenced. This is
+    # the encoding the live generation route sends, and it is now PROVEN
+    # rather than merely "far below the ceiling".
+    "strict_selector_union": 3628,
 }
 
 

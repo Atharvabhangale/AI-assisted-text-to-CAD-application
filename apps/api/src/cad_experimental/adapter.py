@@ -104,8 +104,14 @@ class SelectorNotExpressible(AdapterError):
     """A **valid** plan whose edge selector a V1 document cannot carry.
 
     A different answer again from :class:`ExecutionUnsupported`, and the
-    distinction is worth keeping: an unsupported operation means the engine
-    is behind the language, while this means the **document format** is.
+    distinction is worth keeping -- though it is no longer a clean split by
+    exception class. :class:`ExecutionUnsupported` covers **both** "the
+    engine is behind the language" (``sketch``, ``extrude``, ``revolve``:
+    nothing implements them) and "the document format is behind"
+    (``union``: both backends build it, V1 has no join to translate into),
+    and it now says which of the two in its message. What this class adds
+    is the same document-format gap for an **edge selector** rather than an
+    operation.
     The plan is fine, the geometry is buildable, and
     :func:`cad_experimental.executor.execute_plan` builds it -- just not by
     way of a V1 document.
@@ -213,7 +219,11 @@ def plan_to_document(
     unexecutable = tuple(
         operation
         for operation in plan.operations
-        if getattr(operation, "TYPE", None) in (UNION,)
+        # `EXECUTOR_ONLY_TYPES` rather than a literal `(UNION,)`: plan.py
+        # DERIVES that tuple from the difference between what is executable
+        # and what a V1 document can express, precisely so adding an
+        # executor-only operation needs no second edit here.
+        if getattr(operation, "TYPE", None) in EXECUTOR_ONLY_TYPES
         or getattr(operation, "TYPE", None) not in EXECUTABLE_TYPES
     )
     if unexecutable:

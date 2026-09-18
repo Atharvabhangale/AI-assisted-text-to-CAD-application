@@ -14,11 +14,16 @@ export const API_BASE: string =
 export interface PlanOperation {
   readonly id: string;
   readonly type: string;
-  /** Present on a modifier (through_hole, subtract): the solid it acts on. */
+  /** Present on a modifier (through_hole, subtract, union, fillet,
+   *  chamfer): the solid it acts on. A `pattern` names a feature via
+   *  `source` instead. */
   readonly target?: string;
-  /** Present on a subtract: the solids it removes, and consumes, in order. */
+  /** Present on a subtract or a union: the solids it consumes, in order.
+   *  A subtract removes them from the target; a union fuses them into it.
+   *  Either way they leave the solid set and the target keeps its id. */
   readonly tools?: readonly string[];
-  /** Absent on a subtract, which has no parameters. */
+  /** Absent on the tool-taking operations (subtract, union), which carry
+   *  no parameters. */
   readonly parameters?: Readonly<Record<string, unknown>>;
 }
 

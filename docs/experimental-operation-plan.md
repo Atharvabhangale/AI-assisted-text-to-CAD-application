@@ -46,10 +46,18 @@ is deliberate. See "The language is larger than the engine" below.
 | `extrude` | **profile → solid** | **no** | `target` (a **sketch**); `parameters`: `distance` (> 0), optional `direction` |
 | `revolve` | **profile → solid** | **no** | `target` (a **sketch**); `parameters`: `angle` in (0, 360], `axis` (**required**) |
 
-Everything else — spheres, blind holes, counterbores, unions, variable or
-per-edge fillet radii, naming an individual edge, sweeps, lofts, patterns,
-mirrors, assemblies — is `unsupported` by design, and the parser rejects any
-operation type it does not implement rather than passing it downstream.
+| `pattern` | **modifier** | **yes** | `source` (a repeatable feature); `parameters`: `count` in [2, 64], `placement` (`linear`/`radial`) — Stage 46 |
+| `union` | **modifier** | **yes** | `target`; `tools` (non-empty, ordered) — Stage 61. Fuses its tools into the target and consumes them. **No V1 document form**, so it takes the graph executor |
+
+Everything else — spheres, blind holes, counterbores, intersections, variable
+or per-edge fillet radii, naming an individual edge, sweeps, lofts, mirrors,
+assemblies — is `unsupported` by design, and the parser rejects any operation
+type it does not implement rather than passing it downstream.
+
+(`patterns` and `unions` were listed above as unsupported until Stage 62's
+audit. Stage 46 added `pattern` and Stage 61 added `union` as full
+operations, and this table was not updated — the same "an operation is not
+one edit" failure the prompt's refusal list suffered twice.)
 
 ### The four categories
 
@@ -3969,3 +3977,283 @@ neither. Re-baselining remains its own stage.
 | frontend `tsc --noEmit` | clean |
 | frontend `vite build` | succeeds |
 | `e2e:assembly` | **PASS** — 11492.035526276897 mm³, 18 faces, 42 edges, 5544 triangles, unchanged through the new render path |
+
+## Stage 63: closing the audit, and the first live measurement of `union`
+
+Stage 62 fixed five of 39 audit findings and said plainly that the other 34
+were **unverified** — the audit's verification stage never ran. This stage
+recovered all 39, classified every one, and reproduced each high-severity
+claim by executing code before changing anything.
+
+| classification | count | what happened |
+|---|---:|---|
+| already fixed at Stage 62 | 5 | #0/#25, #2/#24, #20, #26, #30 (two duplicate pairs) |
+| **confirmed and fixed here** | **20** | below |
+| confirmed, deliberately NOT fixed | 3 | frozen instruments and one architectural finding |
+| duplicates | 4 | #1≡#23, #18≡#22, #2≡#24, #0≡#25 |
+| false positives | 0 | — |
+
+**Not one finding was a false positive**, which is worth saying because it
+argues the raw output of a multi-lens audit is worth verifying rather than
+discarding: the reason to verify is to *classify*, not to filter noise.
+
+### The product bug: a resize that silently broke the part
+
+The most serious unverified finding was #21, and it reproduced exactly.
+"make it 20 mm wider" on the six-plate hollow box:
+
+| plate | x before | x after |
+|---|---:|---:|
+| **bottom** | 40 | **60** |
+| top, front, back | 40 | 40 |
+| left, right | 5 | 5 |
+
+The plan still **validated**, so the session committed it and replied
+*"Updated ..."* — having produced a bottom plate sticking 20 mm out of the
+box and reported it as a successful resize.
+
+Root cause, shared with #18 and #22: `normalize._body_id` was a **second
+solid-set walk**. It answered "which id names the live body" as *the first
+box or cylinder*, which is a different question — "what was built first". The
+two diverge the moment anything consumes a solid, and `union` made that
+ordinary. Measured on a plan whose union target is the second constructive
+operation:
+
+```
+_body_id -> 'tool_plate'      # consumed as a tool
+live body is 'main_body'
+```
+
+...so a hole and an edge treatment each emitted a modifier targeting a
+consumed solid, and the validator rejected the result with **P12**:
+
+| request | before | after |
+|---|---|---|
+| put a 6 mm hole through the centre | **P12** | valid |
+| make it 5 mm taller | valid (resized the *tool*) | valid |
+| round the vertical edges to 2 mm | **P12** | valid |
+
+`_body_id` now reads `history.plan_history(...).live_bodies` — the **one**
+implementation of the walk — and returns `None` unless exactly one solid is
+live, which the readers treat as "decline". A second walk is a second
+opinion about what "consumed" means, which is precisely what `history.py`
+exists to prevent.
+
+That fixed the P12 half. The resize half needed a different answer:
+**a part assembled from several pieces has no single parameter meaning "its
+width"**. `read_resize` now refuses:
+
+> this part is 6 pieces joined together (bottom, top, front, back, left,
+> right), so there is no single dimension to change — resizing it means
+> moving the pieces. Say which piece to resize, or describe the part you want
+> at the new size
+
+A single-primitive part still resizes (100 → 120 mm, verified).
+
+### Duplicated authority, in three places
+
+Three findings were the same shape: a table exists so there is one answer,
+and a second copy had been written by hand.
+
+| where | hard-coded | now reads | why it mattered |
+|---|---|---|---|
+| `adapter.plan_to_document` | `(UNION,)` | `EXECUTOR_ONLY_TYPES` | plan.py *derives* that tuple so this second edit is unnecessary |
+| `executor._pattern` | `!= THROUGH_HOLE` | `not in PATTERNABLE_TYPES` | widening the table would make the **executor** refuse plans the parser, validator and adapter all accept |
+| `normalize._body_id` | its own walk | `history.plan_history` | above |
+
+### Messages that named the wrong thing
+
+- **`parser._tools`** serves `subtract` *and* `union`, and every refusal
+  detail said *"a subtract must remove at least one solid (rule S14)"*. For a
+  malformed union that named the wrong operation, the wrong verb, and a rule
+  that does not cover it — S14 in the spec is literally about
+  `subtract.tools`. It now states the shape: *"`tools` must name at least one
+  solid"*.
+- **P11** advised *"Target the constructive operation instead"*, naming a
+  field `pattern` cannot carry — a pattern's reference is `source`. Now
+  *"Name the solid it changed instead"*, true for every operation that can
+  raise P11.
+
+### Four tests that passed without proving their name
+
+This is the category worth dwelling on, because a test like this is worse
+than a missing test: it reports coverage it does not give.
+
+1. **`test_every_unimplemented_operation_is_rejected`** listed nine
+   *implemented* types among the "unimplemented" ones. They were rejected —
+   but because every fixture carries `"parameters": {}`, which is malformed,
+   not because the type is unknown. It proved nothing its name claimed and
+   contradicted another test in the same file. Split in two, each now
+   asserting the **reason**: unknown types say `"unknown type"`, real types
+   with empty parameters must **not**.
+2. **`test_both_backends_implement_the_interface`** omitted `union` from its
+   method list, and no other test asserted `backend.union` exists on either
+   engine. Added — and exercised with FreeCAD actually present (79 tests, 2
+   skipped), because the module skips entirely without it.
+3. **`CapabilityTests.REQUIRED`** was a hand-written tuple of ten types that
+   never gained `union`, so
+   `test_every_required_operation_is_in_at_least_one_variant` passed while
+   **`union` was expressible by no schema-ladder rung at all** — the P3/P4
+   rung names mean the *union of profile capabilities*, not the operation, a
+   coincidence that made this easy to miss. `REQUIRED` is now
+   `OPERATION_TYPES`, so a twelfth operation fails the test until a rung can
+   express it.
+4. **`test_tools_on_a_non_subtract_are_rejected`** stated a rule `union` had
+   made false. Renamed, and it now asserts `TOOL_MODIFIER_TYPES` is exactly
+   `{subtract, union}` so a third tool-taking operation cannot make the name
+   wrong again.
+
+### The ladder was reporting "unknown" about verdicts already on record
+
+Stage 48 hard-coded its bounds — accepted 3622, refused 6190 — and Stages
+50-51 then measured a far tighter pair, **accepted 4481, refused 4551**,
+without updating them. Six rungs kept reading `unknown_between_the_bounds`,
+which defeats the module's entire purpose: nominating the rungs worth
+spending a live call on.
+
+The bounds are now **derived** from two tuples of every live verdict, so they
+cannot disagree with the measurements again:
+
+```
+KNOWN_ACCEPTED_INLINED = max(MEASURED_ACCEPTED_INLINED)   # 4481
+KNOWN_REFUSED_INLINED  = min(MEASURED_REFUSED_INLINED)    # 4551
+```
+
+Every rung now carries a verdict and **none sits in the band** — the bracket
+is 70 characters wide. That is a result, not a gap: the ladder has nothing
+left to nominate, and a test asserts the empty set so a newly-added rung that
+*does* land in the band shows up rather than going unnoticed.
+
+Two rungs were added: **`S2-selector-solids-union`** (3143, the type set the
+live route sends) and **`C7-whole-vocabulary`** (7360, mirroring
+`provider_schema()` exactly). `C1-merged` is left frozen at its recorded 7351
+rather than quietly grown to cover an eleventh type.
+
+### Prompt `2026-09-18.1`
+
+The sequence section's consumption rule still said *"a subtract CONSUMES its
+tools"* and named no other, so the rules **as stated** were incomplete for
+`union`: a model could reasonably read them as leaving a union's tools live,
+which is a leftover solid and a plan the validator rejects. Both consuming
+operations are now named. Fingerprint `aa0a407bd02b18e4`, 26081 characters.
+
+The fourth time this shape of gap has been found in the prompt — which is why
+*an operation is not one edit* is now an invariant rather than an anecdote.
+
+### LIVE: the first real measurement of `union`, and of the widened schema
+
+**`claude-haiku-4-5-20251001`, 5 attempts at the real user request**, through
+the encoding the live route sends:
+
+| | |
+|---|---|
+| schema | `strict_selector_union` |
+| inlined characters | **3628** |
+| fingerprint | `07ab6305e836271ec0d1b49baa62e0fb3ff312aafeefa21e8e5b0b48de119ec3` |
+| branches | **5** — `box`, `cylinder`, `through_hole`, `subtract\|union`, `fillet\|chamfer` |
+| prompt | `2026-09-18.1` / `aa0a407bd02b18e4` |
+
+**The grammar compiles.** `structured_output: true` on 5/5, `stop_reason:
+end_turn` on 5/5, **0/5 fenced**, ~9191 input / ~672 output tokens. This
+answers a question the branch has carried open since Stage 44, and **3628 is
+now recorded in `PROVEN_COMPILABLE`** — measured, not inferred from being
+below the ceiling.
+
+**Stage 62's fix worked: the model used `union` 4/5.** The answer is now
+reachable, where before the grammar had no branch for it.
+
+**And 0/5 built.** The exact failure stage is *validation*:
+
+| attempt | outcome | stage | used union |
+|---|---|---|:---:|
+| 1-4 | `invalid_model_output` | **invalid: P11** | yes |
+| 5 | `needs_clarification` | validated (no plan) | no |
+
+All 24 problems across the four were **P11 and nothing else**: the model
+pointed every hole at `assembly` — the union operation's *own* id — instead
+of `plate_long_1`, the target whose id a union keeps.
+
+**This is a model-behaviour finding, not a prompt gap.** The prompt already
+says it, explicitly, in the union section:
+
+> the result REPLACES the target and keeps the TARGET's id, like every
+> modifier. The union's own id names no solid afterwards, so a later hole or
+> fillet targets the TARGET
+
+So the instruction is present, in the right place, and the model still names
+the union's own id 4/4 times it produced a plan. It is the same failure class
+CLAUDE.md §6 records for the V1 document arm ("a modifier's id used as a
+solid"). **Nothing was repaired and no validation was weakened** — the
+project has no repair loop by design, and inventing one to make this pass
+would convert a measured failure into a hidden one.
+
+**The deterministic reader builds this same sentence correctly** — one valid
+solid, 11492.035526276897 mm³. That is the product working via the
+provider-neutral route and says nothing about the model.
+
+### Provider independence, checked structurally
+
+No module in the canonical pipeline — `interpretation`, `normalize`,
+`intent`, `parser`, `validation`, `graph`, `history`, `executor`, `adapter`,
+`plan`, `pattern`, `edge_semantics`, `cad_backend`, both backends, `build`,
+`session`, `questions`, `local_intent_provider` — imports a vendor SDK or
+`cad_ai`. The four vendor mentions in them are prose saying *"swapping
+Anthropic changes nothing in this file"*. The vendor edge is confined to
+`app`, `generation` and the six measurement harnesses. `edge_semantics.py`
+still imports nothing but the standard library.
+
+`FakeLocalProvider` — a provider that never saw the Operation Plan grammar —
+was driven the whole way: canonical intent → plan → parser → validator →
+feature graph (10 nodes, list order) → CadQuery → **11492.035526276897 mm³**,
+one solid → RenderModel. `DecliningProvider` returns `None`.
+
+### Product smoke test: 9/9 on real FreeCAD 1.0.0
+
+Through the real HTTP application, no model configured:
+
+| # | flow | result |
+|---|---|---|
+| 1 | create simple box | 60000.0000 mm³ |
+| 2 | create cylinder | 15707.9633 = π·10²·50 |
+| 3 | add centre hole | 58869.0266 |
+| 4 | resize | 70869.0266 |
+| 5 | remove last feature | 72000.0000 |
+| 6 | geometry question | answered from evidence |
+| 7 | undo | back to 70869.0266 |
+| 8 | reset | clean |
+| 9 | six-plate hollow assembly | 11492.0355, one solid |
+
+**It was 8/9 first time, and the failure was a real product gap.** "a
+cylinder 20 mm in diameter and 50 mm tall" returned **503 "no interpretation
+model is configured"**. `read_cylinder` worked; `_DIAMETER` accepted "20 mm
+diameter" but not "20 mm **in** diameter", so no reader claimed the sentence
+— an ordinary phrasing reported as something the product could not answer.
+Five phrasings are now covered and regression-tested.
+
+The browser E2E passes on the same backend: one valid solid,
+11492.035526276897 mm³, 18 faces, 42 edges, 5544 triangles, live WebGL
+surface, 0 failed requests, 0 console errors.
+
+### Left undone, on purpose
+
+- **`comparison_corpus.py` case `12-union`** is stale in the same way the
+  harness case was, and was **not touched**. It is a frozen instrument by
+  CLAUDE.md's invariants and Stage 48's `legacy` group reads out of it.
+  Recorded for the re-baseline stage.
+- **Selector resolution is implemented twice** (`edge_semantics.resolve` and
+  the backends' own `select_edges`), and the audit claims they disagree on a
+  seam. Pre-existing and architectural, not a `union` consequence, and too
+  large to fold in here. **Reproduced? No** — recorded as unverified.
+- **`stage48_capability_evaluation.__all__`** (#35) could not be reproduced:
+  the five names the finding claims are missing are all present.
+
+### Suite
+
+| suite | result |
+|---|---|
+| `tests_experimental` | **1778 passed, 72 skipped** |
+| `cad-core` | **1481 passed** |
+| frontend `tsc --noEmit` | clean |
+| frontend `vite build` | succeeds |
+| product smoke test | **9/9** on FreeCAD 1.0.0 |
+| `e2e:assembly` | **PASS** (real Chromium, real WebGL) |

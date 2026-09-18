@@ -90,10 +90,38 @@ from .plan import (
     _plan_document,
 )
 
-#: Where the ceiling is known to lie, from the Stage 48 diagnostic probe.
-#: Both bounds are measured live, not assumed.
-KNOWN_ACCEPTED_INLINED = 3622
-KNOWN_REFUSED_INLINED = 6190
+#: Every inlined size this project has had a LIVE verdict on, by verdict.
+#:
+#: The bracket below is derived from these rather than written down twice.
+#: Stage 48 hard-coded its own two points (3622 accepted, 6190 refused) and
+#: Stages 50-51 then measured a much tighter pair -- 4481 accepted, 4551
+#: refused -- without updating them. The ladder went on reporting
+#: `unknown_between_the_bounds` for six rungs whose verdict was already
+#: recorded, which defeats the module's entire purpose: nominating the rungs
+#: actually worth spending a live call on.
+#:
+#: Adding a measurement is one edit here. Deriving the bracket means it can
+#: never disagree with the measurements again.
+MEASURED_ACCEPTED_INLINED: Tuple[int, ...] = (
+    3134,   # Stage 53  selector
+    3487,   # Stage 50  profile
+    3622,   # Stage 43  executable
+    4030,   # Stage 51  profile_hole
+    3628,   # Stage 63  strict_selector_union -- what the LIVE route sends,
+            #           accepted 5/5 with structured_output true, 0/5 fenced
+    4481,   # Stage 51  profile_union -- the largest grammar ever accepted
+)
+MEASURED_REFUSED_INLINED: Tuple[int, ...] = (
+    4551,   # Stage 51  six types + sketch -- the smallest ever refused
+    4698,   # Stage 51  nine types, no sketch
+    6190,   # Stage 48  compact_provider_schema (pre-union shape)
+)
+
+#: The tightest bracket the measurements support: accepted up to and
+#: including this, refused at or above the next. The real ceiling lies in
+#: `(4481, 4551]` -- a bound, never a number.
+KNOWN_ACCEPTED_INLINED = max(MEASURED_ACCEPTED_INLINED)
+KNOWN_REFUSED_INLINED = min(MEASURED_REFUSED_INLINED)
 
 #: The provider's own words when it refuses for grammar size.
 GRAMMAR_TOO_LARGE_MARKER = "compiled grammar is too large"
@@ -406,6 +434,41 @@ def _compressions() -> Tuple[Variant, ...]:
             note="P3 plus subtract, 70 inlined characters below the proven "
                  "refusal. The upper edge of the band, and the last "
                  "capability that could plausibly still fit.",
+        ),
+        Variant(
+            "S2-selector-solids-union",
+            kinds=("box", "cylinder", "through_hole", "subtract", "union",
+                   "fillet", "chamfer"),
+            merged=MERGED_SCHEMA_GROUPS,
+            selector_modes=SELECT_MODES,
+            note="Stage 63: S1 plus `union`. Added because `union` was "
+                 "reachable by NO rung on this ladder -- the P3/P4 names "
+                 "mean the union of profile capabilities, not the operation "
+                 "-- so the one operation the product's own multi-plate "
+                 "path depends on could not be measured against the "
+                 "ceiling at all. 3143 inlined, nine characters over S1: "
+                 "subtract and union merge into one branch, so it costs no "
+                 "branch. NOTE this is the same TYPE set as the live "
+                 "generation route's encoding but not the same grammar -- "
+                 "the live one "
+                 "(`strict_selector_union_provider_schema`, 3628) makes the "
+                 "selector a discriminated union and requires a circular "
+                 "selector's end, which this ladder's flat selector form "
+                 "does not. Both are far below the accepted bound.",
+        ),
+        Variant(
+            "C7-whole-vocabulary",
+            kinds=OPERATION_TYPES,
+            merged=MERGED_SCHEMA_GROUPS,
+            selector_modes=SELECT_MODES,
+            note="Stage 63: every operation the language has, with the full "
+                 "selector vocabulary -- the faithful description, mirroring "
+                 "`provider_schema()`. Far above the proven refusal and NOT "
+                 "a candidate for a live call; it exists so this ladder's "
+                 "own capability check has something honest to be satisfied "
+                 "by. C1-merged used to be that rung, at ten types, and it "
+                 "is left frozen at its recorded size rather than quietly "
+                 "grown to cover an eleventh.",
         ),
     )
 

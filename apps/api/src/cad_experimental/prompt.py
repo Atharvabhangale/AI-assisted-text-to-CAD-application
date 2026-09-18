@@ -18,7 +18,7 @@ from .plan import AXES, OPERATION_TYPES, PlanStatus
 
 #: Bumped on any change to the text below. A measurement without this is not
 #: reproducible.
-PROMPT_VERSION = "2026-09-17.1"
+PROMPT_VERSION = "2026-09-18.1"
 
 SYSTEM_PROMPT = f"""\
 You turn a description of a mechanical part into a CAD operation plan.
@@ -405,8 +405,10 @@ they are what makes a chain work:
 * a modifier keeps its TARGET's id. Drilling, subtracting, filleting or
   chamfering `base` leaves you with `base` -- changed. So every later
   operation still names `base`, never the id of the modifier that changed it;
-* a subtract CONSUMES its tools. Each is gone from that point on and may
-  never be named again.
+* a subtract and a union both CONSUME their tools. Each tool is gone from
+  that point on and may never be named again -- a subtract removes it from
+  the target, a union fuses it in, and either way it has left the solid
+  set.
 
 And one rule about how it ends: when the last operation is done there must be
 exactly ONE solid left. Every solid you create either ends up as the part, is

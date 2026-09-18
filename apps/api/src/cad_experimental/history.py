@@ -97,13 +97,19 @@ class OperationStep:
     id: str
     type: str
 
-    #: The ids this operation names directly -- its target, and a subtract's
-    #: tools in list order. The edges of the dependency graph.
+    #: The ids this operation names directly -- its target, and a
+    #: tool-taking operation's tools in list order. The edges of the
+    #: dependency graph.
     depends_on: Tuple[str, ...] = ()
 
-    #: Ids this operation removed from the solid set. Only a subtract does
-    #: this, and only for tools that were actually live: consuming an
+    #: Ids this operation removed from the solid set. Every type in
+    #: :data:`CONSUMING_TYPES` does this -- ``subtract`` and, since Stage 61,
+    #: ``union`` -- and only for tools that were actually live: consuming an
     #: unresolved reference would invent a second, misleading problem.
+    #:
+    #: Stated as "only a subtract does this" until Stage 62's audit, in the
+    #: one module that exists so the walk and the graph cannot disagree
+    #: about what "consumed" means.
     consumes: Tuple[str, ...] = ()
 
     #: The solid this operation brought into being, named by its own id.

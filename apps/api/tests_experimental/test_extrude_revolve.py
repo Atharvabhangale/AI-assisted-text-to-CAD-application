@@ -1151,8 +1151,22 @@ class PromptTests(unittest.TestCase):
         backends, a schema branch -- while the prompt still said "There is
         no union in this language" and listed it as unsupported. The prompt
         now documents it, and the refusal list names only `intersection`.
+
+        `2026-09-18.1` is Stage 63, from Stage 62's own audit: the sequence
+        section's consumption rule still said "a subtract CONSUMES its
+        tools" and named no other, so the rules as stated were incomplete
+        for `union` -- a model could reasonably have read them as leaving a
+        union's tools live, which is a leftover solid and a plan the
+        validator rejects. Both consuming operations are now named. The
+        fourth time this shape of gap has been found in the prompt, which
+        is why `an operation is not one edit` is now an invariant rather
+        than an anecdote.
         """
-        self.assertEqual(self.version, "2026-09-17.1")
+        self.assertEqual(self.version, "2026-09-18.1")
+        self.assertEqual(
+            self.fingerprint,
+            "aa0a407bd02b18e4ca4e4ba0ede47d3f51a6a158904d6492d1f1e886f81a1ba2",
+        )
         self.assertEqual(len(self.fingerprint), 64)
 
 

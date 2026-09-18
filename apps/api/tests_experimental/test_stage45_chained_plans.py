@@ -446,7 +446,15 @@ class ThePromptTeachesTheChainTests(unittest.TestCase):
         section = section.split("# Units", 1)[0]
         self.assertIn("EARLIER", section)
         self.assertIn("keeps its TARGET's id", section)
-        self.assertIn("CONSUMES its tools", section)
+        # Prompt 2026-09-18.1 widened this from "a subtract CONSUMES its
+        # tools" to name BOTH consuming operations, because the rule as
+        # stated was incomplete for `union` -- a model could have read it as
+        # leaving a union's tools live, which is a leftover solid and a plan
+        # the validator rejects. Asserted on both names rather than on the
+        # old phrase, so a third consuming operation fails this test.
+        self.assertIn("CONSUME their tools", section)
+        for consuming in ("subtract", "union"):
+            self.assertIn(consuming, section)
         self.assertIn("exactly ONE solid left", section)
 
     def test_the_worked_example_is_itself_a_valid_chain(self):

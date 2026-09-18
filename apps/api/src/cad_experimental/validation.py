@@ -1168,8 +1168,8 @@ def _reference(
                 PlanProblem(
                     P11,
                     f"{target!r} does not name a solid: it is a modifier, "
-                    "whose result keeps its own target's id. Target the "
-                    "constructive operation instead",
+                    "whose result keeps its own target's id. Name the solid "
+                    "it changed instead",
                     path,
                 )
             )

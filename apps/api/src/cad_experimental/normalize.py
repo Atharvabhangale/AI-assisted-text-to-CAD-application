@@ -60,7 +60,9 @@ import re
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple
 
+from .history import plan_history
 from .intent import looks_like_plate_assembly
+from .parser import PlanParseError, parse_plan
 from .plan import (
     BOX,
     CHAMFER,
@@ -120,7 +122,15 @@ _TRIPLE = re.compile(rf"{_N}{_MM}{_SEP}{_N}{_MM}{_SEP}{_N}{_MM}", re.I)
 _DIAMETER = re.compile(
     rf"[ø⌀]\s*{_N}"
     rf"|\bdia(?:meter)?\.?\s*(?:of\s*)?{_N}"
-    rf"|{_N}\s*mm\s*(?:dia(?:meter)?|(?:through\s+)?holes?|bores?)"
+    # "20 mm in diameter" and "20 mm across" as well as "20 mm diameter".
+    # The `in` was the gap: the smoke test's "a cylinder 20 mm in diameter
+    # and 50 mm tall" read as NO cylinder at all, so the request fell
+    # through to the 503 "no interpretation model is configured" -- a
+    # perfectly ordinary way to describe a cylinder that the reader simply
+    # did not know, reported as if the product could not answer it.
+    rf"|{_N}\s*mm\s*(?:in\s+|across\b\s*)?"
+    rf"(?:dia(?:meter)?|(?:through\s+)?holes?|bores?)"
+    rf"|{_N}\s*mm\s+across\b"
     rf"|{_N}\s*mm\s*(?=(?:\w+\s+){{0,2}}holes?\b)",
     re.I,
 )
@@ -189,15 +199,79 @@ def _ids(plan: Mapping[str, Any]) -> List[str]:
 def _body_id(plan: Mapping[str, Any]) -> Optional[str]:
     """The id of the solid a further modifier should target.
 
-    A modifier keeps its TARGET's id, so the body is whatever the first
-    constructive operation declared -- not the id of the last operation, which
-    for a modifier names nothing at all. Getting this wrong is the classic way
-    to write a plan that references a feature as if it were a solid.
+    A modifier keeps its TARGET's id, so the body is *a live solid's* id --
+    not the id of the last operation, which for a modifier names nothing at
+    all. Getting this wrong is the classic way to write a plan that
+    references a feature as if it were a solid.
+
+    Answered from :func:`~cad_experimental.history.plan_history`, which is
+    the **one** implementation of the solid-set walk. This function used to
+    walk the operations itself and return the first ``box`` or ``cylinder``,
+    which is a different question: "what was built first", not "what is still
+    standing". The two diverge the moment anything consumes a solid --
+    ``subtract`` always did, and ``union`` now does too. Measured with the
+    old rule, on a plan whose union target is the second constructive
+    operation:
+
+        _body_id -> 'tool_plate'          # consumed as a tool
+        live body is 'main_body'
+
+    ...so "put a 6 mm hole through the centre" and "round the vertical edges"
+    both emitted a modifier targeting a consumed solid, and the validator
+    rejected the result with **P12**. A second walk is a second opinion about
+    what "consumed" means, which is exactly what `history.py` exists to
+    prevent.
+
+    Returns ``None`` when the plan does not leave exactly one live solid.
+    Callers treat that as "decline", because with two bodies standing there
+    is no such thing as *the* body to modify and picking one would be a
+    guess.
     """
-    for op in _operations(plan):
-        if op.get("type") in (BOX, CYLINDER):
-            return str(op.get("id"))
-    return None
+    try:
+        history = plan_history(parse_plan(dict(plan)))
+    except PlanParseError:
+        # An unparseable plan has no history to read. The readers decline
+        # rather than fall back to the old guess.
+        return None
+    live = history.live_bodies
+    if len(live) != 1:
+        return None
+    return str(live[0].id)
+
+
+def _fused_from(plan: Mapping[str, Any], body: str) -> Tuple[str, ...]:
+    """The constructive operations this body is made of, if more than one.
+
+    Empty when the body came from a single primitive -- the ordinary case,
+    where editing that primitive's parameters really is editing the part.
+
+    A body assembled by `union` is different in kind. Its size is a
+    consequence of where six plates were placed, and there is no single
+    parameter that means "the part's width". Editing one plate's box changes
+    that plate and nothing else, which is why this has to be detectable:
+
+        "make it 20 mm wider" on the six-plate hollow box
+          -> bottom 40 -> 60, top/front/back still 40, left/right still 5
+          -> the plan still VALIDATES, so the session committed it and
+             replied "Updated ...", having produced a bottom plate sticking
+             20 mm out of the box.
+
+    Measured, before this existed.
+    """
+    try:
+        history = plan_history(parse_plan(dict(plan)))
+    except PlanParseError:
+        return ()
+    found = history.body(body)
+    if found is None:
+        return ()
+    constructive = {
+        op.get("id"): op for op in _operations(plan)
+        if op.get("type") in (BOX, CYLINDER)
+    }
+    pieces = tuple(str(name) for name in history.derivation(body)
+                   if name in constructive)
+    return pieces if len(pieces) > 1 else ()
 
 
 def _envelope(plan: Mapping[str, Any]) -> Optional[Tuple[List[float], List[float]]]:
@@ -701,6 +775,19 @@ def read_resize(text: str,
     body = _body_id(plan)
     if body is None:
         return None
+
+    # A part assembled from several pieces has no single parameter meaning
+    # "its width". Refusing is the honest answer: the alternative measured
+    # before this check was to grow ONE plate and report the part resized.
+    pieces = _fused_from(plan, body)
+    if pieces:
+        raise ReadingError(
+            f"this part is {len(pieces)} pieces joined together "
+            f"({', '.join(pieces)}), so there is no single dimension to "
+            f"change -- resizing it means moving the pieces. Say which "
+            f"piece to resize, or describe the part you want at the new size"
+        )
+
     operation = next((op for op in _operations(plan)
                       if op.get("id") == body), None)
     if operation is None or operation.get("type") != BOX:

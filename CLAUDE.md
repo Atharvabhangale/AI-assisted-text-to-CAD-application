@@ -1046,8 +1046,8 @@ section is the index.
 
 ### Where this branch stands, and what is next
 
-Stages 32–62 are complete and pushed. The subsections below are the index,
-in order; they stop at Stage 48, and **Stages 49–62 are documented only in
+Stages 32–63 are complete and pushed. The subsections below are the index,
+in order; they stop at Stage 48, and **Stages 49–63 are documented only in
 `docs/experimental-operation-plan.md`** — read its `## Stage NN` headings for
 those. The five most recent are:
 
@@ -1058,6 +1058,7 @@ those. The five most recent are:
 | **60** | Hardening that loop on **typed** evidence — E4/E5 decided by `edge_semantics.resolve`'s own `R1`/`R2`/`R3` codes rather than by matching words in a backend's error string. Verified live on `claude-haiku-4-5-20251001`. |
 | **61** | **A CAD session that needs no model at all**: `union` (eleventh type, still eight schema branches), two provider-neutral grammars, and an evidence answerer that labels every number `MEASURED` / `DECLARED` / `CALCULATED`. |
 | **62** | The four defects Stage 61 left behind — **an operation is not one edit.** The live route could not *say* `union` (Stage 44's defect a third time); a `union` plan could lose a solid silently; `ExecutionUnsupported` named the wrong reason for it; and a recorded schema size had drifted unpinned. |
+| **63** | **The audit closed and `union` measured live.** All 39 findings classified (0 false positives), 20 more fixed — including a resize that silently broke the part, a second solid-set walk, three duplicated authority tables and four tests that passed without proving their name. `strict_selector_union` (3628) is **PROVEN compilable**, the model emits `union` 4/5, and 0/5 build: **P11 only**, the union's own id used as a solid. |
 
 **A model is one route to a plan, not the way in.** Stage 61 is the rule
 applied: every route ends at the same parser, validator, feature graph and
@@ -1081,11 +1082,27 @@ until Stage 60, which carries a live `claude-haiku-4-5-20251001` verification
 with real provider metadata and no fixture involved. The Stage 48 instrument
 below still has not been run in full.
 
+**Stage 63 measured `union` live, and it is the standing open problem.** The
+widened encoding the route sends (`strict_selector_union`, 3628 inlined,
+5 branches) **compiles** — `structured_output` true on 5/5 calls, 0/5
+fenced — so that long-open question is answered and 3628 is recorded in
+`PROVEN_COMPILABLE`. The model **emits `union` 4/5**, so the answer is
+reachable. But **0/5 build**: all four plans fail validation on **P11 and
+nothing else**, every hole pointed at the union operation's *own* id instead
+of the target whose id a union keeps. The prompt already states that rule
+explicitly in its union section, so this is a **model-behaviour** finding,
+not a prompt gap — and nothing was repaired, because the project has no
+repair loop by design. The deterministic reader builds the same sentence
+correctly, which is the product working by the provider-neutral route and
+says nothing about the model.
+
 Stage 48 removed the two blockers that stood in the way:
 
 1. **A harness that sends `provider_schema()` now exists.**
-   `stage48_capability_evaluation` sends the widened ten-type schema
-   (`be8ba82740aecc1d`) and the current prompt, and its
+   `stage48_capability_evaluation` sends the widened schema and the current
+   prompt. (It read "the widened ten-type schema (`be8ba82740aecc1d`)" in
+   the present tense until Stage 62's audit; the vocabulary is eleven types
+   since `union` and the fingerprint moved with it.) Its
    `--probe-live` asks the one question Stage 44 left open — *does the
    provider compile it?* — in three calls.
    `stage43_structured_comparison` is **untouched** and still pinned to
@@ -1662,8 +1679,8 @@ The POSIX forms remain correct on Linux/macOS, where `python3` and a
 `CAD_FREECAD_HOME` plus `LD_LIBRARY_PATH=$CAD_FREECAD_HOME/usr/lib` set
 **before Python starts**, or `test_cad_backends` skips.
 
-**1775 passed, 72 skipped** with FreeCAD 1.0.0 present on Linux, measured at
-Stage 62 (1188 tests, 2 skipped at Stage 47; 897 tests, 33 skipped at Stage
+**1778 passed, 72 skipped** with FreeCAD 1.0.0 present on Linux, measured at
+Stage 63 (1188 tests, 2 skipped at Stage 47; 897 tests, 33 skipped at Stage
 43 on the Windows environment, where the extra skips are the FreeCAD
 backend). `cad-core` is **1481 passed** on Linux — §5's six errors there are
 Windows-only. Run the whole suite before finishing a
@@ -1724,6 +1741,23 @@ output, not the exit code.
   today) never builds a document, so more than one live body must be refused
   there explicitly. Reported, never repaired — neither fusing the extra body
   in nor dropping it is a guess this layer may make.
+- **A test that passes without proving its name is worse than a missing
+  test.** Stage 63 found four: a list of "unimplemented" operations that
+  were nine-tenths implemented and rejected for a different reason; an
+  interface check omitting `union`; a capability tuple that let `union` be
+  expressible by no schema variant at all; and a test whose name stated a
+  rule `union` had falsified. Each reported coverage it did not give.
+  Assert the REASON, and derive a list from its authority rather than
+  hand-writing it.
+- **One walk, one answer.** `history.plan_history` is the only
+  implementation of the solid-set walk. A second one — even a three-line
+  "first box or cylinder" — is a second opinion about what "consumed"
+  means, and it silently disagreed the moment `union` arrived: holes and
+  edge treatments targeted a consumed solid (P12), and a resize edited one
+  plate of a fused body and reported the part resized.
+- **A part assembled from several pieces has no single dimension.** Refusing
+  to resize it is the honest answer; editing one piece and saying "Updated"
+  is not.
 - **A stale measurement case is marked, not edited.** When the language moves
   under a case, its expectation stops describing the right answer. Mark it
   stale, keep running it, report it, and hold it out of every quality

@@ -17,6 +17,7 @@ import unittest
 from cad_experimental import plan as canonical
 from cad_experimental import representation_comparison as stage40
 from cad_experimental import schema_ladder as ladder
+from cad_experimental.plan import OPERATION_TYPES
 from cad_experimental import stage43_structured_comparison as stage43
 from cad_experimental import stage48_capability_evaluation as stage48
 from cad_experimental.parser import PlanParseError, parse_plan
@@ -84,10 +85,15 @@ class RecordedInstrumentsAreUnchangedTests(unittest.TestCase):
         measurement, not against today's schema.
         """
         schema = ladder.variant("C2-no-constraints").schema()
+        # 6190 explicitly, NOT `KNOWN_REFUSED_INLINED`. The two were the
+        # same number until Stages 50-51's tighter measurements were folded
+        # in; the bound is now the SMALLEST refusal (4551) while C2's own
+        # recorded refusal is still 6190. A recorded instrument is pinned to
+        # what was measured about IT.
         self.assertEqual(
-            ladder.grammar_metrics(schema)["inlined_characters"],
-            ladder.KNOWN_REFUSED_INLINED,
+            ladder.grammar_metrics(schema)["inlined_characters"], 6190,
         )
+        self.assertIn(6190, ladder.MEASURED_REFUSED_INLINED)
         kinds = set()
         for branch in schema["properties"]["operations"]["items"]["anyOf"]:
             discriminator = branch["properties"]["type"]
@@ -177,22 +183,37 @@ class SizeProxyTests(unittest.TestCase):
         therefore a little larger, which is checked separately rather than
         by redefining what was measured.
         """
+        # Each schema against ITS OWN recorded measurement...
         self.assertEqual(
             ladder.grammar_metrics(canonical.executable_schema())[
-                "inlined_characters"],
-            ladder.KNOWN_ACCEPTED_INLINED,
+                "inlined_characters"], 3622,
         )
+        self.assertIn(3622, ladder.MEASURED_ACCEPTED_INLINED)
         self.assertEqual(
             ladder.grammar_metrics(
                 ladder.variant("C2-no-constraints").schema())[
-                "inlined_characters"],
-            ladder.KNOWN_REFUSED_INLINED,
+                "inlined_characters"], 6190,
         )
+        self.assertIn(6190, ladder.MEASURED_REFUSED_INLINED)
         self.assertGreater(
             ladder.grammar_metrics(canonical.compact_provider_schema())[
                 "inlined_characters"],
             ladder.KNOWN_ACCEPTED_INLINED,
         )
+
+        # ...and the bracket is the TIGHTEST the measurements support, which
+        # is the whole reason it is derived rather than written down. Stage
+        # 48 hard-coded (3622, 6190) and Stages 50-51 measured (4481, 4551)
+        # without updating it, so six rungs kept reporting "unknown" about a
+        # verdict already on record.
+        self.assertEqual(ladder.KNOWN_ACCEPTED_INLINED, 4481)
+        self.assertEqual(ladder.KNOWN_REFUSED_INLINED, 4551)
+        self.assertEqual(ladder.KNOWN_ACCEPTED_INLINED,
+                         max(ladder.MEASURED_ACCEPTED_INLINED))
+        self.assertEqual(ladder.KNOWN_REFUSED_INLINED,
+                         min(ladder.MEASURED_REFUSED_INLINED))
+        self.assertLess(ladder.KNOWN_ACCEPTED_INLINED,
+                        ladder.KNOWN_REFUSED_INLINED)
 
     def test_a_prediction_is_only_made_against_measured_points(self) -> None:
         rows = {r["variant"]: r for r in ladder.ladder_report()["variants"]}
@@ -203,10 +224,22 @@ class SizeProxyTests(unittest.TestCase):
             rows["C2-no-constraints"]["predicted"],
             "at_or_above_known_refused",
         )
+        # C6-sketch-floor measures 4551, which IS the smallest refusal on
+        # record -- so it is no longer "unknown", it is refused. It read
+        # "unknown" only because the bounds had not been updated.
         self.assertEqual(
             rows["C6-sketch-floor"]["predicted"],
-            "unknown_between_the_bounds",
+            "at_or_above_known_refused",
         )
+
+        # With the bracket down to (4481, 4551] -- seventy characters wide --
+        # no rung sits inside it any more. That is a real result, not a gap:
+        # the ladder has nothing left to nominate for a live call, and
+        # asserting it means a newly-added rung that DOES land in the band
+        # shows up here rather than going unnoticed.
+        undecided = [name for name, row in rows.items()
+                     if row["predicted"] == "unknown_between_the_bounds"]
+        self.assertEqual(undecided, [], f"now worth a live probe: {undecided}")
 
 
 # --- capability is preserved somewhere on the ladder ------------------------
@@ -215,10 +248,17 @@ class SizeProxyTests(unittest.TestCase):
 class CapabilityTests(unittest.TestCase):
     """Phase 4: every capability must remain reachable by some variant."""
 
-    REQUIRED = (
-        "box", "cylinder", "through_hole", "subtract", "fillet", "chamfer",
-        "sketch", "extrude", "revolve", "pattern",
-    )
+    #: DERIVED, not listed. This was a hand-written tuple of ten types and
+    #: `union` never got added to it, so
+    #: `test_every_required_operation_is_in_at_least_one_variant` passed
+    #: while `union` was expressible by no rung on the ladder at all -- the
+    #: one operation the product's multi-plate path depends on could not be
+    #: measured against the provider ceiling, and nothing said so.
+    #:
+    #: Deriving it from the vocabulary is the point: a twelfth operation
+    #: makes this test fail until a rung can express it, which is exactly
+    #: when someone should be told.
+    REQUIRED = OPERATION_TYPES
 
     def test_every_required_operation_is_in_at_least_one_variant(
         self,

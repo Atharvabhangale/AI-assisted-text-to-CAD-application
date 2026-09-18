@@ -152,6 +152,49 @@ class CylinderTests(unittest.TestCase):
 # --- edits ------------------------------------------------------------------
 
 
+class CylinderPhrasingTests(unittest.TestCase):
+    """How people actually say a diameter.
+
+    The Step 5 smoke test asked for "a cylinder 20 mm in diameter and 50 mm
+    tall" and the product answered 503 "no interpretation model is
+    configured". `read_cylinder` existed and worked; `_DIAMETER` accepted
+    "20 mm diameter" but not "20 mm IN diameter", so no reader claimed the
+    sentence at all. An ordinary phrasing, reported as something the product
+    could not answer.
+    """
+
+    PHRASINGS = (
+        "a cylinder 20 mm in diameter and 50 mm tall",
+        "a rod 20 mm across and 50 mm long",
+        "a 20 mm diameter cylinder 50 mm tall",
+        "a cylinder of diameter 20 mm and height 50 mm",
+        "a cylinder 20 mm diameter, 50 mm high",
+    )
+
+    def test_each_phrasing_reads_as_the_same_cylinder(self) -> None:
+        for text in self.PHRASINGS:
+            with self.subTest(text):
+                reading = read_request(text, None)
+                self.assertIsInstance(reading, Reading, text)
+                operations = reading.plan["operations"]
+                self.assertEqual(len(operations), 1)
+                self.assertEqual(operations[0]["type"], "cylinder")
+                parameters = operations[0]["parameters"]
+                self.assertAlmostEqual(parameters["diameter"], 20.0)
+                self.assertAlmostEqual(parameters["height"], 50.0)
+
+    def test_each_phrasing_produces_a_valid_plan(self) -> None:
+        from cad_experimental.parser import parse_plan
+        from cad_experimental.validation import validate_plan
+
+        for text in self.PHRASINGS:
+            with self.subTest(text):
+                reading = read_request(text, None)
+                verdict = validate_plan(parse_plan(reading.plan))
+                self.assertTrue(verdict.valid,
+                                [p.code for p in verdict.problems])
+
+
 class CentreHoleTests(unittest.TestCase):
 
     def setUp(self) -> None:

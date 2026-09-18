@@ -65,8 +65,10 @@ from .plan import (
 #: The solid or profile an operation acts on. One per operation that has one.
 TARGET = "target"
 
-#: A solid a subtract removes and consumes. Ordered: Section C.4 removes them
-#: in list order, so the edges are a sequence and not a set.
+#: A solid a tool-taking operation consumes: removed by a ``subtract``,
+#: fused in by a ``union``. Either way it leaves the solid set and the target
+#: keeps its id. Ordered: Section C.4 applies them in list order, so the
+#: edges are a sequence and not a set.
 TOOL = "tool"
 
 #: The feature a pattern repeats. Unlike the other two this names an

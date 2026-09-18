@@ -12,8 +12,17 @@ geometry and no schema to ``cad_core``.
 
 The question it exists to answer is narrow and empirical: **is an operation
 plan easier for a model to produce correctly than the full V1 document?**
-Two operations -- ``box`` and ``cylinder`` -- are enough to find out, and are
-deliberately all that is implemented.
+
+It began with two operations -- ``box`` and ``cylinder`` -- as enough to find
+out. The vocabulary is now **eleven** types: ``box``, ``cylinder``,
+``through_hole``, ``subtract``, ``union``, ``fillet``, ``chamfer``,
+``pattern``, ``sketch``, ``extrude`` and ``revolve``. Eight are executable;
+``sketch``, ``extrude`` and ``revolve`` are represented and validated, then
+refused at the execution boundary rather than approximated.
+:data:`cad_experimental.plan.OPERATION_TYPES` is the authority.
+
+(This docstring still claimed two until Stage 62's audit -- the first thing
+any reader of the package saw, nine operations out of date.)
 """
 
 EXPERIMENT_NAME = "cad-operation-graph"

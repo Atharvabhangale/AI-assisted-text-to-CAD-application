@@ -828,10 +828,12 @@ class SubtractOperation:
     * the result replaces the target in place and keeps the **target's** id,
       as every modifier does (Section B.4);
     * every tool solid is **consumed** -- deleted from the solid set and
-      unavailable to any later operation. This is the only operation in the
-      language with that effect, and it is what makes a plan have history;
-    * subtraction only. There is no union and no intersection in V1, so this
-      never joins two solids and never produces a new independent body.
+      unavailable to any later operation, which is what makes a plan have
+      history. :class:`UnionOperation` consumes identically; the authority
+      on which operations do is :data:`CONSUMING_TYPES`;
+    * subtraction only. This never joins two solids -- ``union`` does that,
+      and neither produces a new independent body: both keep the target's
+      id. There is still no intersection.
 
     ``tools`` is non-empty (rule S14), does not contain ``target``, and holds
     no duplicates (rule S15) -- a tool is consumed by its first use, so
@@ -993,7 +995,8 @@ def _sketch_schema() -> Dict[str, Any]:
 
 
 #: Names of the shared ``$defs`` the plan schema emits. Each appears many
-#: times across the nine operation branches; emitting one copy and
+#: times across the operation branches -- eleven in the faithful schema,
+#: eight once the two mergeable pairs are merged; emitting one copy and
 #: referencing it is what keeps the compiled grammar inside the provider's
 #: size limit.
 ID_DEF = "identifier"
@@ -1412,10 +1415,13 @@ def _plan_document(
 def provider_schema() -> Dict[str, Any]:
     """The plan schema a structured-output provider is pointed at.
 
-    Covers the **whole vocabulary** -- all nine operation types, sketches,
-    extrudes and revolves included -- in **eight branches**, by merging
-    ``fillet`` and ``chamfer`` into one. See :data:`MERGED_SCHEMA_GROUPS` for
-    why that pair and no other.
+    Covers the **whole vocabulary** -- all **eleven** operation types,
+    sketches, extrudes, revolves, ``pattern`` and ``union`` included -- in
+    **eight branches**, by merging ``fillet`` with ``chamfer`` and
+    ``subtract`` with ``union``. See :data:`MERGED_SCHEMA_GROUPS` for why
+    those pairs and no others. Measured at 7360 inlined characters, which is
+    above the proven refusal: this is the faithful description, not the
+    encoding the live route sends.
 
     Why this is not the executable subset any more
     ----------------------------------------------
@@ -1588,7 +1594,8 @@ def profile_hole_provider_schema() -> Dict[str, Any]:
 
 
 def profile_union_provider_schema() -> Dict[str, Any]:
-    """Seven of the ten operations, and the largest grammar known to compile.
+    """Seven of the **eleven** operations, and the largest grammar known to
+    compile.
 
     **Measured ACCEPTED at 4481 inlined characters**, against a refusal at
     4551 -- so this sits inside seventy characters of the ceiling and there
@@ -1865,8 +1872,6 @@ __all__ = [
     "is_executable",
     "is_profile",
     "EDGE_MODIFIER_LENGTH",
-    "EDGE_MODIFIER_TYPES",
-    "TOOL_MODIFIER_TYPES",
     "ChamferOperation",
     "EdgeSelector",
     "FilletOperation",

@@ -70,6 +70,7 @@ from .plan import (
     PATTERN,
     SUBTRACT,
     UNION,
+    PATTERNABLE_TYPES,
     THROUGH_HOLE,
     OperationPlan,
     PlanStatus,
@@ -441,7 +442,12 @@ def _pattern(
     from the same :func:`~cad_experimental.pattern.instance_positions`.
     """
     source = by_id.get(operation.source)
-    if source is None or getattr(source, "TYPE", None) != THROUGH_HOLE:
+    # Read from the one table every other layer reads. Hard-coding
+    # `THROUGH_HOLE` here meant widening `PATTERNABLE_TYPES` would
+    # make the EXECUTOR refuse plans the parser, validator and adapter
+    # all accept -- a divergence nothing would catch until a build.
+    if (source is None
+            or getattr(source, "TYPE", None) not in PATTERNABLE_TYPES):
         return ExecutionFailure(
             UNSUPPORTED,
             f"{operation.source!r} is not a feature this backend can repeat",

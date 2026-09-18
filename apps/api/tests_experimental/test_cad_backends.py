@@ -121,7 +121,11 @@ class InterfaceTests(unittest.TestCase):
                 self.assertIsInstance(backend, cb.CadBackend)
                 for method in (
                     "create_box", "create_cylinder", "through_hole",
-                    "subtract", "fillet", "chamfer", "measure",
+                    # `union` was missing here, so this test promised
+                    # interface coverage it did not give -- and no other
+                    # test in the suite asserted `backend.union` exists at
+                    # all, on either engine.
+                    "subtract", "union", "fillet", "chamfer", "measure",
                     "select_edges", "export_step", "read_step",
                     "render_model", "available", "version",
                 ):

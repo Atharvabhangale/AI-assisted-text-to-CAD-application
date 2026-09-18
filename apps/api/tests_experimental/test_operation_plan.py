@@ -25,6 +25,7 @@ from cad_experimental.plan import (
     AXES,
     BoxOperation,
     CylinderOperation,
+    OPERATION_TYPES,
     OperationPlan,
     PlanStatus,
     Point,
@@ -145,17 +146,41 @@ class ParseRejectionTests(unittest.TestCase):
             )
         self.assertIn("unknown type", caught.exception.message)
 
-    def test_every_unimplemented_operation_is_rejected(self):
-        for kind in (
-            "sphere", "cone", "torus", "extrude", "revolve", "sweep", "loft",
-            "hole", "through_hole", "subtract", "union", "fillet", "chamfer",
-            "pattern", "mirror", "sketch", "shell", "assembly",
-        ):
+    def test_every_operation_outside_the_vocabulary_is_rejected(self):
+        """Types the language does not have, rejected AS UNKNOWN.
+
+        This list used to also contain `through_hole`, `subtract`, `union`,
+        `fillet`, `chamfer`, `pattern`, `sketch`, `extrude` and `revolve` --
+        nine types the language DOES have. They were rejected, so the test
+        passed, but for the wrong reason: every fixture carries
+        `"parameters": {}`, which is malformed for all of them. The test
+        proved nothing its name claimed and contradicted
+        `test_every_vocabulary_type_parses` in this same file.
+
+        The two halves are now separate, and each asserts the REASON.
+        """
+        for kind in ("sphere", "cone", "torus", "sweep", "loft", "hole",
+                     "mirror", "shell", "assembly"):
             with self.subTest(type=kind):
-                with self.assertRaises(PlanParseError):
+                self.assertNotIn(kind, OPERATION_TYPES)
+                with self.assertRaises(PlanParseError) as caught:
                     parse_plan_text(
                         generated({"id": "b", "type": kind, "parameters": {}})
                     )
+                self.assertIn("unknown type", caught.exception.message)
+
+    def test_a_real_operation_with_empty_parameters_is_rejected_as_malformed(
+        self,
+    ):
+        """...and NOT as an unknown type, which is the distinction that
+        made the old single test vacuous."""
+        for kind in OPERATION_TYPES:
+            with self.subTest(type=kind):
+                with self.assertRaises(PlanParseError) as caught:
+                    parse_plan_text(
+                        generated({"id": "b", "type": kind, "parameters": {}})
+                    )
+                self.assertNotIn("unknown type", caught.exception.message)
 
     def test_unknown_plan_field_is_rejected(self):
         with self.assertRaises(PlanParseError):

@@ -692,16 +692,23 @@ def _tools(value: Any, where: str) -> Tuple[str, ...]:
     if value is None:
         raise PlanParseError(
             f"{where} is missing `tools`",
-            detail="a subtract must remove at least one solid (rule S14)",
+            # `_tools` serves `subtract` AND `union`, so the detail cannot
+            # name one of them. Saying "a subtract must remove at least one
+            # solid (rule S14)" for a malformed union named the wrong
+            # operation, the wrong verb, and a rule that does not cover it --
+            # S14 in the spec is literally about `subtract.tools`.
+            detail="`tools` must name at least one solid",
         )
     if not isinstance(value, list):
         raise PlanParseError(f"{where} `tools` must be a list of ids")
     if not value:
-        # S14. Caught here rather than left to the validator because an
-        # empty list is a malformed subtract, not a bad reference.
+        # Caught here rather than left to the validator because an empty
+        # list is a malformed operation, not a bad reference. S14 is the
+        # rule for `subtract` specifically; `union` shares this shape but
+        # not that rule's wording, so the detail states the shape.
         raise PlanParseError(
             f"{where} has an empty `tools` list",
-            detail="a subtract must remove at least one solid (rule S14)",
+            detail="`tools` must name at least one solid",
         )
     if len(value) > MAX_TOOLS:
         raise PlanParseError(

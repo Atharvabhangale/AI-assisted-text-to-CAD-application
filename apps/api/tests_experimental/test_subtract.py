@@ -24,6 +24,7 @@ from cad_experimental.adapter import plan_to_document
 from cad_experimental.build import build_plan
 from cad_experimental.parser import MAX_TOOLS, PlanParseError, parse_plan, parse_plan_text
 from cad_experimental.plan import (
+    TOOL_MODIFIER_TYPES,
     CONSTRUCTIVE_TYPES,
     CONSUMING_TYPES,
     MODIFIER_TYPES,
@@ -251,7 +252,17 @@ class ParseTests(unittest.TestCase):
         with self.assertRaises(PlanParseError):
             parse_plan_text(generated(box(), subtract(tools=tools)))
 
-    def test_tools_on_a_non_subtract_are_rejected(self):
+    def test_tools_on_an_operation_that_takes_none_are_rejected(self):
+        """`union` is a non-subtract that legitimately carries `tools`.
+
+        The old name -- "tools on a NON-SUBTRACT are rejected" -- stated a
+        rule that stopped being true when `union` was added. The body only
+        ever exercised `box` and `through_hole`, so it kept passing while
+        describing the wrong law. `TOOL_MODIFIER_TYPES` is the real answer
+        to "who may carry tools", and it is asserted here so a third
+        tool-taking operation cannot make this name wrong again.
+        """
+        self.assertEqual(set(TOOL_MODIFIER_TYPES), {"subtract", "union"})
         for operation in (
             box(tools=["x"]),
             {"id": "h", "type": "through_hole", "target": "body",
@@ -259,6 +270,7 @@ class ParseTests(unittest.TestCase):
              "parameters": {"diameter": 4,
                             "position": {"x": 1, "y": 1, "z": 0}}},
         ):
+            self.assertNotIn(operation["type"], TOOL_MODIFIER_TYPES)
             with self.subTest(type=operation["type"]):
                 with self.assertRaises(PlanParseError):
                     parse_plan_text(generated(box(), operation))

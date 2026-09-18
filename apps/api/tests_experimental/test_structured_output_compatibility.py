@@ -275,12 +275,18 @@ class CoverageTests(unittest.TestCase):
             names.extend(self.types_of(branch))
         return names
 
-    def test_the_plan_schema_still_describes_all_nine_operations(self):
+    def test_the_plan_schema_still_describes_every_operation(self):
         self.assertEqual(self.kinds(plan_schema()), list(OPERATION_TYPES))
 
     def test_the_plan_schema_gives_each_type_its_own_branch(self):
-        """The faithful description merges nothing: nine types, nine
-        branches, each discriminated by its own `const`."""
+        """The faithful description merges nothing: one branch per type,
+        each discriminated by its own `const`.
+
+        Parameterised on `OPERATION_TYPES`, so the count follows the
+        vocabulary. The prose used to say "nine types, nine branches" and
+        went on saying it through the tenth (`pattern`) and eleventh
+        (`union`) -- true assertions under a false description, which is
+        the worse of the two failure modes because nothing goes red."""
         self.assertEqual(len(self.branches(plan_schema())),
                          len(OPERATION_TYPES))
         for branch in self.branches(plan_schema()):

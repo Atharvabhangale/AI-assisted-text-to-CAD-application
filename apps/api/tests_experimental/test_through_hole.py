@@ -250,7 +250,14 @@ class ReferenceValidationTests(unittest.TestCase):
         ).problems
         message = next(p.message for p in problems if p.code == P11)
         self.assertIn("modifier", message)
-        self.assertIn("constructive", message)
+        # "Name the solid it changed instead", not "Target the constructive
+        # operation instead". The old advice named a field `pattern` cannot
+        # carry -- a pattern's reference is `source`, not `target` -- so for
+        # a pattern the message told the reader to set something that does
+        # not exist. The new wording is true for every operation that can
+        # raise P11.
+        self.assertIn("the solid it changed", message)
+        self.assertNotIn("Target the constructive", message)
 
     def test_a_hole_as_the_first_operation_has_no_body_to_cut(self):
         self.assertIn(P9, self.codes(hole()))
