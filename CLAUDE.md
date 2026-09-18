@@ -1131,6 +1131,38 @@ documented fallback, and nothing selects it automatically.
 The credential is `CAD_ANTHROPIC_API_KEY` (§7 and the Commands block below).
 **Nothing in Claude Code Web may use or request it.**
 
+### Next: multi-body semantics (design only, nothing implemented)
+
+`docs/multi-body-design.md` defines the smallest real vertical slice, written
+against the code as it stands. The shape of it:
+
+- **`part` is a declaration**, the first operation that produces no geometry.
+  A plan with no `part` means one body, exactly as today, so every existing
+  plan, corpus case and fingerprint is untouched by construction.
+- **Two live bodies with no `part` stays a failure.** A leftover solid and a
+  declared second body are different facts; inferring the second from the
+  first is the silent behaviour Stage 62 removed. New rules P33-P36, and
+  `executor.finished` gains one explicit exemption rather than a weakened
+  gate.
+- **Identity and body-local history are largely already there** — Stage 46's
+  `Body` carries id, origin, ordered features, liveness and what consumed
+  it, and the executor already holds one shape per body. The work is the
+  declaration, the selector scoping, and the four downstream semantics.
+- **No output may fuse bodies the plan did not fuse, or drop one.** One mesh
+  per body, per-body measurements, a STEP assembly, and `result.part` stays
+  "the single live body or `None`" — widening it to "the first one" is the
+  Stage 62 bug by another name.
+- **Deliberately excluded:** transforms, mates, joints, constraints, per-body
+  visibility in the plan, sub-assemblies, and any model-facing grammar until
+  the slice works deterministically. Stage 63 measured the model failing P11
+  on a *one*-body union 4/5; adding a `part` branch before that is understood
+  would measure two unknowns at once.
+
+Its own pre-check is run and recorded: six loose plates give a clean
+`multiple_solids` refusal naming all six, with a valid plan and
+`result.part is None` — so the refusal is at the execution layer, where
+`part` can make the result legal without making an illegal plan legal.
+
 ### What it is
 
 Two questions the stable branch cannot ask: **is a flatter CAD representation
