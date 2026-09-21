@@ -43,12 +43,16 @@ class ClaudeMdStatesTheMeasuredFactsTests(unittest.TestCase):
             (REPO / "CLAUDE.md").read_text(encoding="utf-8")).lower()
 
     def _says(self, phrase: str, why: str) -> None:
+        # assertTrue on a BOOLEAN, never assertIn against the document:
+        # assertIn dumps all of CLAUDE.md into the failure message -- 113 KB
+        # measured -- which buries the one line that matters.
         wanted = re.sub(r"\s+", " ", str(phrase).replace("**", "")).lower()
-        self.assertIn(wanted, self.flat, f"CLAUDE.md omits {phrase!r}: {why}")
+        self.assertTrue(wanted in self.flat,
+                        f"CLAUDE.md omits {phrase!r}: {why}")
 
     def _does_not_say(self, phrase: str, why: str) -> None:
         unwanted = re.sub(r"\s+", " ", str(phrase).replace("**", "")).lower()
-        self.assertNotIn(unwanted, self.flat,
+        self.assertFalse(unwanted in self.flat,
                          f"CLAUDE.md still says {phrase!r}: {why}")
 
     # --- vocabulary -----------------------------------------------------

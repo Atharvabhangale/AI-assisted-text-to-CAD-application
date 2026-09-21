@@ -1,0 +1,610 @@
+{
+ "arm": "B1-step-naming",
+ "hypothesis": "HYPOTHESIS B: the prompt says 'give each operation an id that says what it is', which on a union produces a product noun like `assembly` -- and an id that names the product reads like the name of the resulting body. Naming modifiers for their STEP removes the invitation.",
+ "changed": "rewrites the one id-naming sentence. Adds no example.",
+ "request": "Make a hollow rectangular box with 40*20*5 (4)plates and 20*20 (2) plates with 8mm diameter holes in center of each plate",
+ "model": "claude-haiku-4-5-20251001",
+ "provider": "anthropic",
+ "credential_from": "CAD_ANTHROPIC_API_KEY",
+ "prompt_fingerprint": "6c6a5c7e1adf61c4de1af32a7ca2984ec8f9f9a2903b9bbf272e88c48f56ff1f",
+ "prompt_characters": 26445,
+ "baseline_prompt_fingerprint": "aa0a407bd02b18e4ca4e4ba0ede47d3f51a6a158904d6492d1f1e886f81a1ba2",
+ "schema": "strict_selector_union",
+ "schema_inlined": 3628,
+ "schema_fingerprint": "07ab6305e836271ec0d1b49baa62e0fb3ff312aafeefa21e8e5b0b48de119ec3",
+ "calls": 5,
+ "is_live_model_result": true,
+ "attempts": [
+  {
+   "attempt": 1,
+   "seconds": 4.81,
+   "outcome": "invalid_model_output",
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 9291,
+    "output_tokens": 760
+   },
+   "raw_text": "{\"status\": \"generated\", \"summary\": \"Hollow rectangular box made from 6 plates with 8mm diameter center holes.\", \"operations\": [{\"id\": \"plate_long_1\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 20, \"z\": 5}}, {\"id\": \"plate_long_2\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 20, \"z\": 5, \"position\": {\"x\": 0, \"y\": 0, \"z\": 5}}}, {\"id\": \"plate_long_3\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 20, \"z\": 5, \"position\": {\"x\": 0, \"y\": 0, \"z\": 10}}}, {\"id\": \"plate_long_4\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 20, \"z\": 5, \"position\": {\"x\": 0, \"y\": 0, \"z\": 15}}}, {\"id\": \"plate_short_1\", \"type\": \"box\", \"parameters\": {\"x\": 20, \"y\": 20, \"z\": 5, \"position\": {\"x\": 0, \"y\": 20, \"z\": 0}}}, {\"id\": \"plate_short_2\", \"type\": \"box\", \"parameters\": {\"x\": 20, \"y\": 20, \"z\": 5, \"position\": {\"x\": 20, \"y\": 20, \"z\": 0}}}, {\"id\": \"assembly\", \"type\": \"union\", \"target\": \"plate_long_1\", \"tools\": [\"plate_long_2\", \"plate_long_3\", \"plate_long_4\", \"plate_short_1\", \"plate_short_2\"]}, {\"id\": \"hole_long_1\", \"type\": \"through_hole\", \"target\": \"assembly\", \"parameters\": {\"diameter\": 8, \"position\": {\"x\": 20, \"y\": 10, \"z\": 0}}}, {\"id\": \"hole_long_2\", \"type\": \"through_hole\", \"target\": \"assembly\", \"parameters\": {\"diameter\": 8, \"position\": {\"x\": 20, \"y\": 10, \"z\": 5}}}, {\"id\": \"hole_long_3\", \"type\": \"through_hole\", \"target\": \"assembly\", \"parameters\": {\"diameter\": 8, \"position\": {\"x\": 20, \"y\": 10, \"z\": 10}}}, {\"id\": \"hole_long_4\", \"type\": \"through_hole\", \"target\": \"assembly\", \"parameters\": {\"diameter\": 8, \"position\": {\"x\": 20, \"y\": 10, \"z\": 15}}}, {\"id\": \"hole_short_1\", \"type\": \"through_hole\", \"target\": \"assembly\", \"parameters\": {\"diameter\": 8, \"position\": {\"x\": 10, \"y\": 30, \"z\": 0}}}, {\"id\": \"hole_short_2\", \"type\": \"through_hole\", \"target\": \"assembly\", \"parameters\": {\"diameter\": 8, \"position\": {\"x\": 30, \"y\": 30, \"z\": 0}}}]}",
+   "provider_error": "the plan is not valid",
+   "fenced": false,
+   "operations": [
+    {
+     "id": "plate_long_1",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "plate_long_2",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "plate_long_3",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "plate_long_4",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "plate_short_1",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "plate_short_2",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "assembly",
+     "type": "union",
+     "target": "plate_long_1",
+     "tools": [
+      "plate_long_2",
+      "plate_long_3",
+      "plate_long_4",
+      "plate_short_1",
+      "plate_short_2"
+     ]
+    },
+    {
+     "id": "hole_long_1",
+     "type": "through_hole",
+     "target": "assembly",
+     "tools": null
+    },
+    {
+     "id": "hole_long_2",
+     "type": "through_hole",
+     "target": "assembly",
+     "tools": null
+    },
+    {
+     "id": "hole_long_3",
+     "type": "through_hole",
+     "target": "assembly",
+     "tools": null
+    },
+    {
+     "id": "hole_long_4",
+     "type": "through_hole",
+     "target": "assembly",
+     "tools": null
+    },
+    {
+     "id": "hole_short_1",
+     "type": "through_hole",
+     "target": "assembly",
+     "tools": null
+    },
+    {
+     "id": "hole_short_2",
+     "type": "through_hole",
+     "target": "assembly",
+     "tools": null
+    }
+   ],
+   "used_union": true,
+   "union_id": "assembly",
+   "union_target": "plate_long_1",
+   "targets_the_union_id": [
+    "hole_long_1",
+    "hole_long_2",
+    "hole_long_3",
+    "hole_long_4",
+    "hole_short_1",
+    "hole_short_2"
+   ],
+   "problems": [
+    {
+     "code": "P11",
+     "message": "'assembly' does not name a solid: it is a modifier, whose result keeps its own target's id. Name the solid it changed instead"
+    },
+    {
+     "code": "P11",
+     "message": "'assembly' does not name a solid: it is a modifier, whose result keeps its own target's id. Name the solid it changed instead"
+    },
+    {
+     "code": "P11",
+     "message": "'assembly' does not name a solid: it is a modifier, whose result keeps its own target's id. Name the solid it changed instead"
+    },
+    {
+     "code": "P11",
+     "message": "'assembly' does not name a solid: it is a modifier, whose result keeps its own target's id. Name the solid it changed instead"
+    },
+    {
+     "code": "P11",
+     "message": "'assembly' does not name a solid: it is a modifier, whose result keeps its own target's id. Name the solid it changed instead"
+    },
+    {
+     "code": "P11",
+     "message": "'assembly' does not name a solid: it is a modifier, whose result keeps its own target's id. Name the solid it changed instead"
+    }
+   ],
+   "plan_valid": false,
+   "stage": "invalid:P11",
+   "codes": [
+    "P11"
+   ]
+  },
+  {
+   "attempt": 2,
+   "seconds": 2.71,
+   "outcome": "needs_clarification",
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 9291,
+    "output_tokens": 151
+   },
+   "raw_text": "{\"status\": \"needs_clarification\", \"summary\": \"Clarification needed about the hollow box assembly.\", \"questions\": [\"How should the six plates be positioned relative to each other to form a hollow rectangular box? Should they meet edge-to-edge to form the walls and top/bottom of an enclosure?\", \"Are the 40\u00d720 plates (4 total) the sides, and the 20\u00d720 plates (2 total) the top and bottom? Or a different arrangement?\", \"Should the 8mm diameter holes be drilled through each plate before or after they are fused together, and do all six plates have holes or only some?\"], \"operations\": []}",
+   "provider_error": null,
+   "fenced": false,
+   "operations": [],
+   "used_union": false,
+   "targets_the_union_id": [],
+   "problems": [],
+   "plan_valid": true,
+   "built": false,
+   "build_failure": {
+    "code": "not_generated",
+    "message": "a `needs_clarification` plan has no geometry to build"
+   },
+   "stage": "build_failed",
+   "codes": []
+  },
+  {
+   "attempt": 3,
+   "seconds": 4.14,
+   "outcome": "invalid_model_output",
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 9291,
+    "output_tokens": 755
+   },
+   "raw_text": "{\"status\": \"generated\", \"summary\": \"Hollow rectangular enclosure made from six plates with 8mm diameter holes at the center of each.\", \"operations\": [{\"id\": \"plate_bottom\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 20, \"z\": 5}}, {\"id\": \"plate_top\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 20, \"z\": 5, \"position\": {\"x\": 0, \"y\": 0, \"z\": 5}}}, {\"id\": \"plate_left\", \"type\": \"box\", \"parameters\": {\"x\": 20, \"y\": 5, \"z\": 20, \"position\": {\"x\": 0, \"y\": 0, \"z\": 5}}}, {\"id\": \"plate_right\", \"type\": \"box\", \"parameters\": {\"x\": 20, \"y\": 5, \"z\": 20, \"position\": {\"x\": 20, \"y\": 15, \"z\": 5}}}, {\"id\": \"plate_front\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 5, \"z\": 20, \"position\": {\"x\": 0, \"y\": 0, \"z\": 5}}}, {\"id\": \"plate_back\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 5, \"z\": 20, \"position\": {\"x\": 0, \"y\": 15, \"z\": 5}}}, {\"id\": \"assembled\", \"type\": \"union\", \"target\": \"plate_bottom\", \"tools\": [\"plate_top\", \"plate_left\", \"plate_right\", \"plate_front\", \"plate_back\"]}, {\"id\": \"hole_bottom\", \"type\": \"through_hole\", \"target\": \"assembled\", \"parameters\": {\"diameter\": 8, \"position\": {\"x\": 20, \"y\": 10, \"z\": 0}}}, {\"id\": \"hole_top\", \"type\": \"through_hole\", \"target\": \"assembled\", \"parameters\": {\"diameter\": 8, \"position\": {\"x\": 20, \"y\": 10, \"z\": 10}}}, {\"id\": \"hole_left\", \"type\": \"through_hole\", \"target\": \"assembled\", \"parameters\": {\"diameter\": 8, \"position\": {\"x\": 0, \"y\": 2.5, \"z\": 15}, \"axis\": \"+X\"}}, {\"id\": \"hole_right\", \"type\": \"through_hole\", \"target\": \"assembled\", \"parameters\": {\"diameter\": 8, \"position\": {\"x\": 20, \"y\": 17.5, \"z\": 15}, \"axis\": \"+X\"}}, {\"id\": \"hole_front\", \"type\": \"through_hole\", \"target\": \"assembled\", \"parameters\": {\"diameter\": 8, \"position\": {\"x\": 20, \"y\": 0, \"z\": 15}, \"axis\": \"+Y\"}}, {\"id\": \"hole_back\", \"type\": \"through_hole\", \"target\": \"assembled\", \"parameters\": {\"diameter\": 8, \"position\": {\"x\": 20, \"y\": 20, \"z\": 15}, \"axis\": \"+Y\"}}]}",
+   "provider_error": "the plan is not valid",
+   "fenced": false,
+   "operations": [
+    {
+     "id": "plate_bottom",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "plate_top",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "plate_left",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "plate_right",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "plate_front",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "plate_back",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "assembled",
+     "type": "union",
+     "target": "plate_bottom",
+     "tools": [
+      "plate_top",
+      "plate_left",
+      "plate_right",
+      "plate_front",
+      "plate_back"
+     ]
+    },
+    {
+     "id": "hole_bottom",
+     "type": "through_hole",
+     "target": "assembled",
+     "tools": null
+    },
+    {
+     "id": "hole_top",
+     "type": "through_hole",
+     "target": "assembled",
+     "tools": null
+    },
+    {
+     "id": "hole_left",
+     "type": "through_hole",
+     "target": "assembled",
+     "tools": null
+    },
+    {
+     "id": "hole_right",
+     "type": "through_hole",
+     "target": "assembled",
+     "tools": null
+    },
+    {
+     "id": "hole_front",
+     "type": "through_hole",
+     "target": "assembled",
+     "tools": null
+    },
+    {
+     "id": "hole_back",
+     "type": "through_hole",
+     "target": "assembled",
+     "tools": null
+    }
+   ],
+   "used_union": true,
+   "union_id": "assembled",
+   "union_target": "plate_bottom",
+   "targets_the_union_id": [
+    "hole_bottom",
+    "hole_top",
+    "hole_left",
+    "hole_right",
+    "hole_front",
+    "hole_back"
+   ],
+   "problems": [
+    {
+     "code": "P11",
+     "message": "'assembled' does not name a solid: it is a modifier, whose result keeps its own target's id. Name the solid it changed instead"
+    },
+    {
+     "code": "P11",
+     "message": "'assembled' does not name a solid: it is a modifier, whose result keeps its own target's id. Name the solid it changed instead"
+    },
+    {
+     "code": "P11",
+     "message": "'assembled' does not name a solid: it is a modifier, whose result keeps its own target's id. Name the solid it changed instead"
+    },
+    {
+     "code": "P11",
+     "message": "'assembled' does not name a solid: it is a modifier, whose result keeps its own target's id. Name the solid it changed instead"
+    },
+    {
+     "code": "P11",
+     "message": "'assembled' does not name a solid: it is a modifier, whose result keeps its own target's id. Name the solid it changed instead"
+    },
+    {
+     "code": "P11",
+     "message": "'assembled' does not name a solid: it is a modifier, whose result keeps its own target's id. Name the solid it changed instead"
+    }
+   ],
+   "plan_valid": false,
+   "stage": "invalid:P11",
+   "codes": [
+    "P11"
+   ]
+  },
+  {
+   "attempt": 4,
+   "seconds": 3.73,
+   "outcome": "invalid_model_output",
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 9291,
+    "output_tokens": 634
+   },
+   "raw_text": "{\"status\": \"generated\", \"summary\": \"A hollow rectangular box assembled from six plates with 8mm center holes in four plates.\", \"operations\": [{\"id\": \"plate_long_1\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 20, \"z\": 5}}, {\"id\": \"plate_long_2\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 20, \"z\": 5, \"position\": {\"x\": 0, \"y\": 0, \"z\": 15}}}, {\"id\": \"plate_short_1\", \"type\": \"box\", \"parameters\": {\"x\": 20, \"y\": 20, \"z\": 5, \"position\": {\"x\": 0, \"y\": 0, \"z\": 5}}}, {\"id\": \"plate_short_2\", \"type\": \"box\", \"parameters\": {\"x\": 20, \"y\": 20, \"z\": 5, \"position\": {\"x\": 20, \"y\": 0, \"z\": 5}}}, {\"id\": \"side_1\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 20, \"z\": 5, \"position\": {\"x\": 0, \"y\": 20, \"z\": 5}}}, {\"id\": \"side_2\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 20, \"z\": 5, \"position\": {\"x\": 0, \"y\": -20, \"z\": 5}}}, {\"id\": \"assembly\", \"type\": \"union\", \"target\": \"plate_long_1\", \"tools\": [\"plate_long_2\", \"plate_short_1\", \"plate_short_2\", \"side_1\", \"side_2\"]}, {\"id\": \"hole_1\", \"type\": \"through_hole\", \"target\": \"assembly\", \"parameters\": {\"diameter\": 8, \"position\": {\"x\": 10, \"y\": 10, \"z\": 0}}}, {\"id\": \"hole_2\", \"type\": \"through_hole\", \"target\": \"assembly\", \"parameters\": {\"diameter\": 8, \"position\": {\"x\": 30, \"y\": 10, \"z\": 0}}}, {\"id\": \"hole_3\", \"type\": \"through_hole\", \"target\": \"assembly\", \"parameters\": {\"diameter\": 8, \"position\": {\"x\": 10, \"y\": 10, \"z\": 20}}}, {\"id\": \"hole_4\", \"type\": \"through_hole\", \"target\": \"assembly\", \"parameters\": {\"diameter\": 8, \"position\": {\"x\": 30, \"y\": 10, \"z\": 20}}}]}",
+   "provider_error": "the plan is not valid",
+   "fenced": false,
+   "operations": [
+    {
+     "id": "plate_long_1",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "plate_long_2",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "plate_short_1",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "plate_short_2",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "side_1",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "side_2",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "assembly",
+     "type": "union",
+     "target": "plate_long_1",
+     "tools": [
+      "plate_long_2",
+      "plate_short_1",
+      "plate_short_2",
+      "side_1",
+      "side_2"
+     ]
+    },
+    {
+     "id": "hole_1",
+     "type": "through_hole",
+     "target": "assembly",
+     "tools": null
+    },
+    {
+     "id": "hole_2",
+     "type": "through_hole",
+     "target": "assembly",
+     "tools": null
+    },
+    {
+     "id": "hole_3",
+     "type": "through_hole",
+     "target": "assembly",
+     "tools": null
+    },
+    {
+     "id": "hole_4",
+     "type": "through_hole",
+     "target": "assembly",
+     "tools": null
+    }
+   ],
+   "used_union": true,
+   "union_id": "assembly",
+   "union_target": "plate_long_1",
+   "targets_the_union_id": [
+    "hole_1",
+    "hole_2",
+    "hole_3",
+    "hole_4"
+   ],
+   "problems": [
+    {
+     "code": "P11",
+     "message": "'assembly' does not name a solid: it is a modifier, whose result keeps its own target's id. Name the solid it changed instead"
+    },
+    {
+     "code": "P11",
+     "message": "'assembly' does not name a solid: it is a modifier, whose result keeps its own target's id. Name the solid it changed instead"
+    },
+    {
+     "code": "P11",
+     "message": "'assembly' does not name a solid: it is a modifier, whose result keeps its own target's id. Name the solid it changed instead"
+    },
+    {
+     "code": "P11",
+     "message": "'assembly' does not name a solid: it is a modifier, whose result keeps its own target's id. Name the solid it changed instead"
+    }
+   ],
+   "plan_valid": false,
+   "stage": "invalid:P11",
+   "codes": [
+    "P11"
+   ]
+  },
+  {
+   "attempt": 5,
+   "seconds": 4.61,
+   "outcome": "invalid_model_output",
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 9291,
+    "output_tokens": 816
+   },
+   "raw_text": "{\"status\": \"generated\", \"summary\": \"A hollow rectangular box made from six plates: four 40\u00d720\u00d75 mm plates and two 20\u00d720\u00d75 mm plates (assumed thickness), with 8 mm diameter holes through the center of each plate.\", \"operations\": [{\"id\": \"plate_40_20_1\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 20, \"z\": 5}}, {\"id\": \"plate_40_20_2\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 20, \"z\": 5, \"position\": {\"x\": 0, \"y\": 0, \"z\": 5}}}, {\"id\": \"plate_20_20_1\", \"type\": \"box\", \"parameters\": {\"x\": 20, \"y\": 20, \"z\": 5, \"position\": {\"x\": 10, \"y\": 0, \"z\": 10}}}, {\"id\": \"plate_20_20_2\", \"type\": \"box\", \"parameters\": {\"x\": 20, \"y\": 20, \"z\": 5, \"position\": {\"x\": 10, \"y\": 0, \"z\": 0}}}, {\"id\": \"plate_40_20_3\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 20, \"z\": 5, \"position\": {\"x\": 0, \"y\": 20, \"z\": 5}}}, {\"id\": \"plate_40_20_4\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 20, \"z\": 5, \"position\": {\"x\": 0, \"y\": 20, \"z\": 10}}}, {\"id\": \"assembled_box\", \"type\": \"union\", \"target\": \"plate_40_20_1\", \"tools\": [\"plate_40_20_2\", \"plate_20_20_1\", \"plate_20_20_2\", \"plate_40_20_3\", \"plate_40_20_4\"]}, {\"id\": \"hole_1\", \"type\": \"through_hole\", \"target\": \"assembled_box\", \"parameters\": {\"diameter\": 8, \"position\": {\"x\": 20, \"y\": 10, \"z\": 0}}}, {\"id\": \"hole_2\", \"type\": \"through_hole\", \"target\": \"assembled_box\", \"parameters\": {\"diameter\": 8, \"position\": {\"x\": 20, \"y\": 10, \"z\": 15}}}, {\"id\": \"hole_3\", \"type\": \"through_hole\", \"target\": \"assembled_box\", \"parameters\": {\"diameter\": 8, \"position\": {\"x\": 10, \"y\": 20, \"z\": 5}}}, {\"id\": \"hole_4\", \"type\": \"through_hole\", \"target\": \"assembled_box\", \"parameters\": {\"diameter\": 8, \"position\": {\"x\": 30, \"y\": 20, \"z\": 5}}}, {\"id\": \"hole_5\", \"type\": \"through_hole\", \"target\": \"assembled_box\", \"parameters\": {\"diameter\": 8, \"position\": {\"x\": 10, \"y\": 40, \"z\": 5}}}, {\"id\": \"hole_6\", \"type\": \"through_hole\", \"target\": \"assembled_box\", \"parameters\": {\"diameter\": 8, \"position\": {\"x\": 30, \"y\": 40, \"z\": 5}}}]}",
+   "provider_error": "the plan is not valid",
+   "fenced": false,
+   "operations": [
+    {
+     "id": "plate_40_20_1",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "plate_40_20_2",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "plate_20_20_1",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "plate_20_20_2",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "plate_40_20_3",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "plate_40_20_4",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "assembled_box",
+     "type": "union",
+     "target": "plate_40_20_1",
+     "tools": [
+      "plate_40_20_2",
+      "plate_20_20_1",
+      "plate_20_20_2",
+      "plate_40_20_3",
+      "plate_40_20_4"
+     ]
+    },
+    {
+     "id": "hole_1",
+     "type": "through_hole",
+     "target": "assembled_box",
+     "tools": null
+    },
+    {
+     "id": "hole_2",
+     "type": "through_hole",
+     "target": "assembled_box",
+     "tools": null
+    },
+    {
+     "id": "hole_3",
+     "type": "through_hole",
+     "target": "assembled_box",
+     "tools": null
+    },
+    {
+     "id": "hole_4",
+     "type": "through_hole",
+     "target": "assembled_box",
+     "tools": null
+    },
+    {
+     "id": "hole_5",
+     "type": "through_hole",
+     "target": "assembled_box",
+     "tools": null
+    },
+    {
+     "id": "hole_6",
+     "type": "through_hole",
+     "target": "assembled_box",
+     "tools": null
+    }
+   ],
+   "used_union": true,
+   "union_id": "assembled_box",
+   "union_target": "plate_40_20_1",
+   "targets_the_union_id": [
+    "hole_1",
+    "hole_2",
+    "hole_3",
+    "hole_4",
+    "hole_5",
+    "hole_6"
+   ],
+   "problems": [
+    {
+     "code": "P11",
+     "message": "'assembled_box' does not name a solid: it is a modifier, whose result keeps its own target's id. Name the solid it changed instead"
+    },
+    {
+     "code": "P11",
+     "message": "'assembled_box' does not name a solid: it is a modifier, whose result keeps its own target's id. Name the solid it changed instead"
+    },
+    {
+     "code": "P11",
+     "message": "'assembled_box' does not name a solid: it is a modifier, whose result keeps its own target's id. Name the solid it changed instead"
+    },
+    {
+     "code": "P11",
+     "message": "'assembled_box' does not name a solid: it is a modifier, whose result keeps its own target's id. Name the solid it changed instead"
+    },
+    {
+     "code": "P11",
+     "message": "'assembled_box' does not name a solid: it is a modifier, whose result keeps its own target's id. Name the solid it changed instead"
+    },
+    {
+     "code": "P11",
+     "message": "'assembled_box' does not name a solid: it is a modifier, whose result keeps its own target's id. Name the solid it changed instead"
+    }
+   ],
+   "plan_valid": false,
+   "stage": "invalid:P11",
+   "codes": [
+    "P11"
+   ]
+  }
+ ],
+ "backend": "cadquery",
+ "backend_version": "2.8.0",
+ "summary": {
+  "calls": 5,
+  "compiled": 5,
+  "fenced": 0,
+  "used_union": 4,
+  "parsed": 5,
+  "validated": 1,
+  "built": 0,
+  "targeted_the_union_id": 4,
+  "codes": {
+   "P11": 4
+  },
+  "stages": {
+   "invalid:P11": 4,
+   "build_failed": 1
+  }
+ }
+}

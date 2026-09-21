@@ -1,0 +1,361 @@
+{
+ "arm": "X1-two-plate-diagnostic",
+ "hypothesis": "DIAGNOSTIC, not a fix: does the model handle the SIMPLEST possible post-union hole on the baseline prompt?",
+ "changed": "nothing -- baseline prompt, baseline schema, simpler request",
+ "request": "Make a bracket from two plates: a 60 x 40 x 5 mm base plate, and a 60 x 5 x 30 mm wall standing on one long edge of it, joined into one solid, with an 8 mm hole through the centre of the base.",
+ "model": "claude-haiku-4-5-20251001",
+ "provider": "anthropic",
+ "credential_from": "CAD_ANTHROPIC_API_KEY",
+ "prompt_fingerprint": "aa0a407bd02b18e4ca4e4ba0ede47d3f51a6a158904d6492d1f1e886f81a1ba2",
+ "prompt_characters": 26081,
+ "baseline_prompt_fingerprint": "aa0a407bd02b18e4ca4e4ba0ede47d3f51a6a158904d6492d1f1e886f81a1ba2",
+ "schema": "strict_selector_union",
+ "schema_inlined": 3628,
+ "schema_fingerprint": "07ab6305e836271ec0d1b49baa62e0fb3ff312aafeefa21e8e5b0b48de119ec3",
+ "calls": 5,
+ "is_live_model_result": true,
+ "attempts": [
+  {
+   "attempt": 1,
+   "seconds": 2.27,
+   "outcome": "invalid_model_output",
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 9218,
+    "output_tokens": 200
+   },
+   "raw_text": "{\"status\": \"generated\", \"summary\": \"A bracket made from two plates joined into one solid with a hole through the base.\", \"operations\": [{\"id\": \"base\", \"type\": \"box\", \"parameters\": {\"x\": 60, \"y\": 40, \"z\": 5}}, {\"id\": \"wall\", \"type\": \"box\", \"parameters\": {\"x\": 60, \"y\": 5, \"z\": 30, \"position\": {\"x\": 0, \"y\": 40, \"z\": 0}}}, {\"id\": \"bracket\", \"type\": \"union\", \"target\": \"base\", \"tools\": [\"wall\"]}, {\"id\": \"hole\", \"type\": \"through_hole\", \"target\": \"bracket\", \"parameters\": {\"diameter\": 8, \"position\": {\"x\": 30, \"y\": 20, \"z\": 0}}}]}",
+   "provider_error": "the plan is not valid",
+   "fenced": false,
+   "operations": [
+    {
+     "id": "base",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "wall",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "bracket",
+     "type": "union",
+     "target": "base",
+     "tools": [
+      "wall"
+     ]
+    },
+    {
+     "id": "hole",
+     "type": "through_hole",
+     "target": "bracket",
+     "tools": null
+    }
+   ],
+   "used_union": true,
+   "union_id": "bracket",
+   "union_target": "base",
+   "targets_the_union_id": [
+    "hole"
+   ],
+   "operations_after_union": 1,
+   "post_union_modifiers": [
+    "hole"
+   ],
+   "post_union_targets_surviving_body": false,
+   "problems": [
+    {
+     "code": "P11",
+     "message": "'bracket' does not name a solid: it is a modifier, whose result keeps its own target's id. Name the solid it changed instead"
+    }
+   ],
+   "plan_valid": false,
+   "stage": "invalid:P11",
+   "codes": [
+    "P11"
+   ]
+  },
+  {
+   "attempt": 2,
+   "seconds": 2.02,
+   "outcome": "invalid_model_output",
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 9218,
+    "output_tokens": 214
+   },
+   "raw_text": "{\"status\": \"generated\", \"summary\": \"A bracket made from two plates joined by union, with an 8 mm hole through the base.\", \"operations\": [{\"id\": \"base_plate\", \"type\": \"box\", \"parameters\": {\"x\": 60, \"y\": 40, \"z\": 5}}, {\"id\": \"wall_plate\", \"type\": \"box\", \"parameters\": {\"x\": 60, \"y\": 5, \"z\": 30, \"position\": {\"x\": 0, \"y\": 40, \"z\": 0}}}, {\"id\": \"bracket\", \"type\": \"union\", \"target\": \"base_plate\", \"tools\": [\"wall_plate\"]}, {\"id\": \"center_hole\", \"type\": \"through_hole\", \"target\": \"bracket\", \"parameters\": {\"diameter\": 8, \"position\": {\"x\": 30, \"y\": 20, \"z\": 0}}}]}",
+   "provider_error": "the plan is not valid",
+   "fenced": false,
+   "operations": [
+    {
+     "id": "base_plate",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "wall_plate",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "bracket",
+     "type": "union",
+     "target": "base_plate",
+     "tools": [
+      "wall_plate"
+     ]
+    },
+    {
+     "id": "center_hole",
+     "type": "through_hole",
+     "target": "bracket",
+     "tools": null
+    }
+   ],
+   "used_union": true,
+   "union_id": "bracket",
+   "union_target": "base_plate",
+   "targets_the_union_id": [
+    "center_hole"
+   ],
+   "operations_after_union": 1,
+   "post_union_modifiers": [
+    "center_hole"
+   ],
+   "post_union_targets_surviving_body": false,
+   "problems": [
+    {
+     "code": "P11",
+     "message": "'bracket' does not name a solid: it is a modifier, whose result keeps its own target's id. Name the solid it changed instead"
+    }
+   ],
+   "plan_valid": false,
+   "stage": "invalid:P11",
+   "codes": [
+    "P11"
+   ]
+  },
+  {
+   "attempt": 3,
+   "seconds": 2.08,
+   "outcome": "invalid_model_output",
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 9218,
+    "output_tokens": 228
+   },
+   "raw_text": "{\"status\": \"generated\", \"summary\": \"A bracket made from a 60\u00d740\u00d75 mm base plate and a 60\u00d75\u00d730 mm wall plate joined by union, with an 8 mm hole through the center of the base.\", \"operations\": [{\"id\": \"base\", \"type\": \"box\", \"parameters\": {\"x\": 60, \"y\": 40, \"z\": 5}}, {\"id\": \"wall\", \"type\": \"box\", \"parameters\": {\"x\": 60, \"y\": 5, \"z\": 30, \"position\": {\"x\": 0, \"y\": 40, \"z\": 0}}}, {\"id\": \"bracket\", \"type\": \"union\", \"target\": \"base\", \"tools\": [\"wall\"]}, {\"id\": \"hole\", \"type\": \"through_hole\", \"target\": \"bracket\", \"parameters\": {\"diameter\": 8, \"position\": {\"x\": 30, \"y\": 20, \"z\": 0}}}]}",
+   "provider_error": "the plan is not valid",
+   "fenced": false,
+   "operations": [
+    {
+     "id": "base",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "wall",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "bracket",
+     "type": "union",
+     "target": "base",
+     "tools": [
+      "wall"
+     ]
+    },
+    {
+     "id": "hole",
+     "type": "through_hole",
+     "target": "bracket",
+     "tools": null
+    }
+   ],
+   "used_union": true,
+   "union_id": "bracket",
+   "union_target": "base",
+   "targets_the_union_id": [
+    "hole"
+   ],
+   "operations_after_union": 1,
+   "post_union_modifiers": [
+    "hole"
+   ],
+   "post_union_targets_surviving_body": false,
+   "problems": [
+    {
+     "code": "P11",
+     "message": "'bracket' does not name a solid: it is a modifier, whose result keeps its own target's id. Name the solid it changed instead"
+    }
+   ],
+   "plan_valid": false,
+   "stage": "invalid:P11",
+   "codes": [
+    "P11"
+   ]
+  },
+  {
+   "attempt": 4,
+   "seconds": 2.0,
+   "outcome": "invalid_model_output",
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 9218,
+    "output_tokens": 201
+   },
+   "raw_text": "{\"status\": \"generated\", \"summary\": \"A bracket made from two plates joined into one solid with a central hole through the base.\", \"operations\": [{\"id\": \"base\", \"type\": \"box\", \"parameters\": {\"x\": 60, \"y\": 40, \"z\": 5}}, {\"id\": \"wall\", \"type\": \"box\", \"parameters\": {\"x\": 60, \"y\": 5, \"z\": 30, \"position\": {\"x\": 0, \"y\": 0, \"z\": 5}}}, {\"id\": \"bracket\", \"type\": \"union\", \"target\": \"base\", \"tools\": [\"wall\"]}, {\"id\": \"hole\", \"type\": \"through_hole\", \"target\": \"bracket\", \"parameters\": {\"diameter\": 8, \"position\": {\"x\": 30, \"y\": 20, \"z\": 0}}}]}",
+   "provider_error": "the plan is not valid",
+   "fenced": false,
+   "operations": [
+    {
+     "id": "base",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "wall",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "bracket",
+     "type": "union",
+     "target": "base",
+     "tools": [
+      "wall"
+     ]
+    },
+    {
+     "id": "hole",
+     "type": "through_hole",
+     "target": "bracket",
+     "tools": null
+    }
+   ],
+   "used_union": true,
+   "union_id": "bracket",
+   "union_target": "base",
+   "targets_the_union_id": [
+    "hole"
+   ],
+   "operations_after_union": 1,
+   "post_union_modifiers": [
+    "hole"
+   ],
+   "post_union_targets_surviving_body": false,
+   "problems": [
+    {
+     "code": "P11",
+     "message": "'bracket' does not name a solid: it is a modifier, whose result keeps its own target's id. Name the solid it changed instead"
+    }
+   ],
+   "plan_valid": false,
+   "stage": "invalid:P11",
+   "codes": [
+    "P11"
+   ]
+  },
+  {
+   "attempt": 5,
+   "seconds": 2.49,
+   "outcome": "invalid_model_output",
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 9218,
+    "output_tokens": 203
+   },
+   "raw_text": "{\"status\": \"generated\", \"summary\": \"A bracket made from two plates joined by union, with a central through-hole in the base.\", \"operations\": [{\"id\": \"base\", \"type\": \"box\", \"parameters\": {\"x\": 60, \"y\": 40, \"z\": 5}}, {\"id\": \"wall\", \"type\": \"box\", \"parameters\": {\"x\": 60, \"y\": 5, \"z\": 30, \"position\": {\"x\": 0, \"y\": 40, \"z\": 0}}}, {\"id\": \"bracket\", \"type\": \"union\", \"target\": \"base\", \"tools\": [\"wall\"]}, {\"id\": \"hole\", \"type\": \"through_hole\", \"target\": \"bracket\", \"parameters\": {\"diameter\": 8, \"position\": {\"x\": 30, \"y\": 20, \"z\": 0}}}]}",
+   "provider_error": "the plan is not valid",
+   "fenced": false,
+   "operations": [
+    {
+     "id": "base",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "wall",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "bracket",
+     "type": "union",
+     "target": "base",
+     "tools": [
+      "wall"
+     ]
+    },
+    {
+     "id": "hole",
+     "type": "through_hole",
+     "target": "bracket",
+     "tools": null
+    }
+   ],
+   "used_union": true,
+   "union_id": "bracket",
+   "union_target": "base",
+   "targets_the_union_id": [
+    "hole"
+   ],
+   "operations_after_union": 1,
+   "post_union_modifiers": [
+    "hole"
+   ],
+   "post_union_targets_surviving_body": false,
+   "problems": [
+    {
+     "code": "P11",
+     "message": "'bracket' does not name a solid: it is a modifier, whose result keeps its own target's id. Name the solid it changed instead"
+    }
+   ],
+   "plan_valid": false,
+   "stage": "invalid:P11",
+   "codes": [
+    "P11"
+   ]
+  }
+ ],
+ "backend": "cadquery",
+ "backend_version": "2.8.0",
+ "summary": {
+  "calls": 5,
+  "compiled": 5,
+  "fenced": 0,
+  "used_union": 5,
+  "parsed": 5,
+  "validated": 0,
+  "built": 0,
+  "has_post_union_modifier": 5,
+  "post_union_targets_surviving_body": 0,
+  "envelope_is_an_enclosure": 0,
+  "SEMANTICALLY_CORRECT": 0,
+  "targeted_the_union_id": 5,
+  "codes": {
+   "P11": 5
+  },
+  "stages": {
+   "invalid:P11": 5
+  }
+ }
+}

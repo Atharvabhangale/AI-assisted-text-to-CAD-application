@@ -1,0 +1,402 @@
+{
+ "arm": "E1-simple-request",
+ "hypothesis": "E1's fix on a request whose GEOMETRY is simple. The six-plate hollow box now fails on rule E1 (a hole misses material) rather than on the union-target rule, which is a different and harder problem. This isolates the rule from the arrangement.",
+ "changed": "E1's prompt, simpler request",
+ "request": "Make a bracket from two plates: a 60 x 40 x 5 mm base plate, and a 60 x 5 x 30 mm wall standing on one long edge of it, joined into one solid, with an 8 mm hole through the centre of the base.",
+ "model": "claude-haiku-4-5-20251001",
+ "provider": "anthropic",
+ "credential_from": "CAD_ANTHROPIC_API_KEY",
+ "prompt_fingerprint": "978976195f8fd201591e78663edc814feca09e3ed3ab7d822bbfef73c2c04826",
+ "prompt_characters": 26723,
+ "baseline_prompt_fingerprint": "aa0a407bd02b18e4ca4e4ba0ede47d3f51a6a158904d6492d1f1e886f81a1ba2",
+ "schema": "strict_selector_union",
+ "schema_inlined": 3628,
+ "schema_fingerprint": "07ab6305e836271ec0d1b49baa62e0fb3ff312aafeefa21e8e5b0b48de119ec3",
+ "calls": 5,
+ "is_live_model_result": true,
+ "attempts": [
+  {
+   "attempt": 1,
+   "seconds": 2.35,
+   "outcome": "invalid_model_output",
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 9391,
+    "output_tokens": 210
+   },
+   "raw_text": "{\"status\": \"generated\", \"summary\": \"A bracket made from a base plate and wall plate fused together, with an 8 mm hole through the base plate centre.\", \"operations\": [{\"id\": \"base\", \"type\": \"box\", \"parameters\": {\"x\": 60, \"y\": 40, \"z\": 5}}, {\"id\": \"wall\", \"type\": \"box\", \"parameters\": {\"x\": 60, \"y\": 5, \"z\": 30, \"position\": {\"x\": 0, \"y\": 0, \"z\": 5}}}, {\"id\": \"bracket\", \"type\": \"union\", \"target\": \"base\", \"tools\": [\"wall\"]}, {\"id\": \"hole\", \"type\": \"through_hole\", \"target\": \"bracket\", \"parameters\": {\"diameter\": 8, \"position\": {\"x\": 30, \"y\": 20, \"z\": 0}}}]}",
+   "provider_error": "the plan is not valid",
+   "fenced": false,
+   "operations": [
+    {
+     "id": "base",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "wall",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "bracket",
+     "type": "union",
+     "target": "base",
+     "tools": [
+      "wall"
+     ]
+    },
+    {
+     "id": "hole",
+     "type": "through_hole",
+     "target": "bracket",
+     "tools": null
+    }
+   ],
+   "used_union": true,
+   "union_id": "bracket",
+   "union_target": "base",
+   "targets_the_union_id": [
+    "hole"
+   ],
+   "operations_after_union": 1,
+   "post_union_modifiers": [
+    "hole"
+   ],
+   "post_union_targets_surviving_body": false,
+   "problems": [
+    {
+     "code": "P11",
+     "message": "'bracket' does not name a solid: it is a modifier, whose result keeps its own target's id. Name the solid it changed instead"
+    }
+   ],
+   "plan_valid": false,
+   "stage": "invalid:P11",
+   "codes": [
+    "P11"
+   ]
+  },
+  {
+   "attempt": 2,
+   "seconds": 2.05,
+   "outcome": "generated",
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 9391,
+    "output_tokens": 201
+   },
+   "raw_text": "{\"status\": \"generated\", \"summary\": \"A bracket made from two joined plates with a central through-hole in the base.\", \"operations\": [{\"id\": \"base\", \"type\": \"box\", \"parameters\": {\"x\": 60, \"y\": 40, \"z\": 5}}, {\"id\": \"wall\", \"type\": \"box\", \"parameters\": {\"x\": 60, \"y\": 5, \"z\": 30, \"position\": {\"x\": 0, \"y\": 40, \"z\": 0}}}, {\"id\": \"fuse\", \"type\": \"union\", \"target\": \"base\", \"tools\": [\"wall\"]}, {\"id\": \"hole\", \"type\": \"through_hole\", \"target\": \"base\", \"parameters\": {\"diameter\": 8, \"position\": {\"x\": 30, \"y\": 20, \"z\": 0}}}]}",
+   "provider_error": null,
+   "fenced": false,
+   "operations": [
+    {
+     "id": "base",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "wall",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "fuse",
+     "type": "union",
+     "target": "base",
+     "tools": [
+      "wall"
+     ]
+    },
+    {
+     "id": "hole",
+     "type": "through_hole",
+     "target": "base",
+     "tools": null
+    }
+   ],
+   "used_union": true,
+   "union_id": "fuse",
+   "union_target": "base",
+   "targets_the_union_id": [],
+   "operations_after_union": 1,
+   "post_union_modifiers": [
+    "hole"
+   ],
+   "post_union_targets_surviving_body": true,
+   "problems": [],
+   "plan_valid": true,
+   "built": true,
+   "measurement": {
+    "volume": 20748.672587712812,
+    "solids": 1,
+    "faces": 9,
+    "edges": 21,
+    "minimum": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "maximum": [
+     60.0,
+     45.0,
+     30.0
+    ]
+   },
+   "envelope": [
+    60.0,
+    45.0,
+    30.0
+   ],
+   "expected_envelope": [
+    60.0,
+    40.0,
+    35.0
+   ],
+   "envelope_is_an_enclosure": false,
+   "semantically_correct": false,
+   "stage": "built_but_wrong_part",
+   "codes": []
+  },
+  {
+   "attempt": 3,
+   "seconds": 1.87,
+   "outcome": "generated",
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 9391,
+    "output_tokens": 154
+   },
+   "raw_text": "{\"status\":\"generated\",\"summary\":\"A bracket made from two fused plates with a central hole through the base.\",\"operations\":[{\"id\":\"base\",\"type\":\"box\",\"parameters\":{\"x\":60,\"y\":40,\"z\":5}},{\"id\":\"wall\",\"type\":\"box\",\"parameters\":{\"x\":60,\"y\":5,\"z\":30,\"position\":{\"x\":0,\"y\":40,\"z\":0}}},{\"id\":\"fuse\",\"type\":\"union\",\"target\":\"base\",\"tools\":[\"wall\"]},{\"id\":\"hole\",\"type\":\"through_hole\",\"target\":\"base\",\"parameters\":{\"diameter\":8,\"position\":{\"x\":30,\"y\":20,\"z\":0}}}]}",
+   "provider_error": null,
+   "fenced": false,
+   "operations": [
+    {
+     "id": "base",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "wall",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "fuse",
+     "type": "union",
+     "target": "base",
+     "tools": [
+      "wall"
+     ]
+    },
+    {
+     "id": "hole",
+     "type": "through_hole",
+     "target": "base",
+     "tools": null
+    }
+   ],
+   "used_union": true,
+   "union_id": "fuse",
+   "union_target": "base",
+   "targets_the_union_id": [],
+   "operations_after_union": 1,
+   "post_union_modifiers": [
+    "hole"
+   ],
+   "post_union_targets_surviving_body": true,
+   "problems": [],
+   "plan_valid": true,
+   "built": true,
+   "measurement": {
+    "volume": 20748.672587712812,
+    "solids": 1,
+    "faces": 9,
+    "edges": 21,
+    "minimum": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "maximum": [
+     60.0,
+     45.0,
+     30.0
+    ]
+   },
+   "envelope": [
+    60.0,
+    45.0,
+    30.0
+   ],
+   "expected_envelope": [
+    60.0,
+    40.0,
+    35.0
+   ],
+   "envelope_is_an_enclosure": false,
+   "semantically_correct": false,
+   "stage": "built_but_wrong_part",
+   "codes": []
+  },
+  {
+   "attempt": 4,
+   "seconds": 2.09,
+   "outcome": "invalid_model_output",
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 9391,
+    "output_tokens": 210
+   },
+   "raw_text": "{\"status\": \"generated\", \"summary\": \"A bracket made from a base plate and vertical wall plate joined by union, with an 8 mm hole through the base centre.\", \"operations\": [{\"id\": \"base\", \"type\": \"box\", \"parameters\": {\"x\": 60, \"y\": 40, \"z\": 5}}, {\"id\": \"wall\", \"type\": \"box\", \"parameters\": {\"x\": 60, \"y\": 5, \"z\": 30, \"position\": {\"x\": 0, \"y\": 40, \"z\": 0}}}, {\"id\": \"bracket\", \"type\": \"union\", \"target\": \"base\", \"tools\": [\"wall\"]}, {\"id\": \"hole\", \"type\": \"through_hole\", \"target\": \"bracket\", \"parameters\": {\"diameter\": 8, \"position\": {\"x\": 30, \"y\": 20, \"z\": 0}}}]}",
+   "provider_error": "the plan is not valid",
+   "fenced": false,
+   "operations": [
+    {
+     "id": "base",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "wall",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "bracket",
+     "type": "union",
+     "target": "base",
+     "tools": [
+      "wall"
+     ]
+    },
+    {
+     "id": "hole",
+     "type": "through_hole",
+     "target": "bracket",
+     "tools": null
+    }
+   ],
+   "used_union": true,
+   "union_id": "bracket",
+   "union_target": "base",
+   "targets_the_union_id": [
+    "hole"
+   ],
+   "operations_after_union": 1,
+   "post_union_modifiers": [
+    "hole"
+   ],
+   "post_union_targets_surviving_body": false,
+   "problems": [
+    {
+     "code": "P11",
+     "message": "'bracket' does not name a solid: it is a modifier, whose result keeps its own target's id. Name the solid it changed instead"
+    }
+   ],
+   "plan_valid": false,
+   "stage": "invalid:P11",
+   "codes": [
+    "P11"
+   ]
+  },
+  {
+   "attempt": 5,
+   "seconds": 1.93,
+   "outcome": "invalid_model_output",
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 9391,
+    "output_tokens": 207
+   },
+   "raw_text": "{\"status\": \"generated\", \"summary\": \"A bracket made from two plates joined as one solid with an 8 mm hole through the centre of the base.\", \"operations\": [{\"id\": \"base\", \"type\": \"box\", \"parameters\": {\"x\": 60, \"y\": 40, \"z\": 5}}, {\"id\": \"wall\", \"type\": \"box\", \"parameters\": {\"x\": 60, \"y\": 5, \"z\": 30, \"position\": {\"x\": 0, \"y\": 40, \"z\": 0}}}, {\"id\": \"bracket\", \"type\": \"union\", \"target\": \"base\", \"tools\": [\"wall\"]}, {\"id\": \"hole\", \"type\": \"through_hole\", \"target\": \"bracket\", \"parameters\": {\"diameter\": 8, \"position\": {\"x\": 30, \"y\": 20, \"z\": 0}}}]}",
+   "provider_error": "the plan is not valid",
+   "fenced": false,
+   "operations": [
+    {
+     "id": "base",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "wall",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "bracket",
+     "type": "union",
+     "target": "base",
+     "tools": [
+      "wall"
+     ]
+    },
+    {
+     "id": "hole",
+     "type": "through_hole",
+     "target": "bracket",
+     "tools": null
+    }
+   ],
+   "used_union": true,
+   "union_id": "bracket",
+   "union_target": "base",
+   "targets_the_union_id": [
+    "hole"
+   ],
+   "operations_after_union": 1,
+   "post_union_modifiers": [
+    "hole"
+   ],
+   "post_union_targets_surviving_body": false,
+   "problems": [
+    {
+     "code": "P11",
+     "message": "'bracket' does not name a solid: it is a modifier, whose result keeps its own target's id. Name the solid it changed instead"
+    }
+   ],
+   "plan_valid": false,
+   "stage": "invalid:P11",
+   "codes": [
+    "P11"
+   ]
+  }
+ ],
+ "backend": "cadquery",
+ "backend_version": "2.8.0",
+ "summary": {
+  "calls": 5,
+  "compiled": 5,
+  "fenced": 0,
+  "used_union": 5,
+  "parsed": 5,
+  "validated": 2,
+  "built": 2,
+  "has_post_union_modifier": 5,
+  "post_union_targets_surviving_body": 2,
+  "envelope_is_an_enclosure": 0,
+  "SEMANTICALLY_CORRECT": 0,
+  "targeted_the_union_id": 3,
+  "codes": {
+   "P11": 3
+  },
+  "stages": {
+   "invalid:P11": 3,
+   "built_but_wrong_part": 2
+  }
+ }
+}

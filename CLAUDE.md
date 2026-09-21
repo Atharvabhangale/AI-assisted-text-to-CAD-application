@@ -1156,7 +1156,7 @@ from `Interpretation.error` for exactly this reason.
 | inlined characters | **3628** |
 | fingerprint | `07ab6305e836271ec0d1b49baa62e0fb3ff312aafeefa21e8e5b0b48de119ec3` |
 | branches | **5** — box, cylinder, through_hole, `subtract\|union`, `fillet\|chamfer` |
-| prompt | `2026-09-18.1` / `aa0a407bd02b18e4` / 26081 chars |
+| prompt | `2026-09-18.1` / `aa0a407bd02b18e4` / 26081 chars — superseded by Stage 65 |
 | grammar compiled | **YES, 5/5** — `structured_output` true, `stop_reason` `end_turn`, **0/5 fenced** |
 | model used `union` | **4/5** |
 | **built** | **0/5** |
@@ -1166,14 +1166,58 @@ four plans. The model pointed every hole at `assembly`, the union
 operation's **own** id, instead of `plate_long_1`, the target whose id a
 union keeps. The fifth attempt asked for clarification.
 
-**This is a model-behaviour finding, not a prompt gap.** The prompt already
-states the rule in its `union` section: *"the union's own id names no solid
-afterwards, so a later hole or fillet targets the TARGET"*. Nothing was
-repaired and no validation was weakened — there is no repair loop by design.
+Stage 63 read that as a model-behaviour finding rather than a prompt gap,
+because the prompt already stated the rule. **Stage 65 measured it and that
+reading was wrong** — see below. Nothing was repaired and no validation was
+weakened at either stage; there is no repair loop by design.
 
 **The deterministic reader builds the same sentence correctly** (one valid
 solid, 11492.035526276897 mm³). That is `DETERMINISTIC`, and it says nothing
 about the model.
+
+**Stage 65 — P11 measured, and largely removed.** **45 live calls** to
+`claude-haiku-4-5-20251001`, nine arms, one variable at a time; every arm's
+raw output, validation and build result is in
+`docs/evaluation-baselines/stage65-union-target/`.
+
+| | |
+|---|---|
+| prompt now | `2026-09-18.2` / `978976195f8fd201` / 26723 chars |
+| encoding | `strict_selector_union` (3628, unchanged) |
+| P11 on the golden six-plate request | **5/5 → 1/5** |
+| post-union targeting correct | **0/5 → 4/5** |
+| built, on a two-plate bracket | **2/5**, `MODEL_GENERATED` |
+| six-plate box built | **still 0/5** |
+
+Three plausible fixes were measured **first and changed nothing**: adding a
+union worked example (0/5), rewriting the id-naming advice (0/5), and adding
+`description` text to every `target` in the provider schema (0/5). A fourth
+arm, `X1`, asked whether the failure was complexity rather than the rule: the
+simplest possible union request failed **5/5** on the unmodified prompt, so it
+was the rule.
+
+What moved it was **removing an affordance, not adding prose**. The union
+section closed with *"a `through_hole` bores through the shell, not through a
+loose plate"* — naming the post-union solid with a product noun that is no
+operation's id, while warning against the one legal target, since a union's
+target **is** by name a loose plate. Deleting that, and mandating the union's
+own id be the verb `fuse`, produced the numbers above. The controlled
+confirmation is inside the run: E1's one remaining P11 is the attempt that
+ignored the mandate and named its union `shell`, a body noun.
+
+**Verified success**, rebuilt from the model's own recorded output on real
+FreeCAD 1.0.0: volume **20748.67258771281** mm³ against a closed form of
+20748.672587712816 (Δ **3.6e-12**), one solid, 9 faces, 21 edges.
+
+**Not fixed, and now the open problem:** the six-plate hollow box still does
+not build. With the union-target rule satisfied 4/5, the failures moved to
+**rule E1 — the hole's centreline does not intersect the target**. That is
+spatial arrangement, a different and harder problem, and it is unmeasured.
+
+**An id's shape is part of the grammar the model is taught.** Three arms of
+prose about the rule changed nothing; removing the noun that invited the
+wrong answer changed it. `test_union_target_semantics.py` pins both the
+semantic rule and the prompt text where it was measured to work.
 
 **Schema measurements — proven vs historical.** `PROVEN_COMPILABLE` means
 *a live probe accepted this size*, never *we expect it to be accepted*:
@@ -1411,8 +1455,12 @@ survived only as prose and nothing noticed when it stopped being the intent.
 
 Separate from the historical record, and none of these is a plan.
 
-- **The live model does not build the golden request.** 0/5, P11 only (above).
-  This is the standing open problem and the recommended next milestone.
+- **The live model still does not build the golden six-plate request.**
+  Stage 65 removed the P11 union-target failure that blocked it (5/5 → 1/5,
+  targeting 0/5 → 4/5, and a two-plate union built 2/5 `MODEL_GENERATED`),
+  and the failures moved to **E1 — the hole's centreline does not intersect
+  the target**. Spatial arrangement of six plates into a closed shell is the
+  standing open problem, and it is unmeasured.
 - **`comparison_corpus.py` case `12-union` is stale** — it expects
   `unsupported` for a request the language now answers. **Deliberately not
   edited**: it is a frozen instrument and Stage 48's `legacy` group reads out
@@ -1446,15 +1494,16 @@ Separate from the historical record, and none of these is a plan.
 
 ### RECOMMENDED NEXT MILESTONE
 
-**Fix the P11 failure before starting multi-body.** It is the only thing
-between the live model and a working multi-plate part, it is measured and
-reproducible 4/4, and the multi-body design's own §4 argues that starting
-multi-body now would measure two unknowns at once.
+**Stage 65 did the P11 work this section used to call for, and its two
+hypotheses were both tested.** (a) A union worked example showing a hole
+after the union changed nothing, 0/5. (b) The `id` was indeed the lever, and
+it is now prompt `2026-09-18.2`: P11 5/5 → 1/5, targeting 0/5 → 4/5, a
+two-plate union built and verified against its closed form to 3.6e-12.
 
-Two hypotheses, in order: (a) the prompt's worked examples never show a hole
-*after* a union — add one and re-measure; (b) if prose does not move it, the
-`id` the model mints for the union is the lever, since a grammar cannot
-restrict `target` to live solids.
+**Next: measure the E1 spatial failure**, which is what the six-plate request
+now fails on — the model does not position six plates into a closed shell, so
+a hole bores through nothing. Same discipline: reproduce live, one variable
+at a time, no repair loop.
 
 Then the multi-body slice, **step 1 only** — `part` plus P33–P36 plus the
 test that every existing schema fingerprint is unchanged.

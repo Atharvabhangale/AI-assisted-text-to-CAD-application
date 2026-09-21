@@ -1,0 +1,20 @@
+arm                            request                         n cmp uni P11 tgtOK blt PASS  prompt-fp    schema
+----------------------------------------------------------------------------------------------------------------
+A0-baseline                    Make a hollow rectangular bo    5   5   5   5     0   0    0  aa0a407bd02b  3628
+A1-worked-example              Make a hollow rectangular bo    5   5   5   5     0   0    0  f3716df56458  3628
+B1-step-naming                 Make a hollow rectangular bo    5   5   4   4     0   0    0  6c6a5c7e1adf  3628
+C1-schema-target-description   Make a hollow rectangular bo    5   5   4   4     0   0    0  aa0a407bd02b  4207
+D1-repair-contradiction        Make a hollow rectangular bo    5   5   5   4     0   1    0  499be27ac7b1  3628
+D2-everything                  Make a hollow rectangular bo    5   5   5   5     0   0    0  5115304a8199  3628
+E1-mandate-verb-id             Make a hollow rectangular bo    5   5   5   1     4   0    0  978976195f8f  3628
+X1-two-plate-diagnostic        Make a bracket from two plat    5   5   5   5     0   0    0  aa0a407bd02b  3628
+E1-simple-request              Make a bracket from two plat    5   5   5   3     2   2    2  978976195f8f  3628
+
+cmp   = grammar compiled (structured_output true)
+uni   = emitted a union
+P11   = attempts failing validation with P11
+tgtOK = post-union modifier targets the SURVIVING body (the milestone metric)
+blt   = built on the kernel
+PASS  = built AND targets surviving body AND not a degenerate slab
+
+TOTAL LIVE CALLS: 45
