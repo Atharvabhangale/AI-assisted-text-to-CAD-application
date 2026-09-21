@@ -1219,6 +1219,53 @@ prose about the rule changed nothing; removing the noun that invited the
 wrong answer changed it. `test_union_target_semantics.py` pins both the
 semantic rule and the prompt text where it was measured to work.
 
+**Stage 66 — the golden request BUILDS.** **40 live calls**, eight arms, one
+variable at a time; raw output, validation and build results are in
+`docs/evaluation-baselines/stage66-enclosure-layout/`, whose `arena.py` is a
+byte-for-byte copy of Stage 65's.
+
+| | |
+|---|---|
+| prompt now | `2026-09-18.3` / `c78aaad8eacf365e` / 30481 chars |
+| encoding | `strict_selector_union` (3628, unchanged) |
+| six-plate box built | **0/5 → 2/5**, one of them the part asked for |
+| volume | **10185.62842102151** mm³ vs closed form 10185.62842102152 (Δ **9.1e-12**) |
+| topology | 1 solid, **18 faces, 42 edges** — the deterministic reference's |
+| backends | CadQuery 2.8.0 and FreeCAD 1.0.0, **bit-identical** |
+
+`MODEL_GENERATED` — no fixture, no deterministic reader, no fallback.
+
+Four defects were measured, all of them prompt gaps: the plates were never
+rotated (thickness stayed on Z 5/5, where a shell needs the same numbers
+permuted onto each face normal); the outer size was invented; holes were
+named for WALLS, so `hole_front` and `hole_back` became two operations on
+one centreline; and `z is conventionally 0` was stated for `+Z` only and
+carried to every axis.
+
+**The prompt supplied the noun that broke it.** Across all 40 calls, a union
+whose id was the mandated verb `fuse` hit P11 **6/27**; a union with any
+other id hit it **11/12**. The prompt's own enclosure sentence read *"six
+plates where the first is named `shell`"*, and the model gave `shell` to the
+UNION rather than to the carrying plate. Renaming the carrier to `bottom` —
+one sentence — took P11 **5/5 → 0/5** as a single variable.
+
+Two negative results are kept because they cost as much to learn: an arm
+that added the hole-count rule while opening with the product noun *"A
+hollow box…"* **regressed** P11 to 4/5, and the layout rule alone regressed
+it to 5/5 while the `shell` sentence still stood. **Prose about a rule moved
+nothing; removing the noun that invited the wrong answer moved it** — Stage
+65's mechanism, found twice more.
+
+Honest limits: **1/5 fully correct**, not 5/5 — three of five attempts still
+write one hole per wall despite the rule, and the rest fail rule E1. The
+golden request is itself **ambiguous about plate thickness** ("(4)plates" is
+a count the model reads as a dimension, and one attempt asked about it
+outright); the prompt was deliberately **not** tuned to force the
+deterministic reader's reading, because that is teaching to the test.
+`test_enclosure_layout.py` pins the four rules, the worked example's
+arithmetic, and the one measured plan's closed form; all four guards are
+mutation-tested.
+
 **Schema measurements — proven vs historical.** `PROVEN_COMPILABLE` means
 *a live probe accepted this size*, never *we expect it to be accepted*:
 
@@ -1262,7 +1309,7 @@ back.
 surface, one valid solid, 18 faces, 42 edges, 5544 triangles, 0 failed
 requests, 0 console errors.
 
-**Test counts (current):** `tests_experimental` **1800 passed, 72 skipped, 0
+**Test counts (current):** `tests_experimental` **1827 passed, 72 skipped, 0
 failed**; cad-core **1481 passed**. Frontend `tsc --noEmit` clean,
 `vite build` succeeds. **The 72 skips** are the FreeCAD-dependent modules
 when FreeCAD is absent from the interpreter, plus the deliberately gated
@@ -1455,12 +1502,14 @@ survived only as prose and nothing noticed when it stopped being the intent.
 
 Separate from the historical record, and none of these is a plan.
 
-- **The live model still does not build the golden six-plate request.**
-  Stage 65 removed the P11 union-target failure that blocked it (5/5 → 1/5,
-  targeting 0/5 → 4/5, and a two-plate union built 2/5 `MODEL_GENERATED`),
-  and the failures moved to **E1 — the hole's centreline does not intersect
-  the target**. Spatial arrangement of six plates into a closed shell is the
-  standing open problem, and it is unmeasured.
+- **The live model builds the golden six-plate request 1/5, not 5/5.**
+  Stage 65 removed the P11 union-target failure and Stage 66 the four
+  enclosure-layout defects, taking it from 0/5 to a verified
+  `MODEL_GENERATED` build. What remains: three of five attempts still write
+  one hole per wall although the prompt now names that exact mistake, and
+  those attempts fail rule E1. **Reliability on this request is the standing
+  open problem**, and the request's own thickness ambiguity is a confound
+  that a re-worded golden request would remove.
 - **`comparison_corpus.py` case `12-union` is stale** — it expects
   `unsupported` for a request the language now answers. **Deliberately not
   edited**: it is a frozen instrument and Stage 48's `legacy` group reads out
@@ -1494,16 +1543,19 @@ Separate from the historical record, and none of these is a plan.
 
 ### RECOMMENDED NEXT MILESTONE
 
-**Stage 65 did the P11 work this section used to call for, and its two
-hypotheses were both tested.** (a) A union worked example showing a hole
-after the union changed nothing, 0/5. (b) The `id` was indeed the lever, and
-it is now prompt `2026-09-18.2`: P11 5/5 → 1/5, targeting 0/5 → 4/5, a
-two-plate union built and verified against its closed form to 3.6e-12.
+**Stages 65 and 66 did the work this section used to call for.** Stage 65
+removed the P11 union-target failure; Stage 66 measured the E1 spatial
+failure it exposed, fixed four prompt defects, and the live model now builds
+the golden six-plate enclosure — verified to 9.1e-12 and bit-identical on
+both backends.
 
-**Next: measure the E1 spatial failure**, which is what the six-plate request
-now fails on — the model does not position six plates into a closed shell, so
-a hole bores through nothing. Same discipline: reproduce live, one variable
-at a time, no repair loop.
+**Next: reliability on that request, 1/5 → 5/5.** The failures are no longer
+mysterious: three of five attempts write one hole per wall although the
+prompt names that mistake in those words. Same discipline — reproduce live,
+one variable at a time, no repair loop. Consider also re-wording the golden
+request, whose "(4)plates" is a count the model reads as a thickness; that
+confound belongs in its own stage, and the current request must be kept
+alongside any replacement rather than edited.
 
 Then the multi-body slice, **step 1 only** — `part` plus P33–P36 plus the
 test that every existing schema fingerprint is unchanged.
