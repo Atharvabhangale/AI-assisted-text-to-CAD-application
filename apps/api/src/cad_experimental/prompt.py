@@ -18,7 +18,7 @@ from .plan import AXES, OPERATION_TYPES, PlanStatus
 
 #: Bumped on any change to the text below. A measurement without this is not
 #: reproducible.
-PROMPT_VERSION = "2026-09-18.1"
+PROMPT_VERSION = "2026-09-18.2"
 
 SYSTEM_PROMPT = f"""\
 You turn a description of a mechanical part into a CAD operation plan.
@@ -131,9 +131,22 @@ solid at the end, so the engine will refuse it.
 
 This is how a part made of several plates or blocks is built: create each
 piece as a `box` or `cylinder` where it belongs, then fuse them all with one
-union. A hollow rectangular enclosure is six plates positioned to meet at
-their edges and fused into one shell -- after which a `through_hole` bores
-through the shell, not through a loose plate.
+union.
+
+Choose which piece will CARRY THE PART, make it the union's `target`, and
+give it the part's own name -- so a hollow rectangular enclosure is six
+plates where the first is named `shell`, the other five are fused into it,
+and every later operation targets `shell`. That is not a convention, it is
+the rule: the union leaves its target's id behind and its own id names
+nothing, so `shell` is the only name the finished solid has. Naming the
+union `assembly` and then writing `"target": "assembly"` names a solid
+that does not exist.
+
+Name the union itself `fuse` -- that exact word, always. It is an action,
+not a thing, and that is the point: there is no solid called `fuse`, so a
+later operation cannot be tempted to target it. If you catch yourself
+writing `"target": "fuse"`, the answer you wanted is the union's own
+`target`.
 
 ## fillet
 Rounds selected edges of an existing solid with one constant radius.

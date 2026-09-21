@@ -1161,11 +1161,23 @@ class PromptTests(unittest.TestCase):
         fourth time this shape of gap has been found in the prompt, which
         is why `an operation is not one edit` is now an invariant rather
         than an anecdote.
+
+        `2026-09-18.2` is Stage 65, and unlike every version before it, it
+        was chosen by MEASUREMENT rather than by reading. The union section
+        closed with "a `through_hole` bores through the shell, not through a
+        loose plate" -- which names the post-union solid with a product noun
+        that is no operation's id, and warns against the one legal target,
+        since the union's target IS by name a loose plate. Removing that, and
+        mandating the union's own id be the verb `fuse`, took the live
+        model's P11 rate on the golden request from 5/5 to 1/5 and its
+        post-union targeting from 0/5 correct to 4/5. Three other candidate
+        fixes were measured first and changed nothing; see
+        `docs/evaluation-baselines/stage65-union-target/`.
         """
-        self.assertEqual(self.version, "2026-09-18.1")
+        self.assertEqual(self.version, "2026-09-18.2")
         self.assertEqual(
             self.fingerprint,
-            "aa0a407bd02b18e4ca4e4ba0ede47d3f51a6a158904d6492d1f1e886f81a1ba2",
+            "978976195f8fd201591e78663edc814feca09e3ed3ab7d822bbfef73c2c04826",
         )
         self.assertEqual(len(self.fingerprint), 64)
 
