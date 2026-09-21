@@ -1162,6 +1162,22 @@ class PromptTests(unittest.TestCase):
         is why `an operation is not one edit` is now an invariant rather
         than an anecdote.
 
+        `2026-09-18.3` is Stage 66, and like Stage 65 before it every
+        change in it was chosen by MEASUREMENT. Stage 65 left the golden
+        six-plate request failing on rule E1, and 35 live calls named four
+        separate defects: the plates were never rotated (thickness stayed
+        on Z 5/5), the outer size was invented, holes were named for WALLS
+        so a facing pair became two operations on one centreline, and
+        `z is conventionally 0` was stated for +Z only and carried to every
+        axis. The sharpest measurement of the stage is that the prompt
+        supplied the noun that broke it: with the carrier named `shell`,
+        the model gave that id to the UNION and targeted it -- P11 8 times
+        out of 8 -- and renaming the carrier to `bottom` took P11 from 5/5
+        to 0/5 as a single variable. With all four fixed the live model
+        BUILT the golden request for the first time, verified against its
+        closed form to 9.1e-12 and bit-identical on both backends. See
+        `docs/evaluation-baselines/stage66-enclosure-layout/`.
+
         `2026-09-18.2` is Stage 65, and unlike every version before it, it
         was chosen by MEASUREMENT rather than by reading. The union section
         closed with "a `through_hole` bores through the shell, not through a
@@ -1174,10 +1190,10 @@ class PromptTests(unittest.TestCase):
         fixes were measured first and changed nothing; see
         `docs/evaluation-baselines/stage65-union-target/`.
         """
-        self.assertEqual(self.version, "2026-09-18.2")
+        self.assertEqual(self.version, "2026-09-18.3")
         self.assertEqual(
             self.fingerprint,
-            "978976195f8fd201591e78663edc814feca09e3ed3ab7d822bbfef73c2c04826",
+            "c78aaad8eacf365ed1e557f6e7325513e3cd8b80592c39c319ae7cb5a156a521",
         )
         self.assertEqual(len(self.fingerprint), 64)
 

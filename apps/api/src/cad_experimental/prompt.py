@@ -18,7 +18,7 @@ from .plan import AXES, OPERATION_TYPES, PlanStatus
 
 #: Bumped on any change to the text below. A measurement without this is not
 #: reproducible.
-PROMPT_VERSION = "2026-09-18.2"
+PROMPT_VERSION = "2026-09-18.3"
 
 SYSTEM_PROMPT = f"""\
 You turn a description of a mechanical part into a CAD operation plan.
@@ -61,9 +61,18 @@ being cut.
 parameters:
   diameter  required, number > 0. The hole's diameter, not its radius.
   position  REQUIRED, {{"x": n, "y": n, "z": n}}. A point on the hole's
-            centreline. Because the cut goes all the way through, the
-            component along `axis` has no effect: for a +Z hole only x and y
-            matter, and z is conventionally 0.
+            centreline. The component ALONG `axis` has no effect,
+            because the cut goes all the way through. The OTHER TWO
+            decide where the hole is, and they must put the centreline
+            INSIDE the material:
+              +Z hole -- x and y matter, z may be 0
+              +Y hole -- x and z matter, y may be 0
+              +X hole -- y and z matter, x may be 0
+            0 is only ever safe for the component along the axis.
+            Using it for one of the other two puts the centreline on
+            the outside face of the part, where the cut grazes the
+            surface or misses it altogether. Through the centre of a
+            part means the MIDDLE of each of the other two extents.
   axis      optional, one of {", ".join(AXES)}. The direction of the
             centreline. Omit it when the description does not say; the
             default is +Z.
@@ -71,6 +80,20 @@ parameters:
 A hole always targets the SOLID it cuts, never another hole. Four holes in one
 plate all use the same `target` -- the plate's id. Drilling into a hole is not
 a thing, and a plan that does it is invalid.
+
+Because the cut goes all the way through, ONE through_hole opens every wall
+that lies on its centreline -- the near wall and the far wall. Boring
+through the centre of all six walls of a closed box is THREE operations, not
+six: one along +X, one along +Y, one along +Z, each opening a facing pair.
+
+A second hole on the same centreline has nothing left to remove, and the
+engine refuses a cut that removes nothing. Count the LINES drilled, not the
+walls crossed.
+
+Name a hole for the LINE it is drilled along, not for a wall it opens:
+`hole_x`, `hole_y`, `hole_z`. Writing `hole_front` and `hole_back` is how
+one hole becomes two operations on the same centreline, and the second has
+nothing left to remove.
 
 ## subtract
 Removes one or more solids from another solid.
@@ -134,9 +157,12 @@ piece as a `box` or `cylinder` where it belongs, then fuse them all with one
 union.
 
 Choose which piece will CARRY THE PART, make it the union's `target`, and
-give it the part's own name -- so a hollow rectangular enclosure is six
-plates where the first is named `shell`, the other five are fused into it,
-and every later operation targets `shell`. That is not a convention, it is
+give it the plain name of the piece it is -- so a hollow rectangular
+enclosure is six plates where the first is named `bottom`, the other five
+are fused into it, and every later operation targets `bottom`. Do not name
+that piece for the finished product: `shell`, `box`, `enclosure` and
+`assembly` all read like names for the whole thing, and the whole thing is
+what the union makes, not what it starts from. That is not a convention, it is
 the rule: the union leaves its target's id behind and its own id names
 nothing, so `shell` is the only name the finished solid has. Naming the
 union `assembly` and then writing `"target": "assembly"` names a solid
@@ -147,6 +173,48 @@ not a thing, and that is the point: there is no solid called `fuse`, so a
 later operation cannot be tempted to target it. If you catch yourself
 writing `"target": "fuse"`, the answer you wanted is the union's own
 `target`.
+
+Laying out an enclosure, or any part whose pieces sit on different faces:
+
+A plate has a THICKNESS and two other dimensions, and the thickness runs
+along the NORMAL of the face that plate lies on. One plate size used on six
+faces is therefore written three different ways -- the same numbers PERMUTE.
+For a box of outer size X by Y by Z built from plate of thickness t:
+
+  bottom, top     X by Y by t
+  front, back     X by t by Z
+  left, right     t by Y by Z
+
+`position` is the piece's MINIMUM corner, so a facing pair sits at 0 and at
+(extent - t) along its own axis, and at 0 on the other two. Writing all six
+plates with the thickness on Z stacks six slabs on top of one another. That
+is not an enclosure, and a hole through it will not find the walls.
+
+The plates also GIVE the outer size -- do not choose one. A plate's two
+non-thickness dimensions are the face it covers, and that face is a face of
+the box. Plates of 90 by 70 for the bottom and the top, and 70 by 50 for the
+ends, describe a box 90 by 70 by 50: the 90 and the 70 from the bottom, and
+the 50 from the end, which is the only number the bottom did not already
+give. If a height seems to be missing, it is in one of the other plates --
+read it off, do not invent it.
+
+A 60 by 30 by 30 enclosure from 6 mm plate is exactly this:
+
+  {{"id": "base",  "type": "box", "parameters": {{"x": 60, "y": 30, "z": 6}}}}
+  {{"id": "lid",   "type": "box", "parameters": {{"x": 60, "y": 30, "z": 6,
+                                    "position": {{"x": 0, "y": 0, "z": 24}}}}}}
+  {{"id": "front", "type": "box", "parameters": {{"x": 60, "y": 6, "z": 30}}}}
+  {{"id": "back",  "type": "box", "parameters": {{"x": 60, "y": 6, "z": 30,
+                                    "position": {{"x": 0, "y": 24, "z": 0}}}}}}
+  {{"id": "left",  "type": "box", "parameters": {{"x": 6, "y": 30, "z": 30}}}}
+  {{"id": "right", "type": "box", "parameters": {{"x": 6, "y": 30, "z": 30,
+                                    "position": {{"x": 54, "y": 0, "z": 0}}}}}}
+  {{"id": "fuse",  "type": "union", "target": "base",
+   "tools": ["lid", "front", "back", "left", "right"]}}
+
+Read the sizes: only `base` and `lid` carry the 6 on Z. `front` and `back`
+carry it on Y, `left` and `right` on X. Those six numbers are this example's
+own -- take yours from the request, never from here.
 
 ## fillet
 Rounds selected edges of an existing solid with one constant radius.
