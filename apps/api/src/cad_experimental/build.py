@@ -13,8 +13,8 @@ existing implementation's, reached through its existing public API.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any, Dict, Mapping, Optional, Tuple
 
 from .adapter import AdapterError, ExecutionUnsupported, plan_to_document
 from .cad_backend import CADQUERY, CadBackend, resolve_backend
@@ -67,7 +67,22 @@ class PlanBuild:
     #: graph-executed build. The document path gets its render model from the
     #: service, inside :attr:`outcome`; this is the same contract, built by
     #: whichever backend ran, so a caller draws both the same way.
+    #:
+    #: **The single live body's mesh, or ``None``** -- it follows
+    #: :attr:`ExecutionResult.part` and is therefore ``None`` for a declared
+    #: multi-body result, where there is no single body for it to mean.
+    #: Callers that draw every body read :attr:`renders`.
     render: Optional[Any] = None
+
+    #: One :class:`RenderModel` per live body, keyed by body id, in the order
+    #: the executor built them.
+    #:
+    #: **Never a merged mesh.** Merging would be a fuse the plan did not ask
+    #: for, and this project has exactly one operation that joins solids and
+    #: it is written in the plan. A single-body build fills this too, with
+    #: its one entry, so a caller has one way to draw both cases rather than
+    #: a special case for each.
+    renders: Mapping[str, Any] = field(default_factory=dict)
 
     @property
     def executed(self) -> bool:
@@ -229,17 +244,29 @@ def _executed(
     # piece, with the page reporting a successful build. The executor now
     # refuses that case outright; this asks for the body BY the property that
     # means "the one", so the two do not have to agree by convention.
-    render = None
-    try:
-        part_id = result.part
-        shape = result.shapes.get(part_id) if part_id is not None else None
-        if shape is not None:
-            render = backend.render_model(
-                shape, part_name=name, feature_id=part_id)
-    except Exception:  # noqa: BLE001 - a missing mesh is not a failed build
-        render = None
+    # One mesh per live body, each tagged with the body it is. A two-body
+    # result that returned one mesh would be the Stage 62 bug wearing a
+    # different hat: the page would draw a part that is missing a piece and
+    # report a successful build.
+    renders: Dict[str, Any] = {}
+    for body in result.bodies:
+        shape = result.shapes.get(body.id)
+        if shape is None:
+            continue
+        try:
+            renders[body.id] = backend.render_model(
+                shape, part_name=name, feature_id=body.id)
+        except Exception:  # noqa: BLE001 - a missing mesh is not a failed build
+            continue
+
+    # `render` still means "the single body's mesh", so every existing caller
+    # keeps working unchanged and none of them silently starts drawing the
+    # first of several. Asked for BY the property that means "the one".
+    part_id = result.part
+    render = renders.get(part_id) if part_id is not None else None
 
     return PlanBuild(document=None, execution=result, render=render,
+                     renders=renders,
                      backend=backend.name, execution_path=GRAPH_PATH)
 
 

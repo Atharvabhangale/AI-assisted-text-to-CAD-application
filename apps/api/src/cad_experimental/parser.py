@@ -47,6 +47,9 @@ from .plan import (
     MODIFIER_TYPES,
     OPERATION_FIELDS,
     OPERATION_TYPES,
+    PLAN_TYPES,
+    PART,
+    PartOperation,
     PARAMETERS,
     PROFILE_SOLID_TYPES,
     REVOLVE,
@@ -230,14 +233,18 @@ def _operation(entry: Any, index: int) -> Operation:
 
     identifier = _identifier(mapping["id"], where)
     kind = mapping["type"]
-    if not isinstance(kind, str) or kind not in OPERATION_TYPES:
+    if not isinstance(kind, str) or kind not in PLAN_TYPES:
         # The single most important rejection in this module: an operation
         # type this stage does not implement never reaches the adapter.
+        #
+        # `PLAN_TYPES`, not `OPERATION_TYPES`: a plan may also carry a
+        # declaration, which makes no geometry and so is not in the geometry
+        # vocabulary the schemas and the prompt are built from.
         raise PlanParseError(
             f"{where} has an unknown type",
             detail=(
                 f"{kind!r}; this stage implements only "
-                f"{', '.join(OPERATION_TYPES)}"
+                f"{', '.join(PLAN_TYPES)}"
             ),
         )
 
@@ -266,6 +273,12 @@ def _operation(entry: Any, index: int) -> Operation:
                 detail=f"a {kind} acts on {acts_on} and must name it",
             )
         target = _identifier(mapping["target"], f"{where} target")
+
+    if kind == PART:
+        assert target is not None
+        # No `parameters`, and none is read: a declaration is entirely a
+        # reference, and `OPERATION_FIELDS` has already refused one.
+        return PartOperation(id=identifier, target=target)
 
     if kind in CONSUMING_TYPES:
         assert target is not None

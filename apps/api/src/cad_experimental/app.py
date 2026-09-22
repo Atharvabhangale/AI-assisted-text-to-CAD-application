@@ -480,6 +480,16 @@ def create_app(
             # than sent as null, exactly as the document path does.
             if result.render is not None:
                 graph_payload["render"] = result.render.to_dict()
+            graph_payload["bodies"] = [
+                {
+                    "body_id": body.id,
+                    "declared": body.id in execution.declared,
+                    "render": (result.renders[body.id].to_dict()
+                               if body.id in result.renders else None),
+                }
+                for body in execution.bodies
+            ]
+            graph_payload["declared_bodies"] = list(execution.declared)
             return JSONResponse(status_code=status, content=graph_payload)
         if result.outcome is None:
             return JSONResponse(
@@ -508,8 +518,20 @@ def create_app(
     def _facts(build: Any) -> Dict[str, Any]:
         """The measurement, from whichever path built it."""
         if build.executed and build.execution.bodies:
-            measured = build.execution.bodies[0].measurement
-            return measured.to_dict() if hasattr(measured, "to_dict") else {}
+            # `result.part` -- the single live body, or `None` -- never
+            # `bodies[0]`. A declared two-body part has no single
+            # measurement, and returning the first body's would report one
+            # body's volume as the part's. Per-body numbers travel in
+            # `bodies`, beside this, where they say which body they are.
+            part_id = build.execution.part
+            if part_id is None:
+                return {}
+            for body in build.execution.bodies:
+                if body.id == part_id:
+                    measured = body.measurement
+                    return (measured.to_dict()
+                            if hasattr(measured, "to_dict") else {})
+            return {}
         if build.outcome is not None:
             for artifact in (build.outcome.to_dict().get("manifest") or {}).get(
                 "artifacts", []
@@ -536,12 +558,42 @@ def create_app(
         }
         if build.executed:
             payload["execution"] = build.execution.to_dict()
+            payload["declared_bodies"] = list(build.execution.declared)
         if build.render is not None:
             payload["render"] = build.render.to_dict()
         elif build.outcome is not None and build.outcome.render_model is not None:
             payload["render"] = build.outcome.render_model.to_dict()
+        # One mesh per body, each saying which body it is. Always sent when
+        # the executor ran -- a single-body result carries its one entry -- so
+        # the page has ONE way to draw both cases instead of a special case
+        # for each, and a two-body part can never arrive looking like a
+        # one-body part that happens to be missing a piece.
+        bodies = _body_payload(build)
+        if bodies is not None:
+            payload["bodies"] = bodies
         payload["session"] = session.to_dict()
         return payload
+
+    def _body_payload(build: Any) -> Optional[List[Dict[str, Any]]]:
+        """Per-body meshes and measurements, or ``None`` off the graph path."""
+        if not build.executed:
+            return None
+        measured = {
+            body.id: body.measurement for body in build.execution.bodies
+        }
+        rows: List[Dict[str, Any]] = []
+        for body in build.execution.bodies:
+            render = build.renders.get(body.id)
+            measurement = measured.get(body.id)
+            rows.append({
+                "body_id": body.id,
+                "features": list(body.features),
+                "declared": body.id in build.execution.declared,
+                "measurement": (measurement.to_dict()
+                                if hasattr(measurement, "to_dict") else None),
+                "render": render.to_dict() if render is not None else None,
+            })
+        return rows
 
     def _rebuild(plan_payload: Dict[str, Any], service: Any) -> Any:
         """Parse, validate and build one plan. Never raises for its content."""
@@ -959,7 +1011,22 @@ def create_app(
                                   backend=engine)
             if not result.succeeded or not result.bodies:
                 raise BackendError("the current part did not rebuild")
-            shape = result.shapes.get(result.bodies[0].id)
+            if result.part is None:
+                # A declared multi-body part. Exporting `bodies[0]` would
+                # hand back a file silently missing the rest of the part,
+                # which is the one thing this project's export semantics
+                # forbid. A STEP assembly is real work with its own gate
+                # (`docs/multi-body-design.md` step 5); until it exists this
+                # says so rather than shipping a lie.
+                raise BackendError(
+                    "this part has "
+                    f"{len(result.bodies)} separate bodies "
+                    f"({', '.join(repr(b.id) for b in result.bodies)}), and "
+                    "export writes a single solid. Exporting one of them "
+                    "would silently drop the others; a multi-body export is "
+                    "not implemented yet"
+                )
+            shape = result.shapes.get(result.part)
             with tempfile.TemporaryDirectory() as folder:
                 target = _Path(folder) / f"part.{fmt}"
                 if fmt == "step":
@@ -1000,7 +1067,17 @@ def create_app(
                               backend=engine)
         if not result.succeeded or not result.bodies:
             raise BackendError("the current part did not rebuild")
-        return engine, result.shapes.get(result.bodies[0].id)
+        if result.part is None:
+            # Same reason as the export route: a drawing or a measurement of
+            # `bodies[0]` would describe part of the part as though it were
+            # all of it.
+            raise BackendError(
+                f"this part has {len(result.bodies)} separate bodies "
+                f"({', '.join(repr(b.id) for b in result.bodies)}); this "
+                "surface describes a single body and would otherwise "
+                "describe only the first"
+            )
+        return engine, result.shapes.get(result.part)
 
     @app.post(DRAWING_PATH)
     async def drawing(body: DrawingBody) -> JSONResponse:

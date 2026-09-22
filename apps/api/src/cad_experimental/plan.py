@@ -31,10 +31,44 @@ SKETCH = "sketch"
 EXTRUDE = "extrude"
 REVOLVE = "revolve"
 PATTERN = "pattern"
+PART = "part"
+
+#: The **geometry** vocabulary: every operation that makes, changes or
+#: describes a shape. Eleven types.
+#:
+#: This tuple is what every provider encoding and the prompt are built from,
+#: so what is in it is what a model can be told about and can say. A type
+#: added here changes the schemas' fingerprints and the prompt's, and that is
+#: correct -- they describe the geometry language.
 OPERATION_TYPES: Tuple[str, ...] = (
     BOX, CYLINDER, THROUGH_HOLE, SUBTRACT, UNION, FILLET, CHAMFER, SKETCH,
     EXTRUDE, REVOLVE, PATTERN,
 )
+
+#: Operations that produce **no geometry at all** and instead declare
+#: something about the result. ``part`` is the first, and today the only one.
+#:
+#: Deliberately its own tier rather than an twelfth entry in
+#: :data:`OPERATION_TYPES`, and the reason is structural rather than
+#: tidiness. Every schema variant, and the prompt's own type list, is built
+#: from ``OPERATION_TYPES``; adding ``part`` there would have moved
+#: `plan_schema`, `provider_schema`, `compact_provider_schema` and the
+#: PROMPT fingerprint in one edit -- teaching a live model a grammar whose
+#: semantics are not yet measured, which `docs/multi-body-design.md` refuses
+#: outright ("no new model-facing grammar until the slice works
+#: deterministically"). Keeping the tiers apart makes "no recorded
+#: fingerprint moved" a property of the design instead of a thing to
+#: remember, and `test_multi_body.py` asserts it.
+DECLARATION_TYPES: Tuple[str, ...] = (PART,)
+
+#: Everything a plan may contain, and so everything the parser accepts.
+PLAN_TYPES: Tuple[str, ...] = OPERATION_TYPES + DECLARATION_TYPES
+
+#: The most independent bodies one plan may declare. A cap for the same
+#: reason a pattern's ``count`` is capped: this is an experiment in body
+#: identity, not a production assembly tool, and an unbounded body count is
+#: an unbounded number of kernel shapes held at once.
+MAX_BODIES = 8
 
 #: Operations that declare a **profile** rather than a solid. A profile is
 #: not a solid: a fillet cannot target one, a subtract cannot consume one,
@@ -77,6 +111,14 @@ V1_FEATURE_TYPES: Tuple[str, ...] = (
 #: about how many features come out the other side.
 EXECUTABLE_TYPES: Tuple[str, ...] = V1_FEATURE_TYPES + (PATTERN, UNION)
 
+#: Everything the graph executor may carry: the geometry it builds, plus the
+#: declarations that build none. Kept apart from :data:`EXECUTABLE_TYPES`
+#: because that tuple answers "what can this engine BUILD", and a `part`
+#: builds nothing -- folding it in would have made the name a lie and a test
+#: that pins the executable set to the six V1 features plus `pattern` and
+#: `union` would have had to be weakened to accommodate it.
+BUILDABLE_TYPES: Tuple[str, ...] = EXECUTABLE_TYPES + DECLARATION_TYPES
+
 #: Executable operations a V1 document can carry. ``pattern`` is here because
 #: it EXPANDS into one V1 feature per instance, so the document never sees the
 #: pattern itself; ``union`` is absent because V1 has no join to expand into.
@@ -86,8 +128,13 @@ V1_EXPRESSIBLE_TYPES: Tuple[str, ...] = V1_FEATURE_TYPES + (PATTERN,)
 #: must take the graph executor. Derived rather than listed, so an operation
 #: added to :data:`EXECUTABLE_TYPES` and not to :data:`V1_EXPRESSIBLE_TYPES`
 #: is routed correctly without a second edit anyone could forget.
+#: Derived from :data:`BUILDABLE_TYPES` rather than
+#: :data:`EXECUTABLE_TYPES`, so a declaration routes itself: `part` has no
+#: V1 document form either -- V1 is single-body by rule S9 -- and naming it
+#: here is what sends a multi-body plan to the executor, makes the adapter
+#: refuse it with the right reason, and needs no second edit in either place.
 EXECUTOR_ONLY_TYPES: Tuple[str, ...] = tuple(
-    kind for kind in EXECUTABLE_TYPES if kind not in V1_EXPRESSIBLE_TYPES
+    kind for kind in BUILDABLE_TYPES if kind not in V1_EXPRESSIBLE_TYPES
 )
 
 #: Operations a ``pattern`` may repeat.
@@ -187,7 +234,15 @@ REPEATING_TYPES: Tuple[str, ...] = (PATTERN,)
 #: the target must BE -- a modifier's is a solid (P11), a profile-solid
 #: operation's is a sketch (P23) -- but both must have one, so the parser
 #: requires it from one place.
-TARGETED_TYPES: Tuple[str, ...] = MODIFIER_TYPES + PROFILE_SOLID_TYPES
+#: ``part`` is here because it names a solid, and for no other reason: it
+#: is NOT a modifier (it changes nothing, so it never joins a body's feature
+#: list) and NOT constructive (it creates nothing). Membership here is what
+#: makes the parser require its ``target`` and what makes
+#: :func:`cad_experimental.graph.expectation` judge that target as a solid,
+#: with no special case in either.
+TARGETED_TYPES: Tuple[str, ...] = (
+    MODIFIER_TYPES + PROFILE_SOLID_TYPES + DECLARATION_TYPES
+)
 
 #: The six signed principal directions, exactly as the V1 contract spells
 #: them (Section A.4). No arbitrary vectors.
@@ -340,6 +395,9 @@ PARAMETERS: Dict[str, Tuple[Tuple[str, ...], Tuple[str, ...]]] = {
     EXTRUDE: (EXTRUDE_REQUIRED, EXTRUDE_OPTIONAL),
     REVOLVE: (REVOLVE_REQUIRED, REVOLVE_OPTIONAL),
     PATTERN: (PATTERN_REQUIRED, PATTERN_OPTIONAL),
+    # A `part` has no parameters and carries no `parameters` key at all,
+    # exactly as `subtract` and `union` do not: it is entirely a reference.
+    PART: ((), ()),
 }
 
 #: The keys an edge selector may carry. ``axis`` is present exactly when
@@ -375,6 +433,9 @@ OPERATION_FIELDS: Dict[str, Tuple[str, ...]] = {
     # would have made that distinction invisible in the wire format and in
     # the schema, and the graph's reference roles exist precisely to keep it.
     PATTERN: ("id", "type", "source", "parameters"),
+    # A declaration: one reference and nothing else. No `parameters`, so
+    # there is exactly one shape for it rather than two.
+    PART: ("id", "type", "target"),
 }
 
 #: The most tools one subtract may list. A part is not built from hundreds of
@@ -886,6 +947,41 @@ class UnionOperation:
         return {}
 
 
+@dataclass(frozen=True)
+class PartOperation:
+    """Declares that a named live body is an intended body of the result.
+
+    The first operation in this language that produces **no geometry**. It
+    creates nothing, changes nothing and consumes nothing; it says something
+    about what the finished result is supposed to contain.
+
+    Why a declaration rather than inferring two bodies from two live solids
+    -------------------------------------------------------------------
+    Because inferring is the silent behaviour Stage 62 removed. Before that
+    stage a plan that fused two boxes and left a third standing executed with
+    ``succeeded=True``, and everything downstream kept ``bodies[0]`` -- so the
+    third solid vanished from the render, the measurement and every export
+    with nothing anywhere saying so.
+
+    Two live bodies and no ``part`` is therefore still a **mistake**, and
+    still fails with ``multiple_solids``. Two live bodies where both are
+    declared is a **part with two bodies**. The difference is not guessed
+    from the geometry; it is written in the plan, where a reader can see it.
+
+    The result keeps the target's id, as every reference in this language
+    does: a declaration does not rename a body and its own id names nothing.
+    """
+
+    TYPE = PART
+
+    id: str
+    target: str
+
+    def parameters(self) -> Dict[str, Any]:
+        """No parameters. A declaration is entirely a reference."""
+        return {}
+
+
 #: A parsed operation. A union of exactly the implemented types.
 Operation = Any  # BoxOperation | CylinderOperation (3.9-compatible)
 
@@ -925,6 +1021,11 @@ def is_executable(operation: Operation) -> bool:
     return operation_type(operation) in EXECUTABLE_TYPES
 
 
+def is_declaration(operation: Operation) -> bool:
+    """True if the operation declares something and builds no geometry."""
+    return operation_type(operation) in DECLARATION_TYPES
+
+
 def is_consuming(operation: Operation) -> bool:
     """True if the operation consumes the solids it references as tools."""
     return operation_type(operation) in CONSUMING_TYPES
@@ -950,11 +1051,16 @@ def operation_to_dict(operation: Operation) -> Dict[str, Any]:
     source = getattr(operation, "source", None)
     if source is not None:
         payload["source"] = source
-    parameters = operation.parameters()
-    # A subtract has none, and writing `"parameters": {}` would invent a
-    # second valid shape for it.
-    if parameters or not tools:
-        payload["parameters"] = parameters
+    # Whether this type carries a `parameters` key at all is
+    # `OPERATION_FIELDS`' answer, not a guess from whether the dictionary
+    # came back empty. The old test -- "write it unless there are tools" --
+    # happened to be right for every type that existed, and was wrong the
+    # moment a type arrived with neither parameters nor tools: a `part`
+    # would have round-tripped as `{"parameters": {}}`, which its own entry
+    # in `OPERATION_FIELDS` rejects, so `operation_to_dict` would have
+    # produced plans this module's own parser refuses.
+    if "parameters" in OPERATION_FIELDS.get(operation_type(operation), ()):
+        payload["parameters"] = operation.parameters()
     return payload
 
 
@@ -1864,7 +1970,14 @@ __all__ = [
     "EDGE_MODIFIER_TYPES",
     "TOOL_MODIFIER_TYPES",
     "EXECUTABLE_TYPES",
+    "BUILDABLE_TYPES",
+    "DECLARATION_TYPES",
     "EXECUTOR_ONLY_TYPES",
+    "MAX_BODIES",
+    "PART",
+    "PLAN_TYPES",
+    "PartOperation",
+    "is_declaration",
     "MERGED_SCHEMA_GROUPS",
     "PROFILE_TYPES",
     "SKETCH",

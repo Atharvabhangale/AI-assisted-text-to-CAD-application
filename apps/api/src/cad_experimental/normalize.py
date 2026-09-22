@@ -68,6 +68,8 @@ from .plan import (
     CHAMFER,
     CYLINDER,
     FILLET,
+    MAX_BODIES,
+    PART,
     PATTERN,
     SELECT_CIRCULAR,
     SELECT_STRAIGHT,
@@ -1082,6 +1084,133 @@ def _linear_pattern(plan, source, source_id, count, lowered):
 # --- the registry ------------------------------------------------------------
 
 #: Every reader, in the order they are offered a request.
+# --- separate bodies (Stage 71) ---------------------------------------------
+
+#: The phrases that ask for bodies that are NOT joined. Every one of them
+#: says so outright, and that is the point: this reader claims a sentence
+#: only when the person has stated separateness, never when two shapes merely
+#: appear in one sentence. "A plate and a rod" could mean either, and a
+#: grammar that guessed would be making a CAD decision from a conjunction.
+_SEPARATE = re.compile(
+    r"\b(?:"
+    r"separate\s+(?:bodies|parts|solids)"
+    r"|(?:two|2|three|3)\s+bodies"
+    r"|as\s+bodies"
+    r"|not\s+joined|without\s+join(?:ing)?|don'?t\s+join|do\s+not\s+join"
+    r"|unjoined"
+    r")\b", re.I)
+
+#: "a 40 mm cube"
+_CUBE = re.compile(rf"{_N}{_MM}\s*cube", re.I)
+
+#: "a 20 mm cylinder" -- a bare length in front of a round noun.
+#:
+#: Reader-local on purpose. :data:`_DIAMETER` requires the word to be said
+#: ("20 mm diameter", "dia 20", "ø20"), and `read_cylinder` keeps that
+#: strictness because a bare number before "cylinder" could be a length. In
+#: THIS sentence it cannot: the length is given separately, so the remaining
+#: number is the across-size. The reading is stated as an assumption either
+#: way, so a wrong guess is visible rather than silent, and no other reader's
+#: behaviour changes.
+_ROUND_SIZE = re.compile(
+    rf"{_N}{_MM}\s*(?:{'|'.join(_ROUND_WORDS)})\b", re.I)
+
+#: The clear distance left between two bodies placed side by side.
+#:
+#: Stated as an assumption on every reading that uses it, never applied
+#: quietly. "Beside" fixes a direction and not a number, and two bodies both
+#: at the origin would interpenetrate -- which is legal here, since nothing
+#: joins them, and is certainly not what "beside" means. A visible convention
+#: the person can correct beats geometry invented in silence.
+_BESIDE_GAP = 10.0
+
+
+def read_separate_bodies(
+    text: str, plan: Optional[Mapping[str, Any]]
+) -> Optional[Reading]:
+    """"a 40 mm cube and a 20 mm cylinder 30 mm long, as two separate bodies".
+
+    The narrowest possible multi-body sentence: two primitives the person has
+    explicitly said are NOT joined. It declares each with a ``part``, so the
+    plan states the intent rather than leaving two live solids to be read as
+    either an assembly or a leftover.
+
+    Deliberately narrow. It reads a cube and a cylinder, in that order, and
+    declines everything else -- including the same two shapes written without
+    a separateness phrase, which is a different request and may well mean a
+    union. A grammar that widened itself here would start deciding, from
+    English, how many bodies a part has.
+    """
+    lowered = (text or "").lower()
+    if _SEPARATE.search(lowered) is None:
+        return None
+    if plan is not None and not _asks_for_a_new_part(lowered):
+        return None
+
+    cube = _CUBE.search(lowered)
+    if cube is None:
+        return None
+    if not any(word in lowered for word in _ROUND_WORDS):
+        return None
+
+    side = _positive(float(cube.group(1)), "cube side")
+    stated = _DIAMETER.search(lowered)
+    implied = None if stated is not None else _ROUND_SIZE.search(lowered)
+    if stated is None and implied is None:
+        return None
+    diameter = _positive(
+        _first_number(stated) if stated is not None else float(implied.group(1)),
+        "diameter",
+    )
+
+    height_match = _TALL.search(lowered) or _HEIGHT_FIRST.search(lowered)
+    if height_match is None:
+        # Recognised, and cannot be honoured: a cylinder has a length and
+        # this sentence does not give one. Refused by name rather than
+        # guessed -- a height invented here would be geometry nobody asked
+        # for, and this project reports rather than repairs.
+        raise ReadingError(
+            "a cylinder needs a length as well as a diameter, and this "
+            "request gives only the diameter; say how long it is (for "
+            "example \"30 mm long\") and it will be built"
+        )
+    height = _positive(_first_number(height_match), "height")
+
+    noun = next(word for word in _ROUND_WORDS if word in lowered)
+    # Placed clear of the cube along +X. A cylinder's `position` is the
+    # CENTRE of its base, so the gap is measured to the cylinder's near face.
+    centre_x = side + _BESIDE_GAP + diameter / 2.0
+    summary = (
+        f"two separate bodies: a {side:g} mm cube, and a {diameter:g} mm "
+        f"diameter {noun} {height:g} mm long beside it"
+    )
+    return Reading(
+        plan=_fresh_plan(
+            summary,
+            {"id": "cube", "type": BOX,
+             "parameters": {"x": side, "y": side, "z": side}},
+            {"id": noun, "type": CYLINDER,
+             "parameters": {"diameter": diameter, "height": height,
+                            "position": {"x": centre_x, "y": side / 2.0,
+                                         "z": 0}}},
+            {"id": "body_cube", "type": PART, "target": "cube"},
+            {"id": f"body_{noun}", "type": PART, "target": noun},
+        ),
+        summary=summary,
+        reader="separate_bodies",
+        assumptions=(
+            f"they are two separate bodies, declared with `part`, and nothing "
+            f"joins them",
+        ) + ((
+            f"\"{diameter:g} mm {noun}\" was read as {diameter:g} mm "
+            f"ACROSS, since the length is given separately",
+        ) if stated is None else ()) + (
+            f"\"beside\" was read as along +X, with a {_BESIDE_GAP:g} mm gap",
+            "the cylinder's axis was not stated, so the default +Z is used",
+        ),
+    )
+
+
 #:
 #: Order is deliberate and narrow-first. A sentence that creates a part is
 #: tried before one that edits it, and a specific edit before a general one --
@@ -1090,6 +1219,7 @@ def _linear_pattern(plan, source, source_id, count, lowered):
 #: its sentence, so the order is a tie-break rather than a dispatch table, but
 #: relying on that alone would be relying on every reader being perfect.
 READERS: Tuple[Tuple[str, Callable[..., Optional[Reading]]], ...] = (
+    ("separate_bodies", read_separate_bodies),
     ("box", read_box),
     ("cylinder", read_cylinder),
     ("corner_holes", read_corner_holes),

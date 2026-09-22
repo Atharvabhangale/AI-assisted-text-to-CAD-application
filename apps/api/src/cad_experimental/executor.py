@@ -64,6 +64,8 @@ from .plan import (
     CHAMFER,
     CYLINDER,
     DEFAULT_AXIS,
+    BUILDABLE_TYPES,
+    DECLARATION_TYPES,
     EXECUTABLE_TYPES,
     EXECUTOR_ONLY_TYPES,
     FILLET,
@@ -147,13 +149,30 @@ class ExecutionResult:
     #: agent needs to see why an edge operation did what it did.
     selections: Mapping[str, Resolution] = field(default_factory=dict)
 
+    #: The bodies the plan DECLARED, in declaration order. Empty for every
+    #: plan that declares none -- which is every plan written before Stage
+    #: 71, and still the ordinary case.
+    #:
+    #: Recorded rather than inferred from ``len(bodies) > 1``, because those
+    #: are different facts: a single body may be declared, and two bodies
+    #: may only ever appear declared because the undeclared case is refused.
+    #: A caller that wants "is this a multi-body part" should read this.
+    declared: Tuple[str, ...] = ()
+
     @property
     def succeeded(self) -> bool:
         return self.failure is None
 
     @property
     def part(self) -> Optional[str]:
-        """The single live body, when the plan left exactly one."""
+        """The single live body, when the plan left exactly one.
+
+        **Unchanged by multi-body, deliberately.** Widening this to "the
+        first one" is the Stage 62 bug by another name: a caller that draws
+        `part` would put a part on screen missing a piece and report a
+        successful build. A caller that wants every body reads
+        :attr:`bodies`, which has always been a tuple.
+        """
         return self.bodies[0].id if len(self.bodies) == 1 else None
 
     def to_dict(self) -> Dict[str, Any]:
@@ -162,6 +181,7 @@ class ExecutionResult:
             "backend": self.backend,
             "order": list(self.order),
             "bodies": [body.to_dict() for body in self.bodies],
+            "declared": list(self.declared),
             "failure": self.failure.to_dict() if self.failure else None,
             "selections": {
                 name: resolution.to_dict()
@@ -198,7 +218,10 @@ def execute_plan(
     unexecutable = tuple(dict.fromkeys(
         getattr(operation, "TYPE", None)
         for operation in plan.operations
-        if getattr(operation, "TYPE", None) not in EXECUTABLE_TYPES
+        # `BUILDABLE_TYPES`, not `EXECUTABLE_TYPES`: the executor also
+        # carries declarations, which build nothing and so are not
+        # "executable" in the sense that tuple means.
+        if getattr(operation, "TYPE", None) not in BUILDABLE_TYPES
     ))
     if unexecutable:
         return state.stopped(
@@ -285,18 +308,41 @@ class _State:
         # Reported, never repaired: the extra body is NOT fused in, and no
         # body is dropped to make the count come out. Both would be guessing
         # at what the author meant. They are named instead.
-        if len(bodies) > 1:
+        # Stage 71's ONE exemption, and it is an exemption rather than a
+        # weakening: the gate above still refuses more than one live body,
+        # and only a plan that SAYS it meant them passes. `declared` comes
+        # from the plan's own `part` operations, read off the same history
+        # walk everything else reads -- not inferred from the geometry,
+        # because inferring is exactly what made the leftover invisible.
+        #
+        # So the three cases stay distinct, which is the whole point:
+        #   one body                       -> a part, as always
+        #   several bodies, all declared   -> a part with several bodies
+        #   several bodies, not all        -> still `multiple_solids`
+        declared = tuple(getattr(history, "declared_bodies", ()) or ())
+        undeclared = tuple(
+            body.id for body in bodies if body.id not in declared
+        )
+        if len(bodies) > 1 and undeclared:
             named = ", ".join(repr(body.id) for body in bodies)
+            loose = ", ".join(repr(name) for name in undeclared)
+            remedy = (
+                f"Join them with a `union`, declare each with a `part`, or "
+                f"remove the ones that are not part of it"
+            )
+            detail = (
+                f"the plan leaves {len(bodies)} separate solids ({named}); "
+                f"a part is exactly one, unless the plan declares otherwise. "
+                f"{loose} {'is' if len(undeclared) == 1 else 'are'} not "
+                f"declared. {remedy}"
+            )
             return ExecutionResult(
                 order=self.order,
                 bodies=tuple(bodies),
                 shapes=dict(self.shapes),
+                declared=declared,
                 failure=ExecutionFailure(
-                    MULTIPLE_SOLIDS,
-                    f"the plan leaves {len(bodies)} separate solids "
-                    f"({named}); a part is exactly one. Join them with a "
-                    f"`union`, or remove the ones that are not part of it",
-                    bodies[-1].id,
+                    MULTIPLE_SOLIDS, detail, undeclared[-1],
                 ),
                 backend=getattr(self.backend, "name", ""),
                 selections=dict(self.selections),
@@ -306,6 +352,7 @@ class _State:
             order=self.order,
             bodies=tuple(bodies),
             shapes=dict(self.shapes),
+            declared=declared,
             backend=getattr(self.backend, "name", ""),
             selections=dict(self.selections),
         )
@@ -316,6 +363,12 @@ def _apply(
 ) -> Optional[ExecutionFailure]:
     """One operation. Returns a failure, or ``None`` and mutates the state."""
     kind = getattr(operation, "TYPE", None)
+    if kind in DECLARATION_TYPES:
+        # A declaration makes no geometry, so there is nothing to build and
+        # nothing to fail. Handled before the kernel is touched at all, so
+        # that "produces no geometry" is a property of the code rather than
+        # a comment: there is no branch below it could reach.
+        return None
     try:
         if kind == BOX:
             state.shapes[operation.id] = state.backend.create_box(

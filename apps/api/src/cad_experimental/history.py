@@ -40,6 +40,7 @@ from typing import Any, Dict, Iterator, List, Mapping, Optional, Tuple
 from .graph import modified_body, references_of
 from .plan import (
     CONSUMING_TYPES,
+    PART,
     PROFILE_TYPES,
     SOLID_DECLARING_TYPES,
     OperationPlan,
@@ -211,6 +212,31 @@ class PlanHistory:
     #: Every body the plan ever created, in creation order, live or not.
     bodies: Tuple[Body, ...] = ()
 
+    #: The ids a ``part`` declaration names, in the order they are declared,
+    #: without duplicates.
+    #:
+    #: **Reported, never judged** -- exactly like :attr:`terminal_solids`.
+    #: Whether each one is live, unique, or complete is the validator's
+    #: answer (P33-P35), and whether more than one live body is permitted is
+    #: the executor's. This says only what the plan declared, so a malformed
+    #: plan is described rather than refused, which is the whole contract of
+    #: this module.
+    declared_bodies: Tuple[str, ...] = ()
+
+    @property
+    def declares_bodies(self) -> bool:
+        """Whether the plan declares its bodies at all.
+
+        A plan that does not means exactly what every plan meant before
+        declarations existed: one body, and a second live solid is a
+        leftover. That is why this is a question worth asking rather than a
+        count -- the absence of a declaration is itself the statement.
+        """
+        return bool(self.declared_bodies)
+
+    def is_declared(self, body_id: str) -> bool:
+        return body_id in self.declared_bodies
+
     @property
     def live_bodies(self) -> Tuple[Body, ...]:
         """The bodies still standing. Length one for a finished V1 part."""
@@ -325,6 +351,7 @@ class PlanHistory:
             "consumed": list(self.consumed),
             "depth": self.depth,
             "bodies": [body.to_dict() for body in self.bodies],
+            "declared_bodies": list(self.declared_bodies),
         }
 
 
@@ -440,6 +467,7 @@ def plan_history(plan: OperationPlan) -> PlanHistory:
     by_id = {operation.id: operation for operation in plan.operations}
     bodies: List[Dict[str, Any]] = []
     body_index: Dict[str, int] = {}
+    declared: Dict[str, int] = {}
 
     for index, operation, state in walk(plan.operations):
         last_state = state
@@ -484,6 +512,16 @@ def plan_history(plan: OperationPlan) -> PlanHistory:
             })
         elif changed is not None and changed in body_index:
             bodies[body_index[changed]]["features"].append(operation.id)
+        # A declaration, in the same single pass. It creates no body, joins
+        # no body's feature list and consumes nothing -- it records an
+        # intention about one. `setdefault` keeps the FIRST declaration's
+        # position, so a plan that declares the same body twice is described
+        # here once and reported by P33 there.
+        if kind == PART:
+            target = getattr(operation, "target", None)
+            if isinstance(target, str) and target:
+                declared.setdefault(target, index)
+
         for taken in _consumed_by(operation, kind, state.solids):
             if taken in body_index:
                 record = bodies[body_index[taken]]
@@ -516,6 +554,7 @@ def plan_history(plan: OperationPlan) -> PlanHistory:
             )
             for record in bodies
         ),
+        declared_bodies=_ordered(declared),
     )
 
 

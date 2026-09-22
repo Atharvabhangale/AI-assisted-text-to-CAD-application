@@ -33,6 +33,7 @@ from cad_experimental.plan import (
     AXES,
     CONSTRUCTIVE_TYPES,
     CONSUMING_TYPES,
+    DECLARATION_TYPES,
     EXECUTABLE_TYPES,
     EXTRUDE,
     FULL_TURN,
@@ -184,10 +185,22 @@ class VocabularyTests(unittest.TestCase):
         )
 
     def test_both_carry_a_target(self):
+        """And so does every other type that names something, and no more.
+
+        `part` joined this set at Stage 71 and is the reason the assertion
+        names three tuples rather than two. It is worth stating why it is
+        here and not in `MODIFIER_TYPES`: a declaration names a solid, so it
+        needs a `target` and that target is judged as a solid -- but it
+        changes nothing, so it must never join the body's feature list. The
+        second assertion is the one that would catch a future edit moving it
+        into the modifiers for convenience.
+        """
         self.assertEqual(
             set(TARGETED_TYPES),
-            set(MODIFIER_TYPES) | set(PROFILE_SOLID_TYPES),
+            set(MODIFIER_TYPES) | set(PROFILE_SOLID_TYPES)
+            | set(DECLARATION_TYPES),
         )
+        self.assertFalse(set(DECLARATION_TYPES) & set(MODIFIER_TYPES))
 
     def test_the_predicates_agree(self):
         operations = parse_plan(plan(

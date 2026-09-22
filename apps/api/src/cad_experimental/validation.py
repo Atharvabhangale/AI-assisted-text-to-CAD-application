@@ -22,13 +22,15 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from .graph import REPEATABLE, feature_graph
 from .history import walk
 from .plan import (
     AXES,
     BOX,
+    MAX_BODIES,
+    PART,
     PARAMETERS,
     DEFAULT_AXIS,
     MAX_PATTERN_COUNT,
@@ -173,10 +175,25 @@ P31 = "P31"  # the dependency graph is acyclic
 # guessed at here.
 P32 = "P32"  # a position is admissible for this selector, and has an axis
 
+# --- body declarations (Stage 71) ------------------------------------------
+#
+# `part` declares that a named live body is an intended body of the result.
+# Three rules, and the count is the point: `docs/multi-body-design.md`
+# proposed four, and the first of them -- "a part's target names a solid that
+# is live at that point" -- turned out to be the reference rules P9-P12
+# verbatim. A declaration's target is a reference like every other reference
+# in this language, so it is judged by the rules that own references, and a
+# fourth code restating them would have been a second opinion about what
+# "live" means. The three below are what is genuinely new.
+P33 = "P33"  # a body is declared at most once
+P34 = "P34"  # the declared bodies are exactly the live ones at the end
+P35 = "P35"  # the number of declared bodies is within its bounds
+
 RULE_CODES: Tuple[str, ...] = (
     P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14,
     P15, P16, P17, P18, P19, P20, P21, P22,
     P23, P24, P25, P26, P27, P28, P29, P30, P31, P32,
+    P33, P34, P35,
 )
 
 
@@ -241,9 +258,19 @@ def validate_plan(plan: OperationPlan) -> PlanValidation:
     # never enters the solid set. That single fact is what makes a
     # hole-targeting-a-hole plan invalid.
     seen: Dict[str, int] = {}
+    #: Declared body id -> (index of the declaration, was its reference sound).
+    declared: Dict[str, Tuple[int, bool]] = {}
+    #: The walk yields the state BEFORE each operation and mutates it in
+    #: place, so the last one yielded IS the final state once the loop ends.
+    #: Re-read after the loop rather than snapshotted inside it -- the same
+    #: trick `history.plan_history` uses, and for the same reason: it is what
+    #: includes the last operation's own effect, and it means the validator
+    #: walks the plan once rather than asking for a second walk.
+    final: Optional[Any] = None
     for index, operation, state in walk(plan.operations):
+        final = state
         where = f"operations[{index}]"
-        declared = state.declared
+        declared_ids = state.declared
         live = state.solids
         consumed = state.consumed
         profiles = state.profiles
@@ -293,24 +320,49 @@ def validate_plan(plan: OperationPlan) -> PlanValidation:
                 )
             _reference(
                 operation.target, f"{where}.target", operation.id, index,
-                declared, live, consumed, problems, profiles,
+                declared_ids, live, consumed, problems, profiles,
             )
+        elif kind == PART:
+            # The target is a reference like any other, so the reference
+            # rules judge it: P9 no such id, P10 not yet, P11 not a solid,
+            # P12 already consumed. Nothing is restated here.
+            before = len(problems)
+            _reference(
+                operation.target, f"{where}.target", operation.id, index,
+                declared_ids, live, consumed, problems, profiles,
+            )
+            sound = len(problems) == before
+            if operation.target in declared:
+                first, _ = declared[operation.target]
+                problems.append(
+                    PlanProblem(
+                        P33,
+                        (
+                            f"{operation.target!r} is already declared a body "
+                            f"of the part at operations[{first}]; declaring "
+                            f"it again says nothing new"
+                        ),
+                        f"{where}.target",
+                    )
+                )
+            else:
+                declared[operation.target] = (index, sound)
         elif kind in CONSUMING_TYPES:
             _combine(
-                operation, kind, index, where, declared, live, consumed,
+                operation, kind, index, where, declared_ids, live, consumed,
                 problems, profiles,
             )
         elif kind == PATTERN:
             _pattern(
                 operation, index, where, plan.operations,
-                declared, live, consumed, profiles, problems,
+                declared_ids, live, consumed, profiles, problems,
             )
         elif kind == SKETCH:
             _sketch(operation, where, problems)
         elif kind in PROFILE_SOLID_TYPES:
             _profile_solid(
                 operation, kind, index, where, plan.operations,
-                declared, live, consumed, problems, profiles,
+                declared_ids, live, consumed, problems, profiles,
             )
         elif kind in EDGE_MODIFIER_TYPES:
             # One branch for both edge modifiers: they differ only in the
@@ -324,7 +376,7 @@ def validate_plan(plan: OperationPlan) -> PlanValidation:
             _selector(operation.edges, f"{where}.edges", problems)
             _reference(
                 operation.target, f"{where}.target", operation.id, index,
-                declared, live, consumed, problems, profiles,
+                declared_ids, live, consumed, problems, profiles,
             )
         else:
             # Unreachable through the parser, which rejects unknown types.
@@ -360,8 +412,85 @@ def validate_plan(plan: OperationPlan) -> PlanValidation:
                         )
                     )
 
+    _declarations(declared, final, problems)
     _acyclic(plan, problems)
     return PlanValidation(valid=not problems, problems=tuple(problems))
+
+
+def _declarations(
+    declared: Dict[str, Tuple[int, bool]],
+    final: Optional[Any],
+    problems: List[PlanProblem],
+) -> None:
+    """P34 and P35, decided once against the plan's final solid set.
+
+    **A plan that declares nothing is untouched.** That is not a special
+    case bolted on; it is the whole compatibility guarantee. Every plan
+    written before declarations existed, every corpus case and every
+    baseline goes through here and nothing happens, because the absence of a
+    declaration is itself a statement -- "one body" -- and it is the
+    statement the single-solid rule has always enforced.
+    """
+    if not declared or final is None:
+        return
+
+    live = tuple(
+        name for name, _ in sorted(final.solids.items(), key=lambda p: p[1])
+    )
+
+    # P34, first half: a body left standing that nobody declared. Mixing
+    # declared and undeclared bodies is the ambiguous case -- is the extra
+    # one a second body or a leftover? -- and it is refused rather than
+    # guessed, which is the same reason the undeclared case still fails at
+    # execution.
+    undeclared = tuple(name for name in live if name not in declared)
+    if undeclared:
+        named = ", ".join(repr(name) for name in undeclared)
+        problems.append(
+            PlanProblem(
+                P34,
+                (
+                    f"this plan declares its bodies, but {named} "
+                    f"{'is' if len(undeclared) == 1 else 'are'} left standing "
+                    f"undeclared. Declare {'it' if len(undeclared) == 1 else 'them'} "
+                    f"with a `part`, or remove "
+                    f"{'it' if len(undeclared) == 1 else 'them'} from the plan"
+                ),
+            )
+        )
+
+    # P34, second half: a declaration that describes nothing in the result,
+    # because the body it names was consumed after it was made. Reported
+    # only when the declaration's own reference was sound -- otherwise P9,
+    # P11 or P12 has already said what is wrong with it, and a second
+    # problem about the same reference is noise, not information.
+    for name, (index, sound) in sorted(declared.items(), key=lambda p: p[1][0]):
+        if sound and name not in live:
+            problems.append(
+                PlanProblem(
+                    P34,
+                    (
+                        f"{name!r} is declared a body of the part but is not "
+                        f"one at the end: something later consumed it. A "
+                        f"declaration describes the finished result, not a "
+                        f"stage of it"
+                    ),
+                    f"operations[{index}].target",
+                )
+            )
+
+    # P35. Only the upper bound can fire: a declaration exists, so there is
+    # at least one, which is why this reads as a cap rather than a range.
+    if len(declared) > MAX_BODIES:
+        problems.append(
+            PlanProblem(
+                P35,
+                (
+                    f"{len(declared)} bodies are declared; at most "
+                    f"{MAX_BODIES} are allowed"
+                ),
+            )
+        )
 
 
 def _has_position(kind: object) -> bool:
