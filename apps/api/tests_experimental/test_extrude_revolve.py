@@ -1189,11 +1189,33 @@ class PromptTests(unittest.TestCase):
         post-union targeting from 0/5 correct to 4/5. Three other candidate
         fixes were measured first and changed nothing; see
         `docs/evaluation-baselines/stage65-union-target/`.
+
+        `2026-09-18.5` is Stage 69, and it is the third consecutive version
+        chosen by measurement. Stage 68 left exactly one failure standing on
+        the EXPLICIT golden request, and 24 fresh live calls said it was not
+        the failure it had been read as: the model does not copy the +Z
+        bore's position triple (0/24), it zeroes **z**, and only z, on bores
+        that do not run along Z. Over 64 pooled baseline attempts every one
+        of the 9 wrong across-axis components was the z of an +X or +Y bore;
+        x and y were wrong 0 times in every position. Four arms of 32 live
+        calls each then separated the cause. Deleting the letter-to-zero
+        pairing from the axis table did NOT help (E 4/32), and reordering
+        the table so +X comes first -- a pure reordering, same characters --
+        did NOT move the error onto x (z still 8/8 of the wrong components),
+        which refutes the table as the mechanism. What moved it was the
+        missing EXAMPLE: every hole position the prompt showed had z at 0,
+        because every example bore ran along +Z. Adding one worked example in
+        the prompt's own 60x30x30 numbers, two of whose bores carry a nonzero
+        z, took the defect to 0 in 96 attempts and strict success from 54/64
+        to 91/96 (Fisher exact, two sided, p = 0.049) with no regression:
+        thickness stayed 96/96 and plate count 96/96. `2026-09-18.4` is
+        deliberately unused -- see `PROMPT_VERSION`'s own comment. See
+        `docs/evaluation-baselines/stage69-bore-axis-centre/`.
         """
-        self.assertEqual(self.version, "2026-09-18.3")
+        self.assertEqual(self.version, "2026-09-18.5")
         self.assertEqual(
             self.fingerprint,
-            "c78aaad8eacf365ed1e557f6e7325513e3cd8b80592c39c319ae7cb5a156a521",
+            "8563c6fb821e022f4041811ef88b6cb677482dfcfdaa57cc0eee34c588dfa255",
         )
         self.assertEqual(len(self.fingerprint), 64)
 

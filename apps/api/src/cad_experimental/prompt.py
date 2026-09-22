@@ -18,7 +18,13 @@ from .plan import AXES, OPERATION_TYPES, PlanStatus
 
 #: Bumped on any change to the text below. A measurement without this is not
 #: reproducible.
-PROMPT_VERSION = "2026-09-18.3"
+#:
+#: `2026-09-18.4` is deliberately UNUSED. Stage 67 adopted that number for an
+#: arm that significantly regressed the plate thickness (Fisher exact, two
+#: sided, p = 0.00132) and reverted it, so it names a prompt that exists
+#: nowhere in the history. Leaving the number burnt keeps that record
+#: unambiguous.
+PROMPT_VERSION = "2026-09-18.5"
 
 SYSTEM_PROMPT = f"""\
 You turn a description of a mechanical part into a CAD operation plan.
@@ -73,6 +79,14 @@ parameters:
             the outside face of the part, where the cut grazes the
             surface or misses it altogether. Through the centre of a
             part means the MIDDLE of each of the other two extents.
+            Through the centre of a 60 by 30 by 30 part, the three
+            bores are written:
+              +Z -- {{"x": 30, "y": 15, "z": 0}}
+              +Y -- {{"x": 30, "y": 0,  "z": 15}}
+              +X -- {{"x": 0,  "y": 15, "z": 15}}
+            Only the +Z bore has z at 0. The other two carry z at
+            the middle of the height, because for them z is one of
+            the two components that decide where the hole is.
   axis      optional, one of {", ".join(AXES)}. The direction of the
             centreline. Omit it when the description does not say; the
             default is +Z.
