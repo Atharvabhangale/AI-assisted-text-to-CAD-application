@@ -18,9 +18,9 @@ written**, and §19 is authoritative instead:
   them as "the normal way in"; they arrived on stable after the fork. Use the
   manual `uvicorn` / `npm run dev` sequence, or §19's commands.
 - **§5's test counts are stable's.** On this branch the current measured
-  figures are **`tests_experimental` 1910 passed, 5 skipped** and
+  figures are **`tests_experimental` 1936 passed, 5 skipped** and
   **cad-core 1481 passed**, both on Linux with FreeCAD 1.0.0 present
-  (Stage 71). §5's own note carries the older Windows figures as history.
+  (Stage 72). §5's own note carries the older Windows figures as history.
   §5's "no known failing tests" is a statement about stable only.
 - **§17's structure map omits this branch's three experimental trees**:
   `apps/api/src/cad_experimental/`, `apps/api/tests_experimental/` and
@@ -289,8 +289,8 @@ skipped or weakened to make the suite pass.
 
 **On `experiment/cad-operation-graph` the numbers above are stable's.**
 
-**CURRENT (Stage 71, Linux, FreeCAD 1.0.0 present):** `tests_experimental`
-**1910 passed, 5 skipped, 0 failed**; cad-core **1481 passed, 0 failed**.
+**CURRENT (Stage 72, Linux, FreeCAD 1.0.0 present):** `tests_experimental`
+**1936 passed, 5 skipped, 0 failed**; cad-core **1481 passed, 0 failed**.
 The six cad-core errors described below are **Windows-only** and do not
 reproduce on Linux.
 
@@ -1425,6 +1425,81 @@ off-centre bore that stays inside the same two walls measures **identically**
 for the plan-level `bore_centred` check, and the reason a criterion built
 only on measurement cannot catch this class of error.
 
+**Stage 72 — multi-body, step 2: ADDRESSING A BODY BY NAME.** Record:
+`docs/multi-body-step2/`. **No live model was called and none was
+configured**; the evidence is `DETERMINISTIC`.
+
+**No operation, no P-code and no schema change.** The canonical plan could
+already name a body — an operation's `target` IS a body id, and a body keeps
+that id for life. What was missing was turning a sentence into one of those
+ids, and refusing when the sentence does not settle it.
+`cad_experimental/body_reference.py` is the **one** place that answers it:
+
+| the request | the answer |
+|---|---|
+| names a live body | **that body** |
+| names none, and exactly one is live | **that body** — pre-Stage-71 behaviour, unchanged |
+| names none, and several are live | **REFUSE**, listing them |
+| names two bodies at once | **REFUSE** — one operation changes one body |
+| names a body that was consumed | **REFUSE**, and say what consumed it |
+
+**A body is named by its id and by nothing else.** Matching on the noun of
+the primitive it came from, or on a synonym list — "the block" for a body
+named `plate` — was rejected: it is a guess, and a wrong guess edits the
+wrong body and reports success. A refusal costs the person one word and
+cannot be wrong. An id that is a whole word inside a longer one (`plate`
+inside `plate-2`) is settled by the **text**, one match span containing the
+other, never by preferring a longer name in general.
+
+**No new validation rules, deliberately.** A plan naming a nonexistent body
+is already P9, a modifier's id is P11, a consumed solid is P12. The refusals
+above are *reader* concerns, and a P-code restating P9 would be a second
+opinion about what "a body" means — the same finding as Stage 71's, where
+the design's proposed P33 turned out to be P9–P12 verbatim.
+
+**Two defects this slice had to fix to be correct.** `_envelope` took the
+bounding box over EVERY constructive solid: with a 40 mm cube at the origin
+and a cylinder beside it that box runs x 0..70, so "a hole through the centre
+of the cube" would have been bored at x = 35 — **15 mm off the cube's own
+centre**, in a plan that still validates and still builds. It is now scoped
+to the named body via `_constructive_of`, which `_fused_from` also reads. And
+a failed selection now names its body (`on 'cube': … matched no edge`), added
+in the **executor**, because `edge_semantics` imports nothing and knows
+nothing about plans or bodies and must stay that way.
+
+**The grammar was widened, and that alone would have been a bug.**
+`_GROW_WORDS` took `wider`/`width` but not the bare `wide`, so the plainest
+sentence declined. Adding the adjectives without `_COMPARATIVE` would have
+read "make the cube 50 mm wide" on a 40 mm cube as 40 + 50 = **90** —
+measured. `"20 mm wider"` is a change; `"50 mm wide"` is a size; English
+settles it with the *-er*.
+
+**Kernel evidence, both engines.** Editing each body in turn:
+
+| step | cube | cylinder |
+|---|--:|--:|
+| created | **63999.999999999985** | **9424.777960769377** |
+| "make the cube 50 mm wide" | **79999.99999999999** | 9424.777960769377 — **untouched** |
+| "put a 6 mm hole through the cylinder" | 79999.99999999999 — **untouched** | **8576.547944300135** |
+
+A body-targeted bore measures **identically on CadQuery 2.8.0 and FreeCAD
+1.0.0**, per body, over volume, faces and edges.
+
+**Browser — `npm run e2e:bodytarget` PASSES**: all four steps, including the
+one that matters most — "make it 20 mm wider" comes back **`refused`**, names
+both bodies, and leaves the part exactly where it was. Every other step can
+be checked in a unit test; that a refusal reaches the person *as an answer*,
+in the product, cannot.
+
+**`test_body_targeting.py` — 26 tests, 8 guards mutation-tested 8/8**,
+including falling back to the first body, picking the first of two names, and
+taking the envelope over every body again.
+
+**Known limitation:** `read_resize` still declines for a cylinder — *"a
+cylinder's 'width' is its diameter; later"* — so "make the cylinder 40 mm
+long" declines. That is a dimension-semantics question, not a body-targeting
+one, and doing it here would have been a second unknown in one stage.
+
 **Stage 71 — multi-body, step 1: DISTINCT BODY IDENTITY.** The first step of
 `docs/multi-body-design.md`, and only the first. Record:
 `docs/multi-body-step1/`. **No live model was called and none was
@@ -1704,9 +1779,13 @@ surface, one valid solid, 18 faces, 42 edges, 5544 triangles, 0 failed
 requests, 0 console errors. `npm run e2e:multibody` (Stage 71): the same
 stack, two declared bodies, each with its own mesh and closed-form volume,
 no merged mesh and no part-level measurement claimed.
+`npm run e2e:bodytarget` (Stage 72): a four-turn conversation that edits each
+body in turn and gets a **refusal** for the turn that names neither.
+**`npm run e2e:cases` FAILS**, and did before Stage 71 — see the limitations
+below.
 
-**Test counts (current):** `tests_experimental` **1910 passed, 5 skipped, 0
-failed** (1915 collected), measured at Stage 71 on Linux with FreeCAD 1.0.0
+**Test counts (current):** `tests_experimental` **1936 passed, 5 skipped, 0
+failed** (1941 collected), measured at Stage 72 on Linux with FreeCAD 1.0.0
 present and `CAD_FREECAD_HOME`/`LD_LIBRARY_PATH` exported; cad-core **1481
 passed**. Frontend `tsc --noEmit` clean, `vite build` succeeds. **The skip
 count depends on the environment.** The 5 here are three drawing-view
@@ -1752,6 +1831,7 @@ those. The five most recent are:
 | **61** | **A CAD session that needs no model at all**: `union` (eleventh type, still eight schema branches), two provider-neutral grammars, and an evidence answerer that labels every number `MEASURED` / `DECLARED` / `CALCULATED`. |
 | **62** | The four defects Stage 61 left behind — **an operation is not one edit.** The live route could not *say* `union` (Stage 44's defect a third time); a `union` plan could lose a solid silently; `ExecutionUnsupported` named the wrong reason for it; and a recorded schema size had drifted unpinned. |
 | **64** | **The AI provider usage policy, and CLAUDE.md reconciled.** The rule forbidding Claude Code Web a real credential is retired: where one is available a real provider is used, and live calls are encouraged. `CREDENTIAL_PRECEDENCE` makes the two-variable behaviour explicit instead of implicit. 22 guards now pin the policy and stop the document drifting from the code. |
+| **72** | **Multi-body step 2: addressing a body by name.** One resolver, `body_reference.resolve_body`, and no new operation, P-code or schema change — the plan could always name a body; turning a sentence into one of those ids was what was missing. A body is named by its **id** and nothing else; naming none of several, naming two, or naming a consumed one all **REFUSE** with the bodies listed. Fixed two defects the slice exposed: the envelope spanned every body (a bore 15 mm off centre in a plan that still built) and a failed selection did not say which body. Editing each body in turn leaves the other bit-identical on both kernels, and the browser shows the refusal as an answer. |
 | **71** | **Multi-body step 1: distinct body identity.** One new operation, `part`, that DECLARES a live body is an intended body of the result — kept out of `OPERATION_TYPES` so no schema or prompt fingerprint moves. Two live bodies with no declaration still fail `multiple_solids`; the executor gains one explicit exemption. P33–P35. One RenderModel per body, never merged; `result.part` unchanged. A 40 mm cube and a Ø20×30 cylinder build as two bodies, **bit-identical on CadQuery 2.8.0 and FreeCAD 1.0.0**, and pass through a real browser with no model configured. Single-body product unchanged. |
 | **70** | **The P11 residual measured, bounded and NOT prompt-fixed.** 288 live calls, five arms, an adoption rule committed before the confirming runs — which rejected all four candidates. Stage 69's "targets the product noun `enclosure`" was a token: `enclosure` is what the model named the UNION, and no target in 432 ever named a consumed tool or an absent id. A pure reordering (B3) **regressed** at p = 0.0001, so the section's order is load-bearing; two arms reached 96/96 `fuse` compliance and still carried P11, so the id is a marker, not the cause. P11 **8/144 = 5.6 %, CI [2.4, 10.7]**; strict **135/144**. Stopped deliberately. |
 | **69** | **The residual bore failure measured and removed.** 224 live calls. Stage 68's "the `+Z` triple is copied" reading is refuted (0/24); the model zeroes **z**, and only z, on non-Z bores. Deleting the rule's letter-to-zero pairing made it worse and a pure reordering of the table did not move the error, so the table is not the mechanism — the missing **example** was. Strict success 54/64 → 91/96 (p = 0.049), thickness 96/96 unchanged. Prompt `2026-09-18.5`. |
@@ -1951,10 +2031,16 @@ Separate from the historical record, and none of these is a plan.
   surfaces refuse a multi-body part by name rather than writing its first
   body; and **no model-facing grammar**, since no provider encoding admits a
   `part` branch and the prompt does not mention it.
-- **A multi-body part cannot yet be edited one body at a time.**
-  `normalize._body_id` returns `None` unless exactly one body is live, so
-  every general edit reader declines rather than guessing which body was
-  meant. Honest, and the next multi-body milestone.
+- **A multi-body part IS edited one body at a time** (Stage 72), by naming
+  the body's id. What is still missing there: `read_resize` declines for a
+  **cylinder** (its "width" is a diameter — a dimension-semantics question,
+  deliberately deferred), and a body can only be named by its id, never by
+  the noun of the primitive it came from.
+- **`npm run e2e:cases` is broken, and was before Stage 71.** It waits for
+  `#description`, an element the page has not had since `641106f`. Verified
+  by running it at `8e1371c` with this stage's changes stashed, where it
+  fails identically. Not a regression, not fixed here, and recorded so a
+  green run of the other three browser suites is not read as covering it.
 - **No live corpus benchmark exists** on this branch. Stage 48's instrument
   is complete and has never been run in full; the Stage 43 comparison is the
   only full live run, and its schema and prompt are both superseded.
@@ -2015,14 +2101,17 @@ that every existing schema fingerprint and the prompt are unchanged. Two
 independent bodies build, measure and draw, bit-identical on both kernels,
 and the single-body product is untouched.
 
-**Next: multi-body step 2 — addressing a body by name.** The gap Stage 71
-leaves is not in the representation but in the product: a multi-body part
-cannot be edited, because `_body_id` declines rather than guess which body a
-request meant. Step 2 is letting a request name one ("put a 6 mm hole through
-the cylinder"), which needs a way to refer to a body in the edit grammars and
-nothing else — no transforms, no mates. **After that**, and only then, step 4
-of the design: per-body measurement in the product surfaces, then step 5, the
-STEP assembly, which is what currently makes export refuse a multi-body part.
+**Stage 72 did that work.** `body_reference.resolve_body` is the one answer
+to "which body does this request mean", a body is named by its id, and every
+sentence that does not settle the question is refused with the bodies listed.
+Editing each body in turn leaves the other bit-identical on both kernels, and
+the browser shows the refusal as an answer rather than a guess.
+
+**Next: step 4 of the design — per-body measurement in the product
+surfaces**, then step 5, the STEP assembly, which is what currently makes
+export, drawing and engineering refuse a multi-body part by name. Both are
+about what a multi-body part can be *asked about* and *exported as*; neither
+needs a new operation.
 
 **The model-facing grammar stays closed until the deterministic slice is
 complete.** Stage 70 measured P11 on a *one*-body union at 5.6 %; adding a
@@ -2614,9 +2703,17 @@ The POSIX forms remain correct on Linux/macOS, where `python3` and a
 `CAD_FREECAD_HOME` plus `LD_LIBRARY_PATH=$CAD_FREECAD_HOME/usr/lib` set
 **before Python starts**, or `test_cad_backends` skips.
 
-**1910 passed, 5 skipped** (1915 collected) with FreeCAD 1.0.0 present on
-Linux and its environment exported, measured at Stage 71. Earlier figures,
-each describing a real environment: 1867 at Stage 70; 1856 at Stage 69;
+**1936 passed, 5 skipped** (1941 collected) with FreeCAD 1.0.0 present on
+Linux and its environment exported, measured at Stage 72.
+
+**The two numbers are not in conflict**, and the pairing is worth keeping:
+unittest's "Ran N tests" is the COLLECTED count and includes the skips, so
+1941 collected = 1936 passed + 5 skipped + 0 failed. Both were re-measured
+at `8e1371c` before this stage began, which is how the Stage 71 pair
+(1915 collected / 1910 passed) was confirmed rather than corrected.
+
+Earlier figures, each describing a real environment: 1910 at Stage 71;
+1867 at Stage 70; 1856 at Stage 69;
 1852 at Stage 68;
 1800 at Stage 64;
 1778 at Stage
