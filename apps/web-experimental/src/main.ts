@@ -256,12 +256,37 @@ function selectorSentence(operation: string, resolution: {
 // --- drawing ----------------------------------------------------------------
 
 function draw(payload: unknown): boolean {
+  return drawBodies([{ body_id: "", declared: false, render: payload }]);
+}
+
+/**
+ * Draw every body of the part.
+ *
+ * One mesh per body and nothing merged -- the plan is the only thing in this
+ * system that joins solids, and a viewer that fused two bodies to get them on
+ * screen would be showing a part nobody asked for. The note under the
+ * viewport names each body, so what is drawn is legible as several bodies
+ * rather than as one oddly shaped one.
+ */
+function drawBodies(
+  bodies: readonly { body_id: string; declared: boolean; render?: unknown }[],
+): boolean {
   try {
-    const model = assertRenderModel(payload);
+    const drawable = bodies.filter((body) => body.render != null);
+    if (drawable.length === 0) return false;
+    const models = drawable.map((body) => assertRenderModel(body.render));
     if (viewer === null) viewer = createViewer(canvas);
-    viewer.show(model);
+    viewer.showBodies(models);
     viewportEmpty.hidden = true;
-    meshNote.textContent = describeMesh(model);
+    // One body reads exactly as it always did. The body id is added only
+    // when there is more than one, where it is the thing that makes the note
+    // legible as several bodies rather than one oddly shaped one.
+    meshNote.textContent =
+      models.length === 1
+        ? describeMesh(models[0])
+        : drawable
+            .map((body, index) => `${body.body_id}: ${describeMesh(models[index])}`)
+            .join("\n");
     return true;
   } catch (error) {
     meshNote.textContent =
@@ -421,6 +446,10 @@ function adopt(reply: SessionReply): boolean {
   partTitle.textContent = plan?.summary || "Untitled part";
   partSub.textContent = `${plan?.operations?.length ?? 0} operation(s)`;
 
+  // `bodies` first: it is present on every graph-executed build and covers
+  // the single-body case too, so a two-body part can never fall through to
+  // the single-body branch and arrive on screen missing a piece.
+  if (reply.bodies && reply.bodies.length > 0) return drawBodies(reply.bodies);
   return reply.render ? draw(reply.render) : false;
 }
 

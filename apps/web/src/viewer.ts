@@ -34,6 +34,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import {
   fitCameraToBounds,
   toGeometryArrays,
+  type RenderBounds,
   type RenderModel,
 } from "./render-model";
 
@@ -58,9 +59,47 @@ export function buildGeometry(model: RenderModel): BufferGeometry {
   return geometry;
 }
 
+/**
+ * The smallest box containing every body's bounds.
+ *
+ * Pure, and deliberately here rather than in the render model: a RenderModel
+ * describes ONE body, and inventing a combined one would be a second, merged
+ * representation of a part the plan never merged. This is a camera question,
+ * so it is answered where the camera is.
+ */
+function combinedBounds(models: readonly RenderModel[]): RenderBounds | null {
+  if (models.length === 0) {
+    return null;
+  }
+  const minimum: [number, number, number] = [Infinity, Infinity, Infinity];
+  const maximum: [number, number, number] = [-Infinity, -Infinity, -Infinity];
+  for (const model of models) {
+    for (let axis = 0; axis < 3; axis += 1) {
+      minimum[axis] = Math.min(minimum[axis], model.bounds.minimum[axis]);
+      maximum[axis] = Math.max(maximum[axis], model.bounds.maximum[axis]);
+    }
+  }
+  const size: [number, number, number] = [
+    maximum[0] - minimum[0],
+    maximum[1] - minimum[1],
+    maximum[2] - minimum[2],
+  ];
+  return { minimum, maximum, size };
+}
+
 export interface Viewer {
   /** Draw a render model, replacing whatever was drawn before. */
   show(model: RenderModel): void;
+  /**
+   * Draw several bodies at once, replacing whatever was drawn before.
+   *
+   * One mesh per body, never a merged one: merging would be a fuse the plan
+   * did not ask for, and the plan is the only thing in this system that
+   * joins solids. The camera frames the bodies TOGETHER, from their combined
+   * bounds, so a two-body part arrives in view as a two-body part rather
+   * than with one body framed and the other off screen.
+   */
+  showBodies(models: readonly RenderModel[]): void;
   /** Re-frame the current model from its own bounds. */
   fit(): void;
   /** Match the canvas to its container. */
@@ -102,8 +141,8 @@ export function createViewer(canvas: HTMLCanvasElement): Viewer {
     side: FrontSide,
   });
 
-  let mesh: Mesh | null = null;
-  let current: RenderModel | null = null;
+  let meshes: Mesh[] = [];
+  let bounds: RenderBounds | null = null;
   let running = true;
 
   function resize(): void {
@@ -115,10 +154,10 @@ export function createViewer(canvas: HTMLCanvasElement): Viewer {
   }
 
   function fit(): void {
-    if (current === null) {
+    if (bounds === null) {
       return;
     }
-    const view = fitCameraToBounds(current.bounds, FIELD_OF_VIEW_DEGREES);
+    const view = fitCameraToBounds(bounds, FIELD_OF_VIEW_DEGREES);
     camera.near = view.near;
     camera.far = view.far;
     camera.position.set(...view.position);
@@ -128,14 +167,21 @@ export function createViewer(canvas: HTMLCanvasElement): Viewer {
   }
 
   function show(model: RenderModel): void {
-    if (mesh !== null) {
-      scene.remove(mesh);
-      mesh.geometry.dispose();
-      mesh = null;
+    showBodies([model]);
+  }
+
+  function showBodies(models: readonly RenderModel[]): void {
+    for (const drawn of meshes) {
+      scene.remove(drawn);
+      drawn.geometry.dispose();
     }
-    current = model;
-    mesh = new Mesh(buildGeometry(model), material);
-    scene.add(mesh);
+    meshes = [];
+    bounds = combinedBounds(models);
+    for (const model of models) {
+      const drawn = new Mesh(buildGeometry(model), material);
+      scene.add(drawn);
+      meshes.push(drawn);
+    }
     resize();
     fit();
   }
@@ -158,11 +204,12 @@ export function createViewer(canvas: HTMLCanvasElement): Viewer {
     show,
     fit,
     resize,
+    showBodies,
     dispose(): void {
       running = false;
       controls.dispose();
-      if (mesh !== null) {
-        mesh.geometry.dispose();
+      for (const drawn of meshes) {
+        drawn.geometry.dispose();
       }
       material.dispose();
       renderer.dispose();

@@ -315,10 +315,30 @@ export interface SessionReply {
   readonly measurement?: Readonly<Record<string, unknown>>;
   readonly execution?: ExecutionReport;
   readonly render?: unknown;
+  /**
+   * One entry per body of the built part, each with its own mesh and its own
+   * measurement.
+   *
+   * Always present on a graph-executed build, including a single-body one,
+   * so the page has one way to draw both cases. `render` above stays "the
+   * single body's mesh" and is absent for a declared multi-body part -- a
+   * page that drew it would show one body and call it the part.
+   */
+  readonly bodies?: readonly BodyReport[];
+  readonly declared_bodies?: readonly string[];
   readonly failure?: { readonly message?: string; readonly operation?: string } | null;
   readonly problems?: readonly PlanProblem[];
   readonly error?: string;
   readonly metadata?: Readonly<Record<string, unknown>>;
+}
+
+/** One body of a built part: what it is, what it measures, and its mesh. */
+export interface BodyReport {
+  readonly body_id: string;
+  readonly declared: boolean;
+  readonly features?: readonly string[];
+  readonly measurement?: Readonly<Record<string, unknown>> | null;
+  readonly render?: unknown;
 }
 
 export function sendTurn(sessionId: string, text: string): Promise<SessionReply> {
