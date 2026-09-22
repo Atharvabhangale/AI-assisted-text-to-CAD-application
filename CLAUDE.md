@@ -18,9 +18,9 @@ written**, and §19 is authoritative instead:
   them as "the normal way in"; they arrived on stable after the fork. Use the
   manual `uvicorn` / `npm run dev` sequence, or §19's commands.
 - **§5's test counts are stable's.** On this branch the current measured
-  figures are **`tests_experimental` 1867 passed, 5 skipped** and
+  figures are **`tests_experimental` 1910 passed, 5 skipped** and
   **cad-core 1481 passed**, both on Linux with FreeCAD 1.0.0 present
-  (Stage 70). §5's own note carries the older Windows figures as history.
+  (Stage 71). §5's own note carries the older Windows figures as history.
   §5's "no known failing tests" is a statement about stable only.
 - **§17's structure map omits this branch's three experimental trees**:
   `apps/api/src/cad_experimental/`, `apps/api/tests_experimental/` and
@@ -289,8 +289,8 @@ skipped or weakened to make the suite pass.
 
 **On `experiment/cad-operation-graph` the numbers above are stable's.**
 
-**CURRENT (Stage 70, Linux, FreeCAD 1.0.0 present):** `tests_experimental`
-**1867 passed, 5 skipped, 0 failed**; cad-core **1481 passed, 0 failed**.
+**CURRENT (Stage 71, Linux, FreeCAD 1.0.0 present):** `tests_experimental`
+**1910 passed, 5 skipped, 0 failed**; cad-core **1481 passed, 0 failed**.
 The six cad-core errors described below are **Windows-only** and do not
 reproduce on Linux.
 
@@ -1090,15 +1090,23 @@ authority:
 | tuple | count | members |
 |---|---:|---|
 | `OPERATION_TYPES` | **11** | box, cylinder, through_hole, subtract, **union**, fillet, chamfer, pattern, sketch, extrude, revolve |
-| `EXECUTABLE_TYPES` | 8 | the above minus sketch/extrude/revolve |
+| `DECLARATION_TYPES` | **1** | **`part`** (Stage 71) — produces no geometry; declares one |
+| `PLAN_TYPES` | **12** | the geometry vocabulary plus the declarations: what the parser accepts |
+| `EXECUTABLE_TYPES` | 8 | `OPERATION_TYPES` minus sketch/extrude/revolve |
+| `BUILDABLE_TYPES` | 9 | what the **executor** may carry: the executable types plus the declarations |
 | `V1_FEATURE_TYPES` | 6 | the V1 document's own six — **frozen**, and `union` is deliberately not in it |
 | `V1_EXPRESSIBLE_TYPES` | 7 | the six plus `pattern`, which expands into one feature per instance |
-| `EXECUTOR_ONLY_TYPES` | 1 | `('union',)` — derived, not listed |
+| `EXECUTOR_ONLY_TYPES` | 2 | `('union', 'part')` — **derived** from `BUILDABLE_TYPES`, not listed |
 | `TOOL_MODIFIER_TYPES` | 2 | `subtract`, `union` — both consume their tools |
 | `PATTERNABLE_TYPES` | 1 | `through_hole` |
+| `MAX_BODIES` | 8 | the most independent bodies one plan may declare |
 | `SELECT_MODES` | 4 | all, axis_parallel, straight, circular |
 
-Plan rules are **P1–P32**. `sketch`, `extrude` and `revolve` are represented
+**`OPERATION_TYPES` is the GEOMETRY vocabulary**, and that is now load-bearing:
+every provider encoding and the prompt are built from it, so `part` is
+deliberately in its own tier. See Stage 71.
+
+Plan rules are **P1–P35**. `sketch`, `extrude` and `revolve` are represented
 and validated, then refused at the execution boundary rather than
 approximated. `union` has **no V1 document form** (V1 cannot join solids), so
 a plan using it is built by the **graph executor**.
@@ -1417,6 +1425,110 @@ off-centre bore that stays inside the same two walls measures **identically**
 for the plan-level `bore_centred` check, and the reason a criterion built
 only on measurement cannot catch this class of error.
 
+**Stage 71 — multi-body, step 1: DISTINCT BODY IDENTITY.** The first step of
+`docs/multi-body-design.md`, and only the first. Record:
+`docs/multi-body-step1/`. **No live model was called and none was
+configured** — this is architecture, and the evidence below is
+`DETERMINISTIC`.
+
+**One new operation, and it makes no geometry.**
+
+```json
+{"id": "body_cube", "type": "part", "target": "cube"}
+```
+
+**It is a declaration, not an inference.** Two live bodies and no `part` is
+still a mistake and still fails with `multiple_solids` — inferring "they must
+have meant two" from two live solids is exactly the silent behaviour Stage 62
+removed. A leftover and a declared body are different facts; the plan says
+which.
+
+**`part` is deliberately NOT in `OPERATION_TYPES`, and that is the stage's
+central design decision.** That tuple is the geometry vocabulary every
+provider encoding and the prompt are built from, so an entry there would have
+moved `plan_schema`, `provider_schema`, `compact_provider_schema` and the
+**prompt** fingerprint in one edit — teaching a live model a grammar whose
+semantics are not yet measured, which the design refuses outright. The
+separate `DECLARATION_TYPES` tier makes "no recorded fingerprint moved" a
+property of the design rather than a thing to remember. **All nine schema
+fingerprints and the prompt are unchanged**, asserted by
+`test_multi_body.py`, which also asserts that no encoding a provider is ever
+pointed at admits a `part` branch.
+
+**Three new rules, where the design proposed four.** Its P33 — "a `part`'s
+target names a solid live at that point" — turned out to be the reference
+rules P9–P12 verbatim, so it was **not added**: a declaration's target is a
+reference like any other, and a fourth code restating it would have been a
+second opinion about what "live" means.
+
+| rule | says |
+|---|---|
+| **P33** | a body is declared at most once |
+| **P34** | the declared bodies are exactly the live ones at the end |
+| **P35** | at most `MAX_BODIES` (8) |
+
+`executor.finished` keeps its gate and gains **one** exemption: more than one
+live body passes only when every one is declared. `result.part` is
+**unchanged** — the single live body or `None`, never `bodies[0]`.
+
+**The two-body example**, read by a provider-neutral grammar
+(`normalize.read_separate_bodies`) with no model and no SDK:
+
+> Create a 40 mm cube and a 20 mm cylinder 30 mm long beside it as two
+> separate bodies.
+
+| body | volume | closed form | solids | faces | edges |
+|---|--:|--:|--:|--:|--:|
+| `cube` | **63999.999999999985** | 40³ | 1 | 6 | 12 |
+| `pin` | **9424.777960769377** | π·10²·30 | 1 | 3 | 3 |
+
+**Bit-identical on CadQuery 2.8.0 and FreeCAD 1.0.0.** The total is the sum
+of the two closed forms, so nothing was fused.
+
+**Edit isolation, proved on the kernel:** a `through_hole` on `cube` leaves
+`pin` identical in volume, faces, edges and solids and appears in `cube`'s
+feature list only; rebuilding `cube` at 60 mm leaves `pin` identical; two
+independent chains **interleaved in either order** give the same shapes; and
+a `straight Z` fillet on `cube` selects the **same edge indices** whether or
+not `pin` exists — selector scope asserted rather than assumed.
+
+**Every output carries every body.** One `RenderModel` per body, each tagged
+with its `body_id`, never merged — merging would be a fuse the plan did not
+ask for. `PlanBuild.render` still means "the single body's mesh" and is
+`None` for a multi-body part, so no existing caller silently starts drawing
+the first of several. The HTTP payload gained `bodies` (per-body mesh,
+measurement, features, declared flag) and `declared_bodies`, and the
+part-level `measurement` is `{}` for a multi-body part rather than the first
+body's.
+
+**Three `bodies[0]` reads that were safe only because two bodies were
+impossible are now fixed.** `_facts` reads `result.part`; `/session/export`
+and the drawing and engineering surfaces **refuse** a multi-body part by
+name rather than writing its first body. A multi-body STEP assembly is step
+5 of the design and is not implemented.
+
+**Browser — `npm run e2e:multibody` PASSES**: real Chromium, real WebGL, real
+FreeCAD 1.0.0, no model configured. Two bodies in the payload, both declared,
+each with its own mesh and closed-form volume, no merged mesh, no part-level
+measurement claimed, the viewport note naming both bodies, 0 failed requests,
+0 console errors.
+
+**Single-body regression: none.** `npm run e2e:assembly` still passes on the
+golden enclosure (11492.035526276897, 18 faces, 42 edges, 5544 triangles) and
+its viewport note is byte-for-byte what it was. `test_multi_body` rebuilds
+the same enclosure and asserts `declared == ()` and `part == "base"`.
+
+**`test_multi_body.py` — 43 tests, and its 8 guards are mutation-tested**,
+including putting `part` back into the geometry vocabulary, inferring the
+declared set from the geometry, widening `result.part` to `bodies[0]`, and
+rendering only the first body.
+
+**Known limitation, and the next milestone.** The product cannot yet edit one
+body **by name**: `normalize._body_id` returns `None` unless exactly one body
+is live, so every general edit reader declines a multi-body part rather than
+guessing which body was meant. That is the honest behaviour and it is what
+step 2 has to address.
+
 **Stage 70 — the P11 residual measured, bounded, and NOT prompt-fixed.**
 **288 live calls**, all on the EXPLICIT request, five arms, one variable
 each. **No prompt change was adopted**; the prompt is unchanged at
@@ -1587,12 +1699,14 @@ back.
 | 8 | reset | clean |
 | 9 | six-plate hollow assembly | 11492.0355, one solid |
 
-**Browser E2E — PASS** (`npm run e2e:assembly`): real Chromium, real WebGL
+**Browser E2E — PASS.** `npm run e2e:assembly`: real Chromium, real WebGL
 surface, one valid solid, 18 faces, 42 edges, 5544 triangles, 0 failed
-requests, 0 console errors.
+requests, 0 console errors. `npm run e2e:multibody` (Stage 71): the same
+stack, two declared bodies, each with its own mesh and closed-form volume,
+no merged mesh and no part-level measurement claimed.
 
-**Test counts (current):** `tests_experimental` **1867 passed, 5 skipped, 0
-failed** (1872 collected), measured at Stage 70 on Linux with FreeCAD 1.0.0
+**Test counts (current):** `tests_experimental` **1910 passed, 5 skipped, 0
+failed** (1915 collected), measured at Stage 71 on Linux with FreeCAD 1.0.0
 present and `CAD_FREECAD_HOME`/`LD_LIBRARY_PATH` exported; cad-core **1481
 passed**. Frontend `tsc --noEmit` clean, `vite build` succeeds. **The skip
 count depends on the environment.** The 5 here are three drawing-view
@@ -1638,6 +1752,7 @@ those. The five most recent are:
 | **61** | **A CAD session that needs no model at all**: `union` (eleventh type, still eight schema branches), two provider-neutral grammars, and an evidence answerer that labels every number `MEASURED` / `DECLARED` / `CALCULATED`. |
 | **62** | The four defects Stage 61 left behind — **an operation is not one edit.** The live route could not *say* `union` (Stage 44's defect a third time); a `union` plan could lose a solid silently; `ExecutionUnsupported` named the wrong reason for it; and a recorded schema size had drifted unpinned. |
 | **64** | **The AI provider usage policy, and CLAUDE.md reconciled.** The rule forbidding Claude Code Web a real credential is retired: where one is available a real provider is used, and live calls are encouraged. `CREDENTIAL_PRECEDENCE` makes the two-variable behaviour explicit instead of implicit. 22 guards now pin the policy and stop the document drifting from the code. |
+| **71** | **Multi-body step 1: distinct body identity.** One new operation, `part`, that DECLARES a live body is an intended body of the result — kept out of `OPERATION_TYPES` so no schema or prompt fingerprint moves. Two live bodies with no declaration still fail `multiple_solids`; the executor gains one explicit exemption. P33–P35. One RenderModel per body, never merged; `result.part` unchanged. A 40 mm cube and a Ø20×30 cylinder build as two bodies, **bit-identical on CadQuery 2.8.0 and FreeCAD 1.0.0**, and pass through a real browser with no model configured. Single-body product unchanged. |
 | **70** | **The P11 residual measured, bounded and NOT prompt-fixed.** 288 live calls, five arms, an adoption rule committed before the confirming runs — which rejected all four candidates. Stage 69's "targets the product noun `enclosure`" was a token: `enclosure` is what the model named the UNION, and no target in 432 ever named a consumed tool or an absent id. A pure reordering (B3) **regressed** at p = 0.0001, so the section's order is load-bearing; two arms reached 96/96 `fuse` compliance and still carried P11, so the id is a marker, not the cause. P11 **8/144 = 5.6 %, CI [2.4, 10.7]**; strict **135/144**. Stopped deliberately. |
 | **69** | **The residual bore failure measured and removed.** 224 live calls. Stage 68's "the `+Z` triple is copied" reading is refuted (0/24); the model zeroes **z**, and only z, on non-Z bores. Deleting the rule's letter-to-zero pairing made it worse and a pure reordering of the table did not move the error, so the table is not the mechanism — the missing **example** was. Strict success 54/64 → 91/96 (p = 0.049), thickness 96/96 unchanged. Prompt `2026-09-18.5`. |
 | **63** | **The audit closed and `union` measured live.** All 39 findings classified (0 false positives), 20 more fixed — including a resize that silently broke the part, a second solid-set walk, three duplicated authority tables and four tests that passed without proving their name. `strict_selector_union` (3628) is **PROVEN compilable**, the model emits `union` 4/5, and 0/5 build: **P11 only**, the union's own id used as a solid. |
@@ -1827,9 +1942,19 @@ Separate from the historical record, and none of these is a plan.
 - **34 of 39 audit findings from the Stage 62 sweep were never verified by
   the audit itself**; Stage 63 classified all 39 and fixed 25 in total. One
   (#35, a missing `__all__` entry) **could not be reproduced**.
-- **Multi-body is refused, by design.** More than one live body fails with
-  `multiple_solids`. That is correct today and is what the multi-body design
-  must preserve for the undeclared case.
+- **Multi-body is DECLARED, never inferred** (Stage 71). More than one live
+  body still fails with `multiple_solids` unless every one is declared with
+  a `part`. What remains undone is deliberate and listed in
+  `docs/multi-body-step1/` §9: no transforms, mates, joints or constraints;
+  no sub-assemblies or BOM; **no multi-body export** — STEP-assembly is step
+  5 of the design, so `/session/export` and the drawing and engineering
+  surfaces refuse a multi-body part by name rather than writing its first
+  body; and **no model-facing grammar**, since no provider encoding admits a
+  `part` branch and the prompt does not mention it.
+- **A multi-body part cannot yet be edited one body at a time.**
+  `normalize._body_id` returns `None` unless exactly one body is live, so
+  every general edit reader declines rather than guessing which body was
+  meant. Honest, and the next multi-body milestone.
 - **No live corpus benchmark exists** on this branch. Stage 48's instrument
   is complete and has never been run in full; the Stage 43 comparison is the
   only full live run, and its schema and prompt are both superseded.
@@ -1884,11 +2009,26 @@ the section's own structure is load-bearing in ways a reading cannot predict
 (70's B3). There is no measured lever left on P11 at the sample sizes this
 project can afford.
 
-**Next: the multi-body slice, step 1 only** — `part` plus P33–P36 plus the
-test that every existing schema fingerprint is unchanged. The precondition
-Stage 63 set for it is met: the one-body `union` path now works at 93.8 %
-strict on the golden request with both kernels agreeing bit-for-bit, so a
-`part` branch would no longer be measuring two unknowns at once.
+**Stage 71 did that work.** `part`, P33–P35 (the design's fourth rule turned
+out to be the existing reference rules and was not duplicated), and the test
+that every existing schema fingerprint and the prompt are unchanged. Two
+independent bodies build, measure and draw, bit-identical on both kernels,
+and the single-body product is untouched.
+
+**Next: multi-body step 2 — addressing a body by name.** The gap Stage 71
+leaves is not in the representation but in the product: a multi-body part
+cannot be edited, because `_body_id` declines rather than guess which body a
+request meant. Step 2 is letting a request name one ("put a 6 mm hole through
+the cylinder"), which needs a way to refer to a body in the edit grammars and
+nothing else — no transforms, no mates. **After that**, and only then, step 4
+of the design: per-body measurement in the product surfaces, then step 5, the
+STEP assembly, which is what currently makes export refuse a multi-body part.
+
+**The model-facing grammar stays closed until the deterministic slice is
+complete.** Stage 70 measured P11 on a *one*-body union at 5.6 %; adding a
+`part` branch to the live encoding before that is understood would measure
+two unknowns at once, which is the mistake Stage 44 and Stage 48 each found
+in a different place.
 
 ### Next: multi-body semantics (design only, nothing implemented)
 
@@ -2474,9 +2614,10 @@ The POSIX forms remain correct on Linux/macOS, where `python3` and a
 `CAD_FREECAD_HOME` plus `LD_LIBRARY_PATH=$CAD_FREECAD_HOME/usr/lib` set
 **before Python starts**, or `test_cad_backends` skips.
 
-**1867 passed, 5 skipped** (1872 collected) with FreeCAD 1.0.0 present on
-Linux and its environment exported, measured at Stage 70. Earlier figures,
-each describing a real environment: 1856 at Stage 69; 1852 at Stage 68;
+**1910 passed, 5 skipped** (1915 collected) with FreeCAD 1.0.0 present on
+Linux and its environment exported, measured at Stage 71. Earlier figures,
+each describing a real environment: 1867 at Stage 70; 1856 at Stage 69;
+1852 at Stage 68;
 1800 at Stage 64;
 1778 at Stage
 63 (before this stage's 22 policy and drift guards); 1188 tests, 2 skipped
