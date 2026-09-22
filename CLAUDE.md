@@ -18,9 +18,9 @@ written**, and §19 is authoritative instead:
   them as "the normal way in"; they arrived on stable after the fork. Use the
   manual `uvicorn` / `npm run dev` sequence, or §19's commands.
 - **§5's test counts are stable's.** On this branch the current measured
-  figures are **`tests_experimental` 1800 passed, 72 skipped** and
+  figures are **`tests_experimental` 1856 passed, 5 skipped** and
   **cad-core 1481 passed**, both on Linux with FreeCAD 1.0.0 present
-  (Stage 63). §5's own note carries the older Windows figures as history.
+  (Stage 69). §5's own note carries the older Windows figures as history.
   §5's "no known failing tests" is a statement about stable only.
 - **§17's structure map omits this branch's three experimental trees**:
   `apps/api/src/cad_experimental/`, `apps/api/tests_experimental/` and
@@ -289,8 +289,8 @@ skipped or weakened to make the suite pass.
 
 **On `experiment/cad-operation-graph` the numbers above are stable's.**
 
-**CURRENT (Stage 63, Linux, FreeCAD 1.0.0 present):** `tests_experimental`
-**1800 passed, 72 skipped, 0 failed**; cad-core **1481 passed, 0 failed**.
+**CURRENT (Stage 69, Linux, FreeCAD 1.0.0 present):** `tests_experimental`
+**1856 passed, 5 skipped, 0 failed**; cad-core **1481 passed, 0 failed**.
 The six cad-core errors described below are **Windows-only** and do not
 reproduce on Linux.
 
@@ -1223,7 +1223,9 @@ semantic rule and the prompt text where it was measured to work.
 calls**, nine prompt arms, one variable at a time; every arm's raw output,
 plan, kernel geometry and verdict is in
 `docs/evaluation-baselines/stage67-golden-spatial/`. **The prompt is
-unchanged at `2026-09-18.3`.**
+unchanged at `2026-09-18.3`.** (Stage 69 later moved it to `2026-09-18.5`;
+`2026-09-18.4`, which Stage 67 adopted and reverted, exists nowhere in the
+history and the number is left burnt so this record stays unambiguous.)
 
 The brief expected "one hole per wall" to dominate. **It occurred once in 80
 calls.** On the committed prompt the model already writes three bores 6/8 and
@@ -1298,22 +1300,28 @@ one immutable ground truth serves both.
 | volume = closed form | 0/8 | **7/8** |
 | **STRICT SUCCESS** | **0/8** | **7/8** |
 
-**What the ambiguity explains — completely.** A (thickness), B (envelope
-height), F (bore direction) and **H (wrong target)** all fall to **zero** on
-the explicit request. H is the one worth naming: the **P11 union-target
-failure that Stages 63, 65, 66 and 67 all chased** appeared 3/8 on the
-ambiguous request and **0/8 on the explicit one, with no prompt change at
-all**. A model unsure what the part *is* also gets its references wrong. Much
-of what four stages read as a targeting defect was a comprehension defect.
+**What the ambiguity explains.** A (thickness), B (envelope height) and
+F (bore direction) fall to **zero** on the explicit request and have stayed
+there over 160 further calls. H (wrong target) also read 0/8 here — and
+**Stage 69 showed that was under-sampling.** Over 64 pooled explicit
+attempts on the same prompt P11 is **6/64**; 0/8 against 3/24 is p = 0.55,
+so there is no evidence those two runs differ. P11 *is* lower on the
+explicit request than on the ambiguous one (6/64 vs 3/8), but that
+comparison is **p = 0.082 — not significant**. So the honest statement is
+that comprehension explains A, B and F completely and P11 only partly, and
+that **P11 is not gone.** The reading below, written at Stage 68, is kept as
+the record of what eight calls appeared to say.
 
-**What it does not explain — the Stage 69 target.** Exactly one failure
-survives, and it is one defect repeated across an attempt's three bores: the
-model wrote the `+Z` hole's position triple and **reused it for `+Y` and
-`+X`**, leaving `z = 0` on both — which is only meaningful for `+Z`, where z
-is the ignored along-axis component. Their centrelines land in the bottom
-face plane and graze. That attempt's plates are **identical to the
-successes**; it built at 25 faces, 65 edges, 11351.419374 mm³, 140.6 short.
-Rate: **1 in 8.**
+**What it does not explain — and this reading was REFUTED by Stage 69.**
+Exactly one failure survived, and it looked like one defect repeated across
+an attempt's three bores: the model wrote the `+Z` hole's position triple
+and **reused it for `+Y` and `+X`**, leaving `z = 0` on both. That attempt's
+plates are identical to the successes; it built at 25 faces, 65 edges,
+11351.419374 mm³, 140.6 short. **Stage 69 ran 24 more calls and saw
+cross-axis triple reuse 0/24.** The real mechanism is narrower — the model
+zeroes **z**, and only z, on bores that do not run along Z — and this
+attempt happened to be the case where that also produces a full copy. One
+sighting is not a mechanism.
 
 **Ground truth is immutable, and cannot self-reference.** Every expectation
 is a constant fixed before any model was called: envelope 40×20×20,
@@ -1342,6 +1350,72 @@ envelope (40,20,20) — **bit-identical on CadQuery 2.8.0 and FreeCAD 1.0.0**.
 **The original request is still 0/8 and stays in the benchmark.** It is now
 labelled as measuring comprehension of an ambiguous spec rather than CAD
 capability, and the two are never summed.
+
+**Stage 69 — the residual measured, and removed.** **224 live calls**, all on
+the EXPLICIT request, one variable at a time; every arm's raw output, plan,
+kernel geometry and verdict is in
+`docs/evaluation-baselines/stage69-bore-axis-centre/`.
+
+| | |
+|---|---|
+| prompt now | **`2026-09-18.5` / `8563c6fb821e022f` / 30917 chars** |
+| encoding | `strict_selector_union` (3628, unchanged) |
+| STRICT SUCCESS, explicit request | **54/64 → 91/96** (Fisher exact, two sided, **p = 0.049**) |
+| `E:bore_position` | **5/64 → 1/96** (**p = 0.038**) |
+| thickness / plate count | **64/64 → 96/96** — unchanged, no regression |
+
+`2026-09-18.4` is **deliberately unused**: Stage 67 adopted that number for an
+arm it then reverted, so it names a prompt that exists nowhere in the history.
+
+**Stage 68's reading of the residual was wrong, and 24 calls said so.** Its
+"the `+Z` triple is copied to all three axes" hypothesis is **refuted** —
+cross-axis triple reuse 0/24. Over **64 pooled baseline attempts** (96 bores,
+192 across-axis components) every one of the 9 wrong components is the **z**
+of an `+X` or `+Y` bore; `x` and `y` were wrong **0** times in every
+position. The along-axis component was written as `0` on **94 of 96** bores,
+so the model has the "0 is safe along the axis" half of the rule and
+over-applies it to the letter `z`.
+
+**Four arms of 32 live calls each, and two of them are negative results.**
+
+| arm | what changed | strict | `E` | wrong components |
+|---|---|--:|--:|---|
+| A0 baseline | nothing | 28/32 | 2 | all z |
+| A1 no-letter | the axis table rewritten so no letter is paired with "may be 0" | 27/32 | **4** | all z |
+| **A2 worked-triples** | one worked example whose bores carry a **nonzero z** | **31/32** | **0** | **none** |
+| A3 order | the same three lines **reordered** — a pure reordering, same length, same characters | 27/32 | **4** | all z |
+
+**A1 made it worse**, so prose about the rule moved nothing for the third
+stage running. **A3 is the discriminator and it refutes the table**: if the
+defect were primacy, reversing the order would have moved the error onto `x`;
+all 8 wrong components were still `z`. What moved it was the **missing
+example** — every hole position the prompt *showed* had `z` at 0, because
+every example bore ran along `+Z`. A2 adds one worked example in the prompt's
+own 60 × 30 × 30 numbers, never the golden request's. **Stage 65's and Stage
+66's mechanism, found a third time: what the model imitates is what the
+prompt shows, and a rule stated alongside a contradicting example loses.**
+
+**Confirmed, not adopted on one arm.** A2 was re-run twice more at 32 calls;
+pooled n = 96. No guard regressed — thickness 96/96, plate count 96/96,
+envelope 92/96, built 92/96, P11 4/96, all at or better than baseline. A2's
+one remaining `E` is a different code (`F`, all three bores on `+Z`): **the
+z-zeroed defect is 0 in 96 attempts.**
+
+**Kernel evidence, MODEL_GENERATED.** All **91** claimed successes rebuilt
+from recorded output: one distinct volume, **11492.035526277** against the
+immutable closed form 11492.035526276899 (delta **1.819e-12**), 1 solid, 18
+faces, 42 edges, envelope (40,20,20), **0 mismatches**, **bit-identical on
+CadQuery 2.8.0 and FreeCAD 1.0.0**.
+
+**`test_bore_axis_centre.py` pins the rule in geometry**, where no prompt
+wording can argue with it, and pins the prompt's worked example by parsing
+its arithmetic out of the prompt rather than by matching a string. Its six
+guards are mutation-tested, including reintroducing the measured defect. One
+of them exists because the kernel contradicted the stage's first draft: an
+off-centre bore that stays inside the same two walls measures **identically**
+— same faces, same edges, same volume — which is the geometric justification
+for the plan-level `bore_centred` check, and the reason a criterion built
+only on measurement cannot catch this class of error.
 
 **Stage 66 — the golden request BUILDS.** **40 live calls**, eight arms, one
 variable at a time; raw output, validation and build results are in
@@ -1433,11 +1507,16 @@ back.
 surface, one valid solid, 18 faces, 42 edges, 5544 triangles, 0 failed
 requests, 0 console errors.
 
-**Test counts (current):** `tests_experimental` **1852 passed, 72 skipped, 0
-failed**; cad-core **1481 passed**. Frontend `tsc --noEmit` clean,
-`vite build` succeeds. **The 72 skips** are the FreeCAD-dependent modules
-when FreeCAD is absent from the interpreter, plus the deliberately gated
-live-provider tests.
+**Test counts (current):** `tests_experimental` **1856 passed, 5 skipped, 0
+failed** (1861 collected), measured at Stage 69 on Linux with FreeCAD 1.0.0
+present and `CAD_FREECAD_HOME`/`LD_LIBRARY_PATH` exported; cad-core **1481
+passed**. Frontend `tsc --noEmit` clean, `vite build` succeeds. **The skip
+count depends on the environment.** The 5 here are three drawing-view
+projections the CadQuery backend cannot make plus two tests that exist to
+check FreeCAD's *absence* and cannot run while it is imported. It is 72 when
+FreeCAD is absent from the interpreter, because the FreeCAD-dependent
+modules skip as well; the deliberately gated live-provider tests are not
+collected by this discovery root at all.
 
 **Local development providers — what each proves.**
 `local_intent_provider.FakeLocalProvider` is **not a model**: it holds
@@ -1475,6 +1554,7 @@ those. The five most recent are:
 | **61** | **A CAD session that needs no model at all**: `union` (eleventh type, still eight schema branches), two provider-neutral grammars, and an evidence answerer that labels every number `MEASURED` / `DECLARED` / `CALCULATED`. |
 | **62** | The four defects Stage 61 left behind — **an operation is not one edit.** The live route could not *say* `union` (Stage 44's defect a third time); a `union` plan could lose a solid silently; `ExecutionUnsupported` named the wrong reason for it; and a recorded schema size had drifted unpinned. |
 | **64** | **The AI provider usage policy, and CLAUDE.md reconciled.** The rule forbidding Claude Code Web a real credential is retired: where one is available a real provider is used, and live calls are encouraged. `CREDENTIAL_PRECEDENCE` makes the two-variable behaviour explicit instead of implicit. 22 guards now pin the policy and stop the document drifting from the code. |
+| **69** | **The residual bore failure measured and removed.** 224 live calls. Stage 68's "the `+Z` triple is copied" reading is refuted (0/24); the model zeroes **z**, and only z, on non-Z bores. Deleting the rule's letter-to-zero pairing made it worse and a pure reordering of the table did not move the error, so the table is not the mechanism — the missing **example** was. Strict success 54/64 → 91/96 (p = 0.049), thickness 96/96 unchanged. Prompt `2026-09-18.5`. |
 | **63** | **The audit closed and `union` measured live.** All 39 findings classified (0 false positives), 20 more fixed — including a resize that silently broke the part, a second solid-set walk, three duplicated authority tables and four tests that passed without proving their name. `strict_selector_union` (3628) is **PROVEN compilable**, the model emits `union` 4/5, and 0/5 build: **P11 only**, the union's own id used as a solid. |
 
 **A model is one route to a plan, not the way in.** Stage 61 is the rule
@@ -1631,16 +1711,20 @@ Separate from the historical record, and none of these is a plan.
   strict and the EXPLICIT companion **7/8** (Stage 68, 16 live calls). The
   original measures comprehension of an under-specified spec; the explicit
   one measures CAD capability. Both are kept; neither is edited.
-- **One failure survives disambiguation, and it is the Stage 69 target:**
-  the model reuses the `+Z` bore's position triple for the `+Y` and `+X`
-  bores, leaving `z = 0` on both, so their centrelines graze the bottom face
-  plane instead of boring. **1 in 8.** The plates in that attempt are
-  identical to the successes.
-- **Much of the P11 union-target failure was comprehension, not targeting.**
-  It appeared 3/8 on the ambiguous request and 0/8 on the explicit one with
-  **no prompt change**. Stages 63, 65, 66 and 67 each treated it as a
-  targeting defect; Stage 68 shows a large part of it was the model not
-  knowing what the part was.
+- **The bore-centre defect is FIXED and the strict rate on the explicit
+  request is 91/96** (Stage 69, prompt `2026-09-18.5`). What remains on that
+  request is P11 at **4/96** and one attempt in 96 that wrote all three
+  bores on `+Z`.
+- **P11 is the dominant residual, and it is NOT what Stage 68 suggested.**
+  Stage 68 read it as 0/8 on the explicit request and CLAUDE.md said
+  disambiguation had removed it. Over 64 pooled explicit attempts on the
+  same prompt it is **6/64**, and 0/8 vs 3/24 is p = 0.55 — no evidence the
+  runs differ. It is lower on the explicit request than on the ambiguous
+  one (6/64 vs 3/8) at **p = 0.082, not significant**. Comprehension
+  explains part of P11; it does not explain it away. Every P11 attempt
+  under the adopted prompt targets the product noun `enclosure`.
+- **One attempt in 96 wrote all three bores on `+Z`** (`F:bore_direction`),
+  a mode not seen before Stage 69. One sighting; not a rate.
 - **`comparison_corpus.py` case `12-union` is stale** — it expects
   `unsupported` for a request the language now answers. **Deliberately not
   edited**: it is a frozen instrument and Stage 48's `legacy` group reads out
@@ -1689,15 +1773,22 @@ REQUEST, with no prompt change at all, took the strict rate from 0/8 to 7/8
 and zeroed four of the five failure codes — including the P11 targeting
 failure four stages had been chasing.
 
-**Stage 69's target is now exactly one defect, and it is small.** On the
-explicit request the sole remaining failure is the `+Z` hole's position
-triple reused for the `+Y` and `+X` bores, leaving `z = 0` on both so their
-centrelines graze the bottom face plane. It occurs 1 in 8. The prompt already
-carries a per-axis table for this (Stage 66); the question is why it does not
-hold. Reproduce it live on the EXPLICIT request — where nothing else is
-failing and a single variable can actually be read — one variable at a time,
-no repair loop. Do not re-open the envelope rule: on the explicit request the
-envelope is 8/8 and there is nothing to fix.
+**Stage 69 did that work and the target is gone.** 224 live calls refuted
+Stage 68's reading of the residual, isolated the real one — `z` zeroed on
+non-Z bores — and removed it by supplying the example the prompt had never
+shown. Strict success on the explicit request is **91/96**, with thickness
+and plate count untouched at 96/96.
+
+**Stage 70's target is P11, and Stage 69 corrected what was believed about
+it.** Stage 68 reported it 0/8 on the explicit request and this document said
+disambiguation had removed it; over 64 pooled explicit attempts it is 6/64,
+and under the adopted prompt 4/96. It is the dominant residual and the only
+failure code with a rate. Every one of those attempts targets the product
+noun `enclosure` — which is precisely the affordance Stage 65 and Stage 66
+each found and removed elsewhere, so look for what still *offers* that noun
+rather than for a stronger way to state the rule. Measure it on the EXPLICIT
+request, one variable at a time, and size the arms for the rate: at ~5 % a
+32-call arm is the minimum that can say anything, and 8 cannot.
 
 Then the multi-body slice, **step 1 only** — `part` plus P33–P36 plus the
 test that every existing schema fingerprint is unchanged.
@@ -2286,8 +2377,10 @@ The POSIX forms remain correct on Linux/macOS, where `python3` and a
 `CAD_FREECAD_HOME` plus `LD_LIBRARY_PATH=$CAD_FREECAD_HOME/usr/lib` set
 **before Python starts**, or `test_cad_backends` skips.
 
-**1800 passed, 72 skipped** with FreeCAD 1.0.0 present on Linux, measured at
-Stage 64. Earlier figures, each describing a real environment: 1778 at Stage
+**1856 passed, 5 skipped** (1861 collected) with FreeCAD 1.0.0 present on
+Linux and its environment exported, measured at Stage 69. Earlier figures,
+each describing a real environment: 1852 at Stage 68; 1800 at Stage 64;
+1778 at Stage
 63 (before this stage's 22 policy and drift guards); 1188 tests, 2 skipped
 at Stage 47; 897 tests, 33 skipped at Stage 43 on the Windows environment,
 where the extra skips are the FreeCAD backend. `cad-core` is **1481 passed**
