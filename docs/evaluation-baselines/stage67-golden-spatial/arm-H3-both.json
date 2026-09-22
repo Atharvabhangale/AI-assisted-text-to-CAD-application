@@ -1,0 +1,2067 @@
+{
+ "arm": "H3-both",
+ "hypothesis": "both root causes are present and independent, so this is the arm that can reach 5/5. H1 and H2 are its controls.",
+ "changed": "H1 + H2, prompt only",
+ "request": "Make a hollow rectangular box with 40*20*5 (4)plates and 20*20 (2) plates with 8mm diameter holes in center of each plate",
+ "model": "claude-haiku-4-5-20251001",
+ "provider": "anthropic",
+ "credential_from": "CAD_ANTHROPIC_API_KEY",
+ "prompt_fingerprint": "4304d306854fe0ff4af882edac521a785c6f4409a2bdb06ee2851b9a0417dea0",
+ "prompt_characters": 31093,
+ "baseline_prompt_fingerprint": "c78aaad8eacf365ed1e557f6e7325513e3cd8b80592c39c319ae7cb5a156a521",
+ "schema": "strict_selector_union",
+ "schema_inlined": 3628,
+ "schema_fingerprint": "07ab6305e836271ec0d1b49baa62e0fb3ff312aafeefa21e8e5b0b48de119ec3",
+ "calls": 8,
+ "is_live_model_result": true,
+ "attempts": [
+  {
+   "attempt": 1,
+   "seconds": 3.34,
+   "outcome": "invalid_model_output",
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 10668,
+    "output_tokens": 399
+   },
+   "raw_text": "{\"status\":\"generated\",\"summary\":\"Hollow rectangular box assembled from six plates with 8mm diameter holes through the center of each.\",\"operations\":[{\"id\":\"base\",\"type\":\"box\",\"parameters\":{\"x\":40,\"y\":20,\"z\":4}},{\"id\":\"lid\",\"type\":\"box\",\"parameters\":{\"x\":40,\"y\":20,\"z\":4,\"position\":{\"x\":0,\"y\":0,\"z\":16}}},{\"id\":\"front\",\"type\":\"box\",\"parameters\":{\"x\":40,\"y\":4,\"z\":20}},{\"id\":\"back\",\"type\":\"box\",\"parameters\":{\"x\":40,\"y\":4,\"z\":20,\"position\":{\"x\":0,\"y\":16,\"z\":0}}},{\"id\":\"left\",\"type\":\"box\",\"parameters\":{\"x\":20,\"y\":20,\"z\":4}},{\"id\":\"right\",\"type\":\"box\",\"parameters\":{\"x\":20,\"y\":20,\"z\":4,\"position\":{\"x\":20,\"y\":0,\"z\":0}}},{\"id\":\"fuse\",\"type\":\"union\",\"target\":\"base\",\"tools\":[\"lid\",\"front\",\"back\",\"left\",\"right\"]},{\"id\":\"hole_x\",\"type\":\"through_hole\",\"target\":\"fuse\",\"parameters\":{\"diameter\":8,\"position\":{\"x\":20,\"y\":10,\"z\":0},\"axis\":\"+X\"}},{\"id\":\"hole_y\",\"type\":\"through_hole\",\"target\":\"fuse\",\"parameters\":{\"diameter\":8,\"position\":{\"x\":20,\"y\":10,\"z\":0},\"axis\":\"+Y\"}},{\"id\":\"hole_z\",\"type\":\"through_hole\",\"target\":\"fuse\",\"parameters\":{\"diameter\":8,\"position\":{\"x\":20,\"y\":10,\"z\":0},\"axis\":\"+Z\"}}]}",
+   "provider_error": "the plan is not valid",
+   "fenced": false,
+   "plan": {
+    "boxes": [
+     {
+      "id": "base",
+      "size": [
+       40.0,
+       20.0,
+       4.0
+      ],
+      "position": [
+       0.0,
+       0.0,
+       0.0
+      ]
+     },
+     {
+      "id": "lid",
+      "size": [
+       40.0,
+       20.0,
+       4.0
+      ],
+      "position": [
+       0.0,
+       0.0,
+       16.0
+      ]
+     },
+     {
+      "id": "front",
+      "size": [
+       40.0,
+       4.0,
+       20.0
+      ],
+      "position": [
+       0.0,
+       0.0,
+       0.0
+      ]
+     },
+     {
+      "id": "back",
+      "size": [
+       40.0,
+       4.0,
+       20.0
+      ],
+      "position": [
+       0.0,
+       16.0,
+       0.0
+      ]
+     },
+     {
+      "id": "left",
+      "size": [
+       20.0,
+       20.0,
+       4.0
+      ],
+      "position": [
+       0.0,
+       0.0,
+       0.0
+      ]
+     },
+     {
+      "id": "right",
+      "size": [
+       20.0,
+       20.0,
+       4.0
+      ],
+      "position": [
+       20.0,
+       0.0,
+       0.0
+      ]
+     }
+    ],
+    "holes": [
+     {
+      "id": "hole_x",
+      "target": "fuse",
+      "diameter": 8.0,
+      "axis": "X",
+      "position": [
+       20.0,
+       10.0,
+       0.0
+      ]
+     },
+     {
+      "id": "hole_y",
+      "target": "fuse",
+      "diameter": 8.0,
+      "axis": "Y",
+      "position": [
+       20.0,
+       10.0,
+       0.0
+      ]
+     },
+     {
+      "id": "hole_z",
+      "target": "fuse",
+      "diameter": 8.0,
+      "axis": "Z",
+      "position": [
+       20.0,
+       10.0,
+       0.0
+      ]
+     }
+    ],
+    "unions": [
+     {
+      "id": "fuse",
+      "target": "base",
+      "tools": [
+       "lid",
+       "front",
+       "back",
+       "left",
+       "right"
+      ]
+     }
+    ],
+    "plate_count": 6,
+    "bore_count": 3,
+    "distinct_centrelines": 3,
+    "coaxial_duplicates": 0,
+    "axes_used": [
+     "X",
+     "Y",
+     "Z"
+    ],
+    "thickness": 4.0
+   },
+   "operations": [
+    {
+     "id": "base",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "lid",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "front",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "back",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "left",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "right",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "fuse",
+     "type": "union",
+     "target": "base",
+     "tools": [
+      "lid",
+      "front",
+      "back",
+      "left",
+      "right"
+     ]
+    },
+    {
+     "id": "hole_x",
+     "type": "through_hole",
+     "target": "fuse",
+     "tools": null
+    },
+    {
+     "id": "hole_y",
+     "type": "through_hole",
+     "target": "fuse",
+     "tools": null
+    },
+    {
+     "id": "hole_z",
+     "type": "through_hole",
+     "target": "fuse",
+     "tools": null
+    }
+   ],
+   "problems": [
+    {
+     "code": "P11",
+     "message": "'fuse' does not name a solid: it is a modifier, whose result keeps its own target's id. Name the solid it changed instead"
+    },
+    {
+     "code": "P11",
+     "message": "'fuse' does not name a solid: it is a modifier, whose result keeps its own target's id. Name the solid it changed instead"
+    },
+    {
+     "code": "P11",
+     "message": "'fuse' does not name a solid: it is a modifier, whose result keeps its own target's id. Name the solid it changed instead"
+    }
+   ],
+   "plan_valid": false,
+   "SPATIALLY_CORRECT": false,
+   "failure_modes": [
+    "G:other"
+   ],
+   "stage": "invalid:P11",
+   "codes": [
+    "P11"
+   ]
+  },
+  {
+   "attempt": 2,
+   "seconds": 3.03,
+   "outcome": "invalid_model_output",
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 10668,
+    "output_tokens": 398
+   },
+   "raw_text": "{\"status\":\"generated\",\"summary\":\"Hollow rectangular box assembled from six plates with 8mm diameter holes drilled through the center of each plate.\",\"operations\":[{\"id\":\"base\",\"type\":\"box\",\"parameters\":{\"x\":40,\"y\":20,\"z\":4}},{\"id\":\"lid\",\"type\":\"box\",\"parameters\":{\"x\":40,\"y\":20,\"z\":4,\"position\":{\"x\":0,\"y\":0,\"z\":16}}},{\"id\":\"front\",\"type\":\"box\",\"parameters\":{\"x\":40,\"y\":4,\"z\":20}},{\"id\":\"back\",\"type\":\"box\",\"parameters\":{\"x\":40,\"y\":4,\"z\":20,\"position\":{\"x\":0,\"y\":16,\"z\":0}}},{\"id\":\"left\",\"type\":\"box\",\"parameters\":{\"x\":20,\"y\":20,\"z\":4}},{\"id\":\"right\",\"type\":\"box\",\"parameters\":{\"x\":20,\"y\":20,\"z\":4,\"position\":{\"x\":20,\"y\":0,\"z\":0}}},{\"id\":\"assembled\",\"type\":\"union\",\"target\":\"base\",\"tools\":[\"lid\",\"front\",\"back\",\"left\",\"right\"]},{\"id\":\"hole_z\",\"type\":\"through_hole\",\"target\":\"assembled\",\"parameters\":{\"diameter\":8,\"position\":{\"x\":20,\"y\":10,\"z\":0},\"axis\":\"+Z\"}},{\"id\":\"hole_x\",\"type\":\"through_hole\",\"target\":\"assembled\",\"parameters\":{\"diameter\":8,\"position\":{\"x\":0,\"y\":10,\"z\":10},\"axis\":\"+X\"}},{\"id\":\"hole_y\",\"type\":\"through_hole\",\"target\":\"assembled\",\"parameters\":{\"diameter\":8,\"position\":{\"x\":20,\"y\":0,\"z\":10},\"axis\":\"+Y\"}}]}",
+   "provider_error": "the plan is not valid",
+   "fenced": false,
+   "plan": {
+    "boxes": [
+     {
+      "id": "base",
+      "size": [
+       40.0,
+       20.0,
+       4.0
+      ],
+      "position": [
+       0.0,
+       0.0,
+       0.0
+      ]
+     },
+     {
+      "id": "lid",
+      "size": [
+       40.0,
+       20.0,
+       4.0
+      ],
+      "position": [
+       0.0,
+       0.0,
+       16.0
+      ]
+     },
+     {
+      "id": "front",
+      "size": [
+       40.0,
+       4.0,
+       20.0
+      ],
+      "position": [
+       0.0,
+       0.0,
+       0.0
+      ]
+     },
+     {
+      "id": "back",
+      "size": [
+       40.0,
+       4.0,
+       20.0
+      ],
+      "position": [
+       0.0,
+       16.0,
+       0.0
+      ]
+     },
+     {
+      "id": "left",
+      "size": [
+       20.0,
+       20.0,
+       4.0
+      ],
+      "position": [
+       0.0,
+       0.0,
+       0.0
+      ]
+     },
+     {
+      "id": "right",
+      "size": [
+       20.0,
+       20.0,
+       4.0
+      ],
+      "position": [
+       20.0,
+       0.0,
+       0.0
+      ]
+     }
+    ],
+    "holes": [
+     {
+      "id": "hole_z",
+      "target": "assembled",
+      "diameter": 8.0,
+      "axis": "Z",
+      "position": [
+       20.0,
+       10.0,
+       0.0
+      ]
+     },
+     {
+      "id": "hole_x",
+      "target": "assembled",
+      "diameter": 8.0,
+      "axis": "X",
+      "position": [
+       0.0,
+       10.0,
+       10.0
+      ]
+     },
+     {
+      "id": "hole_y",
+      "target": "assembled",
+      "diameter": 8.0,
+      "axis": "Y",
+      "position": [
+       20.0,
+       0.0,
+       10.0
+      ]
+     }
+    ],
+    "unions": [
+     {
+      "id": "assembled",
+      "target": "base",
+      "tools": [
+       "lid",
+       "front",
+       "back",
+       "left",
+       "right"
+      ]
+     }
+    ],
+    "plate_count": 6,
+    "bore_count": 3,
+    "distinct_centrelines": 3,
+    "coaxial_duplicates": 0,
+    "axes_used": [
+     "X",
+     "Y",
+     "Z"
+    ],
+    "thickness": 4.0
+   },
+   "operations": [
+    {
+     "id": "base",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "lid",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "front",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "back",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "left",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "right",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "assembled",
+     "type": "union",
+     "target": "base",
+     "tools": [
+      "lid",
+      "front",
+      "back",
+      "left",
+      "right"
+     ]
+    },
+    {
+     "id": "hole_z",
+     "type": "through_hole",
+     "target": "assembled",
+     "tools": null
+    },
+    {
+     "id": "hole_x",
+     "type": "through_hole",
+     "target": "assembled",
+     "tools": null
+    },
+    {
+     "id": "hole_y",
+     "type": "through_hole",
+     "target": "assembled",
+     "tools": null
+    }
+   ],
+   "problems": [
+    {
+     "code": "P11",
+     "message": "'assembled' does not name a solid: it is a modifier, whose result keeps its own target's id. Name the solid it changed instead"
+    },
+    {
+     "code": "P11",
+     "message": "'assembled' does not name a solid: it is a modifier, whose result keeps its own target's id. Name the solid it changed instead"
+    },
+    {
+     "code": "P11",
+     "message": "'assembled' does not name a solid: it is a modifier, whose result keeps its own target's id. Name the solid it changed instead"
+    }
+   ],
+   "plan_valid": false,
+   "SPATIALLY_CORRECT": false,
+   "failure_modes": [
+    "G:other"
+   ],
+   "stage": "invalid:P11",
+   "codes": [
+    "P11"
+   ]
+  },
+  {
+   "attempt": 3,
+   "seconds": 3.37,
+   "outcome": "invalid_model_output",
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 10668,
+    "output_tokens": 524
+   },
+   "raw_text": "{\"status\": \"generated\", \"summary\": \"Hollow rectangular enclosure from 6 plates with centered 8mm diameter holes through each plate.\", \"operations\": [{\"id\": \"base\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 20, \"z\": 4}}, {\"id\": \"front\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 4, \"z\": 20}}, {\"id\": \"back\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 4, \"z\": 20, \"position\": {\"x\": 0, \"y\": 16, \"z\": 0}}}, {\"id\": \"left\", \"type\": \"box\", \"parameters\": {\"x\": 20, \"y\": 20, \"z\": 4}}, {\"id\": \"right\", \"type\": \"box\", \"parameters\": {\"x\": 20, \"y\": 20, \"z\": 4, \"position\": {\"x\": 20, \"y\": 0, \"z\": 0}}}, {\"id\": \"lid\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 20, \"z\": 4, \"position\": {\"x\": 0, \"y\": 0, \"z\": 16}}}, {\"id\": \"fuse\", \"type\": \"union\", \"target\": \"base\", \"tools\": [\"front\", \"back\", \"left\", \"right\", \"lid\"]}, {\"id\": \"hole_base\", \"type\": \"through_hole\", \"target\": \"fuse\", \"parameters\": {\"diameter\": 8, \"position\": {\"x\": 20, \"y\": 10, \"z\": 0}, \"axis\": \"+Z\"}}, {\"id\": \"hole_front\", \"type\": \"through_hole\", \"target\": \"fuse\", \"parameters\": {\"diameter\": 8, \"position\": {\"x\": 20, \"y\": 0, \"z\": 10}, \"axis\": \"+Y\"}}, {\"id\": \"hole_left\", \"type\": \"through_hole\", \"target\": \"fuse\", \"parameters\": {\"diameter\": 8, \"position\": {\"x\": 0, \"y\": 10, \"z\": 10}, \"axis\": \"+X\"}}]}",
+   "provider_error": "the plan is not valid",
+   "fenced": false,
+   "plan": {
+    "boxes": [
+     {
+      "id": "base",
+      "size": [
+       40.0,
+       20.0,
+       4.0
+      ],
+      "position": [
+       0.0,
+       0.0,
+       0.0
+      ]
+     },
+     {
+      "id": "front",
+      "size": [
+       40.0,
+       4.0,
+       20.0
+      ],
+      "position": [
+       0.0,
+       0.0,
+       0.0
+      ]
+     },
+     {
+      "id": "back",
+      "size": [
+       40.0,
+       4.0,
+       20.0
+      ],
+      "position": [
+       0.0,
+       16.0,
+       0.0
+      ]
+     },
+     {
+      "id": "left",
+      "size": [
+       20.0,
+       20.0,
+       4.0
+      ],
+      "position": [
+       0.0,
+       0.0,
+       0.0
+      ]
+     },
+     {
+      "id": "right",
+      "size": [
+       20.0,
+       20.0,
+       4.0
+      ],
+      "position": [
+       20.0,
+       0.0,
+       0.0
+      ]
+     },
+     {
+      "id": "lid",
+      "size": [
+       40.0,
+       20.0,
+       4.0
+      ],
+      "position": [
+       0.0,
+       0.0,
+       16.0
+      ]
+     }
+    ],
+    "holes": [
+     {
+      "id": "hole_base",
+      "target": "fuse",
+      "diameter": 8.0,
+      "axis": "Z",
+      "position": [
+       20.0,
+       10.0,
+       0.0
+      ]
+     },
+     {
+      "id": "hole_front",
+      "target": "fuse",
+      "diameter": 8.0,
+      "axis": "Y",
+      "position": [
+       20.0,
+       0.0,
+       10.0
+      ]
+     },
+     {
+      "id": "hole_left",
+      "target": "fuse",
+      "diameter": 8.0,
+      "axis": "X",
+      "position": [
+       0.0,
+       10.0,
+       10.0
+      ]
+     }
+    ],
+    "unions": [
+     {
+      "id": "fuse",
+      "target": "base",
+      "tools": [
+       "front",
+       "back",
+       "left",
+       "right",
+       "lid"
+      ]
+     }
+    ],
+    "plate_count": 6,
+    "bore_count": 3,
+    "distinct_centrelines": 3,
+    "coaxial_duplicates": 0,
+    "axes_used": [
+     "X",
+     "Y",
+     "Z"
+    ],
+    "thickness": 4.0
+   },
+   "operations": [
+    {
+     "id": "base",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "front",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "back",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "left",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "right",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "lid",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "fuse",
+     "type": "union",
+     "target": "base",
+     "tools": [
+      "front",
+      "back",
+      "left",
+      "right",
+      "lid"
+     ]
+    },
+    {
+     "id": "hole_base",
+     "type": "through_hole",
+     "target": "fuse",
+     "tools": null
+    },
+    {
+     "id": "hole_front",
+     "type": "through_hole",
+     "target": "fuse",
+     "tools": null
+    },
+    {
+     "id": "hole_left",
+     "type": "through_hole",
+     "target": "fuse",
+     "tools": null
+    }
+   ],
+   "problems": [
+    {
+     "code": "P11",
+     "message": "'fuse' does not name a solid: it is a modifier, whose result keeps its own target's id. Name the solid it changed instead"
+    },
+    {
+     "code": "P11",
+     "message": "'fuse' does not name a solid: it is a modifier, whose result keeps its own target's id. Name the solid it changed instead"
+    },
+    {
+     "code": "P11",
+     "message": "'fuse' does not name a solid: it is a modifier, whose result keeps its own target's id. Name the solid it changed instead"
+    }
+   ],
+   "plan_valid": false,
+   "SPATIALLY_CORRECT": false,
+   "failure_modes": [
+    "G:other"
+   ],
+   "stage": "invalid:P11",
+   "codes": [
+    "P11"
+   ]
+  },
+  {
+   "attempt": 4,
+   "seconds": 3.29,
+   "outcome": "generated",
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 10668,
+    "output_tokens": 521
+   },
+   "raw_text": "{\"status\": \"generated\", \"summary\": \"A hollow rectangular box assembled from six plates with 8mm diameter holes through the center of each plate.\", \"operations\": [{\"id\": \"bottom\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 20, \"z\": 4}}, {\"id\": \"top\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 20, \"z\": 4, \"position\": {\"x\": 0, \"y\": 0, \"z\": 16}}}, {\"id\": \"front\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 4, \"z\": 20}}, {\"id\": \"back\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 4, \"z\": 20, \"position\": {\"x\": 0, \"y\": 16, \"z\": 0}}}, {\"id\": \"left\", \"type\": \"box\", \"parameters\": {\"x\": 4, \"y\": 20, \"z\": 20}}, {\"id\": \"right\", \"type\": \"box\", \"parameters\": {\"x\": 4, \"y\": 20, \"z\": 20, \"position\": {\"x\": 36, \"y\": 0, \"z\": 0}}}, {\"id\": \"fuse\", \"type\": \"union\", \"target\": \"bottom\", \"tools\": [\"top\", \"front\", \"back\", \"left\", \"right\"]}, {\"id\": \"hole_z\", \"type\": \"through_hole\", \"target\": \"bottom\", \"parameters\": {\"diameter\": 8, \"position\": {\"x\": 20, \"y\": 10, \"z\": 0}, \"axis\": \"+Z\"}}, {\"id\": \"hole_x\", \"type\": \"through_hole\", \"target\": \"bottom\", \"parameters\": {\"diameter\": 8, \"position\": {\"x\": 0, \"y\": 10, \"z\": 10}, \"axis\": \"+X\"}}, {\"id\": \"hole_y\", \"type\": \"through_hole\", \"target\": \"bottom\", \"parameters\": {\"diameter\": 8, \"position\": {\"x\": 20, \"y\": 0, \"z\": 10}, \"axis\": \"+Y\"}}]}",
+   "provider_error": null,
+   "fenced": false,
+   "plan": {
+    "boxes": [
+     {
+      "id": "bottom",
+      "size": [
+       40.0,
+       20.0,
+       4.0
+      ],
+      "position": [
+       0.0,
+       0.0,
+       0.0
+      ]
+     },
+     {
+      "id": "top",
+      "size": [
+       40.0,
+       20.0,
+       4.0
+      ],
+      "position": [
+       0.0,
+       0.0,
+       16.0
+      ]
+     },
+     {
+      "id": "front",
+      "size": [
+       40.0,
+       4.0,
+       20.0
+      ],
+      "position": [
+       0.0,
+       0.0,
+       0.0
+      ]
+     },
+     {
+      "id": "back",
+      "size": [
+       40.0,
+       4.0,
+       20.0
+      ],
+      "position": [
+       0.0,
+       16.0,
+       0.0
+      ]
+     },
+     {
+      "id": "left",
+      "size": [
+       4.0,
+       20.0,
+       20.0
+      ],
+      "position": [
+       0.0,
+       0.0,
+       0.0
+      ]
+     },
+     {
+      "id": "right",
+      "size": [
+       4.0,
+       20.0,
+       20.0
+      ],
+      "position": [
+       36.0,
+       0.0,
+       0.0
+      ]
+     }
+    ],
+    "holes": [
+     {
+      "id": "hole_z",
+      "target": "bottom",
+      "diameter": 8.0,
+      "axis": "Z",
+      "position": [
+       20.0,
+       10.0,
+       0.0
+      ]
+     },
+     {
+      "id": "hole_x",
+      "target": "bottom",
+      "diameter": 8.0,
+      "axis": "X",
+      "position": [
+       0.0,
+       10.0,
+       10.0
+      ]
+     },
+     {
+      "id": "hole_y",
+      "target": "bottom",
+      "diameter": 8.0,
+      "axis": "Y",
+      "position": [
+       20.0,
+       0.0,
+       10.0
+      ]
+     }
+    ],
+    "unions": [
+     {
+      "id": "fuse",
+      "target": "bottom",
+      "tools": [
+       "top",
+       "front",
+       "back",
+       "left",
+       "right"
+      ]
+     }
+    ],
+    "plate_count": 6,
+    "bore_count": 3,
+    "distinct_centrelines": 3,
+    "coaxial_duplicates": 0,
+    "axes_used": [
+     "X",
+     "Y",
+     "Z"
+    ],
+    "thickness": 4.0
+   },
+   "operations": [
+    {
+     "id": "bottom",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "top",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "front",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "back",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "left",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "right",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "fuse",
+     "type": "union",
+     "target": "bottom",
+     "tools": [
+      "top",
+      "front",
+      "back",
+      "left",
+      "right"
+     ]
+    },
+    {
+     "id": "hole_z",
+     "type": "through_hole",
+     "target": "bottom",
+     "tools": null
+    },
+    {
+     "id": "hole_x",
+     "type": "through_hole",
+     "target": "bottom",
+     "tools": null
+    },
+    {
+     "id": "hole_y",
+     "type": "through_hole",
+     "target": "bottom",
+     "tools": null
+    }
+   ],
+   "problems": [],
+   "plan_valid": true,
+   "built": true,
+   "measurement": {
+    "volume": 10185.62842102151,
+    "solids": 1,
+    "faces": 18,
+    "edges": 42,
+    "minimum": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "maximum": [
+     40.0,
+     20.0,
+     20.0
+    ]
+   },
+   "spatial": {
+    "checks": {
+     "one_solid": true,
+     "envelope": true,
+     "faces": true,
+     "edges": true,
+     "volume": true,
+     "six_openings": true
+    },
+    "failures": [],
+    "envelope": [
+     40.0,
+     20.0,
+     20.0
+    ],
+    "closed_form_volume": 10185.62842102152,
+    "volume_delta": 9.094947017729282e-12,
+    "cylindrical_faces_implied": 6,
+    "spatially_correct": true
+   },
+   "SPATIALLY_CORRECT": true,
+   "failure_modes": [],
+   "stage": "SPATIALLY_CORRECT",
+   "codes": []
+  },
+  {
+   "attempt": 5,
+   "seconds": 3.3,
+   "outcome": "generated",
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 10668,
+    "output_tokens": 523
+   },
+   "raw_text": "{\"status\": \"generated\", \"summary\": \"Hollow rectangular box assembled from six plates with 8mm diameter holes drilled through the center of each plate.\", \"operations\": [{\"id\": \"bottom\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 20, \"z\": 4}}, {\"id\": \"top\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 20, \"z\": 4, \"position\": {\"x\": 0, \"y\": 0, \"z\": 16}}}, {\"id\": \"front\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 4, \"z\": 20}}, {\"id\": \"back\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 4, \"z\": 20, \"position\": {\"x\": 0, \"y\": 16, \"z\": 0}}}, {\"id\": \"left\", \"type\": \"box\", \"parameters\": {\"x\": 4, \"y\": 20, \"z\": 20}}, {\"id\": \"right\", \"type\": \"box\", \"parameters\": {\"x\": 4, \"y\": 20, \"z\": 20, \"position\": {\"x\": 36, \"y\": 0, \"z\": 0}}}, {\"id\": \"fuse\", \"type\": \"union\", \"target\": \"bottom\", \"tools\": [\"top\", \"front\", \"back\", \"left\", \"right\"]}, {\"id\": \"hole_z\", \"type\": \"through_hole\", \"target\": \"bottom\", \"parameters\": {\"diameter\": 8, \"position\": {\"x\": 20, \"y\": 10, \"z\": 0}, \"axis\": \"+Z\"}}, {\"id\": \"hole_x\", \"type\": \"through_hole\", \"target\": \"bottom\", \"parameters\": {\"diameter\": 8, \"position\": {\"x\": 0, \"y\": 10, \"z\": 10}, \"axis\": \"+X\"}}, {\"id\": \"hole_y\", \"type\": \"through_hole\", \"target\": \"bottom\", \"parameters\": {\"diameter\": 8, \"position\": {\"x\": 20, \"y\": 0, \"z\": 10}, \"axis\": \"+Y\"}}]}",
+   "provider_error": null,
+   "fenced": false,
+   "plan": {
+    "boxes": [
+     {
+      "id": "bottom",
+      "size": [
+       40.0,
+       20.0,
+       4.0
+      ],
+      "position": [
+       0.0,
+       0.0,
+       0.0
+      ]
+     },
+     {
+      "id": "top",
+      "size": [
+       40.0,
+       20.0,
+       4.0
+      ],
+      "position": [
+       0.0,
+       0.0,
+       16.0
+      ]
+     },
+     {
+      "id": "front",
+      "size": [
+       40.0,
+       4.0,
+       20.0
+      ],
+      "position": [
+       0.0,
+       0.0,
+       0.0
+      ]
+     },
+     {
+      "id": "back",
+      "size": [
+       40.0,
+       4.0,
+       20.0
+      ],
+      "position": [
+       0.0,
+       16.0,
+       0.0
+      ]
+     },
+     {
+      "id": "left",
+      "size": [
+       4.0,
+       20.0,
+       20.0
+      ],
+      "position": [
+       0.0,
+       0.0,
+       0.0
+      ]
+     },
+     {
+      "id": "right",
+      "size": [
+       4.0,
+       20.0,
+       20.0
+      ],
+      "position": [
+       36.0,
+       0.0,
+       0.0
+      ]
+     }
+    ],
+    "holes": [
+     {
+      "id": "hole_z",
+      "target": "bottom",
+      "diameter": 8.0,
+      "axis": "Z",
+      "position": [
+       20.0,
+       10.0,
+       0.0
+      ]
+     },
+     {
+      "id": "hole_x",
+      "target": "bottom",
+      "diameter": 8.0,
+      "axis": "X",
+      "position": [
+       0.0,
+       10.0,
+       10.0
+      ]
+     },
+     {
+      "id": "hole_y",
+      "target": "bottom",
+      "diameter": 8.0,
+      "axis": "Y",
+      "position": [
+       20.0,
+       0.0,
+       10.0
+      ]
+     }
+    ],
+    "unions": [
+     {
+      "id": "fuse",
+      "target": "bottom",
+      "tools": [
+       "top",
+       "front",
+       "back",
+       "left",
+       "right"
+      ]
+     }
+    ],
+    "plate_count": 6,
+    "bore_count": 3,
+    "distinct_centrelines": 3,
+    "coaxial_duplicates": 0,
+    "axes_used": [
+     "X",
+     "Y",
+     "Z"
+    ],
+    "thickness": 4.0
+   },
+   "operations": [
+    {
+     "id": "bottom",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "top",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "front",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "back",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "left",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "right",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "fuse",
+     "type": "union",
+     "target": "bottom",
+     "tools": [
+      "top",
+      "front",
+      "back",
+      "left",
+      "right"
+     ]
+    },
+    {
+     "id": "hole_z",
+     "type": "through_hole",
+     "target": "bottom",
+     "tools": null
+    },
+    {
+     "id": "hole_x",
+     "type": "through_hole",
+     "target": "bottom",
+     "tools": null
+    },
+    {
+     "id": "hole_y",
+     "type": "through_hole",
+     "target": "bottom",
+     "tools": null
+    }
+   ],
+   "problems": [],
+   "plan_valid": true,
+   "built": true,
+   "measurement": {
+    "volume": 10185.62842102151,
+    "solids": 1,
+    "faces": 18,
+    "edges": 42,
+    "minimum": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "maximum": [
+     40.0,
+     20.0,
+     20.0
+    ]
+   },
+   "spatial": {
+    "checks": {
+     "one_solid": true,
+     "envelope": true,
+     "faces": true,
+     "edges": true,
+     "volume": true,
+     "six_openings": true
+    },
+    "failures": [],
+    "envelope": [
+     40.0,
+     20.0,
+     20.0
+    ],
+    "closed_form_volume": 10185.62842102152,
+    "volume_delta": 9.094947017729282e-12,
+    "cylindrical_faces_implied": 6,
+    "spatially_correct": true
+   },
+   "SPATIALLY_CORRECT": true,
+   "failure_modes": [],
+   "stage": "SPATIALLY_CORRECT",
+   "codes": []
+  },
+  {
+   "attempt": 6,
+   "seconds": 3.24,
+   "outcome": "generated",
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 10668,
+    "output_tokens": 398
+   },
+   "raw_text": "{\"status\":\"generated\",\"summary\":\"Hollow rectangular box from six plates with 8mm diameter holes drilled through the center of each plate.\",\"operations\":[{\"id\":\"bottom\",\"type\":\"box\",\"parameters\":{\"x\":40,\"y\":20,\"z\":4}},{\"id\":\"top\",\"type\":\"box\",\"parameters\":{\"x\":40,\"y\":20,\"z\":4,\"position\":{\"x\":0,\"y\":0,\"z\":16}}},{\"id\":\"front\",\"type\":\"box\",\"parameters\":{\"x\":40,\"y\":4,\"z\":20}},{\"id\":\"back\",\"type\":\"box\",\"parameters\":{\"x\":40,\"y\":4,\"z\":20,\"position\":{\"x\":0,\"y\":16,\"z\":0}}},{\"id\":\"left\",\"type\":\"box\",\"parameters\":{\"x\":20,\"y\":20,\"z\":4}},{\"id\":\"right\",\"type\":\"box\",\"parameters\":{\"x\":20,\"y\":20,\"z\":4,\"position\":{\"x\":20,\"y\":0,\"z\":0}}},{\"id\":\"fuse\",\"type\":\"union\",\"target\":\"bottom\",\"tools\":[\"top\",\"front\",\"back\",\"left\",\"right\"]},{\"id\":\"hole_z\",\"type\":\"through_hole\",\"target\":\"bottom\",\"parameters\":{\"diameter\":8,\"position\":{\"x\":20,\"y\":10,\"z\":0},\"axis\":\"+Z\"}},{\"id\":\"hole_x\",\"type\":\"through_hole\",\"target\":\"bottom\",\"parameters\":{\"diameter\":8,\"position\":{\"x\":0,\"y\":10,\"z\":10},\"axis\":\"+X\"}},{\"id\":\"hole_y\",\"type\":\"through_hole\",\"target\":\"bottom\",\"parameters\":{\"diameter\":8,\"position\":{\"x\":20,\"y\":0,\"z\":10},\"axis\":\"+Y\"}}]}",
+   "provider_error": null,
+   "fenced": false,
+   "plan": {
+    "boxes": [
+     {
+      "id": "bottom",
+      "size": [
+       40.0,
+       20.0,
+       4.0
+      ],
+      "position": [
+       0.0,
+       0.0,
+       0.0
+      ]
+     },
+     {
+      "id": "top",
+      "size": [
+       40.0,
+       20.0,
+       4.0
+      ],
+      "position": [
+       0.0,
+       0.0,
+       16.0
+      ]
+     },
+     {
+      "id": "front",
+      "size": [
+       40.0,
+       4.0,
+       20.0
+      ],
+      "position": [
+       0.0,
+       0.0,
+       0.0
+      ]
+     },
+     {
+      "id": "back",
+      "size": [
+       40.0,
+       4.0,
+       20.0
+      ],
+      "position": [
+       0.0,
+       16.0,
+       0.0
+      ]
+     },
+     {
+      "id": "left",
+      "size": [
+       20.0,
+       20.0,
+       4.0
+      ],
+      "position": [
+       0.0,
+       0.0,
+       0.0
+      ]
+     },
+     {
+      "id": "right",
+      "size": [
+       20.0,
+       20.0,
+       4.0
+      ],
+      "position": [
+       20.0,
+       0.0,
+       0.0
+      ]
+     }
+    ],
+    "holes": [
+     {
+      "id": "hole_z",
+      "target": "bottom",
+      "diameter": 8.0,
+      "axis": "Z",
+      "position": [
+       20.0,
+       10.0,
+       0.0
+      ]
+     },
+     {
+      "id": "hole_x",
+      "target": "bottom",
+      "diameter": 8.0,
+      "axis": "X",
+      "position": [
+       0.0,
+       10.0,
+       10.0
+      ]
+     },
+     {
+      "id": "hole_y",
+      "target": "bottom",
+      "diameter": 8.0,
+      "axis": "Y",
+      "position": [
+       20.0,
+       0.0,
+       10.0
+      ]
+     }
+    ],
+    "unions": [
+     {
+      "id": "fuse",
+      "target": "bottom",
+      "tools": [
+       "top",
+       "front",
+       "back",
+       "left",
+       "right"
+      ]
+     }
+    ],
+    "plate_count": 6,
+    "bore_count": 3,
+    "distinct_centrelines": 3,
+    "coaxial_duplicates": 0,
+    "axes_used": [
+     "X",
+     "Y",
+     "Z"
+    ],
+    "thickness": 4.0
+   },
+   "operations": [
+    {
+     "id": "bottom",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "top",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "front",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "back",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "left",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "right",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "fuse",
+     "type": "union",
+     "target": "bottom",
+     "tools": [
+      "top",
+      "front",
+      "back",
+      "left",
+      "right"
+     ]
+    },
+    {
+     "id": "hole_z",
+     "type": "through_hole",
+     "target": "bottom",
+     "tools": null
+    },
+    {
+     "id": "hole_x",
+     "type": "through_hole",
+     "target": "bottom",
+     "tools": null
+    },
+    {
+     "id": "hole_y",
+     "type": "through_hole",
+     "target": "bottom",
+     "tools": null
+    }
+   ],
+   "problems": [],
+   "plan_valid": true,
+   "built": false,
+   "build_failure": {
+    "code": "backend",
+    "message": "the hole's centreline does not intersect the target (rule E1)"
+   },
+   "spatial": {
+    "checks": {
+     "one_solid": false,
+     "envelope": false,
+     "faces": false,
+     "edges": false,
+     "volume": false
+    },
+    "failures": [],
+    "spatially_correct": false
+   },
+   "SPATIALLY_CORRECT": false,
+   "failure_modes": [
+    "D:wrong_plate_placement",
+    "C:wrong_position"
+   ],
+   "stage": "build_failed",
+   "codes": []
+  },
+  {
+   "attempt": 7,
+   "seconds": 3.1,
+   "outcome": "generated",
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 10668,
+    "output_tokens": 407
+   },
+   "raw_text": "{\"status\":\"generated\",\"summary\":\"Hollow rectangular box 40\u00d720\u00d75 mm assembled from six plates with 8 mm diameter holes drilled through the center of each.\",\"operations\":[{\"id\":\"bottom\",\"type\":\"box\",\"parameters\":{\"x\":40,\"y\":20,\"z\":5}},{\"id\":\"top\",\"type\":\"box\",\"parameters\":{\"x\":40,\"y\":20,\"z\":5,\"position\":{\"x\":0,\"y\":0,\"z\":15}}},{\"id\":\"front\",\"type\":\"box\",\"parameters\":{\"x\":40,\"y\":5,\"z\":20}},{\"id\":\"back\",\"type\":\"box\",\"parameters\":{\"x\":40,\"y\":5,\"z\":20,\"position\":{\"x\":0,\"y\":15,\"z\":0}}},{\"id\":\"left\",\"type\":\"box\",\"parameters\":{\"x\":5,\"y\":20,\"z\":20}},{\"id\":\"right\",\"type\":\"box\",\"parameters\":{\"x\":5,\"y\":20,\"z\":20,\"position\":{\"x\":35,\"y\":0,\"z\":0}}},{\"id\":\"fuse\",\"type\":\"union\",\"target\":\"bottom\",\"tools\":[\"top\",\"front\",\"back\",\"left\",\"right\"]},{\"id\":\"hole_z\",\"type\":\"through_hole\",\"target\":\"bottom\",\"parameters\":{\"diameter\":8,\"position\":{\"x\":20,\"y\":10,\"z\":0},\"axis\":\"+Z\"}},{\"id\":\"hole_x\",\"type\":\"through_hole\",\"target\":\"bottom\",\"parameters\":{\"diameter\":8,\"position\":{\"x\":0,\"y\":10,\"z\":10},\"axis\":\"+X\"}},{\"id\":\"hole_y\",\"type\":\"through_hole\",\"target\":\"bottom\",\"parameters\":{\"diameter\":8,\"position\":{\"x\":20,\"y\":0,\"z\":10},\"axis\":\"+Y\"}}]}",
+   "provider_error": null,
+   "fenced": false,
+   "plan": {
+    "boxes": [
+     {
+      "id": "bottom",
+      "size": [
+       40.0,
+       20.0,
+       5.0
+      ],
+      "position": [
+       0.0,
+       0.0,
+       0.0
+      ]
+     },
+     {
+      "id": "top",
+      "size": [
+       40.0,
+       20.0,
+       5.0
+      ],
+      "position": [
+       0.0,
+       0.0,
+       15.0
+      ]
+     },
+     {
+      "id": "front",
+      "size": [
+       40.0,
+       5.0,
+       20.0
+      ],
+      "position": [
+       0.0,
+       0.0,
+       0.0
+      ]
+     },
+     {
+      "id": "back",
+      "size": [
+       40.0,
+       5.0,
+       20.0
+      ],
+      "position": [
+       0.0,
+       15.0,
+       0.0
+      ]
+     },
+     {
+      "id": "left",
+      "size": [
+       5.0,
+       20.0,
+       20.0
+      ],
+      "position": [
+       0.0,
+       0.0,
+       0.0
+      ]
+     },
+     {
+      "id": "right",
+      "size": [
+       5.0,
+       20.0,
+       20.0
+      ],
+      "position": [
+       35.0,
+       0.0,
+       0.0
+      ]
+     }
+    ],
+    "holes": [
+     {
+      "id": "hole_z",
+      "target": "bottom",
+      "diameter": 8.0,
+      "axis": "Z",
+      "position": [
+       20.0,
+       10.0,
+       0.0
+      ]
+     },
+     {
+      "id": "hole_x",
+      "target": "bottom",
+      "diameter": 8.0,
+      "axis": "X",
+      "position": [
+       0.0,
+       10.0,
+       10.0
+      ]
+     },
+     {
+      "id": "hole_y",
+      "target": "bottom",
+      "diameter": 8.0,
+      "axis": "Y",
+      "position": [
+       20.0,
+       0.0,
+       10.0
+      ]
+     }
+    ],
+    "unions": [
+     {
+      "id": "fuse",
+      "target": "bottom",
+      "tools": [
+       "top",
+       "front",
+       "back",
+       "left",
+       "right"
+      ]
+     }
+    ],
+    "plate_count": 6,
+    "bore_count": 3,
+    "distinct_centrelines": 3,
+    "coaxial_duplicates": 0,
+    "axes_used": [
+     "X",
+     "Y",
+     "Z"
+    ],
+    "thickness": 5.0
+   },
+   "operations": [
+    {
+     "id": "bottom",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "top",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "front",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "back",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "left",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "right",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "fuse",
+     "type": "union",
+     "target": "bottom",
+     "tools": [
+      "top",
+      "front",
+      "back",
+      "left",
+      "right"
+     ]
+    },
+    {
+     "id": "hole_z",
+     "type": "through_hole",
+     "target": "bottom",
+     "tools": null
+    },
+    {
+     "id": "hole_x",
+     "type": "through_hole",
+     "target": "bottom",
+     "tools": null
+    },
+    {
+     "id": "hole_y",
+     "type": "through_hole",
+     "target": "bottom",
+     "tools": null
+    }
+   ],
+   "problems": [],
+   "plan_valid": true,
+   "built": true,
+   "measurement": {
+    "volume": 11492.035526276897,
+    "solids": 1,
+    "faces": 18,
+    "edges": 42,
+    "minimum": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "maximum": [
+     40.0,
+     20.0,
+     20.0
+    ]
+   },
+   "spatial": {
+    "checks": {
+     "one_solid": true,
+     "envelope": true,
+     "faces": true,
+     "edges": true,
+     "volume": true,
+     "six_openings": true
+    },
+    "failures": [],
+    "envelope": [
+     40.0,
+     20.0,
+     20.0
+    ],
+    "closed_form_volume": 11492.035526276899,
+    "volume_delta": 1.8189894035458565e-12,
+    "cylindrical_faces_implied": 6,
+    "spatially_correct": true
+   },
+   "SPATIALLY_CORRECT": true,
+   "failure_modes": [],
+   "stage": "SPATIALLY_CORRECT",
+   "codes": []
+  },
+  {
+   "attempt": 8,
+   "seconds": 3.74,
+   "outcome": "invalid_model_output",
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 10668,
+    "output_tokens": 619
+   },
+   "raw_text": "{\"status\": \"generated\", \"summary\": \"Hollow rectangular enclosure made from six plates (four 40\u00d720\u00d75 mm and two 20\u00d720\u00d75 mm) fused together with an 8 mm diameter hole through the center of each plate.\", \"operations\": [{\"id\": \"plate_40x20_bottom\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 20, \"z\": 5}}, {\"id\": \"plate_40x20_top\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 20, \"z\": 5, \"position\": {\"x\": 0, \"y\": 0, \"z\": 20}}}, {\"id\": \"plate_40x20_front\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 5, \"z\": 20}}, {\"id\": \"plate_40x20_back\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 5, \"z\": 20, \"position\": {\"x\": 0, \"y\": 15, \"z\": 0}}}, {\"id\": \"plate_20x20_left\", \"type\": \"box\", \"parameters\": {\"x\": 5, \"y\": 20, \"z\": 20}}, {\"id\": \"plate_20x20_right\", \"type\": \"box\", \"parameters\": {\"x\": 5, \"y\": 20, \"z\": 20, \"position\": {\"x\": 35, \"y\": 0, \"z\": 0}}}, {\"id\": \"assembled\", \"type\": \"union\", \"target\": \"plate_40x20_bottom\", \"tools\": [\"plate_40x20_top\", \"plate_40x20_front\", \"plate_40x20_back\", \"plate_20x20_left\", \"plate_20x20_right\"]}, {\"id\": \"hole_z\", \"type\": \"through_hole\", \"target\": \"assembled\", \"parameters\": {\"diameter\": 8, \"position\": {\"x\": 20, \"y\": 10, \"z\": 0}, \"axis\": \"+Z\"}}, {\"id\": \"hole_x\", \"type\": \"through_hole\", \"target\": \"assembled\", \"parameters\": {\"diameter\": 8, \"position\": {\"x\": 0, \"y\": 10, \"z\": 10}, \"axis\": \"+X\"}}, {\"id\": \"hole_y\", \"type\": \"through_hole\", \"target\": \"assembled\", \"parameters\": {\"diameter\": 8, \"position\": {\"x\": 20, \"y\": 0, \"z\": 10}, \"axis\": \"+Y\"}}]}",
+   "provider_error": "the plan is not valid",
+   "fenced": false,
+   "plan": {
+    "boxes": [
+     {
+      "id": "plate_40x20_bottom",
+      "size": [
+       40.0,
+       20.0,
+       5.0
+      ],
+      "position": [
+       0.0,
+       0.0,
+       0.0
+      ]
+     },
+     {
+      "id": "plate_40x20_top",
+      "size": [
+       40.0,
+       20.0,
+       5.0
+      ],
+      "position": [
+       0.0,
+       0.0,
+       20.0
+      ]
+     },
+     {
+      "id": "plate_40x20_front",
+      "size": [
+       40.0,
+       5.0,
+       20.0
+      ],
+      "position": [
+       0.0,
+       0.0,
+       0.0
+      ]
+     },
+     {
+      "id": "plate_40x20_back",
+      "size": [
+       40.0,
+       5.0,
+       20.0
+      ],
+      "position": [
+       0.0,
+       15.0,
+       0.0
+      ]
+     },
+     {
+      "id": "plate_20x20_left",
+      "size": [
+       5.0,
+       20.0,
+       20.0
+      ],
+      "position": [
+       0.0,
+       0.0,
+       0.0
+      ]
+     },
+     {
+      "id": "plate_20x20_right",
+      "size": [
+       5.0,
+       20.0,
+       20.0
+      ],
+      "position": [
+       35.0,
+       0.0,
+       0.0
+      ]
+     }
+    ],
+    "holes": [
+     {
+      "id": "hole_z",
+      "target": "assembled",
+      "diameter": 8.0,
+      "axis": "Z",
+      "position": [
+       20.0,
+       10.0,
+       0.0
+      ]
+     },
+     {
+      "id": "hole_x",
+      "target": "assembled",
+      "diameter": 8.0,
+      "axis": "X",
+      "position": [
+       0.0,
+       10.0,
+       10.0
+      ]
+     },
+     {
+      "id": "hole_y",
+      "target": "assembled",
+      "diameter": 8.0,
+      "axis": "Y",
+      "position": [
+       20.0,
+       0.0,
+       10.0
+      ]
+     }
+    ],
+    "unions": [
+     {
+      "id": "assembled",
+      "target": "plate_40x20_bottom",
+      "tools": [
+       "plate_40x20_top",
+       "plate_40x20_front",
+       "plate_40x20_back",
+       "plate_20x20_left",
+       "plate_20x20_right"
+      ]
+     }
+    ],
+    "plate_count": 6,
+    "bore_count": 3,
+    "distinct_centrelines": 3,
+    "coaxial_duplicates": 0,
+    "axes_used": [
+     "X",
+     "Y",
+     "Z"
+    ],
+    "thickness": 5.0
+   },
+   "operations": [
+    {
+     "id": "plate_40x20_bottom",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "plate_40x20_top",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "plate_40x20_front",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "plate_40x20_back",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "plate_20x20_left",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "plate_20x20_right",
+     "type": "box",
+     "target": null,
+     "tools": null
+    },
+    {
+     "id": "assembled",
+     "type": "union",
+     "target": "plate_40x20_bottom",
+     "tools": [
+      "plate_40x20_top",
+      "plate_40x20_front",
+      "plate_40x20_back",
+      "plate_20x20_left",
+      "plate_20x20_right"
+     ]
+    },
+    {
+     "id": "hole_z",
+     "type": "through_hole",
+     "target": "assembled",
+     "tools": null
+    },
+    {
+     "id": "hole_x",
+     "type": "through_hole",
+     "target": "assembled",
+     "tools": null
+    },
+    {
+     "id": "hole_y",
+     "type": "through_hole",
+     "target": "assembled",
+     "tools": null
+    }
+   ],
+   "problems": [
+    {
+     "code": "P11",
+     "message": "'assembled' does not name a solid: it is a modifier, whose result keeps its own target's id. Name the solid it changed instead"
+    },
+    {
+     "code": "P11",
+     "message": "'assembled' does not name a solid: it is a modifier, whose result keeps its own target's id. Name the solid it changed instead"
+    },
+    {
+     "code": "P11",
+     "message": "'assembled' does not name a solid: it is a modifier, whose result keeps its own target's id. Name the solid it changed instead"
+    }
+   ],
+   "plan_valid": false,
+   "SPATIALLY_CORRECT": false,
+   "failure_modes": [
+    "G:other"
+   ],
+   "stage": "invalid:P11",
+   "codes": [
+    "P11"
+   ]
+  }
+ ],
+ "backend": "cadquery",
+ "backend_version": "2.8.0",
+ "summary": {
+  "calls": 8,
+  "compiled": 8,
+  "fenced": 0,
+  "parsed": 8,
+  "validated": 4,
+  "built": 3,
+  "SPATIALLY_CORRECT": 3,
+  "three_bores": 8,
+  "six_plates": 8,
+  "codes": {
+   "P11": 4
+  },
+  "failure_modes": {
+   "G:other": 4,
+   "D:wrong_plate_placement": 1,
+   "C:wrong_position": 1
+  },
+  "stages": {
+   "invalid:P11": 4,
+   "SPATIALLY_CORRECT": 3,
+   "build_failed": 1
+  }
+ }
+}

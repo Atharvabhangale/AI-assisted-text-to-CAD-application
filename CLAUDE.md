@@ -1219,6 +1219,65 @@ prose about the rule changed nothing; removing the noun that invited the
 wrong answer changed it. `test_union_target_semantics.py` pins both the
 semantic rule and the prompt text where it was measured to work.
 
+**Stage 67 — the spatial failure measured, and nothing adopted.** **80 live
+calls**, nine prompt arms, one variable at a time; every arm's raw output,
+plan, kernel geometry and verdict is in
+`docs/evaluation-baselines/stage67-golden-spatial/`. **The prompt is
+unchanged at `2026-09-18.3`.**
+
+The brief expected "one hole per wall" to dominate. **It occurred once in 80
+calls.** On the committed prompt the model already writes three bores 6/8 and
+six plates 7/8; Stage 66's defect is essentially gone. What remains is two
+disjoint causes — no attempt failed both:
+
+| | |
+|---|---|
+| **the envelope height** | the prompt derives the third extent as *"the only number the bottom did not already give"*. Here the bottom is 40×20 and the ends are 20×20, so the end plate gives **no new number** and the rule returns nothing. The model then picks 40, 5, 25 or 60. It fails on the prompt's own worked example too (ends 30×30 on a 60×30 bottom). |
+| **the far plate of a pair** | placed at `t` or at `extent` instead of `extent - t`. |
+
+Measured failure modes over 80 calls: D wrong plate placement 17, E missing
+plate 15, G other 15, C wrong position 12, F duplicate coaxial cut 12,
+B wrong direction 8, **A one hole per wall 1**.
+
+**The best arm was rejected, and why matters.** Completing the prompt's worked
+example through its three bores (`H7`) took P11 to **0/8**, validation to
+**8/8** and spatial success to **4/8** from a 2/8 baseline, reproduced exactly
+on a fresh confirmation run. It also **significantly regressed the plate
+thickness**: the baseline reads the requested 5 mm on 5/8 attempts, H7 on
+**0/16** (Fisher exact, two-sided, **p = 0.00132**). On the strict criterion —
+spatially correct **and** built from the 5 mm plate the request specifies — H7
+is **0/16** against the baseline's **1/8**. It makes a better-shaped box out of
+the wrong material. It was adopted, measured, and reverted; `2026-09-18.4`
+exists nowhere in the history.
+
+**The stage's own criterion was too lenient, and an independent review caught
+it.** Stage 66 scored a one-bore build correct because its criterion was
+envelope plus targeting. Stage 67 replaced that with a kernel-decided
+criterion — 1 solid, envelope 40×20×20, **18 faces** (12 planar + 2
+cylindrical per bore), 42 edges, volume equal to the closed form — validated
+against ground truth before use. But it derived the closed form from
+*whatever thickness the model chose*, so parts built from 4 mm plate scored
+correct against a request that says 5. **A criterion that grades a part
+against its own answer cannot fail it.**
+
+**Kernel evidence, MODEL_GENERATED.** The eight correct plans rebuilt from
+recorded output: **10185.628421022 mm³** against the t=4 closed form (delta
+**9.09e-12**), 1 solid, 18 faces, 42 edges, envelope (40,20,20) — and
+**bit-identical on CadQuery 2.8.0 and FreeCAD 1.0.0**. Real parts, in the
+wrong plate.
+
+Two negative results worth their calls: `H6` removed the worked example and
+produced the worst result of the stage (P11 6/8, 0/8 correct), which is how
+the example is known to be **load-bearing**; and `H6`'s union section is
+*shorter* than the baseline's while carrying the worst P11, which **refutes**
+the P11-versus-length trend that `H4` and `H5` were built on — it was noise at
+n=8.
+
+**The golden request is NOT 5/5.** Best spatial rate 4/8; best strict rate
+1/8, on the unmodified prompt. **Multi-body work does not begin.**
+`test_enclosure_bores.py` pins the spatial rule in geometry and pins the
+thickness lesson; its guards are mutation-tested.
+
 **Stage 66 — the golden request BUILDS.** **40 live calls**, eight arms, one
 variable at a time; raw output, validation and build results are in
 `docs/evaluation-baselines/stage66-enclosure-layout/`, whose `arena.py` is a
@@ -1309,7 +1368,7 @@ back.
 surface, one valid solid, 18 faces, 42 edges, 5544 triangles, 0 failed
 requests, 0 console errors.
 
-**Test counts (current):** `tests_experimental` **1827 passed, 72 skipped, 0
+**Test counts (current):** `tests_experimental` **1834 passed, 72 skipped, 0
 failed**; cad-core **1481 passed**. Frontend `tsc --noEmit` clean,
 `vite build` succeeds. **The 72 skips** are the FreeCAD-dependent modules
 when FreeCAD is absent from the interpreter, plus the deliberately gated
@@ -1502,14 +1561,19 @@ survived only as prose and nothing noticed when it stopped being the intent.
 
 Separate from the historical record, and none of these is a plan.
 
-- **The live model builds the golden six-plate request 1/5, not 5/5.**
-  Stage 65 removed the P11 union-target failure and Stage 66 the four
-  enclosure-layout defects, taking it from 0/5 to a verified
-  `MODEL_GENERATED` build. What remains: three of five attempts still write
-  one hole per wall although the prompt now names that exact mistake, and
-  those attempts fail rule E1. **Reliability on this request is the standing
-  open problem**, and the request's own thickness ambiguity is a confound
-  that a re-worded golden request would remove.
+- **The live model builds the golden six-plate request 4/8 spatially, and
+  1/8 strictly.** Stage 67 measured this over 80 calls (above). "One hole per
+  wall" is **not** the remaining failure — it happened once in 80. The two
+  live causes are the under-determined envelope height and the far plate of a
+  facing pair. **No prompt change was adopted**: the arm that fixed the
+  structure regressed the plate thickness significantly (p = 0.0013).
+  **Reliability on this request is the standing open problem.**
+- **The golden request is ambiguous about plate thickness**, and the
+  ambiguity is now quantified rather than asserted: the committed prompt
+  reads the requested 5 mm on 5/8 attempts and the count "(4)" as a thickness
+  on 3/8. Stage 66 declined to tune it away and Stage 67 agrees; a
+  disambiguated companion request, kept ALONGSIDE the original rather than
+  replacing it, is the next evidence step.
 - **`comparison_corpus.py` case `12-union` is stale** — it expects
   `unsupported` for a request the language now answers. **Deliberately not
   edited**: it is a frozen instrument and Stage 48's `legacy` group reads out
@@ -1549,13 +1613,20 @@ failure it exposed, fixed four prompt defects, and the live model now builds
 the golden six-plate enclosure — verified to 9.1e-12 and bit-identical on
 both backends.
 
-**Next: reliability on that request, 1/5 → 5/5.** The failures are no longer
-mysterious: three of five attempts write one hole per wall although the
-prompt names that mistake in those words. Same discipline — reproduce live,
-one variable at a time, no repair loop. Consider also re-wording the golden
-request, whose "(4)plates" is a count the model reads as a thickness; that
-confound belongs in its own stage, and the current request must be kept
-alongside any replacement rather than edited.
+**Stage 67 did that work and adopted nothing.** Nine arms and 80 live calls
+showed every candidate trading one defect for another, and the best of them
+regressing the plate thickness at p = 0.0013.
+
+**Next, and in this order.** (1) **Disambiguate the measurement, not the
+model**: author a companion golden request that states the plate thickness
+and the box height explicitly, keep the current ambiguous one ALONGSIDE it,
+and re-measure both. Stage 67's strict rate cannot rise above the rate at
+which the model guesses the thickness right, so until the two are separated
+no prompt experiment can be scored cleanly. (2) Only then re-attempt the
+envelope rule, whose defect is now known exactly: it returns nothing when the
+end plate shares both its numbers with the bottom, and it fails on the
+prompt's own worked example. Same discipline — reproduce live, one variable
+at a time, no repair loop.
 
 Then the multi-body slice, **step 1 only** — `part` plus P33–P36 plus the
 test that every existing schema fingerprint is unchanged.
