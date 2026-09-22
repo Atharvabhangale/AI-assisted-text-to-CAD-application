@@ -1,0 +1,2060 @@
+{
+ "backend": "freecad",
+ "backend_version": "1.0.0",
+ "expected": {
+  "volume": 11492.035526276899,
+  "faces": 18,
+  "edges": 42,
+  "solids": 1,
+  "envelope": [
+   40.0,
+   20.0,
+   20.0
+  ]
+ },
+ "rebuilt": 136,
+ "failures": [],
+ "rows": [
+  {
+   "file": "arm-B0-baseline.json",
+   "attempt": 1,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B0-baseline.json",
+   "attempt": 2,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B0-baseline.json",
+   "attempt": 3,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B0-baseline.json",
+   "attempt": 4,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B0-baseline.json",
+   "attempt": 5,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B0-baseline.json",
+   "attempt": 6,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B0-baseline.json",
+   "attempt": 7,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B0-baseline.json",
+   "attempt": 8,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B0-baseline.json",
+   "attempt": 9,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B0-baseline.json",
+   "attempt": 10,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B0-baseline.json",
+   "attempt": 11,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B0-baseline.json",
+   "attempt": 12,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B0-baseline.json",
+   "attempt": 14,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B0-baseline.json",
+   "attempt": 15,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B0-baseline.json",
+   "attempt": 16,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B0-baseline.json",
+   "attempt": 17,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B0-baseline.json",
+   "attempt": 18,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B0-baseline.json",
+   "attempt": 19,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B0-baseline.json",
+   "attempt": 20,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B0-baseline.json",
+   "attempt": 21,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B0-baseline.json",
+   "attempt": 22,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B0-baseline.json",
+   "attempt": 23,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B0-baseline.json",
+   "attempt": 24,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B0-baseline.json",
+   "attempt": 25,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B0-baseline.json",
+   "attempt": 26,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B0-baseline.json",
+   "attempt": 27,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B0-baseline.json",
+   "attempt": 28,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B0-baseline.json",
+   "attempt": 30,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B0-baseline.json",
+   "attempt": 31,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B0-baseline.json",
+   "attempt": 32,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B0-baseline.json",
+   "attempt": 33,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B0-baseline.json",
+   "attempt": 34,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B0-baseline.json",
+   "attempt": 35,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B0-baseline.json",
+   "attempt": 37,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B0-baseline.json",
+   "attempt": 38,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B0-baseline.json",
+   "attempt": 39,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B0-baseline.json",
+   "attempt": 40,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B0-baseline.json",
+   "attempt": 41,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B0-baseline.json",
+   "attempt": 42,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B0-baseline.json",
+   "attempt": 44,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B0-baseline.json",
+   "attempt": 45,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B0-baseline.json",
+   "attempt": 46,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B0-baseline.json",
+   "attempt": 47,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B0-baseline.json",
+   "attempt": 48,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-1.json",
+   "attempt": 1,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-1.json",
+   "attempt": 2,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-1.json",
+   "attempt": 3,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-1.json",
+   "attempt": 4,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-1.json",
+   "attempt": 5,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-1.json",
+   "attempt": 6,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-1.json",
+   "attempt": 7,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-1.json",
+   "attempt": 8,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-1.json",
+   "attempt": 9,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-1.json",
+   "attempt": 10,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-1.json",
+   "attempt": 11,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-1.json",
+   "attempt": 13,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-1.json",
+   "attempt": 14,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-1.json",
+   "attempt": 15,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-1.json",
+   "attempt": 16,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-1.json",
+   "attempt": 17,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-1.json",
+   "attempt": 18,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-1.json",
+   "attempt": 19,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-1.json",
+   "attempt": 21,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-1.json",
+   "attempt": 22,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-1.json",
+   "attempt": 23,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-1.json",
+   "attempt": 24,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-1.json",
+   "attempt": 25,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-1.json",
+   "attempt": 27,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-1.json",
+   "attempt": 28,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-1.json",
+   "attempt": 29,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-1.json",
+   "attempt": 30,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-1.json",
+   "attempt": 31,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-1.json",
+   "attempt": 32,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-2.json",
+   "attempt": 1,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-2.json",
+   "attempt": 2,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-2.json",
+   "attempt": 3,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-2.json",
+   "attempt": 4,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-2.json",
+   "attempt": 5,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-2.json",
+   "attempt": 6,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-2.json",
+   "attempt": 7,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-2.json",
+   "attempt": 8,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-2.json",
+   "attempt": 9,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-2.json",
+   "attempt": 10,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-2.json",
+   "attempt": 12,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-2.json",
+   "attempt": 13,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-2.json",
+   "attempt": 14,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-2.json",
+   "attempt": 15,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-2.json",
+   "attempt": 16,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-2.json",
+   "attempt": 17,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-2.json",
+   "attempt": 18,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-2.json",
+   "attempt": 19,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-2.json",
+   "attempt": 20,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-2.json",
+   "attempt": 21,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-2.json",
+   "attempt": 22,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-2.json",
+   "attempt": 23,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-2.json",
+   "attempt": 24,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-2.json",
+   "attempt": 25,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-2.json",
+   "attempt": 26,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-2.json",
+   "attempt": 27,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-2.json",
+   "attempt": 28,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-2.json",
+   "attempt": 29,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-2.json",
+   "attempt": 30,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-2.json",
+   "attempt": 31,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-confirm-2.json",
+   "attempt": 32,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-mandate-last.json",
+   "attempt": 1,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-mandate-last.json",
+   "attempt": 2,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-mandate-last.json",
+   "attempt": 3,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-mandate-last.json",
+   "attempt": 4,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-mandate-last.json",
+   "attempt": 5,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-mandate-last.json",
+   "attempt": 6,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-mandate-last.json",
+   "attempt": 7,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-mandate-last.json",
+   "attempt": 8,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-mandate-last.json",
+   "attempt": 9,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-mandate-last.json",
+   "attempt": 10,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-mandate-last.json",
+   "attempt": 11,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-mandate-last.json",
+   "attempt": 12,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-mandate-last.json",
+   "attempt": 13,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-mandate-last.json",
+   "attempt": 14,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-mandate-last.json",
+   "attempt": 15,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-mandate-last.json",
+   "attempt": 16,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-mandate-last.json",
+   "attempt": 17,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-mandate-last.json",
+   "attempt": 18,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-mandate-last.json",
+   "attempt": 19,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-mandate-last.json",
+   "attempt": 20,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-mandate-last.json",
+   "attempt": 21,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-mandate-last.json",
+   "attempt": 22,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-mandate-last.json",
+   "attempt": 23,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-mandate-last.json",
+   "attempt": 24,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-mandate-last.json",
+   "attempt": 25,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-mandate-last.json",
+   "attempt": 26,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-mandate-last.json",
+   "attempt": 27,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-mandate-last.json",
+   "attempt": 28,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-mandate-last.json",
+   "attempt": 29,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-mandate-last.json",
+   "attempt": 30,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-mandate-last.json",
+   "attempt": 31,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  },
+  {
+   "file": "arm-B4-mandate-last.json",
+   "attempt": 32,
+   "volume": 11492.035526276897,
+   "delta": 1.8189894035458565e-12,
+   "solids": 1,
+   "faces": 18,
+   "edges": 42,
+   "envelope": [
+    40.0,
+    20.0,
+    20.0
+   ],
+   "matches_ground_truth": true
+  }
+ ],
+ "provenance": "MODEL_GENERATED (rebuilt from recorded output; no model called)"
+}

@@ -18,9 +18,9 @@ written**, and §19 is authoritative instead:
   them as "the normal way in"; they arrived on stable after the fork. Use the
   manual `uvicorn` / `npm run dev` sequence, or §19's commands.
 - **§5's test counts are stable's.** On this branch the current measured
-  figures are **`tests_experimental` 1856 passed, 5 skipped** and
+  figures are **`tests_experimental` 1867 passed, 5 skipped** and
   **cad-core 1481 passed**, both on Linux with FreeCAD 1.0.0 present
-  (Stage 69). §5's own note carries the older Windows figures as history.
+  (Stage 70). §5's own note carries the older Windows figures as history.
   §5's "no known failing tests" is a statement about stable only.
 - **§17's structure map omits this branch's three experimental trees**:
   `apps/api/src/cad_experimental/`, `apps/api/tests_experimental/` and
@@ -289,8 +289,8 @@ skipped or weakened to make the suite pass.
 
 **On `experiment/cad-operation-graph` the numbers above are stable's.**
 
-**CURRENT (Stage 69, Linux, FreeCAD 1.0.0 present):** `tests_experimental`
-**1856 passed, 5 skipped, 0 failed**; cad-core **1481 passed, 0 failed**.
+**CURRENT (Stage 70, Linux, FreeCAD 1.0.0 present):** `tests_experimental`
+**1867 passed, 5 skipped, 0 failed**; cad-core **1481 passed, 0 failed**.
 The six cad-core errors described below are **Windows-only** and do not
 reproduce on Linux.
 
@@ -1417,6 +1417,90 @@ off-centre bore that stays inside the same two walls measures **identically**
 for the plan-level `bore_centred` check, and the reason a criterion built
 only on measurement cannot catch this class of error.
 
+**Stage 70 — the P11 residual measured, bounded, and NOT prompt-fixed.**
+**288 live calls**, all on the EXPLICIT request, five arms, one variable
+each. **No prompt change was adopted**; the prompt is unchanged at
+`2026-09-18.5`. Record:
+`docs/evaluation-baselines/stage70-union-p11/`.
+
+**An adoption rule was committed BEFORE the confirming runs** (commit
+`acf9028`, `decision_rule.py`): pooled n ≥ 64, P11 below baseline at Fisher
+exact two sided p < 0.05, and no regression in thickness, plate count,
+envelope, bore axes or strict success. It rejected all four candidates.
+
+**Stage 69's description of the residual was a token, not a mechanism.**
+It read *"every P11 attempt targets the product noun `enclosure`"*;
+**`enclosure` is what the model named the UNION.** The model gives the union
+a body noun and then targets the name it just wrote. Over 144 baseline
+attempts — **432 post-union targets** — every target named either the
+surviving body (408) or the union's **own id** (24). A consumed tool: **0**.
+An id absent from the plan: **0**. The model never invents an id.
+
+**Fresh baseline, n = 144** (48 new calls pooled with Stage 69's arm A2,
+whose text *is* the committed prompt):
+
+| | |
+|---|--:|
+| STRICT SUCCESS | **135/144 = 93.8 %** (95 % CI 88.5–97.1) |
+| `H:wrong_target` (P11) | **8/144 = 5.6 %** (95 % CI **2.4–10.7**) |
+| thickness / plate count | **144/144** each |
+| `E:bore_position` | 1/144 — Stage 69's fix holding |
+
+**The matrix, and the one significant result.**
+
+| arm | one variable | n | strict | P11 | union id ≠ `fuse` |
+|---|---|--:|--:|--:|--:|
+| B0 baseline | nothing | 144 | 135/144 | 8/144 | 8/144 |
+| B1 no-product-nouns | the forbidden-noun sentence **deleted** | 96 | 85/96 | **7/96** | **0/96** |
+| B2 read-it-back | a check appended; **no new noun** | 32 | 31/32 | 1/32 | 1/32 |
+| B3 mandate-first | mandate moved **before** the naming rule — **pure reordering** | 32 | **21/32** | **11/32** | 10/32 |
+| B4 mandate-last | mandate moved **after** the layout block — **pure reordering** | 96 | 92/96 | 3/96 | **0/96** |
+
+**B3 regressed hard** — same length, same characters, two paragraphs
+swapped: strict 135/144 → 21/32 (**p = 0.0001**), P11 → 11/32 (p < 0.0001).
+**Unlike Stage 69, where the equivalent control moved nothing, position is a
+live mechanism in this section.** The committed order is not cosmetic.
+
+**The union id is a MARKER, not the cause.** On the committed prompt the
+separation is perfect — P11 **0/136** when the union is named `fuse` and
+**8/8** when it is not — which invites *"make it say `fuse` and P11 goes
+away"*. **B1 and B4 both falsify that**: each reached **96/96** compliance
+and still carried P11, at 7/96 and 3/96, every one on a union correctly
+named `fuse`. A perfect correlation over one prompt is not a mechanism.
+B1 is the sharper result: deleting the forbidden-noun sentence bought total
+id compliance and *raised* P11, because what that sentence supplies is not
+the id but the reason the union's id names no solid.
+
+**B2, the clean prose arm, did nothing** — the fourth stage running in which
+prose about a rule moves nothing.
+
+**B4 is the arm that would have been adopted without the rule.** Its first
+32 calls came back **32/32**, the first perfect arm in this project's
+history on this request; its two confirmations were 29/32 and 31/32, and
+pooled 3/96 against 8/144 is **p = 0.53**. Stage 67 adopted an arm on exactly
+that kind of first reading and had to revert it. The rule existed before the
+numbers did, which is why it did not happen twice.
+
+**Kernel evidence, MODEL_GENERATED.** **136** claimed successes rebuilt from
+recorded output: one distinct volume, **11492.035526277** against the
+immutable closed form 11492.035526276899 (delta **1.819e-12**), 1 solid, 18
+faces, 42 edges, envelope (40,20,20), **0 mismatches**, **bit-identical on
+CadQuery 2.8.0 and FreeCAD 1.0.0**.
+
+**THE STOPPING DECISION: stop, and carry the number.** Five arms and 288
+calls produced no intervention that lowers P11 significantly, and the only
+significant effect found was a way to make it worse. Separating 5.6 % from
+~2 % at p < 0.05 needs several hundred more calls per arm, and three of five
+arms show candidate edits trading one failure mode for another. Adding
+prompt text on the strength of a non-significant arm is how a prompt bloats,
+and this one is already 30917 characters. The residual is bounded, measured
+and **fails closed** — a P11 plan is rejected by the validator and builds
+nothing, so it is never silent and nothing is repaired.
+`test_union_section_shape.py` pins the paragraph order, the sentence B1
+removed, and the semantic rule stated relationally; its six guards are
+mutation-tested, and one of them exists because a mutation that emptied a
+loop left the test passing.
+
 **Stage 66 — the golden request BUILDS.** **40 live calls**, eight arms, one
 variable at a time; raw output, validation and build results are in
 `docs/evaluation-baselines/stage66-enclosure-layout/`, whose `arena.py` is a
@@ -1507,8 +1591,8 @@ back.
 surface, one valid solid, 18 faces, 42 edges, 5544 triangles, 0 failed
 requests, 0 console errors.
 
-**Test counts (current):** `tests_experimental` **1856 passed, 5 skipped, 0
-failed** (1861 collected), measured at Stage 69 on Linux with FreeCAD 1.0.0
+**Test counts (current):** `tests_experimental` **1867 passed, 5 skipped, 0
+failed** (1872 collected), measured at Stage 70 on Linux with FreeCAD 1.0.0
 present and `CAD_FREECAD_HOME`/`LD_LIBRARY_PATH` exported; cad-core **1481
 passed**. Frontend `tsc --noEmit` clean, `vite build` succeeds. **The skip
 count depends on the environment.** The 5 here are three drawing-view
@@ -1554,6 +1638,7 @@ those. The five most recent are:
 | **61** | **A CAD session that needs no model at all**: `union` (eleventh type, still eight schema branches), two provider-neutral grammars, and an evidence answerer that labels every number `MEASURED` / `DECLARED` / `CALCULATED`. |
 | **62** | The four defects Stage 61 left behind — **an operation is not one edit.** The live route could not *say* `union` (Stage 44's defect a third time); a `union` plan could lose a solid silently; `ExecutionUnsupported` named the wrong reason for it; and a recorded schema size had drifted unpinned. |
 | **64** | **The AI provider usage policy, and CLAUDE.md reconciled.** The rule forbidding Claude Code Web a real credential is retired: where one is available a real provider is used, and live calls are encouraged. `CREDENTIAL_PRECEDENCE` makes the two-variable behaviour explicit instead of implicit. 22 guards now pin the policy and stop the document drifting from the code. |
+| **70** | **The P11 residual measured, bounded and NOT prompt-fixed.** 288 live calls, five arms, an adoption rule committed before the confirming runs — which rejected all four candidates. Stage 69's "targets the product noun `enclosure`" was a token: `enclosure` is what the model named the UNION, and no target in 432 ever named a consumed tool or an absent id. A pure reordering (B3) **regressed** at p = 0.0001, so the section's order is load-bearing; two arms reached 96/96 `fuse` compliance and still carried P11, so the id is a marker, not the cause. P11 **8/144 = 5.6 %, CI [2.4, 10.7]**; strict **135/144**. Stopped deliberately. |
 | **69** | **The residual bore failure measured and removed.** 224 live calls. Stage 68's "the `+Z` triple is copied" reading is refuted (0/24); the model zeroes **z**, and only z, on non-Z bores. Deleting the rule's letter-to-zero pairing made it worse and a pure reordering of the table did not move the error, so the table is not the mechanism — the missing **example** was. Strict success 54/64 → 91/96 (p = 0.049), thickness 96/96 unchanged. Prompt `2026-09-18.5`. |
 | **63** | **The audit closed and `union` measured live.** All 39 findings classified (0 false positives), 20 more fixed — including a resize that silently broke the part, a second solid-set walk, three duplicated authority tables and four tests that passed without proving their name. `strict_selector_union` (3628) is **PROVEN compilable**, the model emits `union` 4/5, and 0/5 build: **P11 only**, the union's own id used as a solid. |
 
@@ -1711,20 +1796,26 @@ Separate from the historical record, and none of these is a plan.
   strict and the EXPLICIT companion **7/8** (Stage 68, 16 live calls). The
   original measures comprehension of an under-specified spec; the explicit
   one measures CAD capability. Both are kept; neither is edited.
-- **The bore-centre defect is FIXED and the strict rate on the explicit
-  request is 91/96** (Stage 69, prompt `2026-09-18.5`). What remains on that
-  request is P11 at **4/96** and one attempt in 96 that wrote all three
-  bores on `+Z`.
-- **P11 is the dominant residual, and it is NOT what Stage 68 suggested.**
-  Stage 68 read it as 0/8 on the explicit request and CLAUDE.md said
-  disambiguation had removed it. Over 64 pooled explicit attempts on the
-  same prompt it is **6/64**, and 0/8 vs 3/24 is p = 0.55 — no evidence the
-  runs differ. It is lower on the explicit request than on the ambiguous
-  one (6/64 vs 3/8) at **p = 0.082, not significant**. Comprehension
-  explains part of P11; it does not explain it away. Every P11 attempt
-  under the adopted prompt targets the product noun `enclosure`.
+- **The bore-centre defect is FIXED.** On the committed prompt
+  `2026-09-18.5` the explicit request scores **135/144 = 93.8 %** strict
+  (Stage 70, 95 % CI 88.5–97.1), with thickness and plate count 144/144 and
+  `E:bore_position` 1/144.
+- **P11 is the standing residual, at a MEASURED and BOUNDED rate:
+  8/144 = 5.6 %, 95 % CI [2.4 %, 10.7 %].** Stage 70 spent 288 live calls
+  over five arms and found no intervention that lowers it significantly —
+  the only significant effect was a pure reordering that made it worse. The
+  stage stopped deliberately rather than bloat the prompt on a
+  non-significant arm. **It fails closed**: a P11 plan is rejected by the
+  validator and builds nothing.
+- **The union id is a marker for P11, not its cause.** On the committed
+  prompt P11 is 0/136 with a union named `fuse` and 8/8 without, but two
+  arms reached 96/96 compliance and still carried P11 on `fuse`-named
+  unions. Do not read the correlation as a mechanism.
+- **The union section's paragraph ORDER is load-bearing.** Moving the `fuse`
+  mandate ahead of the carrier-naming rule — same length, same characters —
+  took strict success from 135/144 to 21/32, p = 0.0001.
 - **One attempt in 96 wrote all three bores on `+Z`** (`F:bore_direction`),
-  a mode not seen before Stage 69. One sighting; not a rate.
+  a mode not seen before Stage 69. Still rare; 3/336 across Stages 69–70.
 - **`comparison_corpus.py` case `12-union` is stale** — it expects
   `unsupported` for a request the language now answers. **Deliberately not
   edited**: it is a frozen instrument and Stage 48's `legacy` group reads out
@@ -1779,19 +1870,25 @@ non-Z bores — and removed it by supplying the example the prompt had never
 shown. Strict success on the explicit request is **91/96**, with thickness
 and plate count untouched at 96/96.
 
-**Stage 70's target is P11, and Stage 69 corrected what was believed about
-it.** Stage 68 reported it 0/8 on the explicit request and this document said
-disambiguation had removed it; over 64 pooled explicit attempts it is 6/64,
-and under the adopted prompt 4/96. It is the dominant residual and the only
-failure code with a rate. Every one of those attempts targets the product
-noun `enclosure` — which is precisely the affordance Stage 65 and Stage 66
-each found and removed elsewhere, so look for what still *offers* that noun
-rather than for a stronger way to state the rule. Measure it on the EXPLICIT
-request, one variable at a time, and size the arms for the rate: at ~5 % a
-32-call arm is the minimum that can say anything, and 8 cannot.
+**Stage 70 did that work and stopped on purpose.** 288 live calls over five
+arms found no intervention that lowers P11 significantly; the only
+significant effect was a pure reordering that made it worse. The residual is
+**8/144 = 5.6 %, 95 % CI [2.4 %, 10.7 %]**, it fails closed, and the stage
+declined to add prompt text on the strength of a non-significant arm.
 
-Then the multi-body slice, **step 1 only** — `part` plus P33–P36 plus the
-test that every existing schema fingerprint is unchanged.
+**The prompt-tuning line of work is CLOSED at this quality level, and the
+next milestone is architectural.** Four consecutive stages now say the same
+thing about this prompt: what the model imitates is what the prompt *shows*
+(Stages 65, 66, 69), prose about a rule moves nothing (65, 66, 69, 70), and
+the section's own structure is load-bearing in ways a reading cannot predict
+(70's B3). There is no measured lever left on P11 at the sample sizes this
+project can afford.
+
+**Next: the multi-body slice, step 1 only** — `part` plus P33–P36 plus the
+test that every existing schema fingerprint is unchanged. The precondition
+Stage 63 set for it is met: the one-body `union` path now works at 93.8 %
+strict on the golden request with both kernels agreeing bit-for-bit, so a
+`part` branch would no longer be measuring two unknowns at once.
 
 ### Next: multi-body semantics (design only, nothing implemented)
 
@@ -2377,9 +2474,10 @@ The POSIX forms remain correct on Linux/macOS, where `python3` and a
 `CAD_FREECAD_HOME` plus `LD_LIBRARY_PATH=$CAD_FREECAD_HOME/usr/lib` set
 **before Python starts**, or `test_cad_backends` skips.
 
-**1856 passed, 5 skipped** (1861 collected) with FreeCAD 1.0.0 present on
-Linux and its environment exported, measured at Stage 69. Earlier figures,
-each describing a real environment: 1852 at Stage 68; 1800 at Stage 64;
+**1867 passed, 5 skipped** (1872 collected) with FreeCAD 1.0.0 present on
+Linux and its environment exported, measured at Stage 70. Earlier figures,
+each describing a real environment: 1856 at Stage 69; 1852 at Stage 68;
+1800 at Stage 64;
 1778 at Stage
 63 (before this stage's 22 policy and drift guards); 1188 tests, 2 skipped
 at Stage 47; 897 tests, 33 skipped at Stage 43 on the Windows environment,
