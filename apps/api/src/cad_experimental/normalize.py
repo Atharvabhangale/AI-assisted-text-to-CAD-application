@@ -63,6 +63,7 @@ from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple
 from .history import plan_history
 from .intent import looks_like_plate_assembly
 from .parser import PlanParseError, parse_plan
+from .body_reference import resolve_body
 from .plan import (
     BOX,
     CHAMFER,
@@ -198,47 +199,51 @@ def _ids(plan: Mapping[str, Any]) -> List[str]:
     return [str(op.get("id")) for op in _operations(plan) if op.get("id")]
 
 
-def _body_id(plan: Mapping[str, Any]) -> Optional[str]:
-    """The id of the solid a further modifier should target.
+def _body_for(text: str, plan: Mapping[str, Any]) -> str:
+    """The body this request means, or a refusal that says why there is none.
 
-    A modifier keeps its TARGET's id, so the body is *a live solid's* id --
-    not the id of the last operation, which for a modifier names nothing at
-    all. Getting this wrong is the classic way to write a plan that
-    references a feature as if it were a solid.
+    A thin call into :func:`cad_experimental.body_reference.resolve_body`,
+    which is the ONE place that answers the question. It is a separate module
+    because the answer is needed by four readers and, later, by anything else
+    that edits a part: a second implementation here would be a second opinion
+    about which body a sentence names, which is the mistake this package keeps
+    finding in other forms.
 
-    Answered from :func:`~cad_experimental.history.plan_history`, which is
-    the **one** implementation of the solid-set walk. This function used to
-    walk the operations itself and return the first ``box`` or ``cylinder``,
-    which is a different question: "what was built first", not "what is still
-    standing". The two diverge the moment anything consumes a solid --
-    ``subtract`` always did, and ``union`` now does too. Measured with the
-    old rule, on a plan whose union target is the second constructive
-    operation:
+    Raises :class:`ReadingError` rather than returning ``None`` when there is
+    no honest answer. That is the difference between "not my sentence" and
+    "your sentence, and it is ambiguous": the reader has already decided the
+    verb is its own by the time it asks, so declining here would send a
+    perfectly understood request to a model as though nobody had read it,
+    and the person would be told nothing.
+    """
+    choice = resolve_body(text, plan)
+    if choice.reason is not None:
+        raise ReadingError(choice.reason)
+    assert choice.body is not None
+    return choice.body
 
-        _body_id -> 'tool_plate'          # consumed as a tool
-        live body is 'main_body'
 
-    ...so "put a 6 mm hole through the centre" and "round the vertical edges"
-    both emitted a modifier targeting a consumed solid, and the validator
-    rejected the result with **P12**. A second walk is a second opinion about
-    what "consumed" means, which is exactly what `history.py` exists to
-    prevent.
+def _constructive_of(plan: Mapping[str, Any], body: str) -> Tuple[str, ...]:
+    """The constructive operations this body is made of, in plan order.
 
-    Returns ``None`` when the plan does not leave exactly one live solid.
-    Callers treat that as "decline", because with two bodies standing there
-    is no such thing as *the* body to modify and picking one would be a
-    guess.
+    The one answer to "which boxes and cylinders is this body", shared by
+    :func:`_fused_from` and :func:`_envelope`. With two bodies standing, an
+    envelope taken over EVERY constructive operation is the box around both
+    of them, and a hole placed at its centre lands in the gap between them --
+    measured before this existed.
     """
     try:
         history = plan_history(parse_plan(dict(plan)))
     except PlanParseError:
-        # An unparseable plan has no history to read. The readers decline
-        # rather than fall back to the old guess.
-        return None
-    live = history.live_bodies
-    if len(live) != 1:
-        return None
-    return str(live[0].id)
+        return ()
+    if history.body(body) is None:
+        return ()
+    constructive = {
+        op.get("id") for op in _operations(plan)
+        if op.get("type") in (BOX, CYLINDER)
+    }
+    return tuple(str(name) for name in history.derivation(body)
+                 if name in constructive)
 
 
 def _fused_from(plan: Mapping[str, Any], body: str) -> Tuple[str, ...]:
@@ -260,33 +265,31 @@ def _fused_from(plan: Mapping[str, Any], body: str) -> Tuple[str, ...]:
 
     Measured, before this existed.
     """
-    try:
-        history = plan_history(parse_plan(dict(plan)))
-    except PlanParseError:
-        return ()
-    found = history.body(body)
-    if found is None:
-        return ()
-    constructive = {
-        op.get("id"): op for op in _operations(plan)
-        if op.get("type") in (BOX, CYLINDER)
-    }
-    pieces = tuple(str(name) for name in history.derivation(body)
-                   if name in constructive)
+    pieces = _constructive_of(plan, body)
     return pieces if len(pieces) > 1 else ()
 
 
-def _envelope(plan: Mapping[str, Any]) -> Optional[Tuple[List[float], List[float]]]:
-    """The bounding box of every constructive solid, from the plan alone.
+def _envelope(
+    plan: Mapping[str, Any], body: Optional[str] = None
+) -> Optional[Tuple[List[float], List[float]]]:
+    """The bounding box of ONE body, from the plan alone.
 
     Derived from the plan rather than from a measurement so a reader can place
     a hole before anything is built. It is exact for the axis-aligned boxes and
     cylinders this vocabulary has; a reader that needs more than that should
     decline instead.
+
+    ``body`` scopes it to the constructive operations that body is made of.
+    Omitting it spans every constructive solid, which is the same answer for
+    every single-body plan and the WRONG one as soon as a second body stands
+    beside the first -- so every caller that has a body passes it.
     """
+    pieces = set(_constructive_of(plan, body)) if body is not None else None
     lo = [math.inf] * 3
     hi = [-math.inf] * 3
     for op in _of_type(plan, BOX, CYLINDER):
+        if pieces is not None and op.get("id") not in pieces:
+            continue
         parameters = op.get("parameters") or {}
         position = parameters.get("position") or {}
         origin = [float(position.get(k, 0.0)) for k in ("x", "y", "z")]
@@ -459,15 +462,25 @@ def read_centre_hole(text: str,
     if plan is None:
         return None
     lowered = (text or "").lower()
-    if not _HOLE_WORD.search(lowered) or not _CENTRE.search(lowered):
+    if not _HOLE_WORD.search(lowered):
         return None
     if not _ADD_WORD.search(lowered):
         return None
     if _count_word(lowered) not in (None, 1):
         return None
-    body = _body_id(plan)
-    envelope = _envelope(plan)
-    if body is None or envelope is None:
+    # "through the centre" says where; so does naming the body, once a part
+    # has more than one. "Put a 6 mm hole through the cube" is a complete
+    # instruction about WHICH body and an incomplete one about where on it,
+    # and the convention that fills the gap is stated in `assumptions` rather
+    # than applied quietly. Asked without raising, because a sentence naming
+    # neither a centre nor a body is simply not this reader's.
+    centred = bool(_CENTRE.search(lowered))
+    names_body = resolve_body(text, plan).named
+    if not centred and not names_body:
+        return None
+    body = _body_for(text, plan)
+    envelope = _envelope(plan, body)
+    if envelope is None:
         return None
     diameter_match = _DIAMETER.search(lowered)
     if diameter_match is None:
@@ -486,7 +499,9 @@ def read_centre_hole(text: str,
             f"{min(across):g} mm section")
 
     identifier = _unique(plan, "bore")
-    summary = f"{plan.get('summary') or 'the part'}, with a {diameter:g} mm hole through the centre"
+    where = f"the centre of {body}" if names_body else "the centre"
+    summary = (f"{plan.get('summary') or 'the part'}, with a {diameter:g} mm "
+               f"hole through {where}")
     return Reading(
         plan=_plan_with(plan, {
             "id": identifier, "type": THROUGH_HOLE, "target": body,
@@ -499,8 +514,12 @@ def read_centre_hole(text: str,
         summary=summary,
         reader="centre_hole",
         assumptions=(
-            f"the hole runs along {axis}, through the middle of the part",
-        ),
+            f"the hole runs along {axis}, through the middle of "
+            f"{body if names_body else 'the part'}",
+        ) + ((
+            f"the request named {body} but not where on it, so the hole is "
+            f"centred on it",
+        ) if names_body and not centred else ()),
     )
 
 
@@ -580,9 +599,9 @@ def read_corner_holes(text: str,
     if count not in (None, 4):
         raise ReadingError(
             f"{count} holes do not go at the corners of a rectangle; four do")
-    body = _body_id(plan)
-    envelope = _envelope(plan)
-    if body is None or envelope is None:
+    body = _body_for(text, plan)
+    envelope = _envelope(plan, body)
+    if envelope is None:
         return None
     diameter_match = _DIAMETER.search(lowered)
     if diameter_match is None:
@@ -690,9 +709,7 @@ def read_edge_treatment(text: str,
     if family is None:
         return None
     selector, describe = family
-    body = _body_id(plan)
-    if body is None:
-        return None
+    body = _body_for(text, plan)
     amount_match = _AMOUNT.search(lowered)
     if amount_match is None:
         raise ReadingError(
@@ -737,12 +754,15 @@ def read_edge_treatment(text: str,
 #: This is a CONVENTION, not a certainty: "wider" is X on almost every
 #: drawing and is not guaranteed to be. Every reading made here is reported in
 #: the summary so the person can see which axis moved and say otherwise.
+# The bare adjective as well as the comparative and the noun: "50 mm wide"
+# and "20 mm wider" name the same axis, and a table carrying only two of the
+# three spellings declined the plainest way to say it.
 _GROW_WORDS = (
-    (re.compile(r"\b(?:wider|narrower|width)\b", re.I), 0, "X"),
-    (re.compile(r"\b(?:deeper|shallower|longer|shorter|depth|length)\b", re.I),
-     1, "Y"),
-    (re.compile(r"\b(?:taller|thicker|thinner|higher|height|thickness)\b",
-                re.I), 2, "Z"),
+    (re.compile(r"\b(?:wide|wider|narrow|narrower|width)\b", re.I), 0, "X"),
+    (re.compile(r"\b(?:deep|deeper|shallow|shallower|long|longer|short"
+                r"|shorter|depth|length)\b", re.I), 1, "Y"),
+    (re.compile(r"\b(?:tall|taller|thick|thicker|thin|thinner|high|higher"
+                r"|height|thickness)\b", re.I), 2, "Z"),
     (re.compile(r"\bin\s+(?:the\s+)?x\b|\balong\s+x\b", re.I), 0, "X"),
     (re.compile(r"\bin\s+(?:the\s+)?y\b|\balong\s+y\b", re.I), 1, "Y"),
     (re.compile(r"\bin\s+(?:the\s+)?z\b|\balong\s+z\b", re.I), 2, "Z"),
@@ -752,6 +772,17 @@ _SHRINKS = re.compile(
 _RESIZE_VERB = re.compile(
     r"\b(?:make|grow|shrink|increase|decrease|reduce|extend|set)\b", re.I)
 _ABSOLUTE = re.compile(rf"\b(?:to|exactly)\s+{_N}{_MM}", re.I)
+
+#: The comparative forms, and the only reason the bare adjectives could be
+#: added to :data:`_GROW_WORDS` safely.
+#:
+#: "20 mm WIDER" is a change of 20; "50 mm WIDE" is a width of 50. Same axis,
+#: opposite arithmetic, and English settles it with the -er. Without this the
+#: widening would have read "make the cube 50 mm wide" on a 40 mm cube as
+#: 40 + 50 = 90 -- measured, on exactly that sentence, before this existed.
+_COMPARATIVE = re.compile(
+    r"\b(?:wider|narrower|deeper|shallower|longer|shorter|taller|thicker"
+    r"|thinner|higher|bigger|smaller|larger)\b", re.I)
 
 
 def read_resize(text: str,
@@ -774,9 +805,7 @@ def read_resize(text: str,
         return None
     index, letter = hits[0]
 
-    body = _body_id(plan)
-    if body is None:
-        return None
+    body = _body_for(text, plan)
 
     # A part assembled from several pieces has no single parameter meaning
     # "its width". Refusing is the honest answer: the alternative measured
@@ -799,8 +828,15 @@ def read_resize(text: str,
     current = float(parameters.get(key, 0.0))
 
     absolute = _ABSOLUTE.search(lowered)
-    if absolute:
-        target = _positive(float(absolute.group(1)), "dimension")
+    comparative = bool(_COMPARATIVE.search(lowered))
+    if absolute or not comparative:
+        # "to 50 mm" and "50 mm wide" both state the finished size. Only a
+        # comparative states a change.
+        stated = absolute or re.search(rf"{_N}{_MM}", lowered)
+        if stated is None:
+            raise ReadingError(
+                "a resize needs a size, and the request does not give one")
+        target = _positive(float(stated.group(1)), "dimension")
         how = f"set {letter} to {target:g} mm (was {current:g} mm)"
     else:
         amount_match = re.search(rf"{_N}{_MM}", lowered)
@@ -973,8 +1009,8 @@ def read_pattern(text: str,
 
 
 def _radial_pattern(plan, source, source_id, count, circle, lowered):
-    """Instances spread evenly about the part's centre."""
-    envelope = _envelope(plan)
+    """Instances spread evenly about the body's centre."""
+    envelope = _envelope(plan, source.get("target"))
     if envelope is None:
         return None
     lo, hi = envelope
@@ -1046,7 +1082,7 @@ def _linear_pattern(plan, source, source_id, count, lowered):
     # The last instance must still land on the part. The plan says where the
     # source is and how big the stock is, so this is checkable before anything
     # is built rather than as a kernel failure afterwards.
-    envelope = _envelope(plan)
+    envelope = _envelope(plan, source.get("target"))
     parameters = dict(source.get("parameters") or {})
     position = dict(parameters.get("position") or {})
     if envelope is not None and position:

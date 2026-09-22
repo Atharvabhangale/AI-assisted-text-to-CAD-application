@@ -469,8 +469,15 @@ def _blend(
     resolution = resolve(operation.edges.semantic(), facts)
     state.selections[operation.id] = resolution
     if not resolution.ok:
+        # The body is named HERE rather than inside `edge_semantics`, which
+        # imports nothing and knows nothing about plans or bodies -- and must
+        # stay that way. With one body "matched no edge" was unambiguous;
+        # with two it is the first question a reader asks, and the facts the
+        # resolver saw came from this body's shape alone, so this is the
+        # layer that can answer it.
         return ExecutionFailure(
-            resolution.code, resolution.message, operation.id
+            resolution.code, f"on {body!r}: {resolution.message}",
+            operation.id,
         )
 
     edges = state.backend.edges_at(target, resolution.indices)
