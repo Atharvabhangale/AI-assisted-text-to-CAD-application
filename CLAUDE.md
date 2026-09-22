@@ -1278,6 +1278,71 @@ n=8.
 `test_enclosure_bores.py` pins the spatial rule in geometry and pins the
 thickness lesson; its guards are mutation-tested.
 
+**Stage 68 — the benchmark made scientific, and the ambiguity measured.**
+**16 live calls**, 8 per request, on the **unchanged** prompt `2026-09-18.3`.
+No prompt variant was built. The only independent variable is which golden
+request is sent. Record:
+`docs/evaluation-baselines/stage68-benchmark-disambiguation/`.
+
+**The benchmark now has two requests.** `ORIGINAL` is kept verbatim and
+ambiguous; `EXPLICIT` states the plate thickness and outer height it leaves
+to inference and changes nothing else. Both describe the **same part**, so
+one immutable ground truth serves both.
+
+| | original | explicit |
+|---|--:|--:|
+| plan valid | 5/8 | **8/8** |
+| built | 5/8 | **8/8** |
+| thickness = 5 mm | 2/8 | **8/8** |
+| envelope 40×20×20 | 4/8 | **8/8** |
+| volume = closed form | 0/8 | **7/8** |
+| **STRICT SUCCESS** | **0/8** | **7/8** |
+
+**What the ambiguity explains — completely.** A (thickness), B (envelope
+height), F (bore direction) and **H (wrong target)** all fall to **zero** on
+the explicit request. H is the one worth naming: the **P11 union-target
+failure that Stages 63, 65, 66 and 67 all chased** appeared 3/8 on the
+ambiguous request and **0/8 on the explicit one, with no prompt change at
+all**. A model unsure what the part *is* also gets its references wrong. Much
+of what four stages read as a targeting defect was a comprehension defect.
+
+**What it does not explain — the Stage 69 target.** Exactly one failure
+survives, and it is one defect repeated across an attempt's three bores: the
+model wrote the `+Z` hole's position triple and **reused it for `+Y` and
+`+X`**, leaving `z = 0` on both — which is only meaningful for `+Z`, where z
+is the ignored along-axis component. Their centrelines land in the bottom
+face plane and graze. That attempt's plates are **identical to the
+successes**; it built at 25 faces, 65 edges, 11351.419374 mm³, 140.6 short.
+Rate: **1 in 8.**
+
+**Ground truth is immutable, and cannot self-reference.** Every expectation
+is a constant fixed before any model was called: envelope 40×20×20,
+thickness **5 mm**, 6 plates, **3 bores**, 6 openings, bore centrelines at
+(20,10,10) across their own axis with the along-axis component free, 1 solid,
+18 faces, 42 edges, volume **11492.035526276899**. Stage 67's criterion
+derived the expected thickness from the model's own plan
+(`t = plan_facts.get("thickness")`); `test_golden_ground_truth.py` makes that
+structurally unreachable — `expected()` takes a request NAME and has no
+parameter a plan could enter by — and its guards are mutation-tested,
+including reintroducing the Stage 67 defect itself.
+
+**A gap this stage found in its own instrument, and fixed.** The first
+classifier keyed `E:bore_position` on a build-failure message, so it missed
+the surviving failure entirely, because that part *built*; it read
+`I:other`, which names nothing. The evaluator now carries a
+ground-truth-derived centre check (`CENTRE = ENVELOPE/2`) and both baselines
+were **re-graded offline** against it — no model re-called, no raw output
+changed, and the files carry a `regraded_note` saying so.
+
+**Kernel evidence, MODEL_GENERATED.** The seven strict successes rebuilt from
+recorded output: thickness **5.0**, volume **11492.03552627690** against the
+immutable closed form (delta **1.82e-12**), 1 solid, 18 faces, 42 edges,
+envelope (40,20,20) — **bit-identical on CadQuery 2.8.0 and FreeCAD 1.0.0**.
+
+**The original request is still 0/8 and stays in the benchmark.** It is now
+labelled as measuring comprehension of an ambiguous spec rather than CAD
+capability, and the two are never summed.
+
 **Stage 66 — the golden request BUILDS.** **40 live calls**, eight arms, one
 variable at a time; raw output, validation and build results are in
 `docs/evaluation-baselines/stage66-enclosure-layout/`, whose `arena.py` is a
@@ -1368,7 +1433,7 @@ back.
 surface, one valid solid, 18 faces, 42 edges, 5544 triangles, 0 failed
 requests, 0 console errors.
 
-**Test counts (current):** `tests_experimental` **1834 passed, 72 skipped, 0
+**Test counts (current):** `tests_experimental` **1852 passed, 72 skipped, 0
 failed**; cad-core **1481 passed**. Frontend `tsc --noEmit` clean,
 `vite build` succeeds. **The 72 skips** are the FreeCAD-dependent modules
 when FreeCAD is absent from the interpreter, plus the deliberately gated
@@ -1561,19 +1626,21 @@ survived only as prose and nothing noticed when it stopped being the intent.
 
 Separate from the historical record, and none of these is a plan.
 
-- **The live model builds the golden six-plate request 4/8 spatially, and
-  1/8 strictly.** Stage 67 measured this over 80 calls (above). "One hole per
-  wall" is **not** the remaining failure — it happened once in 80. The two
-  live causes are the under-determined envelope height and the far plate of a
-  facing pair. **No prompt change was adopted**: the arm that fixed the
-  structure regressed the plate thickness significantly (p = 0.0013).
-  **Reliability on this request is the standing open problem.**
-- **The golden request is ambiguous about plate thickness**, and the
-  ambiguity is now quantified rather than asserted: the committed prompt
-  reads the requested 5 mm on 5/8 attempts and the count "(4)" as a thickness
-  on 3/8. Stage 66 declined to tune it away and Stage 67 agrees; a
-  disambiguated companion request, kept ALONGSIDE the original rather than
-  replacing it, is the next evidence step.
+- **The benchmark now has two golden requests, and they must never be
+  summed.** On the unchanged prompt the AMBIGUOUS original scores **0/8**
+  strict and the EXPLICIT companion **7/8** (Stage 68, 16 live calls). The
+  original measures comprehension of an under-specified spec; the explicit
+  one measures CAD capability. Both are kept; neither is edited.
+- **One failure survives disambiguation, and it is the Stage 69 target:**
+  the model reuses the `+Z` bore's position triple for the `+Y` and `+X`
+  bores, leaving `z = 0` on both, so their centrelines graze the bottom face
+  plane instead of boring. **1 in 8.** The plates in that attempt are
+  identical to the successes.
+- **Much of the P11 union-target failure was comprehension, not targeting.**
+  It appeared 3/8 on the ambiguous request and 0/8 on the explicit one with
+  **no prompt change**. Stages 63, 65, 66 and 67 each treated it as a
+  targeting defect; Stage 68 shows a large part of it was the model not
+  knowing what the part was.
 - **`comparison_corpus.py` case `12-union` is stale** — it expects
   `unsupported` for a request the language now answers. **Deliberately not
   edited**: it is a frozen instrument and Stage 48's `legacy` group reads out
@@ -1617,16 +1684,20 @@ both backends.
 showed every candidate trading one defect for another, and the best of them
 regressing the plate thickness at p = 0.0013.
 
-**Next, and in this order.** (1) **Disambiguate the measurement, not the
-model**: author a companion golden request that states the plate thickness
-and the box height explicitly, keep the current ambiguous one ALONGSIDE it,
-and re-measure both. Stage 67's strict rate cannot rise above the rate at
-which the model guesses the thickness right, so until the two are separated
-no prompt experiment can be scored cleanly. (2) Only then re-attempt the
-envelope rule, whose defect is now known exactly: it returns nothing when the
-end plate shares both its numbers with the bottom, and it fails on the
-prompt's own worked example. Same discipline — reproduce live, one variable
-at a time, no repair loop.
+**Stage 68 did step (1) and it changed the picture.** Disambiguating the
+REQUEST, with no prompt change at all, took the strict rate from 0/8 to 7/8
+and zeroed four of the five failure codes — including the P11 targeting
+failure four stages had been chasing.
+
+**Stage 69's target is now exactly one defect, and it is small.** On the
+explicit request the sole remaining failure is the `+Z` hole's position
+triple reused for the `+Y` and `+X` bores, leaving `z = 0` on both so their
+centrelines graze the bottom face plane. It occurs 1 in 8. The prompt already
+carries a per-axis table for this (Stage 66); the question is why it does not
+hold. Reproduce it live on the EXPLICIT request — where nothing else is
+failing and a single variable can actually be read — one variable at a time,
+no repair loop. Do not re-open the envelope rule: on the explicit request the
+envelope is 8/8 and there is nothing to fix.
 
 Then the multi-body slice, **step 1 only** — `part` plus P33–P36 plus the
 test that every existing schema fingerprint is unchanged.
