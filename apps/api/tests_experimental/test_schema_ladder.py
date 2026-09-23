@@ -48,7 +48,11 @@ class CanonicalIrIsUnchangedTests(unittest.TestCase):
         self.assertEqual(len(branches), len(canonical.OPERATION_TYPES))
 
     def test_the_ladder_adds_no_operation_type(self) -> None:
-        known = set(canonical.OPERATION_TYPES)
+        """Against `PLAN_TYPES` since Stage 75 -- see the same restatement in
+        test_provider_encodings. The rule is unchanged: a rung may not invent
+        a type the parser would refuse. `part` is a declaration the parser
+        accepts, not an invention."""
+        known = set(canonical.PLAN_TYPES)
         for item in ladder.variants():
             self.assertTrue(
                 set(item.capabilities) <= known,

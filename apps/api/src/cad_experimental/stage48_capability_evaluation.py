@@ -83,6 +83,7 @@ from .adapter import ExecutionUnsupported, SelectorNotExpressible
 from .build import build_plan
 from .plan import (
     V1_FEATURE_TYPES_WITH_UNION,
+    V1_FEATURE_TYPES_WITH_UNION_AND_PART,
     OPERATION_TYPES,
     POSITION_MODES,
     SELECT_MODES,
@@ -94,6 +95,7 @@ from .plan import (
     profile_provider_schema,
     selector_provider_schema,
     strict_selector_provider_schema,
+    strict_selector_union_part_provider_schema,
     strict_selector_union_provider_schema,
     profile_union_provider_schema,
     provider_schema,
@@ -234,6 +236,7 @@ PLAN_SCHEMAS: Mapping[str, Any] = {
     # characters and no extra branch. This is what the LIVE route sends;
     # `strict_selector` stays as the frozen 3619 measurement point.
     "strict_selector_union": strict_selector_union_provider_schema,
+    "strict_selector_union_part": strict_selector_union_part_provider_schema,
     # Present so a caller can reproduce Stage 43's grammar deliberately and
     # see the difference. Never the default, and never selected for anyone.
     "executable": executable_schema,
@@ -254,6 +257,10 @@ SCHEMA_CAPABILITIES: Mapping[str, Tuple[str, ...]] = {
     "selector": V1_FEATURE_TYPES,
     "strict_selector": V1_FEATURE_TYPES,
     "strict_selector_union": V1_FEATURE_TYPES_WITH_UNION,
+    # Stage 75. The only encoding that can say `part`, which is a
+    # DECLARATION and not an operation -- so its capability list is the
+    # only one drawn from PLAN_TYPES rather than OPERATION_TYPES.
+    "strict_selector_union_part": V1_FEATURE_TYPES_WITH_UNION_AND_PART,
     "executable": V1_FEATURE_TYPES,
 }
 
@@ -276,6 +283,13 @@ PROVEN_COMPILABLE: Mapping[str, int] = {
     # the encoding the live generation route sends, and it is now PROVEN
     # rather than merely "far below the ceiling".
     "strict_selector_union": 3628,
+    # Stage 75, measured live on claude-haiku-4-5-20251001 via
+    # `--probe-live --plan-schema strict_selector_union_part`: ACCEPTED on
+    # 2/2 operation_plan calls (fingerprint ef7427700af93ed7),
+    # `structured_output` true on both, 0/2 fenced, both parsing as JSON.
+    # This is the first grammar in the project that can say `part`, and it
+    # is PROVEN rather than predicted.
+    "strict_selector_union_part": 3874,
 }
 
 
@@ -297,6 +311,9 @@ SCHEMA_SELECTOR_MODES: Mapping[str, Tuple[str, ...]] = {
     # Identical selector arm to `strict_selector`: Stage 61 widened the
     # operation union only, so the selector vocabulary is unchanged.
     "strict_selector_union": SELECT_MODES,
+    # Identical selector arm again: Stage 75 widened the operation union
+    # only, so the selector vocabulary is unchanged from `strict_selector`.
+    "strict_selector_union_part": SELECT_MODES,
     # No fillet or chamfer, so nothing in these grammars selects an edge.
     "profile": (),
     "profile_hole": (),

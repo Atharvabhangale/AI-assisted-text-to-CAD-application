@@ -1830,6 +1830,75 @@ def strict_selector_union_provider_schema() -> Dict[str, Any]:
     )
 
 
+#: The eight types a multi-body encoding must be able to say: the seven
+#: :data:`V1_FEATURE_TYPES_WITH_UNION` plus the declaration itself.
+#:
+#: Written as its own tuple rather than assembled at the call site so that
+#: the one place a provider encoding learns about `part` is greppable, and so
+#: that :data:`OPERATION_TYPES` stays at eleven -- moving `part` into that
+#: tuple would move nine recorded fingerprints and the prompt in one edit,
+#: which is the whole reason :data:`DECLARATION_TYPES` exists.
+V1_FEATURE_TYPES_WITH_UNION_AND_PART: Tuple[str, ...] = (
+    V1_FEATURE_TYPES_WITH_UNION + (PART,)
+)
+
+
+def strict_selector_union_part_provider_schema() -> Dict[str, Any]:
+    """:func:`strict_selector_union_provider_schema`, able to say ``part``.
+
+    **The gap this closes.** Stages 71-74 built the whole deterministic
+    multi-body slice -- declaration, body-local history, per-body
+    measurement, body-by-name editing, a verified STEP assembly -- and every
+    number recorded for it is DETERMINISTIC, because the live route decodes
+    against :func:`strict_selector_union_provider_schema`, which has no
+    ``part`` branch. A model cannot emit a token the grammar does not
+    contain, so multi-body was unreachable from natural language and no
+    measurement of it said anything about a model.
+
+    **That is the Stage 44 defect in a fourth place.** A schema is what the
+    model may SAY; the execution boundary is what the engine can BUILD.
+    Stage 44 found it for ``sketch``, Stage 48 for ``pattern``, Stage 61 for
+    ``union``, and this is ``part``. The rule the branch keeps re-learning:
+    when an operation becomes reachable, the **grammar the live path sends**
+    is part of the operation, alongside the prompt and the refusal list.
+
+    **The cost is 246 characters and one branch.** ``part`` shares its
+    operation-level shape with nothing -- ``{id, type, target}`` and no
+    ``parameters`` at all (:data:`OPERATION_FIELDS`) -- so unlike ``union``
+    it cannot merge into an existing branch and takes a sixth:
+
+    ===================================== ======== ========
+    encoding                               inlined  branches
+    ===================================== ======== ========
+    ``strict_selector``                        3619        5
+    ``strict_selector_union``                  3628        5
+    ``strict_selector_union_part``             3874        6
+    ===================================== ======== ========
+
+    **Branch count is not the constraint; total size is.** Stage 41's "eight
+    branches accepted, a ninth refused" was superseded by Stage 51, whose
+    data contains a six-branch grammar REFUSED at 4551 beside a six-branch
+    grammar ACCEPTED at 4481. Against that bracket 3874 is 607 below the
+    largest ever accepted and 677 below the smallest ever refused.
+
+    **Compilability is NOT measured**, and this encoding is therefore
+    deliberately absent from ``stage48.PROVEN_COMPILABLE``, which means
+    "measured accepted" and not "expected to be accepted". One live call
+    settles it and nothing else does.
+
+    Every one of the nine recorded encodings is left byte-identical. A
+    recorded measurement describes the object that was measured, not
+    whatever the name later points at.
+    """
+    return _plan_document(
+        V1_FEATURE_TYPES_WITH_UNION_AND_PART,
+        merged=MERGED_SCHEMA_GROUPS,
+        selector_modes=SELECT_MODES,
+        selector_branches=True,
+        require_circular_position=True,
+    )
+
+
 #: The selector modes a pattern-carrying encoding can afford. `axis_parallel`
 #: is dropped from the ENCODING -- not from the language, not from the parser,
 #: and not from any plan already written. It is the one mode that includes a
@@ -1943,6 +2012,7 @@ __all__ = [
     "V1_EXPRESSIBLE_TYPES",
     "V1_FEATURE_TYPES",
     "V1_FEATURE_TYPES_WITH_UNION",
+    "V1_FEATURE_TYPES_WITH_UNION_AND_PART",
     "RadialPlacement",
     "MIN_PATTERN_COUNT",
     "MAX_PATTERN_COUNT",
@@ -2012,6 +2082,7 @@ __all__ = [
     "profile_provider_schema",
     "selector_provider_schema",
     "strict_selector_provider_schema",
+    "strict_selector_union_part_provider_schema",
     "strict_selector_union_provider_schema",
     "profile_union_provider_schema",
     "pattern_provider_schema",

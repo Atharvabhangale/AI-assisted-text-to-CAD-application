@@ -204,9 +204,39 @@ class CanonicalIrIsUnchangedTests(unittest.TestCase):
             self.assertIn("union", stage48.SCHEMA_CAPABILITIES[name], name)
 
     def test_no_encoding_invents_an_operation(self) -> None:
-        known = set(canonical.OPERATION_TYPES)
+        """An encoding may only name something the LANGUAGE has.
+
+        Against `PLAN_TYPES`, not `OPERATION_TYPES`, since Stage 75. The
+        intent is unchanged and is the point of the test: a capability list
+        must not invent a type the parser would refuse. What changed is that
+        the language has a second tier -- `part` is a DECLARATION, in
+        `DECLARATION_TYPES` and therefore in `PLAN_TYPES`, and the parser
+        gates on `PLAN_TYPES` (parser.py: `if kind not in PLAN_TYPES`).
+        Keeping the assertion at `OPERATION_TYPES` would have forced `part`
+        into that tuple to register an encoding, which moves nine recorded
+        fingerprints and the prompt in one edit -- exactly what the
+        declaration tier exists to prevent.
+        """
+        known = set(canonical.PLAN_TYPES)
+        self.assertEqual(
+            known - set(canonical.OPERATION_TYPES),
+            set(canonical.DECLARATION_TYPES),
+            "PLAN_TYPES may widen by declarations only",
+        )
         for name, caps in stage48.SCHEMA_CAPABILITIES.items():
             self.assertTrue(set(caps) <= known, name)
+
+    def test_only_the_stage75_encoding_can_say_part(self) -> None:
+        """The declaration reaches exactly one grammar, on purpose.
+
+        Every other encoding is a recorded measurement point, and a recorded
+        measurement describes the object that was measured.
+        """
+        able = {
+            name for name, caps in stage48.SCHEMA_CAPABILITIES.items()
+            if canonical.PART in caps
+        }
+        self.assertEqual(able, {"strict_selector_union_part"})
 
 
 class NoSilentFallbackTests(unittest.TestCase):

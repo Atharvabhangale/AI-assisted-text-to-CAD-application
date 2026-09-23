@@ -109,6 +109,9 @@ MEASURED_ACCEPTED_INLINED: Tuple[int, ...] = (
     4030,   # Stage 51  profile_hole
     3628,   # Stage 63  strict_selector_union -- what the LIVE route sends,
             #           accepted 5/5 with structured_output true, 0/5 fenced
+    3874,   # Stage 75  strict_selector_union_part -- the first grammar that
+            #           can say `part`, accepted with structured_output true
+            #           on 2/2 operation_plan calls, unfenced, parsing as JSON
     4481,   # Stage 51  profile_union -- the largest grammar ever accepted
 )
 MEASURED_REFUSED_INLINED: Tuple[int, ...] = (
