@@ -78,6 +78,18 @@ class Revision:
     summary: str
     request: str
     measurement: Dict[str, Any] = field(default_factory=dict)
+    #: Each live body's own measurement, by body id, in declaration order.
+    #:
+    #: Beside :attr:`measurement` rather than instead of it, because they are
+    #: different facts. `measurement` is the PART's, and for a part with
+    #: several bodies there is no such thing -- it is `{}`, deliberately, and
+    #: widening it to the first body's would be the Stage 62 bug again. This
+    #: is what a question about one body is answered from.
+    #:
+    #: Empty for every revision built before Stage 73 and for every build
+    #: that did not run through the graph executor, so a reader must treat
+    #: "no per-body measurements" as ordinary rather than as an error.
+    bodies: Dict[str, Dict[str, Any]] = field(default_factory=dict)
     backend: str = ""
     at: float = field(default_factory=time.time)
 
@@ -86,6 +98,8 @@ class Revision:
             "summary": self.summary,
             "request": self.request,
             "measurement": dict(self.measurement),
+            "bodies": {name: dict(value)
+                       for name, value in self.bodies.items()},
             "backend": self.backend,
             "at": self.at,
         }

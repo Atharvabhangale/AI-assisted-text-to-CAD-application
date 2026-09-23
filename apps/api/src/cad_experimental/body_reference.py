@@ -122,9 +122,18 @@ def _longest_distinct(found: Mapping[str, Tuple[Tuple[int, int], ...]]) -> Tuple
 
 
 def resolve_body(
-    text: str, plan: Optional[Mapping[str, Any]]
+    text: str, plan: Optional[Mapping[str, Any]], verb: str = "change"
 ) -> BodyChoice:
-    """Which body this request means. Never guesses; never raises."""
+    """Which body this request means. Never guesses; never raises.
+
+    ``verb`` is what the caller would DO to the body, and it only ever
+    changes the wording of a refusal. It exists because an edit and a
+    question refuse for the same reason and must say so differently: *"say
+    which one to change"* is wrong in front of someone who asked what the
+    volume is, and they would reasonably read it as a refusal to answer
+    rather than a request to name a body. The DECISION stays here, single
+    and shared; only the sentence belongs to the surface.
+    """
     if plan is None:
         return BodyChoice(reason="there is no part yet")
     try:
@@ -148,7 +157,7 @@ def resolve_body(
         listed = ", ".join(repr(name) for name in sorted(mentioned))
         return BodyChoice(
             reason=(f"this request names more than one body ({listed}); one "
-                    f"operation changes one body, so say which"),
+                    f"operation {verb}s one body, so say which"),
             live=live,
         )
 
@@ -178,7 +187,7 @@ def resolve_body(
     listed = ", ".join(repr(name) for name in live)
     return BodyChoice(
         reason=(f"this part has {len(live)} separate bodies ({listed}), and "
-                f"the request does not say which one to change. Name it and "
+                f"the request does not say which one to {verb}. Name it and "
                 f"it will be done"),
         live=live,
     )

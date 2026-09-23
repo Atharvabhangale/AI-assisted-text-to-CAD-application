@@ -196,10 +196,25 @@ function say(
 
 // --- reading what the backend reported --------------------------------------
 
+/**
+ * The measurement OF THE PART, which a part with several bodies does not have.
+ *
+ * This used to read `execution.bodies[0].measurement` -- the Stage 62 bug,
+ * surviving on the client after Stage 71 removed it from the server. On a
+ * two-body build the panel showed the first body's volume, envelope and face
+ * count under the heading "measurements", with nothing saying it was one
+ * body's. The numbers were real; the label was wrong, which is the harder
+ * kind of wrong to notice.
+ *
+ * Now it returns `{}` for a multi-body build, exactly as the server's own
+ * `_facts` does, and the per-body numbers are shown by `bodyMeasurements`
+ * below where each says which body it is.
+ */
 function measurementOf(build: BuildResponse): Record<string, unknown> {
   if (build.executed_by_graph === true) {
-    const body = build.execution?.bodies?.[0];
-    return (body?.measurement ?? {}) as Record<string, unknown>;
+    const bodies = build.execution?.bodies ?? [];
+    if (bodies.length !== 1) return {};
+    return (bodies[0]?.measurement ?? {}) as Record<string, unknown>;
   }
   const geometry = (build.build?.manifest?.artifacts ?? []).find(
     (artifact) => artifact.kind === "geometry",
@@ -341,20 +356,7 @@ function showDetails(
     "no semantic selector resolved yet",
   );
 
-  const size = (measured["size"] ?? []) as unknown[];
-  pairs(
-    measurements,
-    [
-      ["solids", String(measured["solid_count"] ?? "—")],
-      ["volume mm³", round(measured["volume"])],
-      ["faces", String(measured["face_count"] ?? "—")],
-      ["edges", String(measured["edge_count"] ?? "—")],
-      ["size mm", size.length === 3 && size[0] !== undefined
-        ? `${round(size[0])} × ${round(size[1])} × ${round(size[2])}`
-        : "—"],
-    ],
-    "—",
-  );
+  pairs(measurements, measurementRows(execution, measured), "—");
 
   planJson.textContent = plan
     ? JSON.stringify(
@@ -363,6 +365,53 @@ function showDetails(
         2,
       )
     : "—";
+}
+
+/**
+ * The measurement rows: the part's, or EVERY BODY'S, each saying which it is.
+ *
+ * A part with several bodies has no single volume and no single envelope, so
+ * there is nothing to put in a part-level row. Leaving the panel empty would
+ * be honest but useless -- the numbers exist, one set per body -- so each
+ * body's are listed under its own id, and the totals that genuinely add are
+ * labelled as totals rather than as measurements.
+ *
+ * `size` is deliberately NOT totalled. The box containing two bodies also
+ * contains the gap between them, and no kernel measured it; the server calls
+ * that ASSUMED and this simply does not claim it.
+ */
+function measurementRows(
+  execution: ExecutionReport | undefined,
+  measured: Record<string, unknown>,
+): (readonly [string, string])[] {
+  const bodies = execution?.bodies ?? [];
+  if (bodies.length > 1) {
+    const rows: (readonly [string, string])[] = [];
+    let volume = 0;
+    for (const body of bodies) {
+      const own = (body.measurement ?? {}) as Record<string, unknown>;
+      const size = (own["size"] ?? []) as unknown[];
+      const extent =
+        size.length === 3 && size[0] !== undefined
+          ? `${round(size[0])} × ${round(size[1])} × ${round(size[2])} mm`
+          : "—";
+      rows.push([body.id, `${round(own["volume"])} mm³, ${extent}`]);
+      if (typeof own["volume"] === "number") volume += own["volume"];
+    }
+    rows.push(["bodies", String(bodies.length)]);
+    rows.push(["total volume mm³", `${round(volume)} (summed)`]);
+    return rows;
+  }
+  const size = (measured["size"] ?? []) as unknown[];
+  return [
+    ["solids", String(measured["solid_count"] ?? "—")],
+    ["volume mm³", round(measured["volume"])],
+    ["faces", String(measured["face_count"] ?? "—")],
+    ["edges", String(measured["edge_count"] ?? "—")],
+    ["size mm", size.length === 3 && size[0] !== undefined
+      ? `${round(size[0])} × ${round(size[1])} × ${round(size[2])}`
+      : "—"],
+  ];
 }
 
 function showBuild(build: BuildResponse, plan: PlanResponse | null): void {
@@ -378,7 +427,11 @@ function showBuild(build: BuildResponse, plan: PlanResponse | null): void {
 
   const order = execution?.order ?? [];
   set(statLast, order.length > 0 ? order[order.length - 1] : "—");
-  set(statMeasure, summarise(measured));
+  const bodyCount = (execution?.bodies ?? []).length;
+  set(statMeasure,
+      bodyCount > 1
+        ? `${bodyCount} bodies — see Model`
+        : summarise(measured));
 
   showDetails(plan ?? undefined, execution, measured);
   showModelSurface(plan ?? undefined, execution, measured);

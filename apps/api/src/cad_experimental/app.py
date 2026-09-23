@@ -52,6 +52,7 @@ from .interpretation import (
     interpret,
 )
 from .parser import PlanParseError, parse_plan
+from .questions import QuestionRefused, scope_for, scope_of_body
 from .questions import answer as answer_from_evidence
 from . import catalog as catalogue
 from . import engineering as eng
@@ -138,6 +139,11 @@ class DrawingBody(SessionBody):
     """Which part to draw. The session's current one, by definition."""
 
     part_name: Optional[str] = Field(default=None, max_length=80)
+    #: Which BODY to draw, for a part that has several. A detail drawing of
+    #: one body is a real drawing; a drawing of all of them at once is an
+    #: assembly drawing and is refused by name. Absent means "the part", and
+    #: for a part with one body that is what it has always meant.
+    body: Optional[str] = Field(default=None, max_length=80)
 
 
 class EngineeringBody(SessionBody):
@@ -574,6 +580,24 @@ def create_app(
         payload["session"] = session.to_dict()
         return payload
 
+    def _body_facts(build: Any) -> Dict[str, Dict[str, Any]]:
+        """Each live body's OWN measurement, by id, in declaration order.
+
+        The companion to `_facts`, not a replacement: `_facts` answers "what
+        does the part measure", which a part with several bodies has no
+        answer to, and this answers "what does each body measure", which it
+        always does. Empty off the graph path, where there is one shape and
+        no body set to speak of.
+        """
+        if not build.executed or not build.execution.bodies:
+            return {}
+        facts: Dict[str, Dict[str, Any]] = {}
+        for body in build.execution.bodies:
+            measured = body.measurement
+            if hasattr(measured, "to_dict"):
+                facts[body.id] = measured.to_dict()
+        return facts
+
     def _body_payload(build: Any) -> Optional[List[Dict[str, Any]]]:
         """Per-body meshes and measurements, or ``None`` off the graph path."""
         if not build.executed:
@@ -626,6 +650,7 @@ def create_app(
             summary=summary or "the part",
             request=request_text,
             measurement=_facts(build),
+            bodies=_body_facts(build),
             backend=build.backend,
         ))
         reply = (
@@ -684,10 +709,28 @@ def create_app(
         # DECLARED or CALCULATED. The older one remains as the fallback for
         # the broad "tell me about it" questions it already handled.
         if session.current is not None:
-            evidence = answer_from_evidence(
-                session.current.plan, session.current.measurement,
-                session.current.backend or "the CAD engine", request_text,
-            )
+            try:
+                evidence = answer_from_evidence(
+                    session.current.plan, session.current.measurement,
+                    session.current.backend or "the CAD engine", request_text,
+                    bodies=session.current.bodies,
+                )
+            except QuestionRefused as refusal:
+                # A question about a part with several bodies that does not
+                # say WHICH body. It must not fall through to the model: the
+                # model can read the plan but cannot see the part, so it
+                # would answer about one of them, and an answer naming no
+                # body is indistinguishable from a right one.
+                reply = str(refusal)
+                session.said(ASSISTANT, reply)
+                return JSONResponse(
+                    status_code=OK_STATUS,
+                    content={"session_id": session.session_id,
+                             "editing": True, "status": "refused",
+                             "reply": reply,
+                             "bodies": list(session.current.bodies),
+                             "session": session.to_dict()},
+                )
             if evidence is not None:
                 session.said(ASSISTANT, evidence.text)
                 return JSONResponse(
@@ -1011,29 +1054,46 @@ def create_app(
                                   backend=engine)
             if not result.succeeded or not result.bodies:
                 raise BackendError("the current part did not rebuild")
-            if result.part is None:
-                # A declared multi-body part. Exporting `bodies[0]` would
-                # hand back a file silently missing the rest of the part,
-                # which is the one thing this project's export semantics
-                # forbid. A STEP assembly is real work with its own gate
-                # (`docs/multi-body-design.md` step 5); until it exists this
-                # says so rather than shipping a lie.
-                raise BackendError(
-                    "this part has "
-                    f"{len(result.bodies)} separate bodies "
-                    f"({', '.join(repr(b.id) for b in result.bodies)}), and "
-                    "export writes a single solid. Exporting one of them "
-                    "would silently drop the others; a multi-body export is "
-                    "not implemented yet"
-                )
-            shape = result.shapes.get(result.part)
+            # Declaration order, from the executor's own body list -- so two
+            # runs of the same plan write the same file, and the order is the
+            # plan's rather than whatever a dict happened to iterate in.
+            bodies = [(b.id, result.shapes.get(b.id)) for b in result.bodies]
+            multi = result.part is None
+
             with tempfile.TemporaryDirectory() as folder:
                 target = _Path(folder) / f"part.{fmt}"
-                if fmt == "step":
-                    engine.export_step(shape, target)
+                if fmt == "step" and multi:
+                    # A real STEP assembly: every body, none fused, each
+                    # under its own id. The writer verifies what it wrote by
+                    # reading it back and counting solids, so a dropped or
+                    # fused body fails the export rather than shipping.
+                    engine.export_step_assembly(bodies, target)
+                elif fmt == "step":
+                    # The single-body path is UNCHANGED, deliberately. It is
+                    # the proven one, and sending it through the assembly
+                    # writer instead would be a behaviour change bought for
+                    # nothing. `test_step_assembly` asserts the two agree on
+                    # a one-body part, so they cannot quietly drift apart.
+                    engine.export_step(result.shapes.get(result.part), target)
+                elif multi:
+                    # STL carries a mesh, not a body set, and one file per
+                    # body is a different response shape rather than different
+                    # bytes. `docs/multi-body-design.md` §3.6 requires that
+                    # choice be made EXPLICITLY and recorded; it has not been,
+                    # so this refuses instead of fusing the bodies into one
+                    # mesh or quietly writing the first.
+                    raise BackendError(
+                        f"this part has {len(result.bodies)} separate bodies "
+                        f"({', '.join(repr(b.id) for b in result.bodies)}), "
+                        "and an STL file carries one mesh. Fusing them would "
+                        "assert a join the plan never asked for and writing "
+                        "one would drop the rest, so export it as STEP, which "
+                        "holds every body"
+                    )
                 else:
-                    engine.export_stl(shape, target)
+                    engine.export_stl(result.shapes.get(result.part), target)
                 data = target.read_bytes()
+            exported = [name for name, _ in bodies]
         except BackendError as exc:
             return JSONResponse(status_code=BAD_REQUEST_STATUS,
                                 content={"error": str(exc)})
@@ -1041,8 +1101,13 @@ def create_app(
         return Response(
             content=data,
             media_type="application/step" if fmt == "step" else "model/stl",
+            # What is actually IN the file, by name, stated rather than left
+            # to be inferred from the byte count. A caller that asked for a
+            # two-body part and got one body back can see it here without
+            # opening the file in a CAD system.
             headers={"content-disposition": f'attachment; filename="part.{fmt}"',
-                     "x-cad-backend": engine.name},
+                     "x-cad-backend": engine.name,
+                     "x-cad-bodies": ", ".join(exported)},
         )
 
     # --- the product surfaces --------------------------------------------
@@ -1050,8 +1115,12 @@ def create_app(
     # Each one reads the session's CURRENT part. None of them holds CAD state
     # of its own, and none reaches past the backend abstraction.
 
-    def _current_shape(session: Any) -> Any:
+    def _current_shape(session: Any, body: Optional[str] = None) -> Any:
         """Rebuild the session's current plan and hand back the shape.
+
+        With ``body``, the shape of THAT body -- which is how a per-body
+        drawing gets real geometry without any surface learning to walk the
+        body set itself. Without it, the single live body, or a refusal.
 
         Rebuilt rather than cached: the shape is an execution result, and the
         plan is what the session actually stores. This is the one place the
@@ -1067,13 +1136,23 @@ def create_app(
                               backend=engine)
         if not result.succeeded or not result.bodies:
             raise BackendError("the current part did not rebuild")
+        live = [b.id for b in result.bodies]
+        if body is not None:
+            # A body the caller NAMED. Not a fallback and not a default:
+            # `body` is only ever set from a request that said which one.
+            if body not in live:
+                raise BackendError(
+                    f"{body!r} is not a body of this part. The bodies are: "
+                    f"{', '.join(repr(name) for name in live)}"
+                )
+            return engine, result.shapes.get(body)
         if result.part is None:
             # Same reason as the export route: a drawing or a measurement of
             # `bodies[0]` would describe part of the part as though it were
             # all of it.
             raise BackendError(
                 f"this part has {len(result.bodies)} separate bodies "
-                f"({', '.join(repr(b.id) for b in result.bodies)}); this "
+                f"({', '.join(repr(name) for name in live)}); this "
                 "surface describes a single body and would otherwise "
                 "describe only the first"
             )
@@ -1093,13 +1172,39 @@ def create_app(
         if session.current is None:
             return JSONResponse(status_code=BAD_REQUEST_STATUS,
                                 content={"error": "there is no part to draw"})
+        per_body = session.current.bodies
+        chosen = body.body
+        if chosen is None and len(per_body) > 1:
+            # A DETAIL drawing of one body is a real drawing and is offered
+            # below. An ASSEMBLY drawing of all of them is not, and this is
+            # where it would have to be invented: an assembly drawing needs
+            # item numbers, balloons and a parts list, and its overall
+            # dimensions are of a box that contains the bodies and the space
+            # between them -- a box no kernel measured. Projecting every body
+            # into one outline and calling that an assembly drawing would be
+            # inventing the semantics this brief forbids inventing, so it is
+            # refused by name and the thing that IS real is offered instead.
+            return JSONResponse(
+                status_code=NOT_IMPLEMENTED_STATUS,
+                content={"error":
+                         f"this part has {len(per_body)} separate bodies "
+                         f"({', '.join(repr(n) for n in per_body)}). A "
+                         "drawing of one body is available -- name it -- but "
+                         "an assembly drawing needs item numbers, a parts "
+                         "list and its own dimensioning conventions, and "
+                         "none of those exist here yet",
+                         "capability": "assembly_drawing",
+                         "bodies": list(per_body)})
         try:
-            engine, shape = _current_shape(session)
+            engine, shape = _current_shape(session, chosen)
+            measurement = (per_body.get(chosen) if chosen is not None
+                           else session.current.measurement)
             sheet = build_drawing(
                 engine, shape,
-                part_name=(body.part_name or session.current.summary
+                part_name=(body.part_name or chosen
+                           or session.current.summary
                            or "experimental-part"),
-                measurement=session.current.measurement)
+                measurement=measurement or {})
         except NotImplementedError:
             return JSONResponse(
                 status_code=NOT_IMPLEMENTED_STATUS,
@@ -1108,9 +1213,14 @@ def create_app(
         except (BackendError, ValueError) as exc:
             return JSONResponse(status_code=BAD_REQUEST_STATUS,
                                 content={"error": str(exc)})
-        return JSONResponse(status_code=OK_STATUS,
-                            content={"session_id": session.session_id,
-                                     "drawing": sheet.to_dict()})
+        payload = {"session_id": session.session_id,
+                   "drawing": sheet.to_dict()}
+        if chosen is not None:
+            # Which body this sheet is OF, stated. A detail drawing that does
+            # not name its body is indistinguishable from a drawing of the
+            # whole part, which is the confusion this refuses to create.
+            payload["body"] = chosen
+        return JSONResponse(status_code=OK_STATUS, content=payload)
 
     @app.post(ENGINEERING_PATH)
     async def engineering(body: EngineeringBody) -> JSONResponse:
@@ -1126,8 +1236,30 @@ def create_app(
                                 content={"error": "there is no part to analyse"})
         plan = session.current.plan
         measurement = session.current.measurement
+        per_body = session.current.bodies
+
+        # Scoped through the SAME resolver the questions and the edit
+        # readers use. Before this, a two-body part answered "what diameter
+        # are the holes" with every hole in the part, from both bodies, in
+        # one list with nothing saying which body each belonged to -- and
+        # with `measurement` empty it reported no measured values at all
+        # while still answering `answered: true`. That was not a refusal and
+        # it was not right either.
         if body.text:
-            answered = eng.analyse(plan, measurement, body.text)
+            try:
+                scope = scope_for(body.text.lower(), plan, measurement,
+                                  per_body)
+            except QuestionRefused as refusal:
+                return JSONResponse(
+                    status_code=OK_STATUS,
+                    content={"session_id": session.session_id,
+                             "answered": False, "refused": True,
+                             "bodies": list(per_body),
+                             "reply": str(refusal)})
+            answered = eng.analyse(scope.plan, scope.measurement, body.text)
+            if answered is not None and scope.label:
+                answered = {**answered, "body": scope.label,
+                            "aggregate": scope.aggregate}
             if answered is None:
                 return JSONResponse(
                     status_code=OK_STATUS,
@@ -1141,6 +1273,21 @@ def create_app(
                 status_code=OK_STATUS,
                 content={"session_id": session.session_id, "answered": True,
                          "reply": eng.as_text(answered), **answered})
+        if len(per_body) > 1:
+            # "Tell me everything" about a part with several bodies. There
+            # is no question to read a body out of, and refusing would be
+            # unhelpful rather than honest -- so every body is reported, each
+            # under its own id and from its own measurement. A merged report
+            # is what this replaces: it listed both bodies' holes in one list
+            # with nothing saying which body each came from.
+            reports = {}
+            for name in per_body:
+                scope = scope_of_body(plan, per_body, name)
+                reports[name] = eng.report(scope.plan, scope.measurement)
+            return JSONResponse(
+                status_code=OK_STATUS,
+                content={"session_id": session.session_id, "answered": True,
+                         "per_body": True, "bodies": reports})
         return JSONResponse(status_code=OK_STATUS,
                             content={"session_id": session.session_id,
                                      "answered": True,
