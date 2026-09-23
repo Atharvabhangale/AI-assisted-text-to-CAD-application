@@ -36,6 +36,8 @@ from .cad_backend import (
     UnsupportedSelector,
     axis_direction,
     axis_index,
+    ordered_bodies,
+    verify_assembly,
 )
 
 
@@ -406,6 +408,61 @@ class CadQueryBackend(CadBackend):
         if not destination.exists() or destination.stat().st_size == 0:
             raise BackendOperationError("the STL export produced no file")
         return destination
+
+    def export_step_assembly(self, bodies, path) -> Path:
+        """Write every body into one STEP, via CadQuery's own ``Assembly``.
+
+        ``Assembly.export`` is the engine's assembly writer, and it carries a
+        name per child, so the body ids survive into the file rather than
+        being invented on the way out. Nothing here fuses: each body is added
+        as its own child and comes back as its own solid.
+
+        Verified by reading the file back and counting SOLIDS, not by the
+        call returning. A writer that drops a body or fuses two leaves a
+        perfectly valid STEP, so file existence proves nothing about the one
+        property that matters here.
+        """
+        destination = Path(path)
+        if destination.suffix.lower() not in (".step", ".stp"):
+            raise BackendOperationError(
+                f"expected a .step or .stp path; got {destination.name!r}. "
+                "The format is never silently switched."
+            )
+        ordered = ordered_bodies(bodies)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+
+        cadquery = _import_cadquery()
+        assembly = cadquery.Assembly()
+        for body_id, shape in ordered:
+            assembly.add(shape, name=body_id)
+        try:
+            assembly.export(str(destination))
+        except Exception as exc:  # noqa: BLE001 - reported, never swallowed
+            raise BackendOperationError(
+                f"the STEP assembly export failed: {exc}"
+            ) from exc
+        if not destination.is_file() or destination.stat().st_size == 0:
+            raise BackendOperationError(
+                "the STEP assembly writer returned without leaving a "
+                "non-empty file"
+            )
+        verify_assembly(self, destination, ordered)
+        return destination
+
+    def read_step_solids(self, path) -> Tuple[Any, ...]:
+        """Every solid in the file, via the kernel's own topology explorer."""
+        source = Path(path)
+        if not source.is_file():
+            raise BackendOperationError(f"no STEP file at {source}")
+        shape = read_step(source).shape
+        solids = tuple(shape.Solids())
+        if solids:
+            return solids
+        # A single-solid STEP may read back as the solid itself rather than
+        # as a compound containing one. Asking a Solid for its `Solids()`
+        # returns itself on CadQuery, but a shape that is not one at all
+        # would otherwise report zero and look like a dropped body.
+        return (shape,) if not shape.isNull() else ()
 
     def read_step(self, path) -> Any:
         """Return the kernel shape, not the engine's wrapper.

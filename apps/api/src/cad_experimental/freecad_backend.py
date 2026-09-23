@@ -54,6 +54,8 @@ from .cad_backend import (
     UnsupportedSelector,
     axis_direction,
     axis_index,
+    ordered_bodies,
+    verify_assembly,
 )
 from .edge_semantics import (
     CIRCLE,
@@ -728,6 +730,83 @@ class FreeCadBackend(CadBackend):
             if len(line) >= 2:
                 polylines.append(line)
         return tuple(polylines)
+
+    def export_step_assembly(self, bodies, path) -> Path:
+        """Write every body into one STEP, through FreeCAD's ``Import`` writer.
+
+        **Not ``Part.export``, and this is a measured trap rather than a
+        preference.** Handed a list of raw ``Part`` shapes, ``Part.export``
+        returns without raising and leaves a well-formed 1.6 kB STEP that
+        reads back as **zero** solids. Every check short of counting solids
+        passes on that file: it exists, it is non-empty, it parses. A caller
+        that trusted the writer would hand someone an empty assembly and call
+        it an export.
+
+        What does work is the document path: FreeCAD writes an assembly from
+        ``App::DocumentObject``s, and it takes each object's ``Label`` into
+        the file, so the body ids survive rather than being invented on the
+        way out. A scratch document is built, exported and closed -- it is a
+        writer detail and never becomes state this backend keeps.
+        """
+        destination = Path(path)
+        if destination.suffix.lower() not in (".step", ".stp"):
+            raise BackendOperationError(
+                f"expected a .step or .stp path; got {destination.name!r}. "
+                "The format is never silently switched."
+            )
+        ordered = ordered_bodies(bodies)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+
+        modules = _load()
+        app = modules["FreeCAD"]
+        try:
+            import Import as _Import  # noqa: PLC0415 - part of the distribution
+        except ImportError as exc:
+            raise BackendOperationError(
+                "this FreeCAD build has no Import module, so it cannot write "
+                "a multi-body STEP assembly"
+            ) from exc
+
+        document = app.newDocument("cad_experimental_assembly")
+        try:
+            objects = []
+            for body_id, shape in ordered:
+                obj = document.addObject("Part::Feature", "body")
+                obj.Shape = shape
+                # The LABEL is what reaches the file, not the internal name:
+                # FreeCAD sanitises `Name` to an identifier, so a body id
+                # carrying a `-` would arrive in the STEP spelled differently
+                # from the id the plan uses.
+                obj.Label = body_id
+                objects.append(obj)
+            document.recompute()
+            try:
+                _Import.export(objects, str(destination))
+            except Exception as exc:  # noqa: BLE001
+                raise BackendOperationError(
+                    f"the STEP assembly export failed: {exc}"
+                ) from exc
+        finally:
+            app.closeDocument(document.Name)
+
+        if not destination.is_file() or destination.stat().st_size == 0:
+            raise BackendOperationError(
+                "the STEP assembly writer returned without leaving a "
+                "non-empty file"
+            )
+        verify_assembly(self, destination, ordered)
+        return destination
+
+    def read_step_solids(self, path) -> Tuple[Any, ...]:
+        """Every solid in the file, in the file's own order."""
+        source = Path(path)
+        if not source.is_file():
+            raise BackendOperationError(f"no STEP file at {source}")
+        shape = self._part().Shape()
+        shape.read(str(source))
+        if shape.isNull():
+            return ()
+        return tuple(shape.Solids)
 
     def read_step(self, path) -> Any:
         source = Path(path)

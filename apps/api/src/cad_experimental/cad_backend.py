@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Dict, Optional, Sequence, Tuple
 
 #: The environment variable that selects a backend, following the project's
@@ -301,6 +302,48 @@ class CadBackend:
         """
         raise NotImplementedError
 
+    def export_step_assembly(
+        self, bodies: Sequence[Tuple[str, Any]], path: Any
+    ) -> Any:
+        """Write ONE STEP file holding every body, each under its own id.
+
+        ``bodies`` is an ordered sequence of ``(body_id, shape)``. The order
+        is the caller's -- declaration order -- and is preserved, so two runs
+        of the same plan write the same file structure rather than whatever
+        order a dictionary happened to iterate in.
+
+        **This is not :meth:`export_step` in a loop, and it is not a fuse.**
+        A multi-body part written as a single fused solid would assert a join
+        the plan never asked for; written as only its first body it would
+        silently drop the rest. Both are lies about the geometry, and STEP
+        represents several solids natively, so neither is necessary.
+
+        An implementation must VERIFY what it wrote by reading the file back
+        and counting solids, exactly as :meth:`export_step` is expected to --
+        and here the standard matters more, because a writer given a list can
+        fail by writing a *well-formed file with nothing in it*. FreeCAD's
+        ``Part.export`` does precisely that: handed raw shapes it leaves a
+        1.6 kB STEP that reads back as **zero** solids, and a caller checking
+        only that the file exists would report a successful export of an
+        empty file.
+
+        A backend that cannot preserve these semantics must raise rather than
+        write something approximate.
+        """
+        raise NotImplementedError
+
+    def read_step_solids(self, path: Any) -> Tuple[Any, ...]:
+        """Every solid in a STEP file, separately, in the file's own order.
+
+        :meth:`read_step` answers "what shape is in this file", which is the
+        right question for a single-solid export and the wrong one for an
+        assembly: it returns one shape, and a caller cannot tell a compound
+        of two solids from one solid by looking at it. This answers "how many
+        bodies came back, and what does each measure", which is the only way
+        to check that an assembly export did not drop or fuse anything.
+        """
+        raise NotImplementedError
+
     def read_step(self, path: Any) -> Any:
         """Read a STEP file back, so an export can be verified and not assumed."""
         raise NotImplementedError
@@ -329,6 +372,98 @@ class CadBackend:
         make that impossible.
         """
         raise NotImplementedError
+
+
+# --- assembly export helpers, shared by both backends -----------------------
+#
+# Here rather than in each backend because they are not engine knowledge:
+# "the ids must be unique" and "the file must read back as the bodies you put
+# in" are properties of the EXPORT, and two copies could disagree about them.
+# This module imports no kernel, so the FreeCAD backend can use them without
+# reaching through the CadQuery one -- which on a machine with only FreeCAD
+# installed would not import at all.
+#
+# The verification is deliberately the SAME standard on both engines, so a
+# STEP written by one and a STEP written by the other are held to it equally.
+
+
+def ordered_bodies(bodies) -> Tuple[Tuple[str, Any], ...]:
+    """Validate the (body_id, shape) pairs and keep the caller's order."""
+    ordered = tuple((str(name), shape) for name, shape in bodies)
+    if not ordered:
+        raise BackendOperationError(
+            "a STEP assembly needs at least one body; nothing was given"
+        )
+    names = [name for name, _ in ordered]
+    if len(set(names)) != len(names):
+        duplicated = sorted({n for n in names if names.count(n) > 1})
+        raise BackendOperationError(
+            "two bodies cannot share an id in one STEP assembly "
+            f"({', '.join(repr(n) for n in duplicated)}); a body's id is its "
+            "identity and the file would name two different solids the same"
+        )
+    for name, shape in ordered:
+        if shape is None:
+            raise BackendOperationError(
+                f"body {name!r} has no shape to export"
+            )
+    return ordered
+
+
+def verify_assembly(backend, destination, ordered) -> None:
+    """Read the written file back and prove no body was dropped or fused.
+
+    The count is the whole point. Writing N bodies and reading back 1 means
+    they were fused; reading back 0 means the writer produced a well-formed
+    file with nothing in it -- which is not hypothetical, it is exactly what
+    FreeCAD's ``Part.export`` does when handed raw shapes. Neither failure
+    makes the file unreadable, so neither is visible without counting.
+    """
+    try:
+        written = backend.read_step_solids(destination)
+    except BackendOperationError:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        raise BackendOperationError(
+            f"the STEP assembly could not be read back to verify it: {exc}"
+        ) from exc
+    if len(written) != len(ordered):
+        raise BackendOperationError(
+            f"the STEP assembly was written with {len(ordered)} bodies "
+            f"({', '.join(repr(n) for n, _ in ordered)}) but reads back as "
+            f"{len(written)} solid{'' if len(written) == 1 else 's'}; the "
+            "export would have dropped or fused a body, so it is refused "
+            "rather than delivered"
+        )
+
+    # AND the ids must have survived. The count above cannot see this: handed
+    # a compound, BOTH engines write a geometrically perfect two-solid STEP in
+    # which the bodies are called `Open CASCADE STEP translator 7.9 1.1` and
+    # `1.2`. Every count, every volume and every face total matches, and the
+    # identity this whole slice is about is gone. So the names are checked
+    # too, and an export that lost them is refused rather than delivered as an
+    # assembly whose bodies cannot be told apart.
+    #
+    # STEP is a text format and the ids are written into it literally, so this
+    # is read as text. What it proves is exactly that each id REACHED the
+    # file -- not which solid carries it, which would need a per-engine
+    # assembly reader. That is the honest limit of this check, and it is
+    # enough to catch the failure it exists for.
+    try:
+        written_text = Path(destination).read_text(errors="ignore")
+    except OSError as exc:
+        raise BackendOperationError(
+            f"the STEP assembly could not be re-read to check its body "
+            f"names: {exc}"
+        ) from exc
+    missing = [name for name, _ in ordered if name not in written_text]
+    if missing:
+        raise BackendOperationError(
+            "the STEP assembly was written but "
+            f"{', '.join(repr(n) for n in missing)} did not reach the file "
+            "under that name; an assembly whose bodies cannot be told apart "
+            "is not the export that was asked for"
+        )
 
 
 # --- axes, shared by both backends -----------------------------------------
@@ -453,5 +588,7 @@ __all__ = [
     "axis_direction",
     "axis_index",
     "backend_report",
+    "ordered_bodies",
     "resolve_backend",
+    "verify_assembly",
 ]
