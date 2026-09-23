@@ -18,7 +18,7 @@ written**, and §19 is authoritative instead:
   them as "the normal way in"; they arrived on stable after the fork. Use the
   manual `uvicorn` / `npm run dev` sequence, or §19's commands.
 - **§5's test counts are stable's.** On this branch the current measured
-  figures are **`tests_experimental` 1936 passed, 5 skipped** and
+  figures are **`tests_experimental` 1979 passed, 5 skipped** and
   **cad-core 1481 passed**, both on Linux with FreeCAD 1.0.0 present
   (Stage 72). §5's own note carries the older Windows figures as history.
   §5's "no known failing tests" is a statement about stable only.
@@ -289,8 +289,8 @@ skipped or weakened to make the suite pass.
 
 **On `experiment/cad-operation-graph` the numbers above are stable's.**
 
-**CURRENT (Stage 72, Linux, FreeCAD 1.0.0 present):** `tests_experimental`
-**1936 passed, 5 skipped, 0 failed**; cad-core **1481 passed, 0 failed**.
+**CURRENT (Stage 74, Linux, FreeCAD 1.0.0 present):** `tests_experimental`
+**1979 passed, 5 skipped, 0 failed**; cad-core **1481 passed, 0 failed**.
 The six cad-core errors described below are **Windows-only** and do not
 reproduce on Linux.
 
@@ -1425,6 +1425,139 @@ off-centre bore that stays inside the same two walls measures **identically**
 for the plan-level `bore_centred` check, and the reason a criterion built
 only on measurement cannot catch this class of error.
 
+**Stages 73/74 — multi-body, steps 4 and 5: MEASURING IT, AND EXPORTING IT.**
+Record: `docs/multi-body-step3/`. **No live model was called.** A credential
+*is* present in this container; the backend was started with it deliberately
+unset, because no provider encoding admits a `part` branch, so a model could
+not have produced these plans and leaving the key set would only have made
+the evidence harder to read. The evidence below is `DETERMINISTIC`.
+
+**No new operation, no new P-code, no schema change, no prompt change** — the
+third multi-body stage running where the canonical plan already carried what
+was needed. A body already had an id, a feature list and its own measurement;
+what was missing was the surfaces asking for them.
+
+**Per-body measurement.** `questions.answer` gained one optional `bodies`
+argument, and the scope is decided ONCE, before any answerer runs, by the
+same `body_reference.resolve_body` the edit readers use.
+
+| the question | the answer |
+|---|---|
+| names a live body | **that body**, from that body's measurement, prefixed with its id |
+| names none, one body live | **unchanged**, word for word, from before Stage 73 |
+| names none, several live | **REFUSE**, listing them |
+| names two at once | **REFUSE** |
+| names a consumed body | **REFUSE**, and say what consumed it |
+| asks for a **total** | every body, summed, `CALCULATED` |
+| asks the **overall size** of several | the containing box, **`ASSUMED`** |
+
+**Refusing is not declining, and the difference is load-bearing.** `None`
+means *"not a question this module answers"* and falls through to the model,
+which is safe. A question it RECOGNISES but cannot answer without picking a
+body must not fall through the same way: the model can read the plan but has
+never seen the part, so it would answer *"the volume is 64000"* about a part
+with two bodies and nothing downstream could tell that from a right answer.
+So `None` falls through and `QuestionRefused` reaches the person — the same
+split `normalize` already makes between `_Decline` and `ReadingError`.
+
+**`ASSUMED` is the fourth provenance, and there is exactly one of it.**
+Volume, faces and edges genuinely add across bodies. The overall size does
+not: the box round a 40 mm cube and a pin standing 10 mm away runs **0..70**
+in x, and the part does not fill it — there is a 10 mm gap of air that no
+kernel measured and no operation declared. It is **not** a general licence to
+assume; every other answer still comes from the kernel, the plan, or
+arithmetic on the two. The downgrade keys on WHICH ANSWERER produced the
+answer, not on matching words in its text.
+
+**`resolve_body` gained a `verb`, defaulting to `"change"`** so every existing
+caller is byte-identical. Questions pass `"measure"`: *"say which one to
+change"* in front of someone who asked what the volume is reads as a refusal
+to answer. The decision stays single and shared; only the sentence belongs to
+the surface.
+
+**Two defects this exposed, both of which looked like working software.**
+The BROWSER still read `execution.bodies[0].measurement` (`main.ts:201`) and
+put it in the panel headed *measurements* — Stage 71 removed that read from
+the server and this one survived on the client, so a two-body build showed
+the cube's numbers as the part's. The numbers were real; the label was wrong.
+And `POST /session/engineering` never went through `_current_shape`, so
+unlike export and drawing it was **never gated**: on a two-body part it
+answered **200, `answered: true`** with both bodies' holes in one list and
+nothing saying which body each came from, while reporting no measured values
+at all. Both are fixed; engineering's no-question path now reports every body
+separately.
+
+**A real multi-body STEP.** `/session/export` writes every body, none fused,
+each under its own id, in declaration order, with `x-cad-bodies` naming what
+is in the file. **The single-body path is unchanged** and still calls
+`export_step`; a test asserts the two writers agree on a one-body part so
+they cannot drift. **STL still refuses** — an STL carries one mesh, and
+`docs/multi-body-design.md` §3.6 requires the one-file-per-body versus
+one-multi-solid choice to be made explicitly and recorded, which it has not.
+
+**The two export failures this was written against, both measured.**
+FreeCAD's `Part.export`, handed raw shapes, returns and leaves a well-formed
+**1 640-byte** STEP that reads back as **ZERO solids** — it exists, it is
+non-empty, it parses, and every check short of counting solids passes. And
+handed a compound, BOTH engines write a correct two-solid STEP whose bodies
+are called `Open CASCADE STEP translator 7.9 1.1` and `1.2`: every volume,
+face and edge total matches and the identity is simply gone. So
+`verify_assembly` checks the solid count AND that every id reached the file.
+The working writers are `cadquery.Assembly.export` and FreeCAD's
+`Import.export` over document objects, whose `Label` carries the id across.
+
+**Kernel evidence, both engines, from a round-trip READ:**
+
+| | closed form | CadQuery 2.8.0 | FreeCAD 1.0.0 |
+|---|--:|--:|--:|
+| `cube` | 64000 | **63999.999999999985** | **63999.999999999985** |
+| `pin` | 9424.77796076938 | **9424.777960769377** | **9424.777960769377** |
+| solids in the written STEP | 2 | **2** | **2** |
+| body ids in the file | — | `cube`, `pin` | `cube`, `pin` |
+
+**Cross-readable**: FreeCAD reads the CadQuery-written assembly and returns
+the same two solids at the same volumes. File sizes differ (22 673 B vs
+11 926 B) because the writers emit different amounts of product structure;
+the geometry and the identity do not.
+
+**The honest limit of the name check**: it proves each id REACHED the file,
+by reading the STEP as the text it is. It does not prove which solid carries
+which name — that needs a per-engine assembly reader, and the two engines'
+readers differ. Written down rather than papered over with a parity claim
+neither engine supports.
+
+**Drawing: what is real, and what is refused.** A **detail drawing of one
+named body** is a real drawing and is implemented — true projections of that
+body, dimensions from that body's own measurement, and the sheet says which
+body it is of. An **assembly drawing** answers **501** with
+`capability: "assembly_drawing"`. `TechDraw.projectEx` *will* project a
+compound of both bodies into one outline (measured: 8 edges spanning
+x 0..80), so this is a deliberate line rather than a missing capability: an
+assembly drawing carries item numbers, balloons and a parts list, and its
+overall dimensions are of the box that §`ASSUMED` above has already
+established nothing measured.
+
+**Browser — `npm run e2e:surfaces` PASSES**: real Chromium, real WebGL, real
+FreeCAD 1.0.0, no model configured. Eight steps — two bodies at their closed
+forms; *"the volume of the cylinder"* answered `MEASURED` and prefixed
+`cylinder:`; *"what is the volume?"* **refused**, naming both; *"the total
+volume"* answered `CALCULATED`; engineering `per_body: true`; a drawing of
+`cube`; the assembly drawing **refused**; and the STEP export verified **by
+its bytes** — 2 `MANIFOLD_SOLID_BREP`, both ids present — because a STEP that
+quietly dropped a body is a perfectly valid file.
+
+**Single-body regression: none.** `e2e:assembly`, `e2e:multibody` and
+`e2e:bodytarget` all still pass. `test_body_measurement` compares every
+single-body answer **character for character** against the same question
+asked the pre-Stage-73 way.
+
+**`test_body_measurement.py` (26) and `test_step_assembly.py` (17) — 16
+guards, mutation-tested 16/16**, including answering about the first body,
+letting an ambiguous question decline so the model answers it, scoping the
+words but not the measurement, calling a summed total MEASURED, trusting the
+writer instead of counting what it wrote, checking geometry but not names,
+and exporting only the first body.
+
 **Stage 72 — multi-body, step 2: ADDRESSING A BODY BY NAME.** Record:
 `docs/multi-body-step2/`. **No live model was called and none was
 configured**; the evidence is `DETERMINISTIC`.
@@ -1781,11 +1914,17 @@ stack, two declared bodies, each with its own mesh and closed-form volume,
 no merged mesh and no part-level measurement claimed.
 `npm run e2e:bodytarget` (Stage 72): a four-turn conversation that edits each
 body in turn and gets a **refusal** for the turn that names neither.
+`npm run e2e:surfaces` (Stages 73/74): eight steps over the same two bodies --
+a per-body measurement question, an ambiguous one **refused**, a total that
+says it is `CALCULATED`, engineering reported per body, a detail drawing of
+one body, the assembly drawing **refused** with its capability named, and a
+STEP export verified by its own bytes (2 `MANIFOLD_SOLID_BREP`, both ids
+present).
 **`npm run e2e:cases` FAILS**, and did before Stage 71 — see the limitations
 below.
 
-**Test counts (current):** `tests_experimental` **1936 passed, 5 skipped, 0
-failed** (1941 collected), measured at Stage 72 on Linux with FreeCAD 1.0.0
+**Test counts (current):** `tests_experimental` **1979 passed, 5 skipped, 0
+failed** (1984 collected), measured at Stage 74 on Linux with FreeCAD 1.0.0
 present and `CAD_FREECAD_HOME`/`LD_LIBRARY_PATH` exported; cad-core **1481
 passed**. Frontend `tsc --noEmit` clean, `vite build` succeeds. **The skip
 count depends on the environment.** The 5 here are three drawing-view
@@ -1831,6 +1970,7 @@ those. The five most recent are:
 | **61** | **A CAD session that needs no model at all**: `union` (eleventh type, still eight schema branches), two provider-neutral grammars, and an evidence answerer that labels every number `MEASURED` / `DECLARED` / `CALCULATED`. |
 | **62** | The four defects Stage 61 left behind — **an operation is not one edit.** The live route could not *say* `union` (Stage 44's defect a third time); a `union` plan could lose a solid silently; `ExecutionUnsupported` named the wrong reason for it; and a recorded schema size had drifted unpinned. |
 | **64** | **The AI provider usage policy, and CLAUDE.md reconciled.** The rule forbidding Claude Code Web a real credential is retired: where one is available a real provider is used, and live calls are encouraged. `CREDENTIAL_PRECEDENCE` makes the two-variable behaviour explicit instead of implicit. 22 guards now pin the policy and stop the document drifting from the code. |
+| **73/74** | **Multi-body steps 4 and 5: measuring it, and exporting it.** No new operation, P-code, schema or prompt change — again. A question naming a body is answered from THAT body; one naming none of several is **REFUSED**, phrased for a question rather than an edit; a total is explicitly summed and the combined **envelope** is `ASSUMED`, the fourth provenance, because that box holds the air between the bodies too. Export writes a real STEP assembly: every body, none fused, each under its own id, verified by reading the file back and counting solids **and** checking the names survived — handed a compound BOTH engines write a geometrically perfect file whose bodies are anonymous, and no count can see that. Found and fixed the last `bodies[0]`, in the BROWSER, and an engineering route that was never gated and merged both bodies' holes into one list. A detail drawing of one body is real; an assembly drawing is refused by name. |
 | **72** | **Multi-body step 2: addressing a body by name.** One resolver, `body_reference.resolve_body`, and no new operation, P-code or schema change — the plan could always name a body; turning a sentence into one of those ids was what was missing. A body is named by its **id** and nothing else; naming none of several, naming two, or naming a consumed one all **REFUSE** with the bodies listed. Fixed two defects the slice exposed: the envelope spanned every body (a bore 15 mm off centre in a plan that still built) and a failed selection did not say which body. Editing each body in turn leaves the other bit-identical on both kernels, and the browser shows the refusal as an answer. |
 | **71** | **Multi-body step 1: distinct body identity.** One new operation, `part`, that DECLARES a live body is an intended body of the result — kept out of `OPERATION_TYPES` so no schema or prompt fingerprint moves. Two live bodies with no declaration still fail `multiple_solids`; the executor gains one explicit exemption. P33–P35. One RenderModel per body, never merged; `result.part` unchanged. A 40 mm cube and a Ø20×30 cylinder build as two bodies, **bit-identical on CadQuery 2.8.0 and FreeCAD 1.0.0**, and pass through a real browser with no model configured. Single-body product unchanged. |
 | **70** | **The P11 residual measured, bounded and NOT prompt-fixed.** 288 live calls, five arms, an adoption rule committed before the confirming runs — which rejected all four candidates. Stage 69's "targets the product noun `enclosure`" was a token: `enclosure` is what the model named the UNION, and no target in 432 ever named a consumed tool or an absent id. A pure reordering (B3) **regressed** at p = 0.0001, so the section's order is load-bearing; two arms reached 96/96 `fuse` compliance and still carried P11, so the id is a marker, not the cause. P11 **8/144 = 5.6 %, CI [2.4, 10.7]**; strict **135/144**. Stopped deliberately. |
@@ -2026,16 +2166,39 @@ Separate from the historical record, and none of these is a plan.
   body still fails with `multiple_solids` unless every one is declared with
   a `part`. What remains undone is deliberate and listed in
   `docs/multi-body-step1/` §9: no transforms, mates, joints or constraints;
-  no sub-assemblies or BOM; **no multi-body export** — STEP-assembly is step
-  5 of the design, so `/session/export` and the drawing and engineering
-  surfaces refuse a multi-body part by name rather than writing its first
-  body; and **no model-facing grammar**, since no provider encoding admits a
-  `part` branch and the prompt does not mention it.
+  no sub-assemblies or BOM; and **no model-facing grammar**, since no
+  provider encoding admits a `part` branch and the prompt does not mention
+  it. (Its "**no multi-body export**" entry is **superseded by Stage 74** —
+  see below.)
 - **A multi-body part IS edited one body at a time** (Stage 72), by naming
   the body's id. What is still missing there: `read_resize` declines for a
   **cylinder** (its "width" is a diameter — a dimension-semantics question,
   deliberately deferred), and a body can only be named by its id, never by
   the noun of the primitive it came from.
+- **A multi-body part IS measured and asked about one body at a time**
+  (Stage 73). What is still missing: an id that was never in the plan cannot
+  be told apart from no mention at all, so *"the volume of the sphere"* on a
+  two-body part refuses as **ambiguous** rather than as **unknown body**. A
+  body that exists but was **consumed** is distinguished and named, which is
+  the case that actually misleads; telling the other apart would need the
+  noun dictionary Stage 72 rejected on purpose.
+- **A multi-body part IS exported as a STEP assembly** (Stage 74), and the
+  writer verifies solid count AND body names by reading the file back.
+  **STL still refuses** a multi-body part: an STL carries one mesh, and
+  `docs/multi-body-design.md` §3.6 requires the one-file-per-body versus
+  one-multi-solid-file choice to be made explicitly and recorded, which it
+  has not been. The name check proves each id **reached the file**, not
+  which solid carries it — that needs a per-engine assembly reader and the
+  two engines' readers differ.
+- **There is no assembly drawing, and it is refused by name** (Stage 73).
+  A **detail drawing of one named body** is real and implemented. A drawing
+  of all bodies at once answers **HTTP 501** with
+  `capability: "assembly_drawing"`. `TechDraw.projectEx` *will* project a
+  compound of both bodies into one outline — measured doing so, 8 edges
+  spanning x 0..80 — so the refusal is a deliberate line, not a missing
+  capability: an assembly drawing carries item numbers, balloons and a parts
+  list, and its overall dimensions are of a box containing the bodies and
+  the space between them.
 - **`npm run e2e:cases` is broken, and was before Stage 71.** It waits for
   `#description`, an element the page has not had since `641106f`. Verified
   by running it at `8e1371c` with this stage's changes stashed, where it
@@ -2107,11 +2270,24 @@ sentence that does not settle the question is refused with the bodies listed.
 Editing each body in turn leaves the other bit-identical on both kernels, and
 the browser shows the refusal as an answer rather than a guess.
 
-**Next: step 4 of the design — per-body measurement in the product
-surfaces**, then step 5, the STEP assembly, which is what currently makes
-export, drawing and engineering refuse a multi-body part by name. Both are
-about what a multi-body part can be *asked about* and *exported as*; neither
-needs a new operation.
+**Stages 73 and 74 did that work — steps 4 and 5 — and the deterministic
+slice is now complete.** A body can be measured and asked about by name; a
+question that does not say which body is refused rather than answered; an
+aggregate is explicitly summed and the aggregate *envelope* is labelled
+`ASSUMED`, because the box containing two bodies also contains the air
+between them. Export writes a real STEP assembly, verified by reading the
+file back and counting solids **and** checking the body names survived.
+Neither needed a new operation, a new P-code or a schema change.
+
+**Next: the model-facing multi-body grammar, and only now.** The four gates
+the design set are met — per-body measurement, product surfaces, a genuinely
+verified STEP assembly, and a green single-body regression. What opening it
+means is a `part` branch in the encoding the live route sends and a prompt
+section to match, and the rule the last four stages keep proving applies:
+what the model imitates is what the prompt SHOWS, so it needs a worked
+example, not prose. Measure it against a golden corpus of its own, counting
+`MODEL_GENERATED` separately from `DETERMINISTIC` — every multi-body number
+recorded so far is deterministic and says nothing whatever about a model.
 
 **The model-facing grammar stays closed until the deterministic slice is
 complete.** Stage 70 measured P11 on a *one*-body union at 5.6 %; adding a
@@ -2703,16 +2879,19 @@ The POSIX forms remain correct on Linux/macOS, where `python3` and a
 `CAD_FREECAD_HOME` plus `LD_LIBRARY_PATH=$CAD_FREECAD_HOME/usr/lib` set
 **before Python starts**, or `test_cad_backends` skips.
 
-**1936 passed, 5 skipped** (1941 collected) with FreeCAD 1.0.0 present on
-Linux and its environment exported, measured at Stage 72.
+**1979 passed, 5 skipped** (1984 collected) with FreeCAD 1.0.0 present on
+Linux and its environment exported, measured at Stage 74. The +43 over
+Stage 72 is exactly the two new modules: `test_body_measurement` (26) and
+`test_step_assembly` (17).
 
 **The two numbers are not in conflict**, and the pairing is worth keeping:
 unittest's "Ran N tests" is the COLLECTED count and includes the skips, so
-1941 collected = 1936 passed + 5 skipped + 0 failed. Both were re-measured
+1984 collected = 1979 passed + 5 skipped + 0 failed. Both were re-measured
 at `8e1371c` before this stage began, which is how the Stage 71 pair
 (1915 collected / 1910 passed) was confirmed rather than corrected.
 
-Earlier figures, each describing a real environment: 1910 at Stage 71;
+Earlier figures, each describing a real environment: 1936 at Stage 72;
+1910 at Stage 71;
 1867 at Stage 70; 1856 at Stage 69;
 1852 at Stage 68;
 1800 at Stage 64;

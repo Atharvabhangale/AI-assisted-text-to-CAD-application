@@ -12,7 +12,8 @@
     "e2e:cases": "node e2e/regression-cases.mjs",
     "e2e:assembly": "node e2e/assembly.mjs",
     "e2e:multibody": "node e2e/multibody.mjs",
-    "e2e:bodytarget": "node e2e/body-targeting.mjs"
+    "e2e:bodytarget": "node e2e/body-targeting.mjs",
+    "e2e:surfaces": "node e2e/body-surfaces.mjs"
   },
   "dependencies": {
     "three": "^0.185.1"
