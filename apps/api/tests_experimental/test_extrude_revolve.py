@@ -1225,15 +1225,22 @@ class PromptTests(unittest.TestCase):
         deliberately unused -- see `PROMPT_VERSION`'s own comment. See
         `docs/evaluation-baselines/stage69-bore-axis-centre/`.
         """
+        # `2026-09-24.2` is Stage 75 Phase C, which added the one worked
+        # example of a complete REPLY -- the prompt had never shown one of
+        # any status, and `"status"` occurred exactly once in 33407
+        # characters. Measured: clarifications naming every body 26% -> 100%
+        # and carrying no operations 68% -> 100%, on 72 fresh live calls,
+        # against a rule committed before any arm was built.
+        #
         # `2026-09-24.1` is Stage 75, which taught the `part` declaration
         # and the `# Several bodies` section. The grammar that can carry it
         # (`strict_selector_union_part`, 3874 inlined) was measured accepted
         # live BEFORE the prompt moved, so the two halves of the Stage 44
         # defect were closed in that order and separately.
-        self.assertEqual(self.version, "2026-09-24.1")
+        self.assertEqual(self.version, "2026-09-24.2")
         self.assertEqual(
             self.fingerprint,
-            "c0c4a1be0d23052fa8b2f36d0e1c3722eeb6b52f904d0cf56a6db43426af3e49",
+            "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
         )
         self.assertEqual(len(self.fingerprint), 64)
 

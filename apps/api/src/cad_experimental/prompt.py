@@ -24,7 +24,7 @@ from .plan import AXES, OPERATION_TYPES, PlanStatus
 #: sided, p = 0.00132) and reverted it, so it names a prompt that exists
 #: nowhere in the history. Leaving the number burnt keeps that record
 #: unambiguous.
-PROMPT_VERSION = "2026-09-24.1"
+PROMPT_VERSION = "2026-09-24.2"
 
 SYSTEM_PROMPT = f"""\
 You turn a description of a mechanical part into a CAD operation plan.
@@ -718,6 +718,16 @@ refuse, for those. When the description is silent about which end or which
 direction, omitting them is the correct answer. When the description NAMES
 one -- "the top edge", "the long edges" -- it is not silent, and you write
 the selector that says so. See the selector rules above.
+
+This is the WHOLE reply, and nothing else goes in it:
+
+  {{"status": "{PlanStatus.NEEDS_CLARIFICATION.value}",
+   "summary": "the request does not say which body to change",
+   "questions": ["This part has two bodies, `plate` and `post`. Which one should be changed?"],
+   "operations": []}}
+
+`operations` is empty because nothing was built. You are asking, not
+building.
 
 # What you never do
 

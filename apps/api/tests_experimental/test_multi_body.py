@@ -175,16 +175,69 @@ class TheDeclarationTierChangesNoRecordedIdentityTests(unittest.TestCase):
         met, so Stage 75 teaches it. The schemas above are STILL pinned
         byte-for-byte -- only the prompt moved, and only on purpose.
 
-        `2026-09-18.5` -> `2026-09-24.1`.
+        `2026-09-18.5` -> `2026-09-24.1` (Stage 75) ->
+        `2026-09-24.2` (Phase C, the worked reply example).
         """
-        self.assertEqual(prompt_module.PROMPT_VERSION, "2026-09-24.1")
+        self.assertEqual(prompt_module.PROMPT_VERSION, "2026-09-24.2")
         self.assertEqual(
             prompt_module.prompt_fingerprint(),
-            "c0c4a1be0d23052fa8b2f36d0e1c3722eeb6b52f904d0cf56a6db43426af3e49",
+            "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
         )
         text = prompt_module.system_prompt()
         self.assertIn("# Several bodies", text)
         self.assertIn('"type": "part"', text)
+
+    def test_the_prompt_shows_a_whole_REPLY_not_only_operations(self) -> None:
+        """Phase C's adopted change, and the gap it closed.
+
+        Before it, `"status"` occurred EXACTLY ONCE in 33407 characters --
+        in the bare field list -- and so did `"questions"`. Every one of the
+        prompt's ~20 JSON blocks was a bare operation object, so the model
+        had been told the fields of a reply and never shown one. Measured on
+        72 fresh live calls: half the clarifications left `questions` empty
+        and put a shrug in `summary` instead.
+
+        One worked envelope took naming every body from 26% to 100% and
+        carrying no operations from 68% to 100%, both p < 0.0001, on a
+        confirmation sample, against a rule committed before any arm existed.
+        """
+        text = prompt_module.system_prompt()
+        section = text.split("# When to say needs_clarification", 1)[1]
+        section = section.split("# What you never do", 1)[0]
+        for shown in ('"status"', '"summary"', '"questions"', '"operations"'):
+            self.assertIn(shown, section,
+                          f"the clarification example must show {shown}")
+        self.assertIn('"operations": []', section)
+        self.assertIn("needs_clarification", section)
+
+    def test_the_clarification_example_names_its_bodies(self) -> None:
+        """The example's question names two bodies by id.
+
+        CB measured that a question naming NEITHER body works just as well
+        (45/48 against CA's 47/48, p = 0.62), so this is not the active
+        ingredient -- showing an envelope at all is. It is pinned anyway
+        because it is what was measured and adopted, and an example that
+        drifted to naming nothing would be a different prompt than the one
+        the 72-call confirmation was run against.
+        """
+        text = prompt_module.system_prompt()
+        section = text.split("# When to say needs_clarification", 1)[1]
+        section = section.split("# What you never do", 1)[0]
+        self.assertIn("`plate`", section)
+        self.assertIn("`post`", section)
+
+    def test_the_clarification_example_builds_nothing(self) -> None:
+        """An example that shipped geometry would teach the failure it
+        exists to remove. 23 of 72 baseline clarifications wrote a full
+        four-operation sequence alongside the question."""
+        text = prompt_module.system_prompt()
+        section = text.split("# When to say needs_clarification", 1)[1]
+        section = section.split("# What you never do", 1)[0]
+        self.assertIn('"operations": []', section)
+        for never in ('"type": "box"', '"type": "cylinder"',
+                      '"type": "through_hole"', '"type": "part"'):
+            self.assertNotIn(never, section,
+                             "the clarification example must carry no operation")
 
     def test_the_prompt_shows_part_rather_than_describing_it(self) -> None:
         """Four stages measured the same thing: what the model imitates is
