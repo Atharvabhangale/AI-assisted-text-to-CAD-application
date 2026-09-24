@@ -92,6 +92,20 @@ M8_TEXT: Final[str] = (
 # Editing either in place would also have silently changed what a recorded
 # Phase A number means, which is the thing this corpus exists to prevent.
 
+# N3 is N1 done properly, and N1 is retired on its FIRST USE. Writing the
+# cylinder as "30 mm long" and then asking to make it "40 mm long" states
+# two lengths for one solid, and the model correctly refused all 8 -- "the
+# cylinder cannot simultaneously be 30 mm long and 40 mm long". M4's own
+# wording gave no initial length and was coherent; the defect is entirely
+# mine, introduced while fixing M4's placement. Same lesson as M4 and M8 in
+# a third form: a request must be checked for what it now says, not only for
+# what it was meant to fix.
+N3_TEXT: Final[str] = (
+    "Create a 40 mm cube and a 20 mm diameter cylinder as two separate "
+    "bodies, standing beside each other and not touching. Then make the "
+    "cylinder 40 mm long."
+)
+
 N1_TEXT: Final[str] = (
     "Create a 40 mm cube and a 20 mm diameter cylinder 30 mm long as two "
     "separate bodies, with the cylinder standing beside the cube and not "
@@ -374,6 +388,15 @@ CASES: Final[Tuple[Case, ...]] = (
     # ----------------------------------------------- Phase B replacements
     Case(
         "N1", CREATION, N1_TEXT, bodies=2, declaration_required=True,
+        retired="Phase B, 0/8 -- and the MODEL WAS RIGHT AGAIN. The request "
+                "calls the cylinder `30 mm long` and then asks to make it "
+                "`40 mm long`, which states two lengths for one solid. The "
+                "model refused 8/8 and said exactly that: `the cylinder "
+                "cannot simultaneously be 30 mm long and 40 mm long`. M4's "
+                "original wording gave NO initial length and was coherent; "
+                "the contradiction was introduced while fixing M4's "
+                "placement. Retired on first use, kept verbatim, replaced "
+                "by N3.",
         edited_body_volume=PIN_VOLUME_EDITED,
         unchanged_body_volume=CUBE_VOLUME,
         disjoint=True,
@@ -395,6 +418,16 @@ CASES: Final[Tuple[Case, ...]] = (
               "depth, so the expected volume is arithmetic rather than "
               "assumption: 64000 + 9424.777960769 - 3141.592653590 = "
               "70283.185307180.",
+    ),
+    Case(
+        "N3", CREATION, N3_TEXT, bodies=2, declaration_required=True,
+        edited_body_volume=PIN_VOLUME_EDITED,
+        unchanged_body_volume=CUBE_VOLUME,
+        disjoint=True,
+        notes="M4's intent, finally stated coherently: the separation is in "
+              "the request (M4's was not) and only ONE length is given for "
+              "the cylinder (N1's gave two). Tests what M4 always meant to "
+              "-- a body-targeted edit that must not touch the other body.",
     ),
     Case(
         "R1", REFUSAL, R1_TEXT, bodies=None, declaration_required=False,

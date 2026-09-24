@@ -231,9 +231,9 @@ def m5_correct():
     ]))
 
 
-def n1_correct():
-    """M4's intent with the separation the request now states."""
-    return observe("N1", two_body_generation(), Execution([
+def n3_correct():
+    """M4's intent, stated coherently at last."""
+    return observe("N3", two_body_generation(), Execution([
         Body("solid1", Measurement(G.CUBE_VOLUME, **CUBE_BOX)),
         Body("solid2", Measurement(G.PIN_VOLUME_EDITED,
                                    face_count=G.CYLINDER_FACES,
@@ -270,7 +270,7 @@ def refusal_correct(case, extra=""):
 
 CORRECT = {
     "M1": m1_correct, "M2": m2_correct, "M3": m3_correct, "M5": m5_correct,
-    "N1": n1_correct, "N2": n2_correct,
+    "N2": n2_correct, "N3": n3_correct,
     "R1": lambda: refusal_correct("R1"),
     "R2": lambda: refusal_correct("R2", " There is no bracket."),
     "R3": lambda: refusal_correct("R3"),
@@ -289,12 +289,12 @@ class CorpusTests(unittest.TestCase):
     """The corpus is a fixed instrument and says what it was built to say."""
 
     def test_the_corpus_is_eight_cases_split_six_and_two(self) -> None:
-        self.assertEqual(len(G.CASES), 13)
+        self.assertEqual(len(G.CASES), 14)
         self.assertEqual(G.ACTIVE,
-                         ("M1", "M2", "M3", "M5", "N1", "N2", "R1", "R2", "R3"))
-        self.assertEqual(G.RETIRED, ("M4", "M6", "M7", "M8"))
+                         ("M1", "M2", "M3", "M5", "N2", "N3", "R1", "R2", "R3"))
+        self.assertEqual(G.RETIRED, ("M4", "M6", "M7", "M8", "N1"))
         self.assertEqual(G.CREATION_CASES,
-                         ("M1", "M2", "M3", "M5", "N1", "N2"))
+                         ("M1", "M2", "M3", "M5", "N2", "N3"))
         self.assertEqual(G.REFUSAL_CASES, ("R1", "R2", "R3"))
 
     def test_every_request_text_is_pinned_verbatim(self) -> None:
@@ -336,7 +336,7 @@ class CorpusTests(unittest.TestCase):
         """A corpus that demanded `cube` where the request never said `cube`
         would be scoring vocabulary, not capability."""
         self.assertEqual(G.CASES_BY_NAME["M2"].body_ids, ("cube", "pin"))
-        for name in ("M1", "M3", "M5", "N1", "N2"):
+        for name in ("M1", "M3", "M5", "N2", "N3"):
             self.assertIsNone(G.CASES_BY_NAME[name].body_ids,
                               f"{name} pins an id its request never states")
 
@@ -765,7 +765,7 @@ class MutationTests(unittest.TestCase):
     def test_an_edit_that_touches_the_other_body_fails(self) -> None:
         """The whole reason M4 exists. Both bodies grew; the edited one is
         right, and the part is wrong."""
-        leaked = observe("N1", two_body_generation(), Execution([
+        leaked = observe("N3", two_body_generation(), Execution([
             Body("solid1", Measurement(40.0 * 40.0 * 50.0, face_count=G.BOX_FACES,
                                        minimum=(0.0, 0.0, 0.0),
                                        maximum=(40.0, 40.0, 50.0))),
@@ -780,7 +780,7 @@ class MutationTests(unittest.TestCase):
         self.assertIn(G.E_CROSS_BODY_EDIT, codes)
 
     def test_editing_the_wrong_body_fails_as_a_wrong_target(self) -> None:
-        wrong = observe("N1", two_body_generation(), Execution([
+        wrong = observe("N3", two_body_generation(), Execution([
             Body("solid1", Measurement(G.CUBE_VOLUME, **CUBE_BOX)),
             Body("solid2", Measurement(G.PIN_VOLUME, **PIN_BOX)),
         ]))
@@ -977,7 +977,7 @@ class MutationTests(unittest.TestCase):
         """M4, M6, M7 and M8 are the record of four invalid measurements.
         They are kept verbatim and `expected()` refuses them, so no future
         run can quietly quote a number the corpus has disowned."""
-        for name in ("M4", "M6", "M7", "M8"):
+        for name in ("M4", "M6", "M7", "M8", "N1"):
             self.assertIn(name, G.RETIRED)
             self.assertTrue(G.CASES_BY_NAME[name].retired,
                             f"{name} must say why it was retired")
@@ -1006,9 +1006,19 @@ class MutationTests(unittest.TestCase):
                                places=9)
 
     def test_the_replacements_fixed_the_thing_that_was_wrong(self) -> None:
-        """N1 states the separation M4 assumed; N2's fuse can build."""
-        self.assertIn("not touching it", G.CASES_BY_NAME["N1"].text)
-        self.assertTrue(G.expected("N1")["disjoint"])
+        """N3 states the separation M4 assumed; N2's fuse can build.
+
+        N1 is also retired: it stated the separation correctly but gave the
+        cylinder TWO lengths, so the model refused 8/8 and was right. N3
+        gives exactly one, and a test pins that -- the same request cannot
+        be invalid in a third way.
+        """
+        self.assertIn("not touching", G.CASES_BY_NAME["N3"].text)
+        self.assertTrue(G.expected("N3")["disjoint"])
+        # exactly ONE length for the cylinder, which is what N1 got wrong
+        self.assertNotIn("30 mm long", G.CASES_BY_NAME["N3"].text)
+        self.assertIn("40 mm long", G.CASES_BY_NAME["N3"].text)
+        self.assertIn("30 mm long", G.CASES_BY_NAME["N1"].text)
         n2 = G.CASES_BY_NAME["N2"].text
         self.assertIn("sunk 10 mm into it", n2)
         # the contradiction M8 carried must not reappear
@@ -1095,7 +1105,7 @@ class MutationTests(unittest.TestCase):
         for build in CORRECT.values():
             observation = build()
             emitted.update(E.classify(observation, E.grade(observation)))
-        for case in ("M1", "N1", "R1"):
+        for case in ("M1", "N3", "R1"):
             observation = CORRECT[case]()
             observation["body_count"] = 99
             observation["bodies"] = []

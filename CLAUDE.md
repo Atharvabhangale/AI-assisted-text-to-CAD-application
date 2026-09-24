@@ -1179,9 +1179,21 @@ the thing to preserve — the grammar was measured accepted **before** the
 prompt moved, so neither half of that defect was introduced to fix the
 other. 3874 is well under the (4481, 4551] ceiling bracket.
 
-**No multi-body number has been measured on a model yet.** The corpus, the
-ground truth and the evaluator exist; the baseline run does not. See Stage 75
-below.
+**Multi-body IS now measured live, twice.** Phase A (64 calls) is the raw
+historical run; **Phase B (80 calls) is the current number** and the two are
+never merged — Phase A's observer was broken and four of its eight cases
+were invalid. Current, on the identities above:
+
+| group | Phase A (historical) | **Phase B (current)** |
+|---|---|---|
+| creation | 31/48 (0.65) | **45/48 (0.94)** |
+| refusal | 0/16 — instrument, not the model | **7/24 (0.29)** |
+| structured output | 64/64, 0 fenced | **80/80, 0 fenced** |
+
+**Generation works; refusal is the weak half.** M1/M2/M3/N2 are 8/8 each and
+N3 7/8, all bit-identical on CadQuery 2.8.0 and FreeCAD 1.0.0. Body
+identity, targeting and cross-body leakage are **0 errors across 144 live
+calls**. See Stage 75 below.
 
 **Live provider — VERIFIED (Stage 63).** Model
 **`claude-haiku-4-5-20251001`**, 5 attempts at the golden six-plate request:
@@ -2329,6 +2341,73 @@ in a different place.
 > open: the deterministic slice finished at Stage 74, and Stage 75 opened the
 > model-facing path — grammar measured first, prompt second. Read the two
 > paragraphs above as the condition that was set, not as the current state.
+
+### Stage 75 Phase B: the corrected measurement
+
+**Phase A's headline numbers were not all measurements.** Three of its four
+zeros were the instrument or the corpus. Phase B repaired both and
+re-measured on the **same prompt, grammar and model** — no prompt change,
+no re-prompting, no repair, no fallback counted as success. Full detail in
+`docs/evaluation-baselines/stage75-multibody/` (`PHASE-A-INVALID-CASES.md`
+is the record of what was wrong).
+
+**The observer defect, which is the important one.** `observe()` read
+`generation.questions`. `PlanGenerationResult` **has no such attribute** —
+the model's own words live on `result.plan` (`summary`, `reason`,
+`questions`). `getattr(..., ())` returned an empty tuple for all 64 Phase A
+calls, including four whose raw answer carried a populated `questions` list,
+and the run completed and reported 0/16. A second half: `result.error` — the
+*validator's* sentence — was folded into the text searched for body names,
+so a system message could have satisfied a check about what the model said.
+Both are fixed, both are now mutants, and `None` (no plan) is distinguished
+from `[]` (the field was there and empty).
+
+**Five retired cases, kept verbatim, never edited.** `expected()` raises on
+one and `arena75.py` refuses to run one.
+
+| retired | why | replaced by |
+|---|---|---|
+| M4 | pinned `disjoint` on a request that says only "as separate bodies" — every check it existed for passed 8/8 | N1, then N3 |
+| M8 | "beside it" + "fused into a single body" is self-contradictory; rule E3 refuses it, so `FUSED_VOLUME` is a volume no kernel can make | N2 |
+| M6, M7 | sound cases, broken observer | R1, R2 |
+| **N1** | **mine.** Fixed M4's placement and introduced a contradiction — "30 mm long" then "make it 40 mm long". The model refused 8/8 and was right | N3 (**7/8**) |
+
+**Phase B, 80 live calls** (72 + 8 for N3), `claude-haiku-4-5-20251001`,
+prompt `2026-09-24.1`, `strict_selector_union_part`:
+
+| case | rate | what it says |
+|---|---|---|
+| M1, M2, M3, N2 | **8/8** each | two declared bodies, correct per-body volumes, disjoint; N2's fuse hits its closed form exactly |
+| N3 | **7/8** | M4's intent, achievable all along |
+| M5 | 6/8 | two failures, both the coherence defect below |
+| R1 | 4/8 | declines 8/8; half the clarifications name no body |
+| R2 | **0/8** | declines 8/8 and **never mentions `bracket`**, the word the user used |
+| R3 | 3/8 | **4/8 return `needs_clarification` carrying the full operations list** |
+
+**creation 45/48 (0.94) · refusal 7/24 (0.29)**, never pooled.
+
+**What is genuinely the model's**, separated from instrument and corpus:
+
+- **The clarification, not the refusal.** It declines correctly 24/24 when it
+  should and builds nothing 24/24. What it does badly is *say which bodies
+  exist* — that is `J:bad_clarification`, 17/24.
+- **A question carrying geometry.** R3's 4/8 `needs_clarification` with a
+  full `operations` list is systematic, and the validator rejects every one.
+  R3 exists to catch exactly this; Phase A hit it twice by accident with no
+  check for it.
+- **Incoherent dimensions when none are stated.** M5 2/8: a 1 mm cylinder
+  drilled with the requested 6 mm hole. Encoded as a constraint the request
+  already carries (`bore_diameter`), **not** as an expected size — a Ø8 and a
+  Ø20 both pass, and a test pins that.
+- **Zero** body-identity, wrong-target or cross-body-edit errors in 144 live
+  calls across both phases.
+
+**Mutation sweep 27/27** (was 18/18), with eight new mutants covering every
+Phase B guard and three reinstating the observer bug in its three forms.
+
+**Next decision: a prompt experiment on the clarification is justified**, and
+nothing else is. It is the one systematic, genuinely model-side failure with
+a plausible prompt cause, and the generation half needs no work.
 
 ### Stage 75: the live multi-body path, opened but not yet measured
 

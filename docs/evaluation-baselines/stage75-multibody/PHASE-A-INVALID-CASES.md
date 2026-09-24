@@ -106,3 +106,32 @@ These stand, and none of them depended on the broken paths:
   1 mm cylinder for a request stating no dimensions, then drilled the stated
   6 mm hole, removing everything (E2). Phase B encodes that as a coherence
   constraint — see `README.md`.
+
+---
+
+# Phase B: a fifth invalid case, and it was mine
+
+**N1 — retired on its first use, 0/8.**
+
+N1 replaced M4 and fixed M4's defect: the separation is stated in the
+request. In doing so it introduced a different one. The text calls the
+cylinder *"30 mm long"* and then asks to *"make the cylinder 40 mm long"* —
+two lengths for one solid.
+
+The model refused all eight and said exactly why:
+
+> The cylinder is first specified as 30 mm long, then immediately asked to be
+> made 40 mm long. These are contradictory dimensions for a single cylinder.
+
+**M4's original wording gave no initial length and was coherent.** The
+contradiction is entirely mine, introduced while fixing the placement. That
+is the same lesson as M4 and M8 in a third form: a request must be checked
+for what it now says, not only for what it was written to fix.
+
+**Replaced by N3**, which states the separation *and* gives exactly one
+length. N3 measures **7/8** — so M4's intent was always achievable, and
+three of the four zeros in this corpus's history were the instrument, not
+the model.
+
+A test now pins that N3 mentions `40 mm long` and never `30 mm long`, so the
+same request cannot go wrong a third way.

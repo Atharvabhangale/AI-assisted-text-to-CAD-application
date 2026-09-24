@@ -42,6 +42,8 @@ whose invalid cases are retired rather than edited.
 | taxonomy | one `K:refusal_failure` for every refusal fault | `I:bad_refusal` (it guessed / built / smuggled operations) vs `J:bad_clarification` (declined, but said nothing useful) |
 | cases | M1–M8 | M1, M2, M3, M5, **N1, N2, R1, R2, R3**; M4, M6, M7, M8 retired |
 | mutants killed | 18/18 | **27/27** |
+| creation | 31/48 (0.65) | **45/48 (0.94)** |
+| refusal | 0/16 (0.00) — instrument | **7/24 (0.29)** — real |
 
 ## The corpus
 
@@ -54,7 +56,7 @@ how a model that refuses everything scores well.
 | **M1** | creation | 40 mm cube + Ø20×30 cylinder beside it, "two separate bodies" | the base case: 2 bodies, both volumes, disjoint, both declared. Ids free. |
 | **M2** | creation | M1 with "Name the bodies cube and pin" | M1 plus the ids — **the only case where an id is ground truth, because the only case that states one** |
 | **M3** | creation | two boxes, one 40 mm wide and one 20 mm wide, beside each other | deliberately under-specified: count, separation, both prismatic, and the two stated extents. **No volume**, because none is stated |
-| **N1** | creation | M4's request with the separation **stated** — "beside the cube and not touching it" | edit isolation: the cylinder becomes 40 long, **the cube must be untouched**, and the bodies must be apart — which the request now says |
+| **N3** | creation | M4's request with the separation **stated** and exactly one length given | edit isolation: the cylinder becomes 40 long, **the cube must be untouched**, and the bodies must be apart. (N1 tried this first and stated two lengths — retired on first use, 0/8) |
 | **M5** | creation | cube + cylinder, then a 6 mm through hole through the cylinder | body-targeted cut with no dimensions anywhere: topology only — the hole went into the cylinder, and the cube still has six planar faces |
 | **R1** | refusal | "Make the body 10 mm taller." | two bodies stand and "the body" names neither. Must refuse, **name both**, ask in the `questions` field, and carry no operations |
 | **R2** | refusal | "Make the bracket 10 mm taller." | a body that does not exist. Must refuse, say what does, and mention the user's own word `bracket` |
