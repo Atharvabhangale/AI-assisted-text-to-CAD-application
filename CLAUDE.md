@@ -1162,7 +1162,7 @@ under a different prompt or a different grammar is a different number.
 | | |
 |---|---|
 | model | **`claude-haiku-4-5-20251001`** |
-| prompt | **`2026-09-24.1`** / `c0c4a1be0d23052f` / **33407** chars |
+| prompt | **`2026-09-24.2`** / `90ebab2c38d615fb` / **33759** chars |
 | encoding sent | **`strict_selector_union_part`** |
 | inlined characters | **3874** |
 | fingerprint | `ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f` |
@@ -2011,7 +2011,7 @@ here — read its `## Stage NN` headings for those. The most recent are:
 | **61** | **A CAD session that needs no model at all**: `union` (eleventh type, still eight schema branches), two provider-neutral grammars, and an evidence answerer that labels every number `MEASURED` / `DECLARED` / `CALCULATED`. |
 | **62** | The four defects Stage 61 left behind — **an operation is not one edit.** The live route could not *say* `union` (Stage 44's defect a third time); a `union` plan could lose a solid silently; `ExecutionUnsupported` named the wrong reason for it; and a recorded schema size had drifted unpinned. |
 | **64** | **The AI provider usage policy, and CLAUDE.md reconciled.** The rule forbidding Claude Code Web a real credential is retired: where one is available a real provider is used, and live calls are encouraged. `CREDENTIAL_PRECEDENCE` makes the two-variable behaviour explicit instead of implicit. 22 guards now pin the policy and stop the document drifting from the code. |
-| **75** | **The live multi-body path opened — instrument built, baseline NOT yet run.** The grammar was measured first: `strict_selector_union_part` (3874 inlined, 6 branches, fingerprint `ef7427700af93ed7`) is **ACCEPTED** live, `structured_output` true 2/2 and unfenced. Only then did the prompt move to `2026-09-24.1` (`c0c4a1be0d23052f`, 33407 chars), teaching the `part` declaration and a `# Several bodies` section — so the two halves of the Stage 44 defect were closed in that order and separately, and the live route now sends the grammar that can carry what the prompt teaches. Nine recorded provider fingerprints are byte-identical: `part` stays out of `OPERATION_TYPES`. The 8-case corpus (M1–M8, six creation and two refusal, never pooled), its immutable ground truth and a purpose-built evaluator live in `docs/evaluation-baselines/stage75-multibody/`. **No model has been asked any of it.** |
+| **75** | **The live multi-body path opened, measured, and its clarification fixed.** The grammar was measured FIRST: `strict_selector_union_part` (3874 inlined, 6 branches, `ef7427700af93ed7`) is **ACCEPTED** live. Only then did the prompt move — so the two halves of the Stage 44 defect were closed in that order and separately. Nine recorded provider fingerprints are byte-identical: `part` stays out of `OPERATION_TYPES`. **Phase A** ran 64 calls and found three of its four zeros were the instrument or the corpus, not the model. **Phase B** repaired both and re-measured: creation **45/48**, refusal **7/24**. **Phase C** measured the clarification properly and found the metric for it was DEAD — it read the parsed plan, which is empty precisely when the model ships operations, so it was `False` 0 times while the model shipped operations 5 times. Fixed, then 432 live calls: the prompt had shown the model the FIELDS of a reply and never a reply, with `"status"` occurring exactly once in 33407 characters. One worked envelope took naming every body **26 % → 100 %** and carrying no operations **68 % → 100 %**, both p < 0.0001 on a fresh confirmation, adopted against a rule committed first. A control arm proved the naming WORDING is not the ingredient (p = 0.62) — showing an envelope at all is. Prompt `2026-09-24.2`. |
 | **73/74** | **Multi-body steps 4 and 5: measuring it, and exporting it.** No new operation, P-code, schema or prompt change — again. A question naming a body is answered from THAT body; one naming none of several is **REFUSED**, phrased for a question rather than an edit; a total is explicitly summed and the combined **envelope** is `ASSUMED`, the fourth provenance, because that box holds the air between the bodies too. Export writes a real STEP assembly: every body, none fused, each under its own id, verified by reading the file back and counting solids **and** checking the names survived — handed a compound BOTH engines write a geometrically perfect file whose bodies are anonymous, and no count can see that. Found and fixed the last `bodies[0]`, in the BROWSER, and an engineering route that was never gated and merged both bodies' holes into one list. A detail drawing of one body is real; an assembly drawing is refused by name. |
 | **72** | **Multi-body step 2: addressing a body by name.** One resolver, `body_reference.resolve_body`, and no new operation, P-code or schema change — the plan could always name a body; turning a sentence into one of those ids was what was missing. A body is named by its **id** and nothing else; naming none of several, naming two, or naming a consumed one all **REFUSE** with the bodies listed. Fixed two defects the slice exposed: the envelope spanned every body (a bore 15 mm off centre in a plan that still built) and a failed selection did not say which body. Editing each body in turn leaves the other bit-identical on both kernels, and the browser shows the refusal as an answer. |
 | **71** | **Multi-body step 1: distinct body identity.** One new operation, `part`, that DECLARES a live body is an intended body of the result — kept out of `OPERATION_TYPES` so no schema or prompt fingerprint moves. Two live bodies with no declaration still fail `multiple_solids`; the executor gains one explicit exemption. P33–P35. One RenderModel per body, never merged; `result.part` unchanged. A 40 mm cube and a Ø20×30 cylinder build as two bodies, **bit-identical on CadQuery 2.8.0 and FreeCAD 1.0.0**, and pass through a real browser with no model configured. Single-body product unchanged. |
@@ -2407,7 +2407,100 @@ Phase B guard and three reinstating the observer bug in its three forms.
 
 **Next decision: a prompt experiment on the clarification is justified**, and
 nothing else is. It is the one systematic, genuinely model-side failure with
-a plausible prompt cause, and the generation half needs no work.
+a plausible prompt cause, and the generation half needs no work. **Phase C
+did that experiment — see below.**
+
+### Stage 75 Phase C: the clarification measured, and one example fixed it
+
+**432 live calls** to `claude-haiku-4-5-20251001`. Record:
+`docs/evaluation-baselines/stage75-multibody/phase-c-clarification/`.
+Phase A and Phase B are untouched.
+
+**The instrument was measuring the validator, and that came first.**
+`emitted_no_operations` read the PARSED plan's operation count. A
+clarification carrying operations never becomes a parsed plan — the parser
+raises, `generation` returns `plan=None`, the observer records zero — so the
+check said *"the model emitted no operations"* **precisely when the model
+emitted the most**. Across every recorded refusal attempt in Phases A and B
+it was `False` **0 times** while the model actually shipped operations **5**
+times. A guard that could not fire, whose unit test bypassed the parser and
+so proved nothing about the live route. Re-graded with the fix: **5 of 24**
+metric values corrected, **0** strict verdicts moved, so Phase B's 7/24
+stands.
+
+Two more, found in the same reading. `operations_permitted` had been on every
+refusal case since Phase B — R2's retirement note says it was added *"making
+that failure visible"* — and **nothing read it**; the grader kept its own
+copy of the rule. And `outcome_label` named every unrecognised outcome
+`MODEL_GENERATED` by falling through, so `model_error` was labelled a model
+result. Both fixed; one label changed in 360 recorded attempts, no verdict
+moved.
+
+**The fresh baseline, prompt and schema unchanged, 72 calls:**
+
+| | n=72 | 95 % CI |
+|---|--:|---|
+| strict | **11/72 = 15.3 %** | 8.8–25.3 |
+| **A** named BOTH bodies | **19/72 = 26.4 %** | 17.6–37.6 |
+| **B** no operations | **49/72 = 68.1 %** | 56.6–77.7 |
+| asked ≥ 1 question | **31/72 = 43.1 %** | 32.3–54.6 |
+| built nothing | 72/72 | |
+
+The brief predicted the naming and the operations. The larger failure it did
+not name: **half the clarifications asked nothing at all** —
+`needs_clarification` with an empty `questions` list and *"ambiguous
+request"* in `summary`. Against Phase B's 7/24 this is p = 0.14: no evidence
+the runs differ, this one just has three times the calls.
+
+**THE GAP, measured on the committed prompt.** The string `"status"` occurred
+**exactly once** in 33407 characters, and so did `"questions"`, `"summary"`
+and `"operations"` — all four only in the bare field list. Every one of the
+prompt's ~20 JSON blocks was a bare operation object. **The model had been
+told the fields of a reply and never shown one.**
+
+**The arms, one variable each:**
+
+| arm | what changed | n | strict | A: both | B: none | asked |
+|---|---|--:|--:|--:|--:|--:|
+| C0 baseline | nothing | 72 | 11/72 | 19/72 | 49/72 | 31/72 |
+| CC structural rule | the `unsupported` section's own clause, copied across | 48 | 11/48 | 17/48 | 41/48 | 21/48 |
+| CB no-ops example | a whole reply envelope, naming **neither** body | 48 | 31/48 | 45/48 | 48/48 | 48/48 |
+| CA naming example | the same envelope, naming **both** | 48 | 31/48 | 47/48 | 48/48 | 47/48 |
+| **CA CONFIRMATION** | — | **72** | **48/72** | **72/72** | **72/72** | **72/72** |
+
+**CC is the control and behaved as four prior stages predict** — prose moved
+operations a little (p = 0.034) and naming not at all (p = 0.31).
+
+**CB differs from CA in exactly one string** and scores the same (45/48 vs
+47/48, **p = 0.62**). So the naming wording is **not** the active ingredient;
+*showing an envelope at all* is. The prose rule telling the model to list the
+bodies was already in `# Several bodies`, correct and inert — the example
+gave it somewhere to land. **Fifth time this project has measured that what
+the model imitates is what the prompt SHOWS**, and the first time the thing
+imitated is the shape of the REPLY rather than the geometry.
+
+**R2 is 0 before and 0 after, and that is not "no change":** its failing
+checks went from six to one. Every remaining failure is the criterion R2
+alone pins — echoing the user's own noun, `bracket`. Collapsing the two
+metrics into one score would have reported R2 untouched, which is exactly
+why they are reported apart.
+
+**ADOPTED against a rule committed before any arm was built.**
+`decision_rule_c.py` takes counts only; it refused all three arms on their
+exploratory samples and adopted CA only on a fresh 72-call confirmation.
+Creation was checked in the same session rather than against an older run:
+control **43/48**, adopted **44/48**, identity codes identical.
+`PROVIDER_ERROR` 23/72 → 0/72. **CD was not run** — CA's confirmation is
+72/72 on both metrics and nothing can be significantly better than 72/72, so
+no arm could satisfy the rule against it.
+
+Prompt **`2026-09-24.2`** / `90ebab2c38d615fb` / **33759** chars, verified
+against the *recorded* arm fingerprints rather than the generator that made
+them. Four pins moved together. Mutation sweep **32/32**.
+
+**Still open, and the next measurable thing:** R2. A clarification that names
+both bodies and never says the user's noun matched nothing is still wrong,
+and it is now the only clarification failure left.
 
 ### Stage 75: the live multi-body path, opened but not yet measured
 
@@ -2486,7 +2579,9 @@ reproducible: `test_stage75_multibody_evaluator.py` documents each.
 **What must NOT change before the baseline is recorded**, because changing
 any of it makes the run unrepeatable and the number incomparable:
 
-- the prompt: `2026-09-24.1` / `c0c4a1be0d23052f` / 33407 chars;
+- the prompt: `2026-09-24.2` / `90ebab2c38d615fb` / 33759 chars
+  (Phase C; `2026-09-24.1` / `c0c4a1be0d23052f` / 33407 is what
+  Phases A and B were measured against, and their files say so);
 - the encoding: `strict_selector_union_part` / 3874 / `ef7427700af93ed7`;
 - the model: `claude-haiku-4-5-20251001`;
 - every request text in `ground_truth75.py`, verbatim — Stage 68's finding

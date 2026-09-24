@@ -1,10 +1,24 @@
 # Stage 75 — the multi-body instrument
 
-**There is no result in this directory.** No model has been asked any of
-these eight questions. What is here is the instrument: the corpus, its
-immutable ground truth, and an evaluator that was shown to bite. The baseline
-run is the next session's first act, and it should be **one contiguous run**
-rather than two halves taken under different conditions.
+**Written before any model had been asked anything, and kept.** The paragraph
+below described this directory when it held only the instrument. It now holds
+three phases of results as well:
+
+| phase | what | where |
+|---|---|---|
+| **A** | 64 calls; three of its four zeros were the instrument or the corpus | `baseline.json`, `PHASE-A-INVALID-CASES.md` |
+| **B** | observer and corpus repaired, re-measured: creation **45/48**, refusal **7/24** | `baseline-phase-b*.json` |
+| **C** | the clarification measured properly and fixed: 432 calls, prompt `2026-09-24.2` | `phase-c-clarification/` |
+
+The **45/48** above is a reckoning across two files, not a figure any single
+run recorded: `baseline-phase-b.json` says creation 38/48 over a case list
+that still included the retired N1 (0/8), and N3 (7/8) replaced it from
+`baseline-phase-b-n3.json`. 38 − 0 + 7 = 45.
+
+> What is here is the instrument: the corpus, its immutable ground truth, and
+> an evaluator that was shown to bite. The baseline run is the next session's
+> first act, and it should be **one contiguous run** rather than two halves
+> taken under different conditions.
 
 ## What the baseline must be measured against
 
@@ -14,7 +28,7 @@ different model is a different number and must not be compared to these.
 | | |
 |---|---|
 | model | `claude-haiku-4-5-20251001` |
-| prompt | `2026-09-24.1` / `c0c4a1be0d23052f` / 33407 chars |
+| prompt | `2026-09-24.2` / `90ebab2c38d615fb` / 33759 chars (Phases A and B were measured against `2026-09-24.1` / `c0c4a1be0d23052f` / 33407; their files say so) |
 | encoding | `strict_selector_union_part` / **3874** inlined / `ef7427700af93ed7` |
 | branches | 6 — box, cylinder, through_hole, `subtract\|union`, `fillet\|chamfer`, **`part`** |
 | live verdict on the grammar | **ACCEPTED** — one probe, `structured_output` true 2/2, 0/2 fenced |
