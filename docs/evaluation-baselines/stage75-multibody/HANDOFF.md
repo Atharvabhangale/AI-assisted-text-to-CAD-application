@@ -18,8 +18,9 @@ sittings — a run taken in halves under different conditions is two runs.
 | repository | `Atharvabhangale/AI-assisted-text-to-CAD-application` |
 | branch | `experiment/cad-operation-graph` |
 | worktree | `/home/user/cad-experiment` (the stable branch lives in `/home/user/AI-assisted-text-to-CAD-application`) |
-| HEAD | `<<HEAD_SHA>>` |
-| origin | `<<HEAD_SHA>>` — identical; working tree clean |
+| Stage 75's two commits | `311a4ee` (the grammar, measured accepted) then `7d20f70` (the instrument) |
+| HEAD | `7d20f70`, plus the one commit that filled in this line. `git rev-parse HEAD` is authoritative — a SHA written into the file it names cannot be its own |
+| origin | identical to HEAD; working tree clean |
 
 **Do not touch `claude/text-to-cad-skeleton-r946xr`.** Stage numbers collide
 between the two branches; "Stage 32" means different work on each.
