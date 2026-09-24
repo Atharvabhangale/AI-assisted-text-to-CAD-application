@@ -193,8 +193,48 @@ MUTANTS = [
      '        checks["asked_a_question"] = bool(observation["questions"])',
      '        checks["asked_a_question"] = True'),
     ("let_a_clarification_carry_operations",
-     '        checks["emitted_no_operations"] = observation["operation_count"] == 0',
+     '''        written = observation.get("model_operation_count",
+                                  observation["operation_count"])
+        checks["emitted_no_operations"] = (
+            None if truth["operations_permitted"] else written == 0
+        )''',
      '        checks["emitted_no_operations"] = True'),
+    # Phase C. The mutant that RESTORES the dead guard: reading the parsed
+    # plan instead of the model's own answer. Every earlier sweep would have
+    # let it through, because no test exercised the live shape -- the parser
+    # rejects a clarification carrying operations, so the parsed count is 0
+    # exactly when the model emitted the most.
+    ("read_the_parsed_plan_instead_of_what_the_model_wrote",
+     '''        written = observation.get("model_operation_count",
+                                  observation["operation_count"])''',
+     '        written = observation["operation_count"]'),
+    ("count_what_the_model_wrote_as_always_zero",
+     '    return len(operations) if isinstance(operations, list) else 0',
+     '    return 0'),
+    ("read_an_unreadable_answer_as_zero_operations",
+     '''    except (ValueError, TypeError):
+        return None''',
+     '''    except (ValueError, TypeError):
+        return 0'''),
+    # Killed by a STRUCTURE test rather than a behavioural one, and that is
+    # the honest way round: every refusal case in the corpus sets
+    # `operations_permitted=False`, so `None if False else X` and `X` are
+    # behaviourally identical on every case that exists. Inventing a case
+    # where a refusal PERMITS operations, purely to kill a mutant, would be
+    # editing the instrument to suit the test.
+    ("ignore_what_the_truth_says_about_operations",
+     '''        written = observation.get("model_operation_count",
+                                  observation["operation_count"])
+        checks["emitted_no_operations"] = (
+            None if truth["operations_permitted"] else written == 0
+        )''',
+     '''        written = observation.get("model_operation_count",
+                                  observation["operation_count"])
+        checks["emitted_no_operations"] = written == 0'''),
+    ("collapse_naming_one_body_into_naming_none",
+     '''                "bodies_named": sum(
+                    1 for body in wanted if body.lower() in said),''',
+     '                "bodies_named": 2 if named else 0,'),
     ("ignore_whether_the_question_addressed_the_request",
      QUESTION_ADDRESSED,
      '            checks["question_addressed_the_request"] = True'),

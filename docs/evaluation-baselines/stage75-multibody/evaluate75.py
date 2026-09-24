@@ -34,6 +34,7 @@ scores the single most important multi-body failure as a pass.
 
 from __future__ import annotations
 
+import json
 import math
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
@@ -114,6 +115,14 @@ def observe(
         "operations": op_rows,
         "operation_types": [r["type"] for r in op_rows],
         "operation_count": len(op_rows),
+        # What the MODEL wrote, beside what PARSED. Two different facts, and
+        # conflating them is what made the operations metric read backwards.
+        # The parsed plan is the fallback when there is no raw answer to
+        # read, so a caller that never had one is not told a zero either.
+        "model_operation_count": (
+            written if (written := _operations_the_model_wrote(raw_text))
+            is not None else len(op_rows)
+        ),
         "declared_bodies": declared,
         # --- what the MODEL said, read from where it actually lives --------
         #
@@ -204,6 +213,41 @@ def _model_words(observation: Mapping[str, Any]) -> str:
     return " ".join(parts).lower()
 
 
+def _operations_the_model_wrote(raw_text: Optional[str]) -> Optional[int]:
+    """How many operations the MODEL put in its answer, before any parsing.
+
+    `operation_count` counts the operations in the PARSED plan, and a
+    clarification that carries operations never becomes one: the parser
+    rejects it with *"a `needs_clarification` plan must not carry
+    operations"*, `outcome_declared` is `invalid_model_output`, and the
+    operation list is empty. So a check reading `operation_count` reports
+    "the model emitted no operations" **precisely when the model emitted the
+    most** -- it measures the validator, not the model.
+
+    This is not hypothetical. Re-read on the committed Phase B baseline:
+    **5 of 24** refusal attempts wrote a full four-operation sequence
+    alongside `needs_clarification`, and every one of them recorded
+    `operation_count == 0`. The strict verdict was right anyway, because
+    `provider_output_valid` fails on the same rows -- but the metric was the
+    exact opposite of the truth, and Phase C exists to report that metric.
+
+    Returns `None` when there is no raw text or it is not JSON. **Absent is
+    not zero**, the same distinction `questions` already makes: a caller
+    with no model answer to read must fall back rather than record a zero it
+    did not observe.
+    """
+    if not raw_text:
+        return None
+    try:
+        answer = json.loads(raw_text)
+    except (ValueError, TypeError):
+        return None
+    if not isinstance(answer, Mapping):
+        return None
+    operations = answer.get("operations")
+    return len(operations) if isinstance(operations, list) else 0
+
+
 def _overlaps(a: Mapping[str, Any], b: Mapping[str, Any]) -> bool:
     """Whether two bodies' bounding boxes intersect with real volume.
 
@@ -247,9 +291,8 @@ def grade(observation: Mapping[str, Any]) -> Dict[str, Any]:
         # two, so a system message could have satisfied a check about what
         # the model named.
         said = _model_words(observation)
-        named = all(
-            body.lower() in said for body in (truth["refusal_must_name"] or ())
-        )
+        wanted = tuple(truth["refusal_must_name"] or ())
+        named = all(body.lower() in said for body in wanted)
         checks["refused"] = declined
         checks["named_the_bodies"] = named
         checks["built_nothing"] = observation["body_count"] == 0
@@ -257,7 +300,22 @@ def grade(observation: Mapping[str, Any]) -> Dict[str, Any]:
         # contract provides is a different fact from saying the right thing
         # in prose, and Phase A could see neither.
         checks["asked_a_question"] = bool(observation["questions"])
-        checks["emitted_no_operations"] = observation["operation_count"] == 0
+        # Read from the MODEL's answer, not the parsed plan. See
+        # `_operations_the_model_wrote`: a clarification carrying operations
+        # is rejected by the parser, so the parsed count is 0 exactly when
+        # the model emitted the most.
+        #
+        # And asked of the TRUTH rather than hard-coded. `operations_permitted`
+        # has been on every refusal case since Phase B -- R2's own retirement
+        # note says it was added "making that failure visible" -- and until
+        # Phase C nothing in the repository read it. The corpus declared the
+        # rule and the grader kept its own copy, which is how the two came to
+        # disagree without either being wrong on its face.
+        written = observation.get("model_operation_count",
+                                  observation["operation_count"])
+        checks["emitted_no_operations"] = (
+            None if truth["operations_permitted"] else written == 0
+        )
         if truth["refusal_question_must_mention"]:
             checks["question_addressed_the_request"] = all(
                 token.lower() in said
@@ -267,6 +325,20 @@ def grade(observation: Mapping[str, Any]) -> Dict[str, Any]:
         return {
             "case": observation["case"], "group": G.REFUSAL,
             "checks": checks, "strict_success": all(applicable),
+            # REPORTED, never graded. `strict_success` is `all(checks)` and
+            # these are deliberately outside it: a count is not a verdict,
+            # and the whole point of reporting them is that "named one body"
+            # and "named none" are different failures with different causes.
+            # Collapsing them into the one boolean above is what hid the
+            # difference in Phase B.
+            "metrics": {
+                "bodies_expected": len(wanted),
+                "bodies_named": sum(
+                    1 for body in wanted if body.lower() in said),
+                "operations_written": observation.get(
+                    "model_operation_count", observation["operation_count"]),
+                "questions_asked": len(observation.get("questions") or ()),
+            },
         }
 
     # --- creation ---------------------------------------------------------
@@ -442,26 +514,76 @@ def classify(
 
 
 def outcome_label(observation: Mapping[str, Any]) -> str:
-    """Stage 64's five labels. Only MODEL_GENERATED may score as success."""
+    """Stage 64's five labels. Only MODEL_GENERATED may score as success.
+
+    Phase C: this used to name every outcome it did not recognise
+    MODEL_GENERATED, by falling through. `PlanOutcome` has five members and
+    only three were listed, so `model_error` -- the provider or the model
+    failing -- was labelled as though the model had successfully generated a
+    part. Measured once in the CC arm, on a reply that declared
+    `model_error` and carried no operations and no bodies.
+
+    It never reached a success RATE, because `strict_success` is `all(checks)`
+    and the labels are reported beside it. But MODEL_GENERATED is the one
+    label this project allows into a quality number, and the rule above it is
+    "never claim a live model result without a live call". A label that
+    overstates by default is the wrong direction to fail in.
+
+    So it now fails CLOSED: MODEL_GENERATED is given only to the one outcome
+    that means the model produced a part, and anything unrecognised is a
+    provider error.
+    """
     declared = observation["outcome_declared"]
-    if declared is None:
-        return G.PROVIDER_ERROR
+    if declared == "generated":
+        return G.MODEL_GENERATED
     if declared in ("needs_clarification", "unsupported"):
         return G.REFUSED
-    if declared == "invalid_model_output":
-        return G.PROVIDER_ERROR
-    return G.MODEL_GENERATED
+    return G.PROVIDER_ERROR
+
+
+def _clarification_bucket() -> Dict[str, Any]:
+    return {
+        # Metric A -- how many of the bodies a clarification had to name it
+        # actually named. Three-way on purpose: "named one" is a different
+        # failure from "named none", with a different cause and a different
+        # fix, and one boolean cannot tell them apart.
+        "naming": {"both": 0, "one": 0, "zero": 0},
+        # Metric B -- how many operations the MODEL wrote alongside the
+        # question. Read from its own answer, never from the parsed plan;
+        # see `_operations_the_model_wrote`.
+        "operations": {"none": 0, "some": 0},
+        # Whether it used the field the contract gives it, at all.
+        "asked": 0,
+        "calls": 0,
+    }
 
 
 def summarise(rows: Sequence[Mapping[str, Any]]) -> Dict[str, Any]:
     """Per-case and per-group rates, with the two groups never pooled."""
     per_case: Dict[str, Dict[str, Any]] = {}
+    clarification: Dict[str, Dict[str, Any]] = {}
     for row in rows:
         entry = per_case.setdefault(
             row["case"], {"calls": 0, "strict": 0, "codes": {}, "labels": {}}
         )
         entry["calls"] += 1
         entry["strict"] += 1 if row["strict_success"] else 0
+        metrics = row.get("metrics")
+        if metrics:
+            bucket = clarification.setdefault(
+                row["case"], _clarification_bucket())
+            bucket["calls"] += 1
+            wanted = metrics.get("bodies_expected") or 0
+            got = metrics.get("bodies_named") or 0
+            if wanted and got >= wanted:
+                bucket["naming"]["both"] += 1
+            elif got:
+                bucket["naming"]["one"] += 1
+            else:
+                bucket["naming"]["zero"] += 1
+            written = metrics.get("operations_written") or 0
+            bucket["operations"]["none" if written == 0 else "some"] += 1
+            bucket["asked"] += 1 if metrics.get("questions_asked") else 0
         for code in row.get("codes", ()):
             entry["codes"][code] = entry["codes"].get(code, 0) + 1
         label = row.get("label", G.L_OTHER)
@@ -478,7 +600,22 @@ def summarise(rows: Sequence[Mapping[str, Any]]) -> Dict[str, Any]:
         bucket["rate"] = (
             bucket["strict"] / bucket["calls"] if bucket["calls"] else 0.0
         )
-    return {"per_case": per_case, "per_group": groups}
+    result = {"per_case": per_case, "per_group": groups}
+    if clarification:
+        # Beside the rates, never inside them. A naming rate and a strict
+        # rate are different quantities and pooling them is the mistake the
+        # two groups are kept apart to avoid.
+        totals = _clarification_bucket()
+        for bucket in clarification.values():
+            totals["calls"] += bucket["calls"]
+            totals["asked"] += bucket["asked"]
+            for key in ("both", "one", "zero"):
+                totals["naming"][key] += bucket["naming"][key]
+            for key in ("none", "some"):
+                totals["operations"][key] += bucket["operations"][key]
+        result["clarification"] = {"per_case": clarification,
+                                   "total": totals}
+    return result
 
 
 __all__ = ["classify", "grade", "observe", "outcome_label", "summarise"]

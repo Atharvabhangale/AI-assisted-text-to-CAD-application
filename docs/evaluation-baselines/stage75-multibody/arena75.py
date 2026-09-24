@@ -188,6 +188,10 @@ def one_call(planner, backend, case, session):
     row["observation"] = observation
     row["checks"] = graded["checks"]
     row["strict_success"] = graded["strict_success"]
+    # Reported beside the verdict, never folded into it. Present only for a
+    # refusal case, which is why `summarise` keys on its presence.
+    if "metrics" in graded:
+        row["metrics"] = graded["metrics"]
     row["codes"] = list(EV.classify(observation, graded))
     row["label"] = EV.outcome_label(observation)
     return row

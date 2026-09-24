@@ -39,6 +39,7 @@ import inspect
 import math
 import pathlib
 import sys
+import json
 import unittest
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
@@ -153,7 +154,10 @@ class Generation:
         self.error = error
 
 
-def observe(case, generation, execution):
+def observe(case, generation, execution, raw_text=None):
+    # `raw_text` is what the MODEL actually answered, and until Phase C the
+    # helper did not pass it -- which is why the operations guard could be
+    # written, pass, and still never fire on the live route.
     return E.observe(
         case_name=case,
         generation=generation,
@@ -162,7 +166,26 @@ def observe(case, generation, execution):
         schema_name="strict_selector_union_part",
         prompt_version="2026-09-24.1",
         prompt_fingerprint="c0c4a1be0d23052f",
+        raw_text=raw_text,
     )
+
+
+#: What the provider returns when the model attaches a full operation
+#: sequence to a `needs_clarification`. The parser REJECTS it, so
+#: `generation.plan` is None and the parsed operation count is 0 -- this is
+#: the exact shape 5 of 24 live Phase B refusal attempts took.
+SMUGGLED_RAW = json.dumps({
+    "status": "needs_clarification",
+    "summary": "ambiguous which body to drill",
+    "operations": [
+        {"id": "block", "type": "box",
+         "parameters": {"x": 30.0, "y": 30.0, "z": 30.0}},
+        {"id": "rod", "type": "cylinder",
+         "parameters": {"diameter": 10.0, "height": 25.0}},
+        {"id": "b1", "type": "part", "target": "block"},
+        {"id": "b2", "type": "part", "target": "rod"},
+    ],
+})
 
 
 # --------------------------------------------------------- correct answers
@@ -417,8 +440,43 @@ class StructureTests(unittest.TestCase):
                          {"math", "typing"})
 
     def test_the_evaluator_imports_only_the_truth_and_the_stdlib(self) -> None:
+        # `json` arrived in Phase C, to read the operations the MODEL wrote
+        # out of its own raw answer rather than out of the parsed plan. It is
+        # stdlib, which is what this test's name permits; the prohibition
+        # that actually matters -- no arena, no kernel, no project module --
+        # is `test_neither_module_reuses_the_one_body_arena` below, and it is
+        # unchanged. This set is a change DETECTOR, not a budget.
         self.assertEqual(self._imports(self.eval_tree) - {"__future__"},
-                         {"math", "typing", "ground_truth75"})
+                         {"json", "math", "typing", "ground_truth75"})
+
+    def test_the_grader_READS_the_truth_about_operations(self) -> None:
+        """Checked structurally, because behaviourally it cannot be.
+
+        Every refusal case in the corpus sets `operations_permitted=False`,
+        so a grader that consults the truth and one that hard-codes the rule
+        produce identical verdicts on every case that exists. The difference
+        only appears the day a case permits operations -- and inventing such
+        a case to make the difference testable would be editing the
+        instrument to suit the test.
+
+        So this asserts the READ: `operations_permitted` is fetched from the
+        truth somewhere in `evaluate75`. It had been on every refusal case
+        since Phase B, and until Phase C nothing read it at all.
+        """
+        subscripts = [
+            node for node in ast.walk(self.eval_tree)
+            if isinstance(node, ast.Subscript)
+            and isinstance(node.slice, ast.Constant)
+            and node.slice.value == "operations_permitted"
+        ]
+        self.assertTrue(
+            subscripts,
+            "evaluate75 must READ truth['operations_permitted'], not keep "
+            "its own copy of the rule")
+        for node in subscripts:
+            self.assertEqual(getattr(node.value, "id", None), "truth",
+                             "it must come from the TRUTH, not from the "
+                             "observation the model produced")
 
     def test_neither_module_reuses_the_one_body_arena(self) -> None:
         """Stage 68's arena reads ``bodies[0]``. On a two-body part that
@@ -954,6 +1012,253 @@ class MutationTests(unittest.TestCase):
         self.assertIs(graded["checks"]["emitted_no_operations"], False)
         self.assertFalse(graded["strict_success"])
         self.assertIn(G.I_BAD_REFUSAL, codes)
+
+    def test_the_operations_guard_fires_on_the_LIVE_shape(self) -> None:
+        """Phase C's finding, and the reason the old guard proved nothing.
+
+        The test above builds a stand-in `Plan` that already holds the
+        operations, which the real parser never produces: `parser.py` raises
+        for any non-generated plan carrying operations, `generation` then
+        returns `plan=None`, and the observer records
+        `operation_count == 0`. So a check reading the PARSED count reports
+        "the model emitted no operations" exactly when the model emitted the
+        most.
+
+        Measured, not supposed: across every recorded refusal attempt in
+        Phase A and Phase B the check was False **0 times**, while the model
+        genuinely shipped four operations on **5** of them. It was a guard
+        that could not fire -- this project's own "a test that passes
+        without proving its name", in a new place.
+        """
+        live = observe("R3", Generation(
+            operations=[], outcome="invalid_model_output", valid=False,
+            plan=False,
+            error="a `needs_clarification` plan must not carry operations",
+        ), None, raw_text=SMUGGLED_RAW)
+
+        # The parsed plan says nothing happened...
+        self.assertEqual(live["operation_count"], 0)
+        # ...and the model's own answer says it wrote four.
+        self.assertEqual(live["model_operation_count"], 4)
+
+        graded, _ = scored(live)
+        self.assertIs(graded["checks"]["emitted_no_operations"], False)
+        self.assertFalse(graded["strict_success"])
+
+    def test_an_unrecognised_outcome_is_never_called_MODEL_GENERATED(self) -> None:
+        """It used to be, by falling through.
+
+        `PlanOutcome` has five members and `outcome_label` listed three, so
+        `model_error` -- the provider or the model failing -- was named
+        MODEL_GENERATED. Measured once in the CC arm. MODEL_GENERATED is the
+        only label this project lets into a quality number, and the rule
+        above it is "never claim a live model result without a live call",
+        so the default must fail closed.
+        """
+        from cad_experimental.generation import PlanOutcome
+        for outcome in PlanOutcome:
+            label = E.outcome_label({"outcome_declared": outcome.value})
+            if outcome.value == "generated":
+                self.assertEqual(label, G.MODEL_GENERATED, outcome.value)
+            else:
+                self.assertNotEqual(label, G.MODEL_GENERATED, outcome.value)
+        self.assertEqual(E.outcome_label({"outcome_declared": "model_error"}),
+                         G.PROVIDER_ERROR)
+        self.assertEqual(E.outcome_label({"outcome_declared": None}),
+                         G.PROVIDER_ERROR)
+        # A member nobody has added yet must not become a success either.
+        self.assertEqual(
+            E.outcome_label({"outcome_declared": "something_new"}),
+            G.PROVIDER_ERROR)
+
+    def test_the_operations_rule_comes_from_the_TRUTH_not_the_grader(self) -> None:
+        """`operations_permitted` was on every refusal case and read by nothing.
+
+        R2's own retirement note says it was added "making that failure
+        visible". It did not: the grader kept its own hard-coded copy of the
+        rule, so the corpus declared one thing and the grader enforced
+        another. They happened to agree, which is why nobody noticed -- and
+        is exactly the condition under which a corpus edit would silently
+        fail to take effect.
+        """
+        for name in ("R1", "R2", "R3"):
+            self.assertIs(G.expected(name)["operations_permitted"], False,
+                          f"{name} must forbid operations")
+        # A creation case permits them, and is not graded on the check at all.
+        self.assertIs(G.expected("M1")["operations_permitted"], True)
+        built = observe("M1", Generation(operations=[], outcome="generated"),
+                        None)
+        self.assertNotIn("emitted_no_operations", scored(built)[0]["checks"])
+
+    def test_absent_raw_text_falls_back_to_the_parsed_plan(self) -> None:
+        """Absent is not zero.
+
+        A caller with no model answer to read -- every synthetic case in
+        this file, and any row recorded before Phase C -- must be graded on
+        the only evidence there is, not told a zero nobody observed.
+        """
+        parsed_only = observe("R3", Generation(
+            operations=[Operation("bore", "through_hole", "block")],
+            outcome="needs_clarification", summary="unclear which body",
+            questions=("block or rod?",),
+        ), None)
+        self.assertIsNone(E._operations_the_model_wrote(None))
+        self.assertEqual(parsed_only["model_operation_count"], 1)
+        self.assertIs(
+            scored(parsed_only)[0]["checks"]["emitted_no_operations"], False)
+
+    def test_unreadable_raw_text_is_not_read_as_zero(self) -> None:
+        self.assertIsNone(E._operations_the_model_wrote("not json at all"))
+        self.assertIsNone(E._operations_the_model_wrote("[1, 2, 3]"))
+        self.assertEqual(E._operations_the_model_wrote('{"operations": []}'), 0)
+
+
+class ClarificationMetricsTests(unittest.TestCase):
+    """The two metrics, reported separately and never folded into a verdict.
+
+    Phase B could say a clarification failed to name the bodies. It could
+    not say whether it named ONE of them or NONE, because `all(...)` had
+    already collapsed the two into one boolean -- and those are different
+    failures with different causes. Reporting them apart is the whole point
+    of Phase C's metrics block.
+    """
+
+    def _clarify(self, *, summary="", questions=(), raw_text=None):
+        return observe("R1", Generation(
+            operations=[], outcome="needs_clarification",
+            summary=summary, questions=questions,
+        ), None, raw_text=raw_text)
+
+    def test_naming_both_bodies_counts_as_two(self) -> None:
+        graded, _ = scored(self._clarify(
+            summary="two bodies stand",
+            questions=("Which should be taller: the block or the rod?",)))
+        self.assertEqual(graded["metrics"]["bodies_named"], 2)
+        self.assertEqual(graded["metrics"]["bodies_expected"], 2)
+        self.assertIs(graded["checks"]["named_the_bodies"], True)
+
+    def test_naming_ONE_body_is_distinguishable_from_naming_NONE(self) -> None:
+        """The distinction the boolean cannot make, and it is not academic.
+
+        A model that names one body has understood that the part has
+        several and described the wrong one; a model that names none has
+        answered "it is ambiguous" and stopped. The same `False` today.
+        """
+        one = scored(self._clarify(
+            summary="ambiguous",
+            questions=("Should the block be taller?",)))[0]
+        none = scored(self._clarify(
+            summary="the request is ambiguous about which body",
+            questions=("Which body did you mean?",)))[0]
+        self.assertEqual(one["metrics"]["bodies_named"], 1)
+        self.assertEqual(none["metrics"]["bodies_named"], 0)
+        # and the committed boolean cannot tell them apart -- which is why
+        # the count is reported beside it rather than instead of it.
+        self.assertIs(one["checks"]["named_the_bodies"], False)
+        self.assertIs(none["checks"]["named_the_bodies"], False)
+
+    def test_questions_asked_counts_the_field_not_the_prose(self) -> None:
+        asked = scored(self._clarify(
+            summary="ambiguous", questions=("block or rod?", "how deep?")))[0]
+        silent = scored(self._clarify(
+            summary="ambiguous which body: block or rod"))[0]
+        self.assertEqual(asked["metrics"]["questions_asked"], 2)
+        self.assertEqual(silent["metrics"]["questions_asked"], 0)
+
+    def test_the_metrics_are_reported_and_never_graded(self) -> None:
+        """`strict_success` is `all(checks)`. A count is not a verdict.
+
+        If a metric ever reached `checks` it would join the verdict
+        silently, and a three-valued measurement would start failing runs.
+        """
+        graded, _ = scored(self._clarify(
+            summary="ambiguous", questions=("block or rod?",)))
+        for key in graded["metrics"]:
+            self.assertNotIn(key, graded["checks"])
+        self.assertEqual(
+            graded["strict_success"],
+            all(v for v in graded["checks"].values() if v is not None))
+
+    def test_summarise_splits_naming_three_ways_and_keeps_it_out_of_the_rate(self) -> None:
+        rows = [
+            {"case": "R1", "strict_success": True, "codes": [], "label": "REFUSED",
+             "metrics": {"bodies_expected": 2, "bodies_named": 2,
+                         "operations_written": 0, "questions_asked": 1}},
+            {"case": "R1", "strict_success": False, "codes": [], "label": "REFUSED",
+             "metrics": {"bodies_expected": 2, "bodies_named": 1,
+                         "operations_written": 0, "questions_asked": 1}},
+            {"case": "R1", "strict_success": False, "codes": [], "label": "REFUSED",
+             "metrics": {"bodies_expected": 2, "bodies_named": 0,
+                         "operations_written": 4, "questions_asked": 0}},
+        ]
+        summary = E.summarise(rows)
+        bucket = summary["clarification"]["per_case"]["R1"]
+        self.assertEqual(bucket["naming"], {"both": 1, "one": 1, "zero": 1})
+        self.assertEqual(bucket["operations"], {"none": 2, "some": 1})
+        self.assertEqual(bucket["asked"], 2)
+        # the strict rate is untouched by any of it
+        self.assertAlmostEqual(summary["per_case"]["R1"]["rate"], 1 / 3)
+        self.assertNotIn("naming", summary["per_case"]["R1"])
+
+    def test_a_creation_row_carries_no_clarification_bucket(self) -> None:
+        """The two groups are never pooled, and this is where that would
+        leak: a creation row has no metrics, so it must not create one."""
+        summary = E.summarise([
+            {"case": "M1", "strict_success": True, "codes": [], "label": "MODEL_GENERATED"},
+        ])
+        self.assertNotIn("clarification", summary)
+
+
+class TheDeadGuardTests(unittest.TestCase):
+    """The committed evidence, re-read. No model was called for any of this.
+
+    These numbers come from the recorded raw output of runs that already
+    happened, the same way Stage 68 re-graded two baselines offline.
+    """
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.rows = []
+        for name in ("baseline.json", "baseline-phase-b.json",
+                     "baseline-phase-b-n3.json"):
+            path = STAGE75 / name
+            if not path.is_file():      # pragma: no cover - evidence present
+                continue
+            for row in json.loads(path.read_text(encoding="utf-8"))["attempts"]:
+                if "emitted_no_operations" in (row.get("checks") or {}):
+                    cls.rows.append(row)
+
+    def test_the_old_guard_never_fired_while_the_model_shipped_operations(self) -> None:
+        self.assertGreaterEqual(len(self.rows), 24,
+                                "the recorded evidence is missing")
+        fired = sum(1 for r in self.rows
+                    if r["checks"]["emitted_no_operations"] is False)
+        shipped = sum(
+            1 for r in self.rows
+            if (E._operations_the_model_wrote(
+                (r.get("observation") or {}).get("raw_text")) or 0) > 0)
+        self.assertEqual(fired, 0, "the old guard is not dead after all")
+        self.assertGreater(shipped, 0,
+                           "no recorded attempt shipped operations")
+
+    def test_the_correction_moves_no_committed_verdict(self) -> None:
+        """Why Phase B's 7/24 still stands and stays comparable.
+
+        The five rows the correction fixes already failed, on
+        `provider_output_valid`. The metric was wrong; the verdict was not.
+        """
+        moved = 0
+        for row in self.rows:
+            observation = dict(row["observation"])
+            written = E._operations_the_model_wrote(observation.get("raw_text"))
+            observation["model_operation_count"] = (
+                written if written is not None
+                else observation["operation_count"])
+            if bool(E.grade(observation)["strict_success"]) != bool(
+                    row["strict_success"]):
+                moved += 1
+        self.assertEqual(moved, 0)
+
 
     def test_a_clarification_must_address_the_request_it_answers(self) -> None:
         """R2 asks about a `bracket`. A clarification that never mentions
