@@ -1080,7 +1080,7 @@ current facts** (here), **historical milestone facts** (the per-stage
 subsections below, which are a record and are not rewritten), **known
 limitations** and **planned work**.
 
-**Branch and checkpoint.** `experiment/cad-operation-graph`, Stages 32–63
+**Branch and checkpoint.** `experiment/cad-operation-graph`, Stages 32–75
 complete and pushed. `git log --oneline -5` and `git status` are
 authoritative; this is a snapshot.
 
@@ -1154,6 +1154,34 @@ working shown). Mass **requires** a named material or stated density.
 
 Conflating the first two was a real bug; `Interpretation.refused` is separate
 from `Interpretation.error` for exactly this reason.
+
+**THE LIVE ROUTE, AS IT STANDS (Stage 75).** These are the three
+identities every recorded result must be read against. A number measured
+under a different prompt or a different grammar is a different number.
+
+| | |
+|---|---|
+| model | **`claude-haiku-4-5-20251001`** |
+| prompt | **`2026-09-24.1`** / `c0c4a1be0d23052f` / **33407** chars |
+| encoding sent | **`strict_selector_union_part`** |
+| inlined characters | **3874** |
+| fingerprint | `ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f` |
+| branches | **6** — box, cylinder, through_hole, `subtract\|union`, `fillet\|chamfer`, **`part`** |
+| live verdict | **ACCEPTED** — one probe, `structured_output` true 2/2, 0/2 fenced |
+
+`generation.PLAN_SCHEMA_NAME` moved from `strict_selector_union` (3628) to
+`strict_selector_union_part` (3874) in Stage 75, for the reason Stage 44
+found and Stages 48 and 63 found again: prompt `2026-09-24.1` teaches the
+`part` declaration, and decoding that prompt against a grammar with no
+`part` branch would turn every several-body request into a **forced
+refusal recorded as the model's judgement**. The order was deliberate and is
+the thing to preserve — the grammar was measured accepted **before** the
+prompt moved, so neither half of that defect was introduced to fix the
+other. 3874 is well under the (4481, 4551] ceiling bracket.
+
+**No multi-body number has been measured on a model yet.** The corpus, the
+ground truth and the evaluator exist; the baseline run does not. See Stage 75
+below.
 
 **Live provider — VERIFIED (Stage 63).** Model
 **`claude-haiku-4-5-20251001`**, 5 attempts at the golden six-plate request:
@@ -1877,7 +1905,8 @@ mutation-tested.
 | `profile` | 3487 | 4 | **PROVEN** (Stage 50) |
 | `strict_selector` | 3619 | 5 | **PROVEN** (Stage 55) |
 | `executable` | 3622 | 6 | **PROVEN** (Stage 43) — frozen, fp `54759d1e16cfe634` |
-| **`strict_selector_union`** | **3628** | **5** | **PROVEN (Stage 63)** — what the live route sends |
+| `strict_selector_union` | 3628 | 5 | **PROVEN** (Stage 63) — what the route sent until Stage 75 |
+| **`strict_selector_union_part`** | **3874** | **6** | **PROVEN (Stage 75)** — what the live route sends |
 | `profile_hole` | 4030 | 5 | **PROVEN** (Stage 51) |
 | `profile_union` | 4481 | 6 | **PROVEN** (Stage 51) — largest ever accepted |
 | `compact` | 6199 | 8 | **REFUSED** |
@@ -1957,10 +1986,10 @@ build path.
 
 ### Where this branch stands, and what is next
 
-Stages 32–64 are complete and pushed. The subsections below are the index,
-in order; they stop at Stage 48, and **Stages 49–64 are documented only in
-`docs/experimental-operation-plan.md`** — read its `## Stage NN` headings for
-those. The five most recent are:
+Stages 32–75 are complete and pushed. The subsections below are the index,
+in order; they stop at Stage 48, and **Stages 49–75 are documented only in
+`docs/experimental-operation-plan.md`** and in the per-stage subsections
+here — read its `## Stage NN` headings for those. The most recent are:
 
 | Stage | What it settled |
 |---|---|
@@ -1970,6 +1999,7 @@ those. The five most recent are:
 | **61** | **A CAD session that needs no model at all**: `union` (eleventh type, still eight schema branches), two provider-neutral grammars, and an evidence answerer that labels every number `MEASURED` / `DECLARED` / `CALCULATED`. |
 | **62** | The four defects Stage 61 left behind — **an operation is not one edit.** The live route could not *say* `union` (Stage 44's defect a third time); a `union` plan could lose a solid silently; `ExecutionUnsupported` named the wrong reason for it; and a recorded schema size had drifted unpinned. |
 | **64** | **The AI provider usage policy, and CLAUDE.md reconciled.** The rule forbidding Claude Code Web a real credential is retired: where one is available a real provider is used, and live calls are encouraged. `CREDENTIAL_PRECEDENCE` makes the two-variable behaviour explicit instead of implicit. 22 guards now pin the policy and stop the document drifting from the code. |
+| **75** | **The live multi-body path opened — instrument built, baseline NOT yet run.** The grammar was measured first: `strict_selector_union_part` (3874 inlined, 6 branches, fingerprint `ef7427700af93ed7`) is **ACCEPTED** live, `structured_output` true 2/2 and unfenced. Only then did the prompt move to `2026-09-24.1` (`c0c4a1be0d23052f`, 33407 chars), teaching the `part` declaration and a `# Several bodies` section — so the two halves of the Stage 44 defect were closed in that order and separately, and the live route now sends the grammar that can carry what the prompt teaches. Nine recorded provider fingerprints are byte-identical: `part` stays out of `OPERATION_TYPES`. The 8-case corpus (M1–M8, six creation and two refusal, never pooled), its immutable ground truth and a purpose-built evaluator live in `docs/evaluation-baselines/stage75-multibody/`. **No model has been asked any of it.** |
 | **73/74** | **Multi-body steps 4 and 5: measuring it, and exporting it.** No new operation, P-code, schema or prompt change — again. A question naming a body is answered from THAT body; one naming none of several is **REFUSED**, phrased for a question rather than an edit; a total is explicitly summed and the combined **envelope** is `ASSUMED`, the fourth provenance, because that box holds the air between the bodies too. Export writes a real STEP assembly: every body, none fused, each under its own id, verified by reading the file back and counting solids **and** checking the names survived — handed a compound BOTH engines write a geometrically perfect file whose bodies are anonymous, and no count can see that. Found and fixed the last `bodies[0]`, in the BROWSER, and an engineering route that was never gated and merged both bodies' holes into one list. A detail drawing of one body is real; an assembly drawing is refused by name. |
 | **72** | **Multi-body step 2: addressing a body by name.** One resolver, `body_reference.resolve_body`, and no new operation, P-code or schema change — the plan could always name a body; turning a sentence into one of those ids was what was missing. A body is named by its **id** and nothing else; naming none of several, naming two, or naming a consumed one all **REFUSE** with the bodies listed. Fixed two defects the slice exposed: the envelope spanned every body (a bore 15 mm off centre in a plan that still built) and a failed selection did not say which body. Editing each body in turn leaves the other bit-identical on both kernels, and the browser shows the refusal as an answer. |
 | **71** | **Multi-body step 1: distinct body identity.** One new operation, `part`, that DECLARES a live body is an intended body of the result — kept out of `OPERATION_TYPES` so no schema or prompt fingerprint moves. Two live bodies with no declaration still fail `multiple_solids`; the executor gains one explicit exemption. P33–P35. One RenderModel per body, never merged; `result.part` unchanged. A 40 mm cube and a Ø20×30 cylinder build as two bodies, **bit-identical on CadQuery 2.8.0 and FreeCAD 1.0.0**, and pass through a real browser with no model configured. Single-body product unchanged. |
@@ -2294,6 +2324,102 @@ complete.** Stage 70 measured P11 on a *one*-body union at 5.6 %; adding a
 `part` branch to the live encoding before that is understood would measure
 two unknowns at once, which is the mistake Stage 44 and Stage 48 each found
 in a different place.
+
+> **Superseded by Stage 75, below.** That gate is now met and the grammar is
+> open: the deterministic slice finished at Stage 74, and Stage 75 opened the
+> model-facing path — grammar measured first, prompt second. Read the two
+> paragraphs above as the condition that was set, not as the current state.
+
+### Stage 75: the live multi-body path, opened but not yet measured
+
+The gate the section above set is met, and this is what opening it consisted
+of. **Nothing here is a result.** No model has been asked a multi-body
+question; the stage built the instrument and stopped before the run, on
+purpose, so the baseline can be one contiguous measurement rather than two
+halves taken under different conditions.
+
+**The grammar was measured before the prompt moved, and that order matters.**
+`strict_selector_union_part` — `strict_selector_union` plus a sixth branch
+that can say `part` — compiles live: 3874 inlined characters, fingerprint
+`ef7427700af93ed7`, `structured_output` true on 2/2 calls and 0/2 fenced.
+Only after that verdict did `prompt.py` move to `2026-09-24.1`. Had the
+prompt gone first, a refusal would have been indistinguishable from an
+inexpressible request — Stage 44's defect, which Stages 48, 62 and 63 each
+found again somewhere else. The two halves were closed separately so neither
+could be introduced to fix the other.
+
+**`part` stays out of `OPERATION_TYPES`.** Nine recorded provider
+fingerprints are byte-identical across this stage, checked rather than
+assumed: `plan_schema 34b6391fa9ce4700`, `provider_schema 838aba85e5fa7587`,
+`compact_provider_schema c5936b06e6acba86`, `executable_schema
+54759d1e16cfe634` (Stage 43's frozen instrument) among them. The declaration
+tier is what makes that possible, and it is why the tier exists.
+
+**What the prompt gained.** A `# Several bodies` section with a worked
+example in the prompt's own numbers — a 50×50×8 plate, a Ø12×25 post, two
+`part` declarations, and a bore that targets the plate and only the plate —
+because the last four stages all found the same thing: the model imitates
+what the prompt SHOWS, not what it says. Five rules with it — declare every standing body exactly
+once; a body is named by the solid's own id, never the declaration's; **one
+body means no `part` at all**; an id names the body, not the product; and
+"fuse" is a `union` and ONE body — plus a closing paragraph that a later
+request naming no body must ask rather than choose, because **guessing is
+worse than asking**. The single-solid rule is qualified, not deleted; its
+pinned phrase `exactly ONE solid left` is unchanged.
+
+**The corpus.** Eight cases in `docs/evaluation-baselines/stage75-multibody/`
+— six creation (M1, M2, M3, M4, M5, M8) and two refusal (M6, M7), scored
+separately and **never pooled**, because a refusal rate and a build rate are
+different quantities and mixing them is how a model that refuses everything
+scores well. M8 is the control: an explicit fuse must give ONE body and must
+NOT declare a `part`, which catches the predictable way a multi-body prompt
+goes wrong. The refusal cases start from a **deterministic** two-body fixture,
+never from a model-generated part, so a setup failure cannot be recorded as a
+refusal failure.
+
+**The evaluator is purpose-built, and that was forced.** Every existing
+instrument would either mis-grade a multi-body case or decline to grade one:
+Stage 68's arena reads `execution.bodies[0].measurement`, which on a two-body
+part grades the part by its first body and reports a pass;
+`stage48_capability_evaluation._measure` returns a body count and nothing
+else when bodies != 1; `harness.py` cannot score a graph-executed build at
+all. Reusing any of them would manufacture successes. `evaluate75.py` grades
+**every** body as an unordered multiset and never indexes a body by position;
+an AST test pins that, because a substring search reports the opposite — both
+modules quote `bodies[0]` in prose explaining its absence, and that already
+produced one wrong reading during the stage.
+
+**Truth cannot come from output.** `expected()` takes a case **name** and
+nothing else; the signature is the guarantee. `grade()` takes one
+observation and fetches its own truth. `ground_truth75.py` imports `math` and
+`typing` and nothing else. This is Stage 67's defect, which cost that stage
+its headline number.
+
+**The grader was shown to bite.** 18 mutants of `evaluate75.py` — each
+disabling one criterion — were applied and the focused suite re-run against
+every one. **18/18 killed.** Two survived the first sweep and were real gaps,
+not noise: a grader that compares TOTAL volume instead of per-body volumes
+(the trap the stage exists to avoid — two disjoint solids fused have exactly
+the total of the two apart), and a grader that stops asking whether the model
+actually declined. Both now have a test that isolates them, and the sweep is
+reproducible: `test_stage75_multibody_evaluator.py` documents each.
+
+**What must NOT change before the baseline is recorded**, because changing
+any of it makes the run unrepeatable and the number incomparable:
+
+- the prompt: `2026-09-24.1` / `c0c4a1be0d23052f` / 33407 chars;
+- the encoding: `strict_selector_union_part` / 3874 / `ef7427700af93ed7`;
+- the model: `claude-haiku-4-5-20251001`;
+- every request text in `ground_truth75.py`, verbatim — Stage 68's finding
+  was that the REQUEST is a variable of the experiment, so editing one makes
+  a NEW case with a new name and never edits an existing one;
+- every expectation in `ground_truth75.py`. Fix the prompt or the code, then
+  re-measure. **Never edit an expectation after seeing a score.**
+
+**Remaining Stage 75 phases:** the live baseline itself, then the per-case
+and per-group rates with the failure taxonomy, then whatever the measured
+failures say to change — in that order, one variable at a time, the way
+Stages 65, 66 and 69 were run.
 
 ### Next: multi-body semantics (design only, nothing implemented)
 

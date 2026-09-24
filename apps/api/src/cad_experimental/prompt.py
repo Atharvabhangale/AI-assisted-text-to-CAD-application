@@ -24,7 +24,7 @@ from .plan import AXES, OPERATION_TYPES, PlanStatus
 #: sided, p = 0.00132) and reverted it, so it names a prompt that exists
 #: nowhere in the history. Leaving the number burnt keeps that record
 #: unambiguous.
-PROMPT_VERSION = "2026-09-18.5"
+PROMPT_VERSION = "2026-09-24.1"
 
 SYSTEM_PROMPT = f"""\
 You turn a description of a mechanical part into a CAD operation plan.
@@ -511,6 +511,11 @@ consumed as a subtract's tool, or is fused into the part by a `union`. A
 solid you make and never subtract or fuse is a leftover, not
 a second body, and the plan is wrong.
 
+That rule holds unless the description asks for SEVERAL SEPARATE BODIES, and
+then you must declare each one -- see `# Several bodies` below. Leaving two
+solids standing without declaring them is still wrong; what changes is that
+you can now say you meant it.
+
 That gives the shape of nearly every part: make the body, make the shapes you
 want removed, remove them, repeat any feature that is regular, then round or
 bevel what is left. For example, a
@@ -537,6 +542,52 @@ else that is removed.
 Build the part in the order someone would actually make it, and give each
 operation an id that says what it is. Do not add an operation the description
 did not ask for.
+
+# Several bodies
+
+Most parts are one body and need nothing from this section. When the
+description asks for separate, independent bodies -- "two separate bodies",
+"as independent parts", "beside it, not joined" -- declare each one with
+`part`.
+
+A `part` carries `target` beside `id` and `type`, and NO `parameters`. It
+creates no geometry: it declares that a solid you already made is one of the
+finished bodies.
+
+A 50 mm square baseplate and a 12 mm post beside it, with a hole in the plate
+only:
+
+  {{"id": "plate", "type": "box", "parameters": {{"x": 50, "y": 50, "z": 8}}}}
+  {{"id": "post",  "type": "cylinder",
+    "parameters": {{"diameter": 12, "height": 25,
+                  "position": {{"x": 80, "y": 25, "z": 0}}}}}}
+  {{"id": "b1",    "type": "part", "target": "plate"}}
+  {{"id": "b2",    "type": "part", "target": "post"}}
+  {{"id": "bore",  "type": "through_hole", "target": "plate",
+    "parameters": {{"diameter": 6, "position": {{"x": 25, "y": 25, "z": 0}}}}}}
+
+Read what that does. `plate` and `post` are two solids and neither is
+subtracted or fused, so each gets its own `part`. `bore` names `plate`, so
+only the plate is drilled -- `post` is untouched and stays a separate body.
+An operation names the BODY it acts on, never the `part` declaration: the
+target is `plate`, never `b1`.
+
+The rules, all five:
+
+* declare EVERY standing body, exactly once each. One `part` per body;
+* a body is named by the id of the solid itself -- `plate`, `post`. The
+  `part` declaration's own id names nothing;
+* ONE body means NO `part` at all. A single part needs no declaration, and
+  adding one says the request asked for something it did not;
+* an id names the body, not the product. `plate` and `post`, not `assembly`,
+  `product` or `part1`;
+* if the description asks to fuse, join or combine the shapes, that is a
+  `union` and ONE body -- not two declared bodies.
+
+When a later request does not say WHICH body it means, do not choose one. Say
+"{PlanStatus.NEEDS_CLARIFICATION.value}" and ask, listing the bodies by name.
+"Make it 10 mm taller" with a plate and a post standing names neither, and
+guessing is worse than asking.
 
 # Units
 
@@ -596,6 +647,10 @@ and an extrude and a revolve carry `target` and their parameters:
 
   {{"id": "body", "type": "revolve", "target": "profile",
     "parameters": {{"angle": 360, "axis": "+Z"}}}}
+
+and a part carries `target` and nothing else -- no `parameters` at all:
+
+  {{"id": "b1", "type": "part", "target": "plate"}}
 
 and a pattern carries `source` and its count and placement:
 

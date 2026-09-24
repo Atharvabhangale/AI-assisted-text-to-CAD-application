@@ -28,7 +28,7 @@ from .config import MAX_OUTPUT_TOKENS, ExperimentalConfig
 from .plan import (
     OperationPlan,
     PlanStatus,
-    strict_selector_union_provider_schema,
+    strict_selector_union_part_provider_schema,
 )
 from .prompt import PROMPT_VERSION, prompt_fingerprint, system_prompt
 from .parser import PlanParseError, parse_plan_text
@@ -45,13 +45,24 @@ from .validation import PlanValidation, validate_plan
 #: built, and decoding against a grammar with no `union` branch would make
 #: every such request a forced refusal recorded as the model's judgement --
 #: the same mistake a third time. The widening costs nine characters and no
-#: branch. Its live compilability is NOT yet measured; see
-#: :func:`~cad_experimental.plan.strict_selector_union_provider_schema`.
-PLAN_SCHEMA_NAME = "strict_selector_union"
+#: branch.
+#:
+#: `strict_selector_union_part` since Stage 75, for that same reason a
+#: fourth time: prompt `2026-09-24.1` teaches the `part` declaration as how
+#: a SEVERAL-BODY request is answered, and a grammar with no `part` branch
+#: would turn every such request into a forced refusal recorded as the
+#: model's judgement. The order matters and was kept: the grammar was
+#: measured ACCEPTED live (3874 inlined, 6 branches, one probe, unfenced)
+#: BEFORE the prompt moved, so neither half of the Stage 44 defect was
+#: introduced to fix the other. 3874 sits under the 4481 measured-accepted
+#: ceiling and well under the 4551 measured refusal; see
+#: :func:`~cad_experimental.plan.strict_selector_union_part_provider_schema`.
+PLAN_SCHEMA_NAME = "strict_selector_union_part"
 
 #: Computed once, from the one definition in :mod:`schema_ladder`, so this
 #: cannot drift from what the ladder measures.
-_PLAN_SCHEMA_METRICS = grammar_metrics(strict_selector_union_provider_schema())
+_PLAN_SCHEMA_METRICS = grammar_metrics(
+    strict_selector_union_part_provider_schema())
 PLAN_SCHEMA_FINGERPRINT: str = _PLAN_SCHEMA_METRICS["fingerprint"]
 PLAN_SCHEMA_INLINED: int = _PLAN_SCHEMA_METRICS["inlined_characters"]
 
@@ -192,7 +203,7 @@ class OperationPlanService:
         conversation -- see :func:`cad_experimental.session.revision_context`.
         It changes **only the user turn**: the system prompt is the same
         string with the same fingerprint, and the output schema is the same
-        `strict_selector_union` encoding, so a revision is interpreted by
+        `strict_selector_union_part` encoding, so a revision is interpreted by
         exactly the instrument that interprets a first request. ``description`` is
         still what gets recorded and reported as the request.
 
@@ -261,7 +272,7 @@ class OperationPlanService:
             # BUILD, and the parser re-derives every per-type requirement
             # regardless. The chosen encoding is reported in the metadata so
             # a caller can tell which grammar produced an answer.
-            output_schema=strict_selector_union_provider_schema(),
+            output_schema=strict_selector_union_part_provider_schema(),
             max_output_tokens=max_output_tokens or MAX_OUTPUT_TOKENS,
         )
 

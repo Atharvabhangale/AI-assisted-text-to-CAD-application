@@ -162,13 +162,64 @@ class TheDeclarationTierChangesNoRecordedIdentityTests(unittest.TestCase):
                 text = json.dumps(getattr(plan_module, name)())
                 self.assertNotIn(f'"{PART}"', text)
 
-    def test_the_prompt_is_untouched(self) -> None:
-        self.assertEqual(prompt_module.PROMPT_VERSION, "2026-09-18.5")
+    def test_the_prompt_now_teaches_the_declaration(self) -> None:
+        """Stage 75 deliberately opened what Stages 71-74 kept shut.
+
+        This test was `test_the_prompt_is_untouched`, and it asserted the
+        opposite: version 2026-09-18.5, its fingerprint, and that "`part`"
+        appeared nowhere in the prompt. That was correct for the
+        deterministic slice, whose whole discipline was that the declaration
+        tier moved NO recorded identity.
+
+        The slice is complete (Stages 71-74) and the gates the design set are
+        met, so Stage 75 teaches it. The schemas above are STILL pinned
+        byte-for-byte -- only the prompt moved, and only on purpose.
+
+        `2026-09-18.5` -> `2026-09-24.1`.
+        """
+        self.assertEqual(prompt_module.PROMPT_VERSION, "2026-09-24.1")
         self.assertEqual(
             prompt_module.prompt_fingerprint(),
-            "8563c6fb821e022f4041811ef88b6cb677482dfcfdaa57cc0eee34c588dfa255",
+            "c0c4a1be0d23052fa8b2f36d0e1c3722eeb6b52f904d0cf56a6db43426af3e49",
         )
-        self.assertNotIn("`part`", prompt_module.system_prompt())
+        text = prompt_module.system_prompt()
+        self.assertIn("# Several bodies", text)
+        self.assertIn('"type": "part"', text)
+
+    def test_the_prompt_shows_part_rather_than_describing_it(self) -> None:
+        """Four stages measured the same thing: what the model imitates is
+        what the prompt SHOWS. Stages 65, 66, 69 and 70 each found prose
+        about a rule moving nothing. So the section must carry a worked
+        example, and that example must be a complete, legal plan."""
+        section = prompt_module.system_prompt().split("# Several bodies", 1)[1]
+        section = section.split("# Units", 1)[0]
+        for shown in ('"type": "part"', '"target": "plate"',
+                      '"type": "through_hole"', '"type": "cylinder"'):
+            self.assertIn(shown, section)
+
+    def test_the_prompt_does_not_recommend_part_for_one_body(self) -> None:
+        """`part` is a ROUTING switch: EXECUTOR_ONLY_TYPES is ('union',
+        'part'), so any plan carrying one leaves the V1-document path and its
+        process isolation. A prompt that offered `part` as general hygiene
+        would move the whole product off that path silently."""
+        section = prompt_module.system_prompt().split("# Several bodies", 1)[1]
+        section = section.split("# Units", 1)[0]
+        self.assertIn("ONE body means NO `part` at all", section)
+        self.assertIn("Most parts are one body", section)
+
+    def test_the_prompt_refuses_to_guess_which_body(self) -> None:
+        section = prompt_module.system_prompt().split("# Several bodies", 1)[1]
+        section = section.split("# Units", 1)[0]
+        self.assertIn("do not choose one", section)
+        self.assertIn("guessing is worse than asking", section)
+
+    def test_the_single_solid_rule_is_qualified_not_deleted(self) -> None:
+        """The default is unchanged and still stated. Deleting it would have
+        taught the model that two standing solids are always fine, which is
+        what rule P34 exists to refuse."""
+        text = prompt_module.system_prompt()
+        self.assertIn("exactly ONE solid left", text)
+        self.assertIn("SEVERAL SEPARATE BODIES", text)
 
     def test_the_executable_set_still_means_what_it_says(self) -> None:
         """`part` builds nothing, so it is not executable -- it is buildable.

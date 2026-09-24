@@ -1225,10 +1225,15 @@ class PromptTests(unittest.TestCase):
         deliberately unused -- see `PROMPT_VERSION`'s own comment. See
         `docs/evaluation-baselines/stage69-bore-axis-centre/`.
         """
-        self.assertEqual(self.version, "2026-09-18.5")
+        # `2026-09-24.1` is Stage 75, which taught the `part` declaration
+        # and the `# Several bodies` section. The grammar that can carry it
+        # (`strict_selector_union_part`, 3874 inlined) was measured accepted
+        # live BEFORE the prompt moved, so the two halves of the Stage 44
+        # defect were closed in that order and separately.
+        self.assertEqual(self.version, "2026-09-24.1")
         self.assertEqual(
             self.fingerprint,
-            "8563c6fb821e022f4041811ef88b6cb677482dfcfdaa57cc0eee34c588dfa255",
+            "c0c4a1be0d23052fa8b2f36d0e1c3722eeb6b52f904d0cf56a6db43426af3e49",
         )
         self.assertEqual(len(self.fingerprint), 64)
 
