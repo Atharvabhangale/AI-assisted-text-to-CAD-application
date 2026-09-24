@@ -101,8 +101,18 @@ class Operation:
 
 
 class Plan:
-    def __init__(self, operations):
+    """Shaped like the real `OperationPlan`: the MODEL's words live here.
+
+    This is the whole Phase A bug in one class. `summary`, `reason` and
+    `questions` are fields of the PLAN, not of the result, and a stand-in
+    that put them on the result would have let the broken observer pass.
+    """
+
+    def __init__(self, operations, summary="", reason=None, questions=()):
         self.operations = list(operations)
+        self.summary = summary
+        self.reason = reason
+        self.questions = tuple(questions)
 
 
 class Validation:
@@ -121,13 +131,25 @@ class Metadata:
 
 
 class Generation:
+    """Shaped like the real `PlanGenerationResult`.
+
+    Note what is DELIBERATELY absent: there is no `self.questions`. The real
+    dataclass has no such attribute, and Phase A's observer read it anyway
+    and got `()` from the default. A stand-in that provided one would have
+    hidden the defect, so this one refuses to.
+
+    `error` is the SYSTEM's message -- the validator's or the provider's --
+    and is kept apart from anything the model said.
+    """
+
     def __init__(self, operations=(), outcome="generated", valid=True,
-                 questions=(), error=None):
-        self.plan = Plan(operations)
+                 questions=(), summary="", reason=None, error=None,
+                 plan=True):
+        self.plan = (Plan(operations, summary, reason, questions)
+                     if plan else None)
         self.plan_validation = Validation(valid)
         self.outcome = Outcome(outcome)
         self.metadata = Metadata()
-        self.questions = tuple(questions)
         self.error = error
 
 
@@ -190,7 +212,7 @@ def m3_correct():
     ]))
 
 
-def m4_correct():
+def m4_shaped():
     return observe("M4", two_body_generation(), Execution([
         Body("solid1", Measurement(G.CUBE_VOLUME, **CUBE_BOX)),
         Body("solid2", Measurement(G.PIN_VOLUME_EDITED,
@@ -209,33 +231,49 @@ def m5_correct():
     ]))
 
 
-def m8_correct():
-    generation = Generation(operations=[
-        Operation("cube", "box"),
-        Operation("pin", "cylinder"),
-        Operation("fuse", "union", "cube"),
-    ])
-    return observe("M8", generation, Execution([
-        Body("fuse", Measurement(G.FUSED_VOLUME, face_count=8,
-                                 minimum=(0.0, 0.0, 0.0),
-                                 maximum=(70.0, 40.0, 40.0))),
+def n1_correct():
+    """M4's intent with the separation the request now states."""
+    return observe("N1", two_body_generation(), Execution([
+        Body("solid1", Measurement(G.CUBE_VOLUME, **CUBE_BOX)),
+        Body("solid2", Measurement(G.PIN_VOLUME_EDITED,
+                                   face_count=G.CYLINDER_FACES,
+                                   minimum=(50.0, 0.0, 0.0),
+                                   maximum=(70.0, 20.0, 40.0))),
     ]))
 
 
-def refusal_correct(case):
-    generation = Generation(
+def n2_correct():
+    """A fuse that can actually build: the solids overlap by 10 mm."""
+    generation = Generation(operations=[
+        Operation("cube", "box"),
+        Operation("post", "cylinder"),
+        Operation("fuse", "union", "cube"),
+    ])
+    return observe("N2", generation, Execution([
+        Body("fuse", Measurement(G.N2_FUSED_VOLUME, face_count=8,
+                                 minimum=(0.0, 0.0, 0.0),
+                                 maximum=(40.0, 40.0, 60.0))),
+    ]))
+
+
+def refusal_correct(case, extra=""):
+    """Declines, names both bodies, asks in the `questions` FIELD, and
+    carries no operations."""
+    return observe(case, Generation(
         operations=[],
         outcome="needs_clarification",
-        questions=("Two bodies stand: block and rod. Which do you mean?",),
-    )
-    return observe(case, generation, None)
+        summary="ambiguous which body is meant",
+        questions=(f"Two bodies stand, block and rod. Which do you mean?"
+                   f"{extra}",),
+    ), None)
 
 
 CORRECT = {
-    "M1": m1_correct, "M2": m2_correct, "M3": m3_correct, "M4": m4_correct,
-    "M5": m5_correct, "M8": m8_correct,
-    "M6": lambda: refusal_correct("M6"),
-    "M7": lambda: refusal_correct("M7"),
+    "M1": m1_correct, "M2": m2_correct, "M3": m3_correct, "M5": m5_correct,
+    "N1": n1_correct, "N2": n2_correct,
+    "R1": lambda: refusal_correct("R1"),
+    "R2": lambda: refusal_correct("R2", " There is no bracket."),
+    "R3": lambda: refusal_correct("R3"),
 }
 
 
@@ -251,9 +289,13 @@ class CorpusTests(unittest.TestCase):
     """The corpus is a fixed instrument and says what it was built to say."""
 
     def test_the_corpus_is_eight_cases_split_six_and_two(self) -> None:
-        self.assertEqual(len(G.CASES), 8)
-        self.assertEqual(G.CREATION_CASES, ("M1", "M2", "M3", "M4", "M5", "M8"))
-        self.assertEqual(G.REFUSAL_CASES, ("M6", "M7"))
+        self.assertEqual(len(G.CASES), 13)
+        self.assertEqual(G.ACTIVE,
+                         ("M1", "M2", "M3", "M5", "N1", "N2", "R1", "R2", "R3"))
+        self.assertEqual(G.RETIRED, ("M4", "M6", "M7", "M8"))
+        self.assertEqual(G.CREATION_CASES,
+                         ("M1", "M2", "M3", "M5", "N1", "N2"))
+        self.assertEqual(G.REFUSAL_CASES, ("R1", "R2", "R3"))
 
     def test_every_request_text_is_pinned_verbatim(self) -> None:
         """Stage 68's finding was that the REQUEST is a variable of the
@@ -266,10 +308,16 @@ class CorpusTests(unittest.TestCase):
             "Create a 40 mm cube and a 20 mm diameter cylinder 30 mm long "
             "beside it as two separate bodies.",
         )
-        self.assertEqual(G.CASES_BY_NAME["M6"].text, "Make the body 10 mm taller.")
+        self.assertEqual(G.CASES_BY_NAME["R1"].text, "Make the body 10 mm taller.")
         self.assertEqual(
-            G.CASES_BY_NAME["M7"].text, "Make the bracket 10 mm taller."
+            G.CASES_BY_NAME["R2"].text, "Make the bracket 10 mm taller."
         )
+        self.assertEqual(G.CASES_BY_NAME["R3"].text, "Put a hole through it.")
+        # R1 and R2 restate M6 and M7 VERBATIM. That is the point: the cases
+        # were never the problem, the observer was, so the only way to get a
+        # clean number is to ask the identical question again.
+        self.assertEqual(G.CASES_BY_NAME["R1"].text, G.CASES_BY_NAME["M6"].text)
+        self.assertEqual(G.CASES_BY_NAME["R2"].text, G.CASES_BY_NAME["M7"].text)
         for case in G.CASES:
             self.assertTrue(case.text.strip(), f"{case.name} has no request")
 
@@ -288,7 +336,7 @@ class CorpusTests(unittest.TestCase):
         """A corpus that demanded `cube` where the request never said `cube`
         would be scoring vocabulary, not capability."""
         self.assertEqual(G.CASES_BY_NAME["M2"].body_ids, ("cube", "pin"))
-        for name in ("M1", "M3", "M4", "M5", "M8"):
+        for name in ("M1", "M3", "M5", "N1", "N2"):
             self.assertIsNone(G.CASES_BY_NAME[name].body_ids,
                               f"{name} pins an id its request never states")
 
@@ -579,21 +627,25 @@ class MutationTests(unittest.TestCase):
         ]))
         graded, codes = scored(duplicated)
         self.assertFalse(graded["strict_success"])
-        self.assertIn(G.I_DUPLICATE_DECLARATION, codes)
+        # Phase B folded `I:duplicate_declaration` into `B:extra_body` and
+        # gave `I` to bad refusals, per the Phase 7 taxonomy. Declaring one
+        # body twice IS claiming a body that is not there, so `B` says it.
+        self.assertIn(G.B_EXTRA_BODY, codes)
+        self.assertIs(graded["checks"]["declared_every_body"], False)
 
     def test_declaring_a_body_on_the_one_body_control_is_caught(self) -> None:
         """M8 exists to catch a model that has learned to declare bodies
         indiscriminately -- the predictable way a multi-body prompt goes
         wrong, and invisible to any check that only counts bodies."""
         generation = Generation(operations=[
-            Operation("cube", "box"), Operation("pin", "cylinder"),
+            Operation("cube", "box"), Operation("post", "cylinder"),
             Operation("fuse", "union", "cube"),
             Operation("d1", "part", "fuse"),
         ])
-        over = observe("M8", generation, Execution([
-            Body("fuse", Measurement(G.FUSED_VOLUME, face_count=8,
+        over = observe("N2", generation, Execution([
+            Body("fuse", Measurement(G.N2_FUSED_VOLUME, face_count=8,
                                      minimum=(0.0, 0.0, 0.0),
-                                     maximum=(70.0, 40.0, 40.0))),
+                                     maximum=(40.0, 40.0, 60.0))),
         ]))
         graded, codes = scored(over)
         self.assertFalse(graded["strict_success"])
@@ -713,7 +765,7 @@ class MutationTests(unittest.TestCase):
     def test_an_edit_that_touches_the_other_body_fails(self) -> None:
         """The whole reason M4 exists. Both bodies grew; the edited one is
         right, and the part is wrong."""
-        leaked = observe("M4", two_body_generation(), Execution([
+        leaked = observe("N1", two_body_generation(), Execution([
             Body("solid1", Measurement(40.0 * 40.0 * 50.0, face_count=G.BOX_FACES,
                                        minimum=(0.0, 0.0, 0.0),
                                        maximum=(40.0, 40.0, 50.0))),
@@ -728,7 +780,7 @@ class MutationTests(unittest.TestCase):
         self.assertIn(G.E_CROSS_BODY_EDIT, codes)
 
     def test_editing_the_wrong_body_fails_as_a_wrong_target(self) -> None:
-        wrong = observe("M4", two_body_generation(), Execution([
+        wrong = observe("N1", two_body_generation(), Execution([
             Body("solid1", Measurement(G.CUBE_VOLUME, **CUBE_BOX)),
             Body("solid2", Measurement(G.PIN_VOLUME, **PIN_BOX)),
         ]))
@@ -755,18 +807,18 @@ class MutationTests(unittest.TestCase):
 
     # --- refusals ---------------------------------------------------------
 
-    def test_guessing_a_body_instead_of_asking_is_a_refusal_failure(self) -> None:
+    def test_guessing_a_body_instead_of_asking_is_a_bad_refusal(self) -> None:
         """"the body" with two bodies standing. A guess is worse than a
         wrong answer, because it is a wrong answer that looks like a right
         one -- the failure Stage 72 built `resolve_body` to prevent."""
-        guessed = observe("M6", Generation(operations=[
+        guessed = observe("R1", Generation(operations=[
             Operation("block", "box"),
-        ], outcome="generated"), Execution([
+        ], outcome="generated", summary="made block taller"), Execution([
             Body("block", Measurement(30.0 * 30.0 * 40.0, face_count=G.BOX_FACES)),
         ]))
         graded, codes = scored(guessed)
         self.assertFalse(graded["strict_success"])
-        self.assertIn(G.K_REFUSAL_FAILURE, codes)
+        self.assertIn(G.I_BAD_REFUSAL, codes)
 
     def test_a_guess_that_happened_not_to_build_is_still_not_a_refusal(self) -> None:
         """Declining is checked in its own right.
@@ -775,11 +827,9 @@ class MutationTests(unittest.TestCase):
         guessed -- but its plan was invalid, so nothing was built and it
         named both bodies in passing. Every other signal a refusal case
         looks at therefore reads like a clean refusal, and only the fact
-        that the model did not decline separates the two. A mutant that
-        stopped asking survived every other refusal test until this one
-        existed, and it scored a guess as a correct refusal.
+        that the model did not decline separates the two.
         """
-        guessed = observe("M6", Generation(
+        guessed = observe("R1", Generation(
             operations=[Operation("block", "box")],
             outcome="generated",
             valid=False,
@@ -790,20 +840,21 @@ class MutationTests(unittest.TestCase):
         self.assertTrue(graded["checks"]["built_nothing"])
         self.assertIs(graded["checks"]["refused"], False)
         self.assertFalse(graded["strict_success"])
-        self.assertIn(G.K_REFUSAL_FAILURE, codes)
+        self.assertIn(G.I_BAD_REFUSAL, codes)
 
     def test_a_refusal_that_names_no_body_is_a_shrug_and_fails(self) -> None:
-        vague = observe("M6", Generation(
+        vague = observe("R1", Generation(
             operations=[], outcome="needs_clarification",
+            summary="ambiguous",
             questions=("Which one did you mean?",),
         ), None)
         graded, codes = scored(vague)
         self.assertFalse(graded["strict_success"])
         self.assertIs(graded["checks"]["named_the_bodies"], False)
-        self.assertIn(G.K_REFUSAL_FAILURE, codes)
+        self.assertIn(G.J_BAD_CLARIFICATION, codes)
 
     def test_a_refusal_that_names_only_one_body_still_fails(self) -> None:
-        half = observe("M7", Generation(
+        half = observe("R2", Generation(
             operations=[], outcome="needs_clarification",
             questions=("There is no bracket. Did you mean block?",),
         ), None)
@@ -813,12 +864,214 @@ class MutationTests(unittest.TestCase):
 
     def test_a_refusal_may_be_unsupported_rather_than_a_question(self) -> None:
         """Both are declining. The corpus grades the ANSWER, not the label
-        the model chose to put on it."""
-        refused = observe("M7", Generation(
+        the model chose to put on it -- but the `questions` field still has
+        to carry the question, because that is the contract's own place for
+        it and using it is a separate fact from being right in prose."""
+        refused = observe("R2", Generation(
             operations=[], outcome="unsupported",
-            error="No body named bracket; block and rod are what exist.",
+            summary="No body named bracket; block and rod are what exist.",
         ), None)
-        self.assertTrue(E.grade(refused)["strict_success"])
+        graded, codes = scored(refused)
+        self.assertTrue(graded["checks"]["named_the_bodies"])
+        self.assertTrue(graded["checks"]["question_addressed_the_request"])
+        self.assertIs(graded["checks"]["asked_a_question"], False)
+        self.assertFalse(graded["strict_success"])
+        self.assertIn(G.J_BAD_CLARIFICATION, codes)
+
+    # --- Phase B: what the corrected observer can finally see -------------
+
+    def test_the_model_words_come_from_the_plan_not_the_result(self) -> None:
+        """THE PHASE A BUG, pinned.
+
+        `PlanGenerationResult` has no `questions` attribute -- the model's
+        words are on `result.plan`. Phase A's observer read the result and
+        `getattr(..., ())` handed it an empty tuple for all 64 live calls,
+        including four whose raw answer carried a populated `questions`
+        list. The run completed and reported 0/16.
+        """
+        import dataclasses
+        from cad_experimental.generation import PlanGenerationResult
+        from cad_experimental.plan import OperationPlan
+        result_fields = {f.name for f in dataclasses.fields(PlanGenerationResult)}
+        plan_fields = {f.name for f in dataclasses.fields(OperationPlan)}
+        self.assertNotIn("questions", result_fields)
+        self.assertLessEqual({"questions", "summary", "reason"}, plan_fields)
+
+        seen = observe("R1", Generation(
+            operations=[], outcome="needs_clarification",
+            summary="two bodies stand",
+            questions=("block or rod?", "which one?"),
+        ), None)
+        self.assertEqual(seen["questions"], ["block or rod?", "which one?"])
+        self.assertEqual(seen["summary"], "two bodies stand")
+
+    def test_an_empty_questions_field_is_distinguishable_from_no_plan(self) -> None:
+        """`None` and `[]` are different facts, and Phase A could not tell
+        them apart -- which is exactly why its empty tuples looked normal."""
+        empty = observe("R1", Generation(
+            operations=[], outcome="needs_clarification", summary="x"), None)
+        self.assertEqual(empty["questions"], [])
+        self.assertTrue(empty["has_plan"])
+
+        absent = observe("R1", Generation(
+            outcome="model_error", plan=False), None)
+        self.assertIsNone(absent["questions"])
+        self.assertFalse(absent["has_plan"])
+        self.assertIsNone(absent["summary"])
+
+    def test_the_systems_words_are_never_read_as_the_models(self) -> None:
+        """`result.error` is the validator's sentence. Phase A merged it
+        into the refusal text under the key `reason`, so a system message
+        mentioning a body could have satisfied a check about what the MODEL
+        named. Here the system names both bodies and the model names
+        neither, and the case must still fail."""
+        crossed = observe("R1", Generation(
+            operations=[], outcome="needs_clarification",
+            summary="ambiguous",
+            error="the plan is invalid; bodies block and rod are live",
+        ), None)
+        self.assertEqual(crossed["system_error"],
+                         "the plan is invalid; bodies block and rod are live")
+        graded, _ = scored(crossed)
+        self.assertIs(graded["checks"]["named_the_bodies"], False)
+        self.assertFalse(graded["strict_success"])
+
+    def test_a_clarification_carrying_operations_is_not_clean(self) -> None:
+        """R3's whole point, and a failure Phase A hit twice by accident
+        with no check for it. The model declines, names both bodies, asks in
+        the right field and builds nothing -- and still ships a cut."""
+        smuggled = observe("R3", Generation(
+            operations=[Operation("bore", "through_hole", "block")],
+            outcome="needs_clarification",
+            summary="unclear which body",
+            questions=("block or rod?",),
+        ), None)
+        graded, codes = scored(smuggled)
+        self.assertTrue(graded["checks"]["refused"])
+        self.assertTrue(graded["checks"]["named_the_bodies"])
+        self.assertTrue(graded["checks"]["asked_a_question"])
+        self.assertTrue(graded["checks"]["built_nothing"])
+        self.assertIs(graded["checks"]["emitted_no_operations"], False)
+        self.assertFalse(graded["strict_success"])
+        self.assertIn(G.I_BAD_REFUSAL, codes)
+
+    def test_a_clarification_must_address_the_request_it_answers(self) -> None:
+        """R2 asks about a `bracket`. A clarification that never mentions
+        the word is answering some other question. Only the user's own noun
+        is pinned -- wording beyond that is not, because over-pinning what
+        a request does not state is what invalidated M4 and M8."""
+        generic = observe("R2", Generation(
+            operations=[], outcome="needs_clarification",
+            summary="two bodies stand: block and rod",
+            questions=("Which body do you mean?",),
+        ), None)
+        graded, codes = scored(generic)
+        self.assertTrue(graded["checks"]["named_the_bodies"])
+        self.assertIs(graded["checks"]["question_addressed_the_request"], False)
+        self.assertFalse(graded["strict_success"])
+        self.assertIn(G.J_BAD_CLARIFICATION, codes)
+
+    # --- Phase B: the retired cases ---------------------------------------
+
+    def test_a_retired_case_can_never_be_scored_again(self) -> None:
+        """M4, M6, M7 and M8 are the record of four invalid measurements.
+        They are kept verbatim and `expected()` refuses them, so no future
+        run can quietly quote a number the corpus has disowned."""
+        for name in ("M4", "M6", "M7", "M8"):
+            self.assertIn(name, G.RETIRED)
+            self.assertTrue(G.CASES_BY_NAME[name].retired,
+                            f"{name} must say why it was retired")
+            with self.assertRaises(ValueError):
+                G.expected(name)
+        for name in G.ACTIVE:
+            self.assertFalse(G.CASES_BY_NAME[name].retired)
+            G.expected(name)
+
+    def test_the_retired_cases_were_not_edited(self) -> None:
+        """Their requests and numbers stay exactly as measured. Editing one
+        would silently change what the Phase A record means."""
+        self.assertEqual(
+            G.CASES_BY_NAME["M4"].text,
+            "Create a 40 mm cube and a 20 mm cylinder as separate bodies, "
+            "then make the cylinder 40 mm long.",
+        )
+        self.assertEqual(
+            G.CASES_BY_NAME["M8"].text,
+            "Create a 40 mm cube and a 20 mm diameter cylinder 30 mm long "
+            "beside it, fused together into a single body.",
+        )
+        # M8's expectation is the plain sum, and that is what made it
+        # unbuildable. Kept, not corrected.
+        self.assertAlmostEqual(G.FUSED_VOLUME, G.CUBE_VOLUME + G.PIN_VOLUME,
+                               places=9)
+
+    def test_the_replacements_fixed_the_thing_that_was_wrong(self) -> None:
+        """N1 states the separation M4 assumed; N2's fuse can build."""
+        self.assertIn("not touching it", G.CASES_BY_NAME["N1"].text)
+        self.assertTrue(G.expected("N1")["disjoint"])
+        n2 = G.CASES_BY_NAME["N2"].text
+        self.assertIn("sunk 10 mm into it", n2)
+        # the contradiction M8 carried must not reappear
+        self.assertNotIn("beside", n2)
+        self.assertAlmostEqual(
+            G.N2_FUSED_VOLUME,
+            G.CUBE_VOLUME + G.PIN_VOLUME - G.N2_BURIED_VOLUME, places=9)
+        self.assertLess(G.N2_FUSED_VOLUME, G.CUBE_VOLUME + G.PIN_VOLUME)
+
+    # --- Phase B: M5 coherence --------------------------------------------
+
+    def test_a_body_too_small_for_the_stated_hole_fails(self) -> None:
+        """The genuine Phase A M5 failure, now named rather than incidental.
+
+        The model chose a 1 mm cube and a 1 mm cylinder for a request that
+        states no dimensions, then drilled the stated 6 mm hole, removing
+        everything. No diameter is expected -- what is required is that the
+        drilled body can physically contain the hole the request names.
+        """
+        tiny = observe("M5", two_body_generation(), Execution([
+            Body("solid1", Measurement(1.0, face_count=G.BOX_FACES,
+                                       minimum=(0.0, 0.0, 0.0),
+                                       maximum=(1.0, 1.0, 1.0))),
+            Body("solid2", Measurement(0.5,
+                                       face_count=G.CYLINDER_FACES + 1,
+                                       minimum=(5.0, 0.0, 0.0),
+                                       maximum=(6.0, 1.0, 1.0))),
+        ]))
+        graded, codes = scored(tiny)
+        self.assertIs(graded["checks"]["bore_fits_the_body"], False)
+        self.assertFalse(graded["strict_success"])
+        self.assertIn(G.G_WRONG_DIMENSIONS, codes)
+
+    def test_no_particular_diameter_is_expected_of_the_cylinder(self) -> None:
+        """The constraint is coherence, not a hidden size. Two very
+        different cylinders both pass, so nothing was smuggled in."""
+        for outer, height in ((20.0, 30.0), (8.0, 12.0)):
+            drilled = observe("M5", two_body_generation(), Execution([
+                Body("solid1", Measurement(G.CUBE_VOLUME, **CUBE_BOX)),
+                Body("solid2", Measurement(100.0,
+                                           face_count=G.CYLINDER_FACES + 1,
+                                           minimum=(50.0, 0.0, 0.0),
+                                           maximum=(50.0 + outer, outer, height))),
+            ]))
+            self.assertTrue(E.grade(drilled)["strict_success"],
+                            f"a {outer} mm cylinder should be acceptable")
+
+    # --- Phase B: a build failure is not a fusion -------------------------
+
+    def test_a_failed_build_is_not_reported_as_an_unwanted_fusion(self) -> None:
+        """Phase A reported H:unwanted_fusion 8/8 for M8, where the real
+        event was that the build FAILED -- it reached the `got < want` arm
+        and saw a `union` in the plan. A code for a shape that does not
+        exist is noise in the taxonomy."""
+        failed = Execution([], succeeded=False)
+        nothing = observe("N2", Generation(operations=[
+            Operation("cube", "box"), Operation("post", "cylinder"),
+            Operation("fuse", "union", "cube"),
+        ]), failed)
+        graded, codes = scored(nothing)
+        self.assertFalse(graded["strict_success"])
+        self.assertNotIn(G.H_UNWANTED_FUSION, codes)
+        self.assertIn(G.K_INVALID_PLAN, codes)
 
     # --- ordering and labelling -------------------------------------------
 
@@ -834,7 +1087,7 @@ class MutationTests(unittest.TestCase):
             operations=[], outcome="invalid_model_output"), None)
         graded, codes = scored(broken)
         self.assertFalse(graded["strict_success"])
-        self.assertIn(G.J_INVALID_PLAN, codes)
+        self.assertIn(G.K_INVALID_PLAN, codes)
         self.assertEqual(E.outcome_label(broken), G.PROVIDER_ERROR)
 
     def test_every_code_the_classifier_can_emit_is_in_the_taxonomy(self) -> None:
@@ -842,7 +1095,7 @@ class MutationTests(unittest.TestCase):
         for build in CORRECT.values():
             observation = build()
             emitted.update(E.classify(observation, E.grade(observation)))
-        for case in ("M1", "M4", "M6"):
+        for case in ("M1", "N1", "R1"):
             observation = CORRECT[case]()
             observation["body_count"] = 99
             observation["bodies"] = []
@@ -852,7 +1105,7 @@ class MutationTests(unittest.TestCase):
     def test_the_two_groups_are_never_pooled(self) -> None:
         rows = [
             {"case": "M1", "strict_success": True, "codes": (), "label": G.MODEL_GENERATED},
-            {"case": "M6", "strict_success": False, "codes": (G.K_REFUSAL_FAILURE,),
+            {"case": "R1", "strict_success": False, "codes": (G.I_BAD_REFUSAL,),
              "label": G.MODEL_GENERATED},
         ]
         summary = E.summarise(rows)

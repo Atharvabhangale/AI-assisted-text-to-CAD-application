@@ -82,6 +82,41 @@ M8_TEXT: Final[str] = (
     "fused together into a single body."
 )
 
+# ---------------------------------------------------- Phase B: new cases
+#
+# M4 and M8 are RETIRED, not edited. Phase A measured them 0/8 each and in
+# both cases the model was right and the case was wrong; they stay here
+# verbatim, in `RETIRED`, because a corpus that deletes its mistakes cannot
+# be audited. Nothing scores them any more.
+#
+# Editing either in place would also have silently changed what a recorded
+# Phase A number means, which is the thing this corpus exists to prevent.
+
+N1_TEXT: Final[str] = (
+    "Create a 40 mm cube and a 20 mm diameter cylinder 30 mm long as two "
+    "separate bodies, with the cylinder standing beside the cube and not "
+    "touching it. Then make the cylinder 40 mm long."
+)
+# N2 states the placement COMPLETELY, on purpose. "overlaps the cube by
+# 10 mm" alone would not: an overlap through a side face is a different
+# solid from an overlap through the top, with a different volume, and both
+# are legal readings. Pinning a volume the request does not determine is
+# exactly what made M4 and M8 invalid, so the request names the face, the
+# axis and the depth, and the expected volume follows from arithmetic.
+N2_TEXT: Final[str] = (
+    "Create a 40 mm cube at the origin and a 20 mm diameter cylinder 30 mm "
+    "long on the +Z axis, centred on the cube's top face and sunk 10 mm "
+    "into it, then fuse them into a single body."
+)
+
+# Three refusal cases against the same deterministic two-body fixture. R1
+# restates M6 on the corrected observer; R2 restates M7; R3 is new and tests
+# the failure the corrected observer can finally see -- a "clarification"
+# that carries operations, which Phase A's M7 hit twice by accident.
+R1_TEXT: Final[str] = "Make the body 10 mm taller."
+R2_TEXT: Final[str] = "Make the bracket 10 mm taller."
+R3_TEXT: Final[str] = "Put a hole through it."
+
 #: The deterministic two-body fixture the refusal cases start from. Written
 #: as a plan, not a request: it is scaffolding, not a thing under test, and
 #: it must never be model-generated (see the module docstring).
@@ -124,7 +159,35 @@ BORE_DIAMETER: Final[float] = 6.0
 #: M8 fuses the two M1 solids. They are disjoint ("beside it"), so the fused
 #: volume is exactly the sum -- a union of disjoint solids adds nothing and
 #: removes nothing.
+#:
+#: **That reasoning is WRONG for this engine, and Phase A proved it 8/8.**
+#: Rule E3 requires a union to leave ONE connected solid, so a union of two
+#: disjoint solids does not produce a body with the summed volume -- it does
+#: not build at all. M8's request is self-contradictory: "beside it" and
+#: "fused together into a single body" cannot both hold. The constant and
+#: the case are kept verbatim as the record of that mistake; N2 is the
+#: buildable replacement. See `RETIRED`.
 FUSED_VOLUME: Final[float] = CUBE_VOLUME + PIN_VOLUME
+
+# ------------------------------------------- Phase B: N2's buildable fuse
+#
+# The request states an OVERLAP, so the fuse is legal and the volume is the
+# sum MINUS the shared material -- which is the whole point of replacing M8
+# with a case whose expectation a kernel can actually meet.
+#
+# The cylinder is d20 x h30 on +Z, overlapping the 40 cube by 10 mm. Reading
+# the request the way it is written: the cylinder rises from inside the
+# cube's top region, so 10 mm of its length is buried in the cube and 20 mm
+# stands proud. The buried part is a full cylinder of length 10 as long as
+# the cylinder's footprint lies within the cube's 40x40 plan, which the
+# request's "overlaps the cube" implies and which any centred placement
+# satisfies.
+N2_OVERLAP_DEPTH: Final[float] = 10.0
+N2_BURIED_VOLUME: Final[float] = (
+    math.pi * (PIN_DIAMETER / 2.0) ** 2 * N2_OVERLAP_DEPTH
+)
+#: 64000 + 9424.777960769379 - 3141.592653589793 = 70283.18530717959
+N2_FUSED_VOLUME: Final[float] = CUBE_VOLUME + PIN_VOLUME - N2_BURIED_VOLUME
 
 #: Relative tolerance for a kernel volume against a closed form. The project
 #: measures cross-kernel agreement at ~1e-11 on parts of this size; 1e-6 is
@@ -148,7 +211,8 @@ class Case:
     __slots__ = (
         "name", "group", "text", "bodies", "body_ids", "declaration_required",
         "volumes", "disjoint", "edited_body_volume", "unchanged_body_volume",
-        "topology", "refusal_must_name", "notes",
+        "topology", "refusal_must_name", "refusal_question_must_mention",
+        "operations_permitted", "retired", "notes",
     )
 
     def __init__(
@@ -166,6 +230,9 @@ class Case:
         unchanged_body_volume: Optional[float] = None,
         topology: Optional[Mapping[str, object]] = None,
         refusal_must_name: Optional[Tuple[str, ...]] = None,
+        refusal_question_must_mention: Optional[Tuple[str, ...]] = None,
+        operations_permitted: bool = True,
+        retired: str = "",
         notes: str = "",
     ) -> None:
         self.name = name
@@ -195,6 +262,18 @@ class Case:
         self.topology = dict(topology) if topology else None
         #: A refusal must name these bodies to count as an answer.
         self.refusal_must_name = refusal_must_name
+        #: Words the clarification must contain to show it addressed THIS
+        #: request rather than emitting a generic question. Separate from
+        #: `refusal_must_name` because naming the bodies and answering the
+        #: question asked are different things.
+        self.refusal_question_must_mention = refusal_question_must_mention
+        #: Whether the answer may carry operations at all. False for every
+        #: refusal case: a "clarification" carrying geometry is an edit
+        #: wearing a question's label, and Phase A could not see it.
+        self.operations_permitted = operations_permitted
+        #: Non-empty when the case is RETIRED: why it was invalid. A retired
+        #: case is never scored and never edited -- it is the record.
+        self.retired = retired
         self.notes = notes
 
 
@@ -222,6 +301,14 @@ CASES: Final[Tuple[Case, ...]] = (
     ),
     Case(
         "M4", CREATION, M4_TEXT, bodies=2, declaration_required=True,
+        retired="Phase A, 0/8, all F:wrong_placement -- and the MODEL WAS "
+                "RIGHT. The request says only `as separate bodies`; it never "
+                "says beside. The case pinned disjoint=True anyway, so two "
+                "bodies at the origin failed a criterion the request does "
+                "not state. Every check the case exists for passed 8/8: two "
+                "bodies, both declared, the cylinder edited to 12566.370614 "
+                "and the cube untouched at 64000. Replaced by N1, which "
+                "states the separation. Kept verbatim, never edited.",
         edited_body_volume=PIN_VOLUME_EDITED,
         unchanged_body_volume=CUBE_VOLUME,
         disjoint=True,
@@ -234,14 +321,27 @@ CASES: Final[Tuple[Case, ...]] = (
             "drilled_body_min_faces": CYLINDER_FACES + 1,
             "untouched_body_faces": BOX_FACES,
             "untouched_body_is_prismatic": True,
+            # Phase B, from a measured failure. NOT a hidden expected size:
+            # no diameter is pinned and the model may still choose any. What
+            # is pinned is a constraint the REQUEST ITSELF entails -- a body
+            # with a 6 mm hole through it must be wider than 6 mm, or the
+            # sentence describes nothing. Phase A's one M5 failure chose a
+            # 1 mm cube and a 1 mm cylinder and then drilled the stated
+            # 6 mm hole, which removed all the material (E2). That is
+            # incoherent dimensioning, and the corpus should say so rather
+            # than score it as a build accident.
+            "bore_diameter": BORE_DIAMETER,
         },
         notes="Body-targeted cut with no dimensions stated anywhere. Pins "
-              "only that the hole went into the cylinder and that the cube "
-              "still has six planar faces and no cylindrical one.",
+              "that the hole went into the cylinder, that the cube still "
+              "has six planar faces and no cylindrical one, and -- Phase B "
+              "-- that the drilled body is physically able to contain the "
+              "6 mm hole the request asks for. No diameter is pinned.",
     ),
     Case(
         "M6", REFUSAL, M6_TEXT, bodies=None, declaration_required=False,
         refusal_must_name=FIXTURE_BODIES,
+        retired="Phase A, 0/16 on the refusal group -- but that number was produced by a BROKEN OBSERVER and is not a measurement of the model. `observe` read `generation.questions`, a field `PlanGenerationResult` does not have, so every call recorded an empty tuple including four whose raw answer carried a populated `questions` list. The CASE was sound; the instrument was not. Restated verbatim as R1 under the corrected observer. The Phase A score stays historical and is never quoted as current.",
         notes="'the body' with two bodies standing. Must refuse and name "
               "both. Guessing either one is failure code K, and it is the "
               "failure Stage 72 built `resolve_body` to prevent.",
@@ -249,26 +349,101 @@ CASES: Final[Tuple[Case, ...]] = (
     Case(
         "M7", REFUSAL, M7_TEXT, bodies=None, declaration_required=False,
         refusal_must_name=FIXTURE_BODIES,
+        retired="Phase A, 0/16 -- same broken observer as M6, and additionally 2/8 returned `needs_clarification` carrying operations, which the old grader had no check for. Restated as R2, with `operations_permitted=False` making that failure visible.",
         notes="A body name that does not exist. Must refuse and say what "
               "does exist. Inventing or silently substituting a body is K.",
     ),
     Case(
         "M8", CREATION, M8_TEXT, bodies=1, declaration_required=False,
+        retired="Phase A, 0/8 -- the request is SELF-CONTRADICTORY and the "
+                "expectation is unreachable. `beside it` and `fused together "
+                "into a single body` cannot both hold: rule E3 refuses a "
+                "union leaving two separate solids, so the fuse does not "
+                "build at all and FUSED_VOLUME (the plain sum) is a volume "
+                "no kernel can produce. The model answered correctly 8/8 -- "
+                "cube at the origin, cylinder at x=50, one union -- and the "
+                "kernel correctly refused. Replaced by N2, whose overlap "
+                "makes the fuse buildable. Kept verbatim, never edited.",
         volumes=(FUSED_VOLUME,),
         notes="The control. An explicit fuse must give ONE body, so `part` "
               "must NOT be declared. Catches a model that has learned to "
               "declare bodies indiscriminately -- which is the predictable "
               "way a multi-body prompt goes wrong.",
     ),
+
+    # ----------------------------------------------- Phase B replacements
+    Case(
+        "N1", CREATION, N1_TEXT, bodies=2, declaration_required=True,
+        edited_body_volume=PIN_VOLUME_EDITED,
+        unchanged_body_volume=CUBE_VOLUME,
+        disjoint=True,
+        notes="M4 done properly. Same intent -- a body-targeted edit that "
+              "must not touch the other body -- but the request now STATES "
+              "the separation (`beside the cube and not touching it`), so "
+              "disjoint=True is something the request determines rather "
+              "than something the corpus assumed. Dimensions and the edit "
+              "are unchanged from M4, so the two are comparable on every "
+              "criterion except the one M4 got wrong.",
+    ),
+    Case(
+        "N2", CREATION, N2_TEXT, bodies=1, declaration_required=False,
+        volumes=(N2_FUSED_VOLUME,),
+        notes="M8's control, made buildable. An explicit fuse must give ONE "
+              "body and must NOT declare a `part` -- unchanged -- but the "
+              "solids now OVERLAP, so rule E3 is satisfied and the fuse can "
+              "actually build. The request names the face, the axis and the "
+              "depth, so the expected volume is arithmetic rather than "
+              "assumption: 64000 + 9424.777960769 - 3141.592653590 = "
+              "70283.185307180.",
+    ),
+    Case(
+        "R1", REFUSAL, R1_TEXT, bodies=None, declaration_required=False,
+        refusal_must_name=FIXTURE_BODIES, operations_permitted=False,
+        notes="M6 verbatim, under the corrected observer. `the body` with "
+              "two bodies standing names neither. Must decline, name both, "
+              "build nothing and carry no operations.",
+    ),
+    Case(
+        "R2", REFUSAL, R2_TEXT, bodies=None, declaration_required=False,
+        refusal_must_name=FIXTURE_BODIES,
+        refusal_question_must_mention=("bracket",),
+        operations_permitted=False,
+        notes="M7 verbatim, under the corrected observer. A body that does "
+              "not exist. `bracket` is pinned because it is the USER's own "
+              "word -- a clarification that never mentions what was asked "
+              "for is answering some other question. Nothing else about the "
+              "wording is pinned; M4 and M8 are the lesson about that.",
+    ),
+    Case(
+        "R3", REFUSAL, R3_TEXT, bodies=None, declaration_required=False,
+        refusal_must_name=FIXTURE_BODIES, operations_permitted=False,
+        notes="New in Phase B, and it tests what the corrected observer can "
+              "finally see. `Put a hole through it` is an ambiguous "
+              "reference AND an instruction to cut, so the tempting wrong "
+              "answer is a question with a through_hole attached. Phase A's "
+              "M7 hit that twice by accident and had no check for it; here "
+              "it is the point of the case.",
+    ),
 )
+
+#: Retired: measured, found invalid, and kept verbatim as the record. Never
+#: scored, never edited. A corpus that deletes its mistakes cannot be
+#: audited, and an edited case silently changes what an old number meant.
+RETIRED: Final[Tuple[str, ...]] = tuple(c.name for c in CASES if c.retired)
+
+#: What Phase B actually scores.
+ACTIVE: Final[Tuple[str, ...]] = tuple(c.name for c in CASES if not c.retired)
 
 CASES_BY_NAME: Final[Mapping[str, Case]] = {c.name: c for c in CASES}
 
+#: ACTIVE only. A retired case is not scored, so it is not in the
+#: denominator either -- pooling a retired case into a rate would be
+#: quoting a number the corpus has already said is invalid.
 CREATION_CASES: Final[Tuple[str, ...]] = tuple(
-    c.name for c in CASES if c.group == CREATION
+    c.name for c in CASES if c.group == CREATION and not c.retired
 )
 REFUSAL_CASES: Final[Tuple[str, ...]] = tuple(
-    c.name for c in CASES if c.group == REFUSAL
+    c.name for c in CASES if c.group == REFUSAL and not c.retired
 )
 
 
@@ -285,6 +460,11 @@ def expected(case_name: str) -> dict:
         raise KeyError(
             f"unknown case {case_name!r}; known: {', '.join(CASES_BY_NAME)}"
         )
+    if case.retired:
+        raise ValueError(
+            f"{case_name} is RETIRED and must not be scored again: "
+            f"{case.retired}"
+        )
     return {
         "name": case.name,
         "group": case.group,
@@ -298,6 +478,8 @@ def expected(case_name: str) -> dict:
         "unchanged_body_volume": case.unchanged_body_volume,
         "topology": case.topology,
         "refusal_must_name": case.refusal_must_name,
+        "refusal_question_must_mention": case.refusal_question_must_mention,
+        "operations_permitted": case.operations_permitted,
         "volume_tolerance": VOLUME_TOLERANCE,
     }
 
@@ -310,22 +492,36 @@ def expected(case_name: str) -> dict:
 
 A_MISSING_BODY = "A:missing_body"
 B_EXTRA_BODY = "B:extra_body"
-C_WRONG_IDENTITY = "C:wrong_body_identity"
+C_WRONG_IDENTITY = "C:wrong_identity"
 D_WRONG_TARGET = "D:wrong_target"
 E_CROSS_BODY_EDIT = "E:cross_body_edit"
 F_WRONG_PLACEMENT = "F:wrong_placement"
-G_WRONG_DIMENSIONS = "G:wrong_dimensions"
+G_WRONG_DIMENSIONS = "G:incoherent_dimensions"
 H_UNWANTED_FUSION = "H:unwanted_fusion"
-I_DUPLICATE_DECLARATION = "I:duplicate_declaration"
-J_INVALID_PLAN = "J:invalid_schema_or_plan"
-K_REFUSAL_FAILURE = "K:refusal_failure"
+#: Phase B splits Phase A's single `K:refusal_failure`. They are different
+#: failures with different fixes: `I` is the refusal itself being wrong --
+#: it guessed, it built something, or it carried operations alongside the
+#: question. `J` is a correct refusal whose clarification does not do its
+#: job -- it names no body, or leaves the `questions` field empty. Phase A
+#: reported both as one code and so could not tell a guess from a shrug.
+I_BAD_REFUSAL = "I:bad_refusal"
+J_BAD_CLARIFICATION = "J:bad_clarification"
+K_INVALID_PLAN = "K:invalid_plan"
 L_OTHER = "L:other"
+
+#: Phase A's names, kept so a Phase A record stays readable. They are NOT in
+#: `TAXONOMY` and nothing emits them: an old result says `K:refusal_failure`
+#: and must keep saying it, because that is what was measured.
+PHASE_A_CODES: Final[Tuple[str, ...]] = (
+    "I:duplicate_declaration", "J:invalid_schema_or_plan",
+    "K:refusal_failure", "C:wrong_body_identity", "G:wrong_dimensions",
+)
 
 TAXONOMY: Final[Tuple[str, ...]] = (
     A_MISSING_BODY, B_EXTRA_BODY, C_WRONG_IDENTITY, D_WRONG_TARGET,
     E_CROSS_BODY_EDIT, F_WRONG_PLACEMENT, G_WRONG_DIMENSIONS,
-    H_UNWANTED_FUSION, I_DUPLICATE_DECLARATION, J_INVALID_PLAN,
-    K_REFUSAL_FAILURE, L_OTHER,
+    H_UNWANTED_FUSION, I_BAD_REFUSAL, J_BAD_CLARIFICATION, K_INVALID_PLAN,
+    L_OTHER,
 )
 
 # ------------------------------------------------------- outcome labelling
@@ -351,7 +547,8 @@ COUNTS_AS_SUCCESS: Final[Tuple[str, ...]] = (MODEL_GENERATED,)
 
 __all__ = [
     "BORE_DIAMETER", "BOX_FACES", "CASES", "CASES_BY_NAME", "COUNTS_AS_SUCCESS",
-    "CREATION", "CREATION_CASES", "CUBE_EDGE", "CUBE_VOLUME",
+    "ACTIVE", "CREATION", "CREATION_CASES", "CUBE_EDGE", "CUBE_VOLUME",
+    "N2_FUSED_VOLUME", "N2_BURIED_VOLUME", "N2_OVERLAP_DEPTH", "RETIRED",
     "CYLINDER_FACES", "Case", "DETERMINISTIC", "FALLBACK", "FIXTURE_BODIES",
     "FUSED_VOLUME", "MODEL", "MODEL_GENERATED", "OUTCOMES", "PIN_DIAMETER",
     "PIN_LENGTH", "PIN_LENGTH_EDITED", "PIN_VOLUME", "PIN_VOLUME_EDITED",
@@ -359,6 +556,6 @@ __all__ = [
     "REFUSED", "TAXONOMY", "VOLUME_TOLERANCE", "expected",
     "A_MISSING_BODY", "B_EXTRA_BODY", "C_WRONG_IDENTITY", "D_WRONG_TARGET",
     "E_CROSS_BODY_EDIT", "F_WRONG_PLACEMENT", "G_WRONG_DIMENSIONS",
-    "H_UNWANTED_FUSION", "I_DUPLICATE_DECLARATION", "J_INVALID_PLAN",
-    "K_REFUSAL_FAILURE", "L_OTHER",
+    "H_UNWANTED_FUSION", "I_BAD_REFUSAL", "J_BAD_CLARIFICATION",
+    "K_INVALID_PLAN", "L_OTHER", "PHASE_A_CODES",
 ]

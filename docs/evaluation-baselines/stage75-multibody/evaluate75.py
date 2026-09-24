@@ -113,9 +113,35 @@ def observe(
         ],
         "operations": op_rows,
         "operation_types": [r["type"] for r in op_rows],
+        "operation_count": len(op_rows),
         "declared_bodies": declared,
-        "questions": list(getattr(generation, "questions", ()) or ()),
-        "reason": getattr(generation, "error", None),
+        # --- what the MODEL said, read from where it actually lives --------
+        #
+        # Phase A read `generation.questions`. `PlanGenerationResult` has no
+        # such attribute -- the model's own words are on `result.plan` --
+        # so `getattr(..., ())` silently returned an empty tuple for all 64
+        # calls, including four whose raw answer carried a populated
+        # `questions` list. A default that hides a misspelt field is worse
+        # than a crash: the run completed and reported 0/16.
+        #
+        # `None` and `[]` are now different facts. `None` means there is no
+        # plan to have said anything; `[]` means the model had the field
+        # available and left it empty. Phase A could not tell those apart.
+        "has_plan": plan is not None,
+        "questions": (
+            list(getattr(plan, "questions", ()) or ()) if plan is not None
+            else None
+        ),
+        "summary": getattr(plan, "summary", None) if plan is not None else None,
+        "plan_reason": getattr(plan, "reason", None) if plan is not None else None,
+        # --- what the SYSTEM said, kept apart -------------------------------
+        #
+        # `result.error` is the validator's or the provider's message, not
+        # the model's. Phase A merged it into the refusal text under the key
+        # `reason`, so a system sentence could have satisfied a check about
+        # what the MODEL named. Separate keys, and only the model's words
+        # are graded.
+        "system_error": getattr(generation, "error", None),
         "executed": execution is not None,
         "execution_succeeded": bool(getattr(execution, "succeeded", False))
         if execution else False,
@@ -161,6 +187,23 @@ def _match_multiset(
     return True
 
 
+def _model_words(observation: Mapping[str, Any]) -> str:
+    """Everything the MODEL said, lowercased, and nothing the system said.
+
+    `summary` is required by the contract and `questions` is optional, so a
+    model that explains itself in the summary has still said it. They are
+    joined for the naming check and counted separately for the
+    question-field check -- conflating those two facts is what Phase A did.
+    """
+    parts: List[str] = []
+    for key in ("summary", "plan_reason"):
+        value = observation.get(key)
+        if value:
+            parts.append(str(value))
+    parts.extend(observation.get("questions") or ())
+    return " ".join(parts).lower()
+
+
 def _overlaps(a: Mapping[str, Any], b: Mapping[str, Any]) -> bool:
     """Whether two bodies' bounding boxes intersect with real volume.
 
@@ -192,24 +235,38 @@ def grade(observation: Mapping[str, Any]) -> Dict[str, Any]:
 
     if truth["group"] == G.REFUSAL:
         # A refusal is an answer, and must be the RIGHT answer: it must
-        # decline, and it must say which bodies exist. A refusal that names
-        # nothing is a shrug, and a guess is worse than either.
+        # decline, it must say which bodies exist, and it must not smuggle
+        # geometry in alongside. A refusal that names nothing is a shrug; a
+        # guess is worse than either; and a "clarification" carrying
+        # operations is an edit wearing a question's label.
         declined = observation["outcome_declared"] in (
             "needs_clarification", "unsupported",
         )
-        said = " ".join(
-            list(observation["questions"]) + [observation["reason"] or ""]
-        ).lower()
+        # ONLY the model's own words. `system_error` is the validator's
+        # sentence and is deliberately not consulted -- Phase A merged the
+        # two, so a system message could have satisfied a check about what
+        # the model named.
+        said = _model_words(observation)
         named = all(
             body.lower() in said for body in (truth["refusal_must_name"] or ())
         )
         checks["refused"] = declined
         checks["named_the_bodies"] = named
         checks["built_nothing"] = observation["body_count"] == 0
-        strict = bool(declined and named and observation["body_count"] == 0)
+        # Reported separately from `named_the_bodies`: using the field the
+        # contract provides is a different fact from saying the right thing
+        # in prose, and Phase A could see neither.
+        checks["asked_a_question"] = bool(observation["questions"])
+        checks["emitted_no_operations"] = observation["operation_count"] == 0
+        if truth["refusal_question_must_mention"]:
+            checks["question_addressed_the_request"] = all(
+                token.lower() in said
+                for token in truth["refusal_question_must_mention"]
+            )
+        applicable = [v for v in checks.values() if v is not None]
         return {
             "case": observation["case"], "group": G.REFUSAL,
-            "checks": checks, "strict_success": strict,
+            "checks": checks, "strict_success": all(applicable),
         }
 
     # --- creation ---------------------------------------------------------
@@ -267,6 +324,20 @@ def grade(observation: Mapping[str, Any]) -> Dict[str, Any]:
         checks["drilled_body_has_the_hole"] = any(
             f >= drilled_min and f != want for f in faces
         ) or faces.count(want) < len(faces)
+    if "bore_diameter" in topology:
+        # The drilled body must be able to CONTAIN the hole the request
+        # names. Checked on the bounding box: a solid with a bore of
+        # diameter d through it must measure more than d across in the two
+        # axes perpendicular to the bore, so at least two extents must
+        # exceed it. No diameter is expected, only coherence.
+        bore = topology["bore_diameter"]
+        drilled = [b for b in bodies
+                   if b["face_count"] >= topology["drilled_body_min_faces"]]
+        checks["bore_fits_the_body"] = bool(drilled) and all(
+            sum(1 for axis in range(3)
+                if (b["maximum"][axis] - b["minimum"][axis]) > bore) >= 2
+            for b in drilled
+        )
     if topology.get("both_boxes"):
         checks["both_bodies_prismatic"] = all(
             b["face_count"] == G.BOX_FACES for b in bodies
@@ -306,18 +377,35 @@ def classify(
     codes: List[str] = []
 
     if not checks.get("provider_output_valid", True):
-        codes.append(G.J_INVALID_PLAN)
+        codes.append(G.K_INVALID_PLAN)
     if graded["group"] == G.REFUSAL:
-        if not checks.get("refused") or not checks.get("named_the_bodies") \
-                or not checks.get("built_nothing"):
-            codes.append(G.K_REFUSAL_FAILURE)
-        return tuple(codes) or (G.L_OTHER,)
+        # `I` is "it did not decline, or it built something, or it smuggled
+        # operations in" -- the refusal itself is wrong. `J` is "it declined
+        # correctly but the clarification does not do its job" -- no names,
+        # or the question field left empty. Phase A had one code for both
+        # and could not tell a guess from a vague question.
+        if (not checks.get("refused")
+                or not checks.get("built_nothing")
+                or not checks.get("emitted_no_operations")):
+            codes.append(G.I_BAD_REFUSAL)
+        if (not checks.get("named_the_bodies")
+                or not checks.get("asked_a_question")
+                or checks.get("question_addressed_the_request") is False):
+            codes.append(G.J_BAD_CLARIFICATION)
+        return tuple(dict.fromkeys(codes)) or (G.L_OTHER,)
 
     if not checks.get("plan_valid", True):
-        codes.append(G.J_INVALID_PLAN)
+        codes.append(G.K_INVALID_PLAN)
 
     want, got = truth["bodies"], observation["body_count"]
-    if got < want:
+    if not observation["execution_succeeded"]:
+        # Nothing was built, so there is no body count to reason about and
+        # no fusion to call unwanted. Phase A reached the `got < want` arm
+        # here and, because a `union` was in the plan, reported
+        # H:unwanted_fusion 8/8 for M8 -- where the real event was that the
+        # build FAILED. A code for a shape that does not exist is noise.
+        codes.append(G.K_INVALID_PLAN if observation["executed"] else G.L_OTHER)
+    elif got < want:
         # One body where two were asked for, with a union in the plan, is a
         # fusion the request never asked for -- a different fact from a body
         # that was simply never created.
@@ -330,7 +418,7 @@ def classify(
 
     declared = observation["declared_bodies"]
     if len(declared) != len(set(declared)):
-        codes.append(G.I_DUPLICATE_DECLARATION)
+        codes.append(G.B_EXTRA_BODY)
     if checks.get("body_ids") is False:
         codes.append(G.C_WRONG_IDENTITY)
     if checks.get("other_body_untouched") is False:
@@ -340,7 +428,8 @@ def classify(
     if checks.get("bodies_disjoint") is False:
         codes.append(G.F_WRONG_PLACEMENT)
     for name in ("volumes", "stated_extents_present", "both_bodies_prismatic",
-                 "untouched_body_intact", "drilled_body_has_the_hole"):
+                 "untouched_body_intact", "drilled_body_has_the_hole",
+                 "bore_fits_the_body"):
         if checks.get(name) is False:
             codes.append(G.G_WRONG_DIMENSIONS)
             break

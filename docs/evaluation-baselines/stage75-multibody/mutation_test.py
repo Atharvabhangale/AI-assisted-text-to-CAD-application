@@ -37,7 +37,46 @@ TARGET = HERE / "evaluate75.py"
 TESTS = ROOT / "apps/api/tests_experimental"
 MODULE = "test_stage75_multibody_evaluator"
 
+TRUTH = HERE / "ground_truth75.py"
+
 ORIGINAL = TARGET.read_text(encoding="utf-8")
+TRUTH_ORIGINAL = TRUTH.read_text(encoding="utf-8")
+
+# Multi-line anchors, named so the MUTANTS table stays readable.
+OBSERVER_QUESTIONS = (
+    '        "questions": (\n'
+    '            list(getattr(plan, "questions", ()) or ()) if plan is not None\n'
+    "            else None\n"
+    "        ),"
+)
+QUESTION_ADDRESSED = (
+    '            checks["question_addressed_the_request"] = all(\n'
+    "                token.lower() in said\n"
+    '                for token in truth["refusal_question_must_mention"]\n'
+    "            )"
+)
+BORE_FITS = (
+    '        checks["bore_fits_the_body"] = bool(drilled) and all(\n'
+    "            sum(1 for axis in range(3)\n"
+    '                if (b["maximum"][axis] - b["minimum"][axis]) > bore) >= 2\n'
+    "            for b in drilled\n"
+    "        )"
+)
+
+#: One mutant lives in the corpus, not the evaluator: the guard that stops a
+#: retired case being scored again. Applied separately because it patches a
+#: different file.
+RETIRED_MUTANT = (
+    "score_a_retired_case_again",
+    (
+        "    if case.retired:\n"
+        "        raise ValueError(\n"
+        '            f"{case_name} is RETIRED and must not be scored again: "\n'
+        '            f"{case.retired}"\n'
+        "        )"
+    ),
+    "    if False:\n        raise ValueError(case_name)",
+)
 
 #: (name, the text to replace, what to replace it with). Each disables ONE
 #: criterion; none of them is a plausible refactor, which is the point -- a
@@ -75,9 +114,11 @@ MUTANTS = [
      '        checks["declared_nothing_spurious"] = len(declared) == 0',
      '        checks["declared_nothing_spurious"] = True'),
     ("ignore_duplicate_declaration",
-     '''    if len(declared) != len(set(declared)):
-        codes.append(G.I_DUPLICATE_DECLARATION)''',
-     '    if False:\n        codes.append(G.I_DUPLICATE_DECLARATION)'),
+     (
+         "    if len(declared) != len(set(declared)):\n"
+         "        codes.append(G.B_EXTRA_BODY)"
+     ),
+     "    if False:\n        codes.append(G.B_EXTRA_BODY)"),
     ("ignore_body_ids",
      '''        checks["body_ids"] = (
             {b["id"] for b in bodies} == set(truth["body_ids"])
@@ -134,7 +175,37 @@ MUTANTS = [
     ("tolerance_is_one_percent",
      '    return abs(measured - truth) / abs(truth) <= G.VOLUME_TOLERANCE',
      '    return abs(measured - truth) / abs(truth) <= 0.5'),
+    # ---------------------------------------------------- Phase B guards
+    #
+    # The first three reinstate the Phase A observer bug in its three
+    # separate forms. Each is what the code actually did, not an invented
+    # defect, and each must be caught.
+    ("phase_a_read_questions_off_the_result",
+     OBSERVER_QUESTIONS,
+     '        "questions": list(getattr(generation, "questions", ()) or ()),'),
+    ("empty_questions_indistinguishable_from_no_plan",
+     OBSERVER_QUESTIONS,
+     '        "questions": list(getattr(plan, "questions", ()) or ()),'),
+    ("phase_a_merged_the_systems_words_into_the_models",
+     '    for key in ("summary", "plan_reason"):',
+     '    for key in ("summary", "plan_reason", "system_error"):'),
+    ("ignore_the_question_field",
+     '        checks["asked_a_question"] = bool(observation["questions"])',
+     '        checks["asked_a_question"] = True'),
+    ("let_a_clarification_carry_operations",
+     '        checks["emitted_no_operations"] = observation["operation_count"] == 0',
+     '        checks["emitted_no_operations"] = True'),
+    ("ignore_whether_the_question_addressed_the_request",
+     QUESTION_ADDRESSED,
+     '            checks["question_addressed_the_request"] = True'),
+    ("ignore_bore_coherence",
+     BORE_FITS,
+     '        checks["bore_fits_the_body"] = True'),
+    ("call_a_failed_build_an_unwanted_fusion",
+     '    if not observation["execution_succeeded"]:',
+     '    if False:'),
 ]
+
 
 
 #: ABSOLUTE, and built here rather than inherited. The caller's PYTHONPATH is
@@ -178,12 +249,28 @@ def main() -> int:
             else:
                 killed += 1
                 print(f"  killed    {name}")
+        name, old, new = RETIRED_MUTANT
+        if TRUTH_ORIGINAL.count(old) != 1:
+            survived.append(f"{name} (anchor STALE)")
+            print(f"  STALE     {name}")
+        else:
+            TRUTH.write_text(TRUTH_ORIGINAL.replace(old, new), encoding="utf-8")
+            code, _ = suite()
+            if code == 0:
+                survived.append(name)
+                print(f"  SURVIVED  {name}")
+            else:
+                killed += 1
+                print(f"  killed    {name}")
     finally:
         TARGET.write_text(ORIGINAL, encoding="utf-8")
+        TRUTH.write_text(TRUTH_ORIGINAL, encoding="utf-8")
 
     assert TARGET.read_text(encoding="utf-8") == ORIGINAL, \
         "evaluate75.py was not restored"
-    print(f"\n{killed}/{len(MUTANTS)} killed; evaluate75.py restored "
+    assert TRUTH.read_text(encoding="utf-8") == TRUTH_ORIGINAL, \
+        "ground_truth75.py was not restored"
+    print(f"\n{killed}/{len(MUTANTS) + 1} killed; both modules restored "
           f"byte-identical")
     if survived:
         print("SURVIVORS (a gap in the tests, not noise):")
