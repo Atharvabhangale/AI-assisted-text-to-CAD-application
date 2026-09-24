@@ -287,7 +287,7 @@ def main(argv=None) -> int:
                     help="live calls per case")
     ap.add_argument("--case", action="append", default=None,
                     choices=sorted(G.CASES_BY_NAME),
-                    help="one case; repeatable. Default: all eight")
+                    help="one case; repeatable. Default: every ACTIVE case")
     ap.add_argument("--group", default=None, choices=[G.CREATION, G.REFUSAL])
     ap.add_argument("--out", default=None)
     ap.add_argument("--check", action="store_true",
@@ -297,7 +297,20 @@ def main(argv=None) -> int:
                     help="required; a credential's presence never starts a run")
     args = ap.parse_args(argv)
 
-    chosen = [G.CASES_BY_NAME[n] for n in (args.case or G.CASES_BY_NAME)]
+    # ACTIVE only. A retired case is never run again: `expected()` refuses
+    # it, and quoting a number the corpus has disowned is the thing the
+    # retirement exists to prevent. Naming one explicitly is an error rather
+    # than a silent skip.
+    if args.case:
+        retired = [n for n in args.case if n in G.RETIRED]
+        if retired:
+            print("refusing to run retired cases: " + ", ".join(retired))
+            for name in retired:
+                print(f"  {name}: {G.CASES_BY_NAME[name].retired}")
+            return 2
+        chosen = [G.CASES_BY_NAME[n] for n in args.case]
+    else:
+        chosen = [G.CASES_BY_NAME[n] for n in G.ACTIVE]
     if args.group:
         chosen = [c for c in chosen if c.group == args.group]
 

@@ -25,6 +25,24 @@ stage's main structural claim: had the prompt gone first, a refusal would
 have been indistinguishable from an inexpressible request, which is Stage
 44's defect and the one this project keeps rediscovering.
 
+## Phase A and Phase B are different measurements
+
+**Phase A** (`baseline.json`, 64 calls) is the historical raw run. Four of
+its eight cases produced numbers that say nothing about the model — see
+`PHASE-A-INVALID-CASES.md`. It is preserved exactly as measured and is never
+quoted as current.
+
+**Phase B** (`baseline-phase-b.json`) is the corrected measurement, taken on
+the same prompt, grammar and model, with a repaired observer and a corpus
+whose invalid cases are retired rather than edited.
+
+| | Phase A | Phase B |
+|---|---|---|
+| observer | read `generation.questions`, a field that does not exist | reads `result.plan.questions`, and keeps the system's words apart |
+| taxonomy | one `K:refusal_failure` for every refusal fault | `I:bad_refusal` (it guessed / built / smuggled operations) vs `J:bad_clarification` (declined, but said nothing useful) |
+| cases | M1–M8 | M1, M2, M3, M5, **N1, N2, R1, R2, R3**; M4, M6, M7, M8 retired |
+| mutants killed | 18/18 | **27/27** |
+
 ## The corpus
 
 Eight cases. The two groups are scored **separately and never pooled** — a
@@ -36,11 +54,12 @@ how a model that refuses everything scores well.
 | **M1** | creation | 40 mm cube + Ø20×30 cylinder beside it, "two separate bodies" | the base case: 2 bodies, both volumes, disjoint, both declared. Ids free. |
 | **M2** | creation | M1 with "Name the bodies cube and pin" | M1 plus the ids — **the only case where an id is ground truth, because the only case that states one** |
 | **M3** | creation | two boxes, one 40 mm wide and one 20 mm wide, beside each other | deliberately under-specified: count, separation, both prismatic, and the two stated extents. **No volume**, because none is stated |
-| **M4** | creation | M1, then "make the cylinder 40 mm long" | edit isolation: the cylinder becomes 40 long **and the cube must be untouched** |
+| **N1** | creation | M4's request with the separation **stated** — "beside the cube and not touching it" | edit isolation: the cylinder becomes 40 long, **the cube must be untouched**, and the bodies must be apart — which the request now says |
 | **M5** | creation | cube + cylinder, then a 6 mm through hole through the cylinder | body-targeted cut with no dimensions anywhere: topology only — the hole went into the cylinder, and the cube still has six planar faces |
-| **M6** | refusal | "Make the body 10 mm taller." | two bodies stand and "the body" names neither. Must refuse **and name both** |
-| **M7** | refusal | "Make the bracket 10 mm taller." | a body that does not exist. Must refuse and say what does |
-| **M8** | creation | M1 "fused together into a single body" | **the control.** One body, and `part` must NOT be declared — catches a model that has learned to declare bodies indiscriminately |
+| **R1** | refusal | "Make the body 10 mm taller." | two bodies stand and "the body" names neither. Must refuse, **name both**, ask in the `questions` field, and carry no operations |
+| **R2** | refusal | "Make the bracket 10 mm taller." | a body that does not exist. Must refuse, say what does, and mention the user's own word `bracket` |
+| **R3** | refusal | "Put a hole through it." | new in Phase B: an ambiguous reference **and** an instruction to cut, so the tempting wrong answer is a question with a `through_hole` attached |
+| **N2** | creation | cube + cylinder **sunk 10 mm into its top face**, fused | **the control, made buildable.** One body, no `part`, and a fused volume of **70283.185307180** — verified reachable on both kernels before any live call |
 
 Refusal cases start from `REFUSAL_FIXTURE`, a **deterministic** two-body plan
 (`block`, `rod`). If the setup were model-generated, a setup failure would be
@@ -50,7 +69,10 @@ recorded as a refusal failure and the run would be measuring two things.
 
 | file | what it is |
 |---|---|
-| `ground_truth75.py` | the immutable corpus: request texts verbatim, closed-form volumes, the 12-code taxonomy, Stage 64's five outcome labels |
+| `ground_truth75.py` | the immutable corpus: request texts verbatim, closed-form volumes, the 12-code taxonomy, Stage 64's five outcome labels, and the retired cases kept as the record |
+| `PHASE-A-INVALID-CASES.md` | why M4, M6, M7 and M8 were retired, and what Phase A did measure |
+| `baseline.json` | the Phase A run, 64 calls, historical |
+| `baseline-phase-b.json` | the corrected run |
 | `evaluate75.py` | `observe` / `grade` / `classify` / `outcome_label` / `summarise` |
 | `arena75.py` | the driver. `--check` is offline; `--live` is required for a run |
 | `mutation_test.py` | the 18-mutant sweep, reproducible |
@@ -93,6 +115,20 @@ Reusing any of them would manufacture successes. An AST test pins the
 separation, because a substring search reports the opposite — both modules
 quote `bodies[0]` in prose explaining its absence, and that produced one wrong
 reading during this stage.
+
+## M5 coherence — a constraint, not a hidden size
+
+Phase A's one genuine M5 failure: the model chose a **1 mm** cube and a 1 mm
+cylinder for a request that states no dimensions, then drilled the stated
+6 mm hole, which removed all the material (E2).
+
+Phase B encodes the semantic the request already carries — *a body with a
+6 mm hole through it must be wider than 6 mm, or the sentence describes
+nothing* — as `topology["bore_diameter"]`, checked on the drilled body's
+bounding box. **No diameter is expected.** The model may still choose any
+cylinder; a Ø8 and a Ø20 both pass, and a test pins that, so nothing was
+smuggled in. What fails is a body that cannot physically contain the hole it
+was asked to carry.
 
 ## What must not change before the baseline is recorded
 
