@@ -1,0 +1,58 @@
+=== residual-r2.json  case R2  n=48 ===
+  prompt 2026-09-25.1 f265d7d1e279e95a 34036 chars
+  schema strict_selector_union_part 3874
+  live   True  credential from CAD_ANTHROPIC_API_KEY (name only)
+
+  per-attempt facts, counted:
+    refused                   48/48  100.0%  [0.93,1.00]
+    questions_field_present   48/48  100.0%  [0.93,1.00]
+    asked_at_least_one        48/48  100.0%  [0.93,1.00]
+    both_bodies_named         48/48  100.0%  [0.93,1.00]
+    noun_addressed            34/48   70.8%  [0.57,0.82]
+    strict                    34/48   70.8%  [0.57,0.82]
+    emitted operations         0/48
+    built anything             0/48
+    labels                   {'REFUSED': 48}
+
+  taxonomy (`classify_d`, every attempt in exactly one):
+    B   14/48  declined and named the bodies, but ignored the requested noun
+    A   34/48  declined, named the bodies, and addressed the request
+    cross-check vs grade(): AGREES on all 48
+
+  the 14 FAILING replies, grouped by exact text:
+    x9
+      summary: the request does not say which body to change
+      Q      : This part has two bodies, `block` and `rod`. Which one should be made 10 mm taller?
+    x2
+      summary: the request does not specify which body to modify
+      Q      : This part has two bodies: `block` (a 30×30×30 mm box) and `rod` (a 10 mm diameter cylinder, 25 mm tall). Which one should be made 10 mm taller?
+    x1
+      summary: the request does not name which body to change
+      Q      : This part has two bodies: `block` (a 30×30×30 mm box) and `rod` (a 10 mm diameter, 25 mm tall cylinder). Which one should be made 10 mm taller?
+    x1
+      summary: the request does not say which body to change
+      Q      : This part has two bodies: `block` (a 30×30×30 mm box) and `rod` (a 10 mm diameter cylinder, 25 mm tall). Which one should be made 10 mm taller?
+    x1
+      summary: the request does not say which body to change
+      Q      : This part has two bodies: `block` (a 30×30×30 mm box) and `rod` (a 10 mm diameter, 25 mm tall cylinder). Which one should be made 10 mm taller?
+
+  3 PASSING replies, for contrast:
+    x5
+      summary: the request names a body this part does not have
+      Q      : This part has two bodies: `block` (a 30×30×30 mm box) and `rod` (a 10 mm diameter, 25 mm tall cylinder). Neither is called a bracket. Which body should be made 10 mm taller?
+    x2
+      summary: the request names a body this part does not have
+      Q      : This part has two bodies: `block` (a 30×30×30 box) and `rod` (a 10 mm diameter cylinder, 25 mm tall). Neither is called a bracket. Which body should be made 10 mm taller?
+    x2
+      summary: the request names a feature that does not exist in this part
+      Q      : This part has two bodies: `block` (a 30×30×30 mm box) and `rod` (a 10 mm diameter, 25 mm tall cylinder). Neither is called a bracket. Which body should be made 10 mm taller?
+
+  summary sentences, failures vs successes:
+    FAIL x11  the request does not say which body to change
+    FAIL x2   the request does not specify which body to modify
+    FAIL x1   the request does not name which body to change
+    PASS x15  the request names a body this part does not have
+    PASS x6   the request names a body that does not exist in this part
+    PASS x4   the request names a feature that does not exist in this part
+    PASS x3   the request names a body that does not exist
+
