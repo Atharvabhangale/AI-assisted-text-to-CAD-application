@@ -144,7 +144,13 @@ PLAN_CODES: Final[Tuple[str, ...]] = ("P11", "P12")
 
 
 def fisher_exact_two_sided(a: int, b: int, c: int, d: int) -> float:
-    """P(table at least as extreme), 2x2, conditioning on both margins."""
+    """P(table at least as extreme), 2x2, conditioning on both margins.
+
+    The tolerance on "at least as extreme" is RELATIVE. An absolute epsilon
+    sweeps in tables many orders of magnitude less likely than the observed
+    one whenever the observed probability is itself tiny, which is exactly
+    the regime an arm that works lands in.
+    """
     total = a + b + c + d
     if total == 0:
         return 1.0
@@ -156,7 +162,7 @@ def fisher_exact_two_sided(a: int, b: int, c: int, d: int) -> float:
         if not 0 <= j <= c + d:
             continue
         p = math.comb(a + b, i) * math.comb(c + d, j) / math.comb(total, a + c)
-        if p <= observed + 1e-12:
+        if p <= observed * (1.0 + 1e-9):
             accumulated += p
     return accumulated
 
@@ -166,7 +172,7 @@ def _rate(hits: int, n: int) -> float:
 
 
 def decide(arm: Mapping[str, Any], baseline: Mapping[str, Any],
-           *, exploratory: bool = False) -> Dict[str, Any]:
+           *, exploratory: bool) -> Dict[str, Any]:
     """ADOPT or REJECT, from counts alone.
 
     ``arm`` and ``baseline`` are count mappings:
@@ -180,9 +186,30 @@ def decide(arm: Mapping[str, Any], baseline: Mapping[str, Any],
         plan_codes        {code: count} over every attempt
 
     Nothing here takes a plan, a transcript, a prompt or a wording.
+
+    IT FAILS CLOSED. Every preservation clause needs evidence, and evidence
+    that is absent is not evidence that nothing regressed: a mapping with no
+    `creation` key would otherwise skip clause 5 silently and still return
+    ADOPT. `exploratory` has no default for the same reason -- one forgotten
+    keyword would have adopted an exploratory reading, which is the failure
+    Stage 67 is the record of.
     """
     reasons: List[str] = []
     verdict = True
+
+    # 0. the evidence each clause needs must BE there
+    for key in ("r2", "r2_checks", "siblings", "creation", "single_body",
+                "identity_codes", "plan_codes"):
+        if key not in arm or key not in baseline:
+            verdict = False
+            reasons.append(
+                f"no {key} evidence on both sides; a clause cannot be "
+                "satisfied by silence")
+        elif key in ("siblings", "creation", "single_body") and not (
+                arm.get(key) and baseline.get(key)):
+            verdict = False
+            reasons.append(f"{key} was not measured; clause skipped means "
+                           "REJECTED, not passed")
 
     arm_r2, base_r2 = arm["r2"], baseline["r2"]
 
@@ -209,8 +236,13 @@ def decide(arm: Mapping[str, Any], baseline: Mapping[str, Any],
 
     # 3. no trade inside R2
     for check in NO_TRADE:
-        arm_hits = (arm.get("r2_checks") or {}).get(check, 0)
-        base_hits = (baseline.get("r2_checks") or {}).get(check, 0)
+        arm_checks = arm.get("r2_checks") or {}
+        base_checks = baseline.get("r2_checks") or {}
+        if check not in arm_checks or check not in base_checks:
+            verdict = False
+            reasons.append(f"R2 {check} was not counted on both sides")
+            continue
+        arm_hits, base_hits = arm_checks[check], base_checks[check]
         if _rate(arm_hits, arm_r2["n"]) < _rate(base_hits, base_r2["n"]):
             verdict = False
             reasons.append(
@@ -222,30 +254,48 @@ def decide(arm: Mapping[str, Any], baseline: Mapping[str, Any],
                 f"R2 {check} must stay perfect; {arm_hits}/{arm_r2['n']}")
 
     # 4. the sibling refusal cases
-    for case, (strict, calls) in (arm.get("siblings") or {}).items():
-        was = (baseline.get("siblings") or {}).get(case)
-        if not was:
+    arm_siblings = arm.get("siblings") or {}
+    base_siblings = baseline.get("siblings") or {}
+    for case in sorted(set(arm_siblings) | set(base_siblings)):
+        was, now = base_siblings.get(case), arm_siblings.get(case)
+        if not was or not was[1]:
+            verdict = False
+            reasons.append(f"refusal {case} has no measured control")
+            continue
+        if not now or not now[1]:
+            verdict = False
+            reasons.append(
+                f"refusal {case} is in the control and NOT in the arm; a "
+                "case the arm did not run cannot be said to have held")
             continue
         floor = _rate(was[0], was[1]) * REFUSAL_FLOOR
-        if _rate(strict, calls) < floor:
+        if _rate(now[0], now[1]) < floor:
             verdict = False
             reasons.append(
                 f"refusal {case} fell {_rate(was[0], was[1]):.3f} -> "
-                f"{_rate(strict, calls):.3f}, below floor {floor:.3f}")
+                f"{_rate(now[0], now[1]):.3f}, below floor {floor:.3f}")
 
     # 5. creation, per case and as a group
     arm_creation = arm.get("creation") or {}
     base_creation = baseline.get("creation") or {}
-    for case, (strict, calls) in arm_creation.items():
-        was = base_creation.get(case)
-        if not was:
+    for case in sorted(set(arm_creation) | set(base_creation)):
+        was, now = base_creation.get(case), arm_creation.get(case)
+        if not was or not was[1]:
+            verdict = False
+            reasons.append(f"creation {case} has no measured control")
+            continue
+        if not now or not now[1]:
+            verdict = False
+            reasons.append(
+                f"creation {case} is in the control and NOT in the arm; an "
+                "arm that drops its worst case has not preserved it")
             continue
         floor = _rate(was[0], was[1]) * CREATION_FLOOR
-        if _rate(strict, calls) < floor:
+        if _rate(now[0], now[1]) < floor:
             verdict = False
             reasons.append(
                 f"creation {case} fell {_rate(was[0], was[1]):.3f} -> "
-                f"{_rate(strict, calls):.3f}, below floor {floor:.3f}")
+                f"{_rate(now[0], now[1]):.3f}, below floor {floor:.3f}")
     if arm_creation and base_creation:
         arm_group = (sum(s for s, _ in arm_creation.values()),
                      sum(c for _, c in arm_creation.values()))
@@ -273,15 +323,28 @@ def decide(arm: Mapping[str, Any], baseline: Mapping[str, Any],
             reasons.append(
                 f"single-body golden fell below floor {floor:.3f}")
 
-    # 7. wrong-body and wrong-target errors
+    # 7. wrong-body and wrong-target errors -- PER CALL, not per run.
+    #
+    # A raw count comparison is sound only when both sides made the same
+    # number of calls. Halving the arm's creation sample halves its error
+    # count, and a rule reading counts would call that an improvement.
+    arm_calls = sum(c for _, c in arm_creation.values())
+    base_calls = sum(c for _, c in base_creation.values())
     for group_key, codes in (("identity_codes", IDENTITY_CODES),
                              ("plan_codes", PLAN_CODES)):
         for code in codes:
             arm_count = (arm.get(group_key) or {}).get(code, 0)
             base_count = (baseline.get(group_key) or {}).get(code, 0)
-            if arm_count > base_count:
+            if not arm_calls or not base_calls:
+                if arm_count > base_count:
+                    verdict = False
+                    reasons.append(f"{code} rose {base_count} -> {arm_count}")
+                continue
+            if _rate(arm_count, arm_calls) > _rate(base_count, base_calls):
                 verdict = False
-                reasons.append(f"{code} rose {base_count} -> {arm_count}")
+                reasons.append(
+                    f"{code} rose {base_count}/{base_calls} -> "
+                    f"{arm_count}/{arm_calls}")
 
     # 8. an exploratory pass is never an adoption
     if verdict and exploratory:

@@ -70,7 +70,7 @@ import ground_truth75 as G                                    # noqa: E402
 #: The six classes, in the order they are tested. The order is the taxonomy.
 CLASSES: Tuple[Tuple[str, str], ...] = (
     ("E", "operations emitted alongside the refusal"),
-    ("F", "no usable answer from the provider"),
+    ("F", "no usable answer, or geometry where a refusal was due"),
     ("D", "no clarification -- did not decline, or declined without asking"),
     ("C", "declined, but the bodies named are wrong or incomplete"),
     ("B", "declined and named the bodies, but ignored the requested noun"),
@@ -80,9 +80,15 @@ CLASSES: Tuple[Tuple[str, str], ...] = (
 CLASS_ORDER: Tuple[str, ...] = tuple(letter for letter, _ in CLASSES)
 CLASS_TEXT: Mapping[str, str] = {letter: text for letter, text in CLASSES}
 
-#: A backticked token in the model's own words. Used ONLY to report whether
-#: a reply invented an id; nothing is graded on it.
+#: A backticked token in the model's own words. Used ONLY to REPORT which
+#: names a reply used; nothing is graded on it. The field it feeds is called
+#: `non_body_ids_named` rather than "invented", because on R2 the commonest
+#: such name is the USER's own noun, which the model did not invent.
 _BACKTICKED = re.compile(r"`([^`]+)`")
+
+#: The document contract's own id shape (rule S8), so a dimension like
+#: `30x30x30` or a field name is not reported as a body.
+_ID = re.compile(r"[A-Za-z_][A-Za-z0-9_-]*")
 
 
 def _model_words(observation: Mapping[str, Any]) -> str:
@@ -95,21 +101,62 @@ def _model_words(observation: Mapping[str, Any]) -> str:
     return EV._model_words(observation)
 
 
+def operations_written(observation: Mapping[str, Any]) -> int:
+    """How many operations the MODEL wrote, by the observer's own rule.
+
+    `model_operation_count` is what `evaluate75.observe` records, and it is
+    read first. A record written before that key existed -- every Phase A
+    and Phase B file -- does not carry it, and defaulting such a row to 0
+    would say "the model wrote nothing" about the rows most likely to have
+    written the most. So the raw answer is re-read the same way the observer
+    reads it, and only then does the parsed count stand in.
+    """
+    written = observation.get("model_operation_count")
+    if written is not None:
+        return written
+    written = EV._operations_the_model_wrote(observation.get("raw_text"))
+    if written is not None:
+        return written
+    return observation.get("operation_count", 0)
+
+
 def classify(attempt: Mapping[str, Any]) -> str:
-    """The one class this attempt belongs to. See the module docstring."""
-    observation = attempt["observation"]
+    """The one class this attempt belongs to. See the module docstring.
+
+    REFUSAL cases only. A creation case has no `refusal_must_name` and no
+    pinned noun, so every naming test below is vacuously true and every
+    attempt would come back a refusal letter describing the opposite of what
+    happened -- `E` for an answer that correctly built the part. Measured:
+    46 of 48 creation attempts read `E` before this raised.
+    """
     truth = G.expected(attempt["case"])
+    if truth["group"] != G.REFUSAL:
+        raise ValueError(
+            f"{attempt['case']} is a {truth['group']} case; this taxonomy "
+            "describes refusals only")
+    observation = attempt["observation"]
     wanted = tuple(truth["refusal_must_name"] or ())
     said = _model_words(observation)
 
     # E -- and it MUST be first. See the module docstring.
-    if observation.get("model_operation_count", 0) > 0:
+    if operations_written(observation) > 0:
         return "E"
 
-    declared = observation.get("outcome_declared")
-    if declared is None or declared == "invalid_model_output":
+    # F -- and it is the GRADER's own label, not a second list of outcomes.
+    # `outcome_label` fails closed: anything it does not recognise as a part
+    # or a refusal is a provider error. That matters for `model_error`,
+    # which is the interpretation service failing -- classifying it as "it
+    # did not decline" would attribute a transport failure to the model,
+    # which is the one thing the five labels exist to prevent.
+    if EV.outcome_label(observation) == G.PROVIDER_ERROR:
+        return "F"
+    # Geometry where a refusal was due. `grade` fails such a row on
+    # `built_nothing`; without this the taxonomy would call it A and only
+    # `cross_check` would notice, as a bare string with no class to hold it.
+    if observation.get("body_count"):
         return "F"
 
+    declared = observation.get("outcome_declared")
     if declared not in ("needs_clarification", "unsupported"):
         return "D"
     if not observation.get("questions"):
@@ -131,11 +178,15 @@ def describe(attempt: Mapping[str, Any]) -> Dict[str, Any]:
     wanted = tuple(truth["refusal_must_name"] or ())
     said = _model_words(observation)
     questions = observation.get("questions")
-    invented = sorted({
+    # The SAME text the grader reads, and id-shaped tokens only. Reading a
+    # different set of fields would report "named nothing" about a reply
+    # that named something in `plan_reason`, and an unfiltered backtick
+    # sweep reports dimensions and field names as though they were bodies.
+    non_bodies = sorted({
         token.strip().lower()
-        for text in ([observation.get("summary") or ""] + list(questions or ()))
-        for token in _BACKTICKED.findall(text)
-        if token.strip().lower() not in {b.lower() for b in wanted}
+        for token in _BACKTICKED.findall(said)
+        if _ID.fullmatch(token.strip())
+        and token.strip().lower() not in {b.lower() for b in wanted}
     })
     return {
         "case": attempt["case"],
@@ -144,7 +195,7 @@ def describe(attempt: Mapping[str, Any]) -> Dict[str, Any]:
         "outcome": observation.get("outcome_declared"),
         "bodies_named": sum(1 for b in wanted if b.lower() in said),
         "bodies_expected": len(wanted),
-        "invented_ids": invented,
+        "non_body_ids_named": non_bodies,
         "questions_asked": len(questions or ()),
         "operations_written": observation.get("model_operation_count"),
         "built_bodies": observation.get("body_count"),
@@ -176,17 +227,40 @@ def cross_check(attempt: Mapping[str, Any]) -> Optional[str]:
     return None
 
 
-def distribution(attempts: Iterable[Mapping[str, Any]]) -> Dict[str, int]:
-    """Counts per class, every class present, in taxonomy order."""
-    counts = {letter: 0 for letter in CLASS_ORDER}
+def refusal_rows(attempts: Iterable[Mapping[str, Any]]) -> List[Mapping[str, Any]]:
+    """The rows this taxonomy describes: ACTIVE refusal cases.
+
+    A retired case raises from `expected()` -- deliberately, so no run can
+    quote a number the corpus has disowned -- and a creation case is not a
+    refusal. Both are dropped here rather than at every call site.
+    """
+    kept: List[Mapping[str, Any]] = []
     for attempt in attempts:
+        name = attempt["case"]
+        if name in G.RETIRED:
+            continue
+        if G.CASES_BY_NAME[name].group != G.REFUSAL:
+            continue
+        kept.append(attempt)
+    return kept
+
+
+def distribution(attempts: Iterable[Mapping[str, Any]]) -> Dict[str, int]:
+    """Counts per class, every class present, in taxonomy order.
+
+    A class that fired zero times is still reported as zero: the single most
+    important fact about the Phase D baseline is that B was 32/32 and every
+    other class exactly 0, which a dict of only what happened cannot say.
+    """
+    counts = {letter: 0 for letter in CLASS_ORDER}
+    for attempt in refusal_rows(attempts):
         counts[classify(attempt)] += 1
     return counts
 
 
 def load(path: Path, case: Optional[str] = None) -> List[Mapping[str, Any]]:
     record = json.loads(path.read_text(encoding="utf-8"))
-    rows = record["attempts"]
+    rows = refusal_rows(record["attempts"])
     if case:
         rows = [r for r in rows if r["case"] == case]
     return rows
@@ -229,7 +303,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             named[d["bodies_named"]] += 1
         print(f"  bodies named (of {describe(rows[0])['bodies_expected']}): "
               + ", ".join(f"{k}->{v}" for k, v in sorted(named.items())))
-        invented = sorted({i for row in rows for i in describe(row)["invented_ids"]})
+        non_bodies = sorted({i for row in rows for i in describe(row)["invented_ids"]})
         print(f"  ids named that are not bodies: {invented or 'none'}")
 
         if args.quotes:

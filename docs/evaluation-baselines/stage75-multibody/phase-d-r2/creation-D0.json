@@ -1,0 +1,5912 @@
+{
+ "stage": 75,
+ "is_live_model_result": true,
+ "credential_from": "CAD_ANTHROPIC_API_KEY",
+ "backend": "cadquery",
+ "backend_version": "2.8.0",
+ "calls_per_case": 8,
+ "cases": [
+  "M1",
+  "M2",
+  "M3",
+  "M5",
+  "N2",
+  "N3"
+ ],
+ "corpus": {
+  "M1": {
+   "group": "creation",
+   "text": "Create a 40 mm cube and a 20 mm diameter cylinder 30 mm long beside it as two separate bodies.",
+   "expected": {
+    "name": "M1",
+    "group": "creation",
+    "text": "Create a 40 mm cube and a 20 mm diameter cylinder 30 mm long beside it as two separate bodies.",
+    "bodies": 2,
+    "body_ids": null,
+    "declaration_required": true,
+    "volumes": [
+     64000.0,
+     9424.77796076938
+    ],
+    "disjoint": true,
+    "edited_body_volume": null,
+    "unchanged_body_volume": null,
+    "topology": null,
+    "refusal_must_name": null,
+    "refusal_question_must_mention": null,
+    "operations_permitted": true,
+    "volume_tolerance": 1e-06
+   }
+  },
+  "M2": {
+   "group": "creation",
+   "text": "Create a 40 mm cube and a 20 mm diameter cylinder 30 mm long beside it. Name the bodies cube and pin.",
+   "expected": {
+    "name": "M2",
+    "group": "creation",
+    "text": "Create a 40 mm cube and a 20 mm diameter cylinder 30 mm long beside it. Name the bodies cube and pin.",
+    "bodies": 2,
+    "body_ids": [
+     "cube",
+     "pin"
+    ],
+    "declaration_required": true,
+    "volumes": [
+     64000.0,
+     9424.77796076938
+    ],
+    "disjoint": true,
+    "edited_body_volume": null,
+    "unchanged_body_volume": null,
+    "topology": null,
+    "refusal_must_name": null,
+    "refusal_question_must_mention": null,
+    "operations_permitted": true,
+    "volume_tolerance": 1e-06
+   }
+  },
+  "M3": {
+   "group": "creation",
+   "text": "Create two separate boxes, one 40 mm wide and one 20 mm wide, beside each other as independent bodies.",
+   "expected": {
+    "name": "M3",
+    "group": "creation",
+    "text": "Create two separate boxes, one 40 mm wide and one 20 mm wide, beside each other as independent bodies.",
+    "bodies": 2,
+    "body_ids": null,
+    "declaration_required": true,
+    "volumes": null,
+    "disjoint": true,
+    "edited_body_volume": null,
+    "unchanged_body_volume": null,
+    "topology": {
+     "both_boxes": true,
+     "extents_present": [
+      40.0,
+      20.0
+     ]
+    },
+    "refusal_must_name": null,
+    "refusal_question_must_mention": null,
+    "operations_permitted": true,
+    "volume_tolerance": 1e-06
+   }
+  },
+  "M5": {
+   "group": "creation",
+   "text": "Create a cube and a cylinder as separate bodies, then put a 6 mm through hole through the cylinder.",
+   "expected": {
+    "name": "M5",
+    "group": "creation",
+    "text": "Create a cube and a cylinder as separate bodies, then put a 6 mm through hole through the cylinder.",
+    "bodies": 2,
+    "body_ids": null,
+    "declaration_required": true,
+    "volumes": null,
+    "disjoint": false,
+    "edited_body_volume": null,
+    "unchanged_body_volume": null,
+    "topology": {
+     "drilled_body_min_faces": 4,
+     "untouched_body_faces": 6,
+     "untouched_body_is_prismatic": true,
+     "bore_diameter": 6.0
+    },
+    "refusal_must_name": null,
+    "refusal_question_must_mention": null,
+    "operations_permitted": true,
+    "volume_tolerance": 1e-06
+   }
+  },
+  "N2": {
+   "group": "creation",
+   "text": "Create a 40 mm cube at the origin and a 20 mm diameter cylinder 30 mm long on the +Z axis, centred on the cube's top face and sunk 10 mm into it, then fuse them into a single body.",
+   "expected": {
+    "name": "N2",
+    "group": "creation",
+    "text": "Create a 40 mm cube at the origin and a 20 mm diameter cylinder 30 mm long on the +Z axis, centred on the cube's top face and sunk 10 mm into it, then fuse them into a single body.",
+    "bodies": 1,
+    "body_ids": null,
+    "declaration_required": false,
+    "volumes": [
+     70283.18530717959
+    ],
+    "disjoint": false,
+    "edited_body_volume": null,
+    "unchanged_body_volume": null,
+    "topology": null,
+    "refusal_must_name": null,
+    "refusal_question_must_mention": null,
+    "operations_permitted": true,
+    "volume_tolerance": 1e-06
+   }
+  },
+  "N3": {
+   "group": "creation",
+   "text": "Create a 40 mm cube and a 20 mm diameter cylinder as two separate bodies, standing beside each other and not touching. Then make the cylinder 40 mm long.",
+   "expected": {
+    "name": "N3",
+    "group": "creation",
+    "text": "Create a 40 mm cube and a 20 mm diameter cylinder as two separate bodies, standing beside each other and not touching. Then make the cylinder 40 mm long.",
+    "bodies": 2,
+    "body_ids": null,
+    "declaration_required": true,
+    "volumes": null,
+    "disjoint": true,
+    "edited_body_volume": 12566.370614359173,
+    "unchanged_body_volume": 64000.0,
+    "topology": null,
+    "refusal_must_name": null,
+    "refusal_question_must_mention": null,
+    "operations_permitted": true,
+    "volume_tolerance": 1e-06
+   }
+  }
+ },
+ "attempts": [
+  {
+   "case": "M1",
+   "group": "creation",
+   "seconds": 2.85,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 11594,
+    "output_tokens": 164
+   },
+   "fenced": false,
+   "observation": {
+    "case": "M1",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "generated",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [
+     {
+      "id": "cube",
+      "type": "box"
+     },
+     {
+      "id": "cylinder",
+      "type": "cylinder"
+     },
+     {
+      "id": "b1",
+      "type": "part",
+      "target": "cube"
+     },
+     {
+      "id": "b2",
+      "type": "part",
+      "target": "cylinder"
+     }
+    ],
+    "operation_types": [
+     "box",
+     "cylinder",
+     "part",
+     "part"
+    ],
+    "operation_count": 4,
+    "model_operation_count": 4,
+    "declared_bodies": [
+     "cube",
+     "cylinder"
+    ],
+    "has_plan": true,
+    "questions": [],
+    "summary": "A 40 mm cube and a 20 mm diameter cylinder 30 mm long as two separate bodies.",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": true,
+    "execution_failure": null,
+    "bodies": [
+     {
+      "id": "cube",
+      "features": [
+       "cube"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 63999.999999999985,
+      "face_count": 6,
+      "edge_count": 12,
+      "minimum": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       40.0,
+       40.0,
+       40.0
+      ]
+     },
+     {
+      "id": "cylinder",
+      "features": [
+       "cylinder"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 9424.777960769377,
+      "face_count": 3,
+      "edge_count": 3,
+      "minimum": [
+       50.0,
+       10.0,
+       0.0
+      ],
+      "maximum": [
+       70.0,
+       30.0,
+       30.0
+      ]
+     }
+    ],
+    "body_count": 2,
+    "raw_text": "{\"status\": \"generated\", \"summary\": \"A 40 mm cube and a 20 mm diameter cylinder 30 mm long as two separate bodies.\", \"operations\": [{\"id\": \"cube\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 40, \"z\": 40}}, {\"id\": \"cylinder\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 20, \"height\": 30, \"position\": {\"x\": 60, \"y\": 20, \"z\": 0}}}, {\"id\": \"b1\", \"type\": \"part\", \"target\": \"cube\"}, {\"id\": \"b2\", \"type\": \"part\", \"target\": \"cylinder\"}]}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "plan_valid": true,
+    "built": true,
+    "body_count": true,
+    "declared_every_body": true,
+    "volumes": true,
+    "bodies_disjoint": true
+   },
+   "strict_success": true,
+   "codes": [],
+   "label": "MODEL_GENERATED",
+   "attempt": 1
+  },
+  {
+   "case": "M1",
+   "group": "creation",
+   "seconds": 2.8,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 11594,
+    "output_tokens": 166
+   },
+   "fenced": false,
+   "observation": {
+    "case": "M1",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "generated",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [
+     {
+      "id": "cube",
+      "type": "box"
+     },
+     {
+      "id": "cylinder",
+      "type": "cylinder"
+     },
+     {
+      "id": "b1",
+      "type": "part",
+      "target": "cube"
+     },
+     {
+      "id": "b2",
+      "type": "part",
+      "target": "cylinder"
+     }
+    ],
+    "operation_types": [
+     "box",
+     "cylinder",
+     "part",
+     "part"
+    ],
+    "operation_count": 4,
+    "model_operation_count": 4,
+    "declared_bodies": [
+     "cube",
+     "cylinder"
+    ],
+    "has_plan": true,
+    "questions": [],
+    "summary": "A 40 mm cube and a 20 mm diameter cylinder 30 mm long, positioned as two separate bodies.",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": true,
+    "execution_failure": null,
+    "bodies": [
+     {
+      "id": "cube",
+      "features": [
+       "cube"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 63999.999999999985,
+      "face_count": 6,
+      "edge_count": 12,
+      "minimum": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       40.0,
+       40.0,
+       40.0
+      ]
+     },
+     {
+      "id": "cylinder",
+      "features": [
+       "cylinder"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 9424.777960769377,
+      "face_count": 3,
+      "edge_count": 3,
+      "minimum": [
+       50.0,
+       10.0,
+       0.0
+      ],
+      "maximum": [
+       70.0,
+       30.0,
+       30.0
+      ]
+     }
+    ],
+    "body_count": 2,
+    "raw_text": "{\"status\": \"generated\", \"summary\": \"A 40 mm cube and a 20 mm diameter cylinder 30 mm long, positioned as two separate bodies.\", \"operations\": [{\"id\": \"cube\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 40, \"z\": 40}}, {\"id\": \"cylinder\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 20, \"height\": 30, \"position\": {\"x\": 60, \"y\": 20, \"z\": 0}}}, {\"id\": \"b1\", \"type\": \"part\", \"target\": \"cube\"}, {\"id\": \"b2\", \"type\": \"part\", \"target\": \"cylinder\"}]}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "plan_valid": true,
+    "built": true,
+    "body_count": true,
+    "declared_every_body": true,
+    "volumes": true,
+    "bodies_disjoint": true
+   },
+   "strict_success": true,
+   "codes": [],
+   "label": "MODEL_GENERATED",
+   "attempt": 2
+  },
+  {
+   "case": "M1",
+   "group": "creation",
+   "seconds": 2.78,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 11594,
+    "output_tokens": 160
+   },
+   "fenced": false,
+   "observation": {
+    "case": "M1",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "generated",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [
+     {
+      "id": "cube",
+      "type": "box"
+     },
+     {
+      "id": "cylinder",
+      "type": "cylinder"
+     },
+     {
+      "id": "b1",
+      "type": "part",
+      "target": "cube"
+     },
+     {
+      "id": "b2",
+      "type": "part",
+      "target": "cylinder"
+     }
+    ],
+    "operation_types": [
+     "box",
+     "cylinder",
+     "part",
+     "part"
+    ],
+    "operation_count": 4,
+    "model_operation_count": 4,
+    "declared_bodies": [
+     "cube",
+     "cylinder"
+    ],
+    "has_plan": true,
+    "questions": [],
+    "summary": "A 40 mm cube and a 20 mm diameter cylinder as two separate independent bodies.",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": true,
+    "execution_failure": null,
+    "bodies": [
+     {
+      "id": "cube",
+      "features": [
+       "cube"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 63999.999999999985,
+      "face_count": 6,
+      "edge_count": 12,
+      "minimum": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       40.0,
+       40.0,
+       40.0
+      ]
+     },
+     {
+      "id": "cylinder",
+      "features": [
+       "cylinder"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 9424.777960769377,
+      "face_count": 3,
+      "edge_count": 3,
+      "minimum": [
+       50.0,
+       10.0,
+       0.0
+      ],
+      "maximum": [
+       70.0,
+       30.0,
+       30.0
+      ]
+     }
+    ],
+    "body_count": 2,
+    "raw_text": "{\"status\": \"generated\", \"summary\": \"A 40 mm cube and a 20 mm diameter cylinder as two separate independent bodies.\", \"operations\": [{\"id\": \"cube\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 40, \"z\": 40}}, {\"id\": \"cylinder\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 20, \"height\": 30, \"position\": {\"x\": 60, \"y\": 20, \"z\": 0}}}, {\"id\": \"b1\", \"type\": \"part\", \"target\": \"cube\"}, {\"id\": \"b2\", \"type\": \"part\", \"target\": \"cylinder\"}]}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "plan_valid": true,
+    "built": true,
+    "body_count": true,
+    "declared_every_body": true,
+    "volumes": true,
+    "bodies_disjoint": true
+   },
+   "strict_success": true,
+   "codes": [],
+   "label": "MODEL_GENERATED",
+   "attempt": 3
+  },
+  {
+   "case": "M1",
+   "group": "creation",
+   "seconds": 2.87,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 11594,
+    "output_tokens": 168
+   },
+   "fenced": false,
+   "observation": {
+    "case": "M1",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "generated",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [
+     {
+      "id": "cube",
+      "type": "box"
+     },
+     {
+      "id": "cylinder",
+      "type": "cylinder"
+     },
+     {
+      "id": "b1",
+      "type": "part",
+      "target": "cube"
+     },
+     {
+      "id": "b2",
+      "type": "part",
+      "target": "cylinder"
+     }
+    ],
+    "operation_types": [
+     "box",
+     "cylinder",
+     "part",
+     "part"
+    ],
+    "operation_count": 4,
+    "model_operation_count": 4,
+    "declared_bodies": [
+     "cube",
+     "cylinder"
+    ],
+    "has_plan": true,
+    "questions": [],
+    "summary": "A 40 mm cube and a 20 mm diameter cylinder 30 mm long positioned beside each other as two separate bodies.",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": true,
+    "execution_failure": null,
+    "bodies": [
+     {
+      "id": "cube",
+      "features": [
+       "cube"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 63999.999999999985,
+      "face_count": 6,
+      "edge_count": 12,
+      "minimum": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       40.0,
+       40.0,
+       40.0
+      ]
+     },
+     {
+      "id": "cylinder",
+      "features": [
+       "cylinder"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 9424.777960769377,
+      "face_count": 3,
+      "edge_count": 3,
+      "minimum": [
+       50.0,
+       10.0,
+       0.0
+      ],
+      "maximum": [
+       70.0,
+       30.0,
+       30.0
+      ]
+     }
+    ],
+    "body_count": 2,
+    "raw_text": "{\"status\": \"generated\", \"summary\": \"A 40 mm cube and a 20 mm diameter cylinder 30 mm long positioned beside each other as two separate bodies.\", \"operations\": [{\"id\": \"cube\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 40, \"z\": 40}}, {\"id\": \"cylinder\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 20, \"height\": 30, \"position\": {\"x\": 60, \"y\": 20, \"z\": 0}}}, {\"id\": \"b1\", \"type\": \"part\", \"target\": \"cube\"}, {\"id\": \"b2\", \"type\": \"part\", \"target\": \"cylinder\"}]}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "plan_valid": true,
+    "built": true,
+    "body_count": true,
+    "declared_every_body": true,
+    "volumes": true,
+    "bodies_disjoint": true
+   },
+   "strict_success": true,
+   "codes": [],
+   "label": "MODEL_GENERATED",
+   "attempt": 4
+  },
+  {
+   "case": "M1",
+   "group": "creation",
+   "seconds": 2.78,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 11594,
+    "output_tokens": 164
+   },
+   "fenced": false,
+   "observation": {
+    "case": "M1",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "generated",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [
+     {
+      "id": "cube",
+      "type": "box"
+     },
+     {
+      "id": "cylinder",
+      "type": "cylinder"
+     },
+     {
+      "id": "b1",
+      "type": "part",
+      "target": "cube"
+     },
+     {
+      "id": "b2",
+      "type": "part",
+      "target": "cylinder"
+     }
+    ],
+    "operation_types": [
+     "box",
+     "cylinder",
+     "part",
+     "part"
+    ],
+    "operation_count": 4,
+    "model_operation_count": 4,
+    "declared_bodies": [
+     "cube",
+     "cylinder"
+    ],
+    "has_plan": true,
+    "questions": [],
+    "summary": "A 40 mm cube and a 20 mm diameter cylinder 30 mm long as two separate bodies.",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": true,
+    "execution_failure": null,
+    "bodies": [
+     {
+      "id": "cube",
+      "features": [
+       "cube"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 63999.999999999985,
+      "face_count": 6,
+      "edge_count": 12,
+      "minimum": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       40.0,
+       40.0,
+       40.0
+      ]
+     },
+     {
+      "id": "cylinder",
+      "features": [
+       "cylinder"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 9424.777960769377,
+      "face_count": 3,
+      "edge_count": 3,
+      "minimum": [
+       50.0,
+       10.0,
+       0.0
+      ],
+      "maximum": [
+       70.0,
+       30.0,
+       30.0
+      ]
+     }
+    ],
+    "body_count": 2,
+    "raw_text": "{\"status\": \"generated\", \"summary\": \"A 40 mm cube and a 20 mm diameter cylinder 30 mm long as two separate bodies.\", \"operations\": [{\"id\": \"cube\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 40, \"z\": 40}}, {\"id\": \"cylinder\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 20, \"height\": 30, \"position\": {\"x\": 60, \"y\": 20, \"z\": 0}}}, {\"id\": \"b1\", \"type\": \"part\", \"target\": \"cube\"}, {\"id\": \"b2\", \"type\": \"part\", \"target\": \"cylinder\"}]}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "plan_valid": true,
+    "built": true,
+    "body_count": true,
+    "declared_every_body": true,
+    "volumes": true,
+    "bodies_disjoint": true
+   },
+   "strict_success": true,
+   "codes": [],
+   "label": "MODEL_GENERATED",
+   "attempt": 5
+  },
+  {
+   "case": "M1",
+   "group": "creation",
+   "seconds": 2.83,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 11594,
+    "output_tokens": 165
+   },
+   "fenced": false,
+   "observation": {
+    "case": "M1",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "generated",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [
+     {
+      "id": "cube",
+      "type": "box"
+     },
+     {
+      "id": "cylinder",
+      "type": "cylinder"
+     },
+     {
+      "id": "b1",
+      "type": "part",
+      "target": "cube"
+     },
+     {
+      "id": "b2",
+      "type": "part",
+      "target": "cylinder"
+     }
+    ],
+    "operation_types": [
+     "box",
+     "cylinder",
+     "part",
+     "part"
+    ],
+    "operation_count": 4,
+    "model_operation_count": 4,
+    "declared_bodies": [
+     "cube",
+     "cylinder"
+    ],
+    "has_plan": true,
+    "questions": [],
+    "summary": "A 40 mm cube and a 20 mm diameter cylinder 30 mm tall positioned as two separate bodies.",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": true,
+    "execution_failure": null,
+    "bodies": [
+     {
+      "id": "cube",
+      "features": [
+       "cube"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 63999.999999999985,
+      "face_count": 6,
+      "edge_count": 12,
+      "minimum": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       40.0,
+       40.0,
+       40.0
+      ]
+     },
+     {
+      "id": "cylinder",
+      "features": [
+       "cylinder"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 9424.777960769377,
+      "face_count": 3,
+      "edge_count": 3,
+      "minimum": [
+       50.0,
+       10.0,
+       0.0
+      ],
+      "maximum": [
+       70.0,
+       30.0,
+       30.0
+      ]
+     }
+    ],
+    "body_count": 2,
+    "raw_text": "{\"status\": \"generated\", \"summary\": \"A 40 mm cube and a 20 mm diameter cylinder 30 mm tall positioned as two separate bodies.\", \"operations\": [{\"id\": \"cube\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 40, \"z\": 40}}, {\"id\": \"cylinder\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 20, \"height\": 30, \"position\": {\"x\": 60, \"y\": 20, \"z\": 0}}}, {\"id\": \"b1\", \"type\": \"part\", \"target\": \"cube\"}, {\"id\": \"b2\", \"type\": \"part\", \"target\": \"cylinder\"}]}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "plan_valid": true,
+    "built": true,
+    "body_count": true,
+    "declared_every_body": true,
+    "volumes": true,
+    "bodies_disjoint": true
+   },
+   "strict_success": true,
+   "codes": [],
+   "label": "MODEL_GENERATED",
+   "attempt": 6
+  },
+  {
+   "case": "M1",
+   "group": "creation",
+   "seconds": 2.88,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 11594,
+    "output_tokens": 168
+   },
+   "fenced": false,
+   "observation": {
+    "case": "M1",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "generated",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [
+     {
+      "id": "cube",
+      "type": "box"
+     },
+     {
+      "id": "cylinder",
+      "type": "cylinder"
+     },
+     {
+      "id": "b1",
+      "type": "part",
+      "target": "cube"
+     },
+     {
+      "id": "b2",
+      "type": "part",
+      "target": "cylinder"
+     }
+    ],
+    "operation_types": [
+     "box",
+     "cylinder",
+     "part",
+     "part"
+    ],
+    "operation_count": 4,
+    "model_operation_count": 4,
+    "declared_bodies": [
+     "cube",
+     "cylinder"
+    ],
+    "has_plan": true,
+    "questions": [],
+    "summary": "A 40 mm cube and a 20 mm diameter cylinder 30 mm long positioned beside each other as two separate bodies.",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": true,
+    "execution_failure": null,
+    "bodies": [
+     {
+      "id": "cube",
+      "features": [
+       "cube"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 63999.999999999985,
+      "face_count": 6,
+      "edge_count": 12,
+      "minimum": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       40.0,
+       40.0,
+       40.0
+      ]
+     },
+     {
+      "id": "cylinder",
+      "features": [
+       "cylinder"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 9424.777960769377,
+      "face_count": 3,
+      "edge_count": 3,
+      "minimum": [
+       50.0,
+       10.0,
+       0.0
+      ],
+      "maximum": [
+       70.0,
+       30.0,
+       30.0
+      ]
+     }
+    ],
+    "body_count": 2,
+    "raw_text": "{\"status\": \"generated\", \"summary\": \"A 40 mm cube and a 20 mm diameter cylinder 30 mm long positioned beside each other as two separate bodies.\", \"operations\": [{\"id\": \"cube\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 40, \"z\": 40}}, {\"id\": \"cylinder\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 20, \"height\": 30, \"position\": {\"x\": 60, \"y\": 20, \"z\": 0}}}, {\"id\": \"b1\", \"type\": \"part\", \"target\": \"cube\"}, {\"id\": \"b2\", \"type\": \"part\", \"target\": \"cylinder\"}]}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "plan_valid": true,
+    "built": true,
+    "body_count": true,
+    "declared_every_body": true,
+    "volumes": true,
+    "bodies_disjoint": true
+   },
+   "strict_success": true,
+   "codes": [],
+   "label": "MODEL_GENERATED",
+   "attempt": 7
+  },
+  {
+   "case": "M1",
+   "group": "creation",
+   "seconds": 2.82,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 11594,
+    "output_tokens": 165
+   },
+   "fenced": false,
+   "observation": {
+    "case": "M1",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "generated",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [
+     {
+      "id": "cube",
+      "type": "box"
+     },
+     {
+      "id": "cylinder",
+      "type": "cylinder"
+     },
+     {
+      "id": "b1",
+      "type": "part",
+      "target": "cube"
+     },
+     {
+      "id": "b2",
+      "type": "part",
+      "target": "cylinder"
+     }
+    ],
+    "operation_types": [
+     "box",
+     "cylinder",
+     "part",
+     "part"
+    ],
+    "operation_count": 4,
+    "model_operation_count": 4,
+    "declared_bodies": [
+     "cube",
+     "cylinder"
+    ],
+    "has_plan": true,
+    "questions": [],
+    "summary": "A 40 mm cube and a 20 mm diameter cylinder 30 mm long positioned as two separate bodies.",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": true,
+    "execution_failure": null,
+    "bodies": [
+     {
+      "id": "cube",
+      "features": [
+       "cube"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 63999.999999999985,
+      "face_count": 6,
+      "edge_count": 12,
+      "minimum": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       40.0,
+       40.0,
+       40.0
+      ]
+     },
+     {
+      "id": "cylinder",
+      "features": [
+       "cylinder"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 9424.777960769377,
+      "face_count": 3,
+      "edge_count": 3,
+      "minimum": [
+       50.0,
+       10.0,
+       0.0
+      ],
+      "maximum": [
+       70.0,
+       30.0,
+       30.0
+      ]
+     }
+    ],
+    "body_count": 2,
+    "raw_text": "{\"status\": \"generated\", \"summary\": \"A 40 mm cube and a 20 mm diameter cylinder 30 mm long positioned as two separate bodies.\", \"operations\": [{\"id\": \"cube\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 40, \"z\": 40}}, {\"id\": \"cylinder\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 20, \"height\": 30, \"position\": {\"x\": 60, \"y\": 20, \"z\": 0}}}, {\"id\": \"b1\", \"type\": \"part\", \"target\": \"cube\"}, {\"id\": \"b2\", \"type\": \"part\", \"target\": \"cylinder\"}]}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "plan_valid": true,
+    "built": true,
+    "body_count": true,
+    "declared_every_body": true,
+    "volumes": true,
+    "bodies_disjoint": true
+   },
+   "strict_success": true,
+   "codes": [],
+   "label": "MODEL_GENERATED",
+   "attempt": 8
+  },
+  {
+   "case": "M2",
+   "group": "creation",
+   "seconds": 2.82,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 11597,
+    "output_tokens": 163
+   },
+   "fenced": false,
+   "observation": {
+    "case": "M2",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "generated",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [
+     {
+      "id": "cube",
+      "type": "box"
+     },
+     {
+      "id": "pin",
+      "type": "cylinder"
+     },
+     {
+      "id": "b1",
+      "type": "part",
+      "target": "cube"
+     },
+     {
+      "id": "b2",
+      "type": "part",
+      "target": "pin"
+     }
+    ],
+    "operation_types": [
+     "box",
+     "cylinder",
+     "part",
+     "part"
+    ],
+    "operation_count": 4,
+    "model_operation_count": 4,
+    "declared_bodies": [
+     "cube",
+     "pin"
+    ],
+    "has_plan": true,
+    "questions": [],
+    "summary": "Created a 40 mm cube and a 20 mm diameter cylinder positioned beside it as two separate bodies.",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": true,
+    "execution_failure": null,
+    "bodies": [
+     {
+      "id": "cube",
+      "features": [
+       "cube"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 63999.999999999985,
+      "face_count": 6,
+      "edge_count": 12,
+      "minimum": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       40.0,
+       40.0,
+       40.0
+      ]
+     },
+     {
+      "id": "pin",
+      "features": [
+       "pin"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 9424.777960769377,
+      "face_count": 3,
+      "edge_count": 3,
+      "minimum": [
+       50.0,
+       10.0,
+       0.0
+      ],
+      "maximum": [
+       70.0,
+       30.0,
+       30.0
+      ]
+     }
+    ],
+    "body_count": 2,
+    "raw_text": "{\"status\": \"generated\", \"summary\": \"Created a 40 mm cube and a 20 mm diameter cylinder positioned beside it as two separate bodies.\", \"operations\": [{\"id\": \"cube\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 40, \"z\": 40}}, {\"id\": \"pin\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 20, \"height\": 30, \"position\": {\"x\": 60, \"y\": 20, \"z\": 0}}}, {\"id\": \"b1\", \"type\": \"part\", \"target\": \"cube\"}, {\"id\": \"b2\", \"type\": \"part\", \"target\": \"pin\"}]}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "plan_valid": true,
+    "built": true,
+    "body_count": true,
+    "declared_every_body": true,
+    "body_ids": true,
+    "volumes": true,
+    "bodies_disjoint": true
+   },
+   "strict_success": true,
+   "codes": [],
+   "label": "MODEL_GENERATED",
+   "attempt": 1
+  },
+  {
+   "case": "M2",
+   "group": "creation",
+   "seconds": 2.98,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 11597,
+    "output_tokens": 163
+   },
+   "fenced": false,
+   "observation": {
+    "case": "M2",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "generated",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [
+     {
+      "id": "cube",
+      "type": "box"
+     },
+     {
+      "id": "pin",
+      "type": "cylinder"
+     },
+     {
+      "id": "b1",
+      "type": "part",
+      "target": "cube"
+     },
+     {
+      "id": "b2",
+      "type": "part",
+      "target": "pin"
+     }
+    ],
+    "operation_types": [
+     "box",
+     "cylinder",
+     "part",
+     "part"
+    ],
+    "operation_count": 4,
+    "model_operation_count": 4,
+    "declared_bodies": [
+     "cube",
+     "pin"
+    ],
+    "has_plan": true,
+    "questions": [],
+    "summary": "A 40 mm cube and a 20 mm diameter cylinder positioned beside it, declared as separate bodies.",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": true,
+    "execution_failure": null,
+    "bodies": [
+     {
+      "id": "cube",
+      "features": [
+       "cube"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 63999.999999999985,
+      "face_count": 6,
+      "edge_count": 12,
+      "minimum": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       40.0,
+       40.0,
+       40.0
+      ]
+     },
+     {
+      "id": "pin",
+      "features": [
+       "pin"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 9424.777960769377,
+      "face_count": 3,
+      "edge_count": 3,
+      "minimum": [
+       50.0,
+       10.0,
+       0.0
+      ],
+      "maximum": [
+       70.0,
+       30.0,
+       30.0
+      ]
+     }
+    ],
+    "body_count": 2,
+    "raw_text": "{\"status\": \"generated\", \"summary\": \"A 40 mm cube and a 20 mm diameter cylinder positioned beside it, declared as separate bodies.\", \"operations\": [{\"id\": \"cube\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 40, \"z\": 40}}, {\"id\": \"pin\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 20, \"height\": 30, \"position\": {\"x\": 60, \"y\": 20, \"z\": 0}}}, {\"id\": \"b1\", \"type\": \"part\", \"target\": \"cube\"}, {\"id\": \"b2\", \"type\": \"part\", \"target\": \"pin\"}]}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "plan_valid": true,
+    "built": true,
+    "body_count": true,
+    "declared_every_body": true,
+    "body_ids": true,
+    "volumes": true,
+    "bodies_disjoint": true
+   },
+   "strict_success": true,
+   "codes": [],
+   "label": "MODEL_GENERATED",
+   "attempt": 2
+  },
+  {
+   "case": "M2",
+   "group": "creation",
+   "seconds": 2.88,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 11597,
+    "output_tokens": 168
+   },
+   "fenced": false,
+   "observation": {
+    "case": "M2",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "generated",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [
+     {
+      "id": "cube",
+      "type": "box"
+     },
+     {
+      "id": "pin",
+      "type": "cylinder"
+     },
+     {
+      "id": "b1",
+      "type": "part",
+      "target": "cube"
+     },
+     {
+      "id": "b2",
+      "type": "part",
+      "target": "pin"
+     }
+    ],
+    "operation_types": [
+     "box",
+     "cylinder",
+     "part",
+     "part"
+    ],
+    "operation_count": 4,
+    "model_operation_count": 4,
+    "declared_bodies": [
+     "cube",
+     "pin"
+    ],
+    "has_plan": true,
+    "questions": [],
+    "summary": "A 40 mm cube and a 20 mm diameter, 30 mm long cylinder positioned beside each other as separate bodies.",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": true,
+    "execution_failure": null,
+    "bodies": [
+     {
+      "id": "cube",
+      "features": [
+       "cube"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 63999.999999999985,
+      "face_count": 6,
+      "edge_count": 12,
+      "minimum": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       40.0,
+       40.0,
+       40.0
+      ]
+     },
+     {
+      "id": "pin",
+      "features": [
+       "pin"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 9424.777960769377,
+      "face_count": 3,
+      "edge_count": 3,
+      "minimum": [
+       40.0,
+       10.0,
+       0.0
+      ],
+      "maximum": [
+       60.0,
+       30.0,
+       30.0
+      ]
+     }
+    ],
+    "body_count": 2,
+    "raw_text": "{\"status\": \"generated\", \"summary\": \"A 40 mm cube and a 20 mm diameter, 30 mm long cylinder positioned beside each other as separate bodies.\", \"operations\": [{\"id\": \"cube\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 40, \"z\": 40}}, {\"id\": \"pin\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 20, \"height\": 30, \"position\": {\"x\": 50, \"y\": 20, \"z\": 0}}}, {\"id\": \"b1\", \"type\": \"part\", \"target\": \"cube\"}, {\"id\": \"b2\", \"type\": \"part\", \"target\": \"pin\"}]}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "plan_valid": true,
+    "built": true,
+    "body_count": true,
+    "declared_every_body": true,
+    "body_ids": true,
+    "volumes": true,
+    "bodies_disjoint": true
+   },
+   "strict_success": true,
+   "codes": [],
+   "label": "MODEL_GENERATED",
+   "attempt": 3
+  },
+  {
+   "case": "M2",
+   "group": "creation",
+   "seconds": 2.88,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 11597,
+    "output_tokens": 170
+   },
+   "fenced": false,
+   "observation": {
+    "case": "M2",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "generated",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [
+     {
+      "id": "cube",
+      "type": "box"
+     },
+     {
+      "id": "pin",
+      "type": "cylinder"
+     },
+     {
+      "id": "b1",
+      "type": "part",
+      "target": "cube"
+     },
+     {
+      "id": "b2",
+      "type": "part",
+      "target": "pin"
+     }
+    ],
+    "operation_types": [
+     "box",
+     "cylinder",
+     "part",
+     "part"
+    ],
+    "operation_count": 4,
+    "model_operation_count": 4,
+    "declared_bodies": [
+     "cube",
+     "pin"
+    ],
+    "has_plan": true,
+    "questions": [],
+    "summary": "A 40 mm cube and a 20 mm diameter, 30 mm long cylinder positioned beside each other, declared as separate bodies.",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": true,
+    "execution_failure": null,
+    "bodies": [
+     {
+      "id": "cube",
+      "features": [
+       "cube"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 63999.999999999985,
+      "face_count": 6,
+      "edge_count": 12,
+      "minimum": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       40.0,
+       40.0,
+       40.0
+      ]
+     },
+     {
+      "id": "pin",
+      "features": [
+       "pin"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 9424.777960769377,
+      "face_count": 3,
+      "edge_count": 3,
+      "minimum": [
+       50.0,
+       10.0,
+       0.0
+      ],
+      "maximum": [
+       70.0,
+       30.0,
+       30.0
+      ]
+     }
+    ],
+    "body_count": 2,
+    "raw_text": "{\"status\": \"generated\", \"summary\": \"A 40 mm cube and a 20 mm diameter, 30 mm long cylinder positioned beside each other, declared as separate bodies.\", \"operations\": [{\"id\": \"cube\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 40, \"z\": 40}}, {\"id\": \"pin\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 20, \"height\": 30, \"position\": {\"x\": 60, \"y\": 20, \"z\": 0}}}, {\"id\": \"b1\", \"type\": \"part\", \"target\": \"cube\"}, {\"id\": \"b2\", \"type\": \"part\", \"target\": \"pin\"}]}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "plan_valid": true,
+    "built": true,
+    "body_count": true,
+    "declared_every_body": true,
+    "body_ids": true,
+    "volumes": true,
+    "bodies_disjoint": true
+   },
+   "strict_success": true,
+   "codes": [],
+   "label": "MODEL_GENERATED",
+   "attempt": 4
+  },
+  {
+   "case": "M2",
+   "group": "creation",
+   "seconds": 2.95,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 11597,
+    "output_tokens": 170
+   },
+   "fenced": false,
+   "observation": {
+    "case": "M2",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "generated",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [
+     {
+      "id": "cube",
+      "type": "box"
+     },
+     {
+      "id": "pin",
+      "type": "cylinder"
+     },
+     {
+      "id": "b1",
+      "type": "part",
+      "target": "cube"
+     },
+     {
+      "id": "b2",
+      "type": "part",
+      "target": "pin"
+     }
+    ],
+    "operation_types": [
+     "box",
+     "cylinder",
+     "part",
+     "part"
+    ],
+    "operation_count": 4,
+    "model_operation_count": 4,
+    "declared_bodies": [
+     "cube",
+     "pin"
+    ],
+    "has_plan": true,
+    "questions": [],
+    "summary": "A 40 mm cube and a 20 mm diameter by 30 mm long cylinder positioned beside each other, declared as separate bodies.",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": true,
+    "execution_failure": null,
+    "bodies": [
+     {
+      "id": "cube",
+      "features": [
+       "cube"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 63999.999999999985,
+      "face_count": 6,
+      "edge_count": 12,
+      "minimum": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       40.0,
+       40.0,
+       40.0
+      ]
+     },
+     {
+      "id": "pin",
+      "features": [
+       "pin"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 9424.777960769377,
+      "face_count": 3,
+      "edge_count": 3,
+      "minimum": [
+       50.0,
+       10.0,
+       0.0
+      ],
+      "maximum": [
+       70.0,
+       30.0,
+       30.0
+      ]
+     }
+    ],
+    "body_count": 2,
+    "raw_text": "{\"status\": \"generated\", \"summary\": \"A 40 mm cube and a 20 mm diameter by 30 mm long cylinder positioned beside each other, declared as separate bodies.\", \"operations\": [{\"id\": \"cube\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 40, \"z\": 40}}, {\"id\": \"pin\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 20, \"height\": 30, \"position\": {\"x\": 60, \"y\": 20, \"z\": 0}}}, {\"id\": \"b1\", \"type\": \"part\", \"target\": \"cube\"}, {\"id\": \"b2\", \"type\": \"part\", \"target\": \"pin\"}]}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "plan_valid": true,
+    "built": true,
+    "body_count": true,
+    "declared_every_body": true,
+    "body_ids": true,
+    "volumes": true,
+    "bodies_disjoint": true
+   },
+   "strict_success": true,
+   "codes": [],
+   "label": "MODEL_GENERATED",
+   "attempt": 5
+  },
+  {
+   "case": "M2",
+   "group": "creation",
+   "seconds": 2.87,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 11597,
+    "output_tokens": 164
+   },
+   "fenced": false,
+   "observation": {
+    "case": "M2",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "generated",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [
+     {
+      "id": "cube",
+      "type": "box"
+     },
+     {
+      "id": "pin",
+      "type": "cylinder"
+     },
+     {
+      "id": "b1",
+      "type": "part",
+      "target": "cube"
+     },
+     {
+      "id": "b2",
+      "type": "part",
+      "target": "pin"
+     }
+    ],
+    "operation_types": [
+     "box",
+     "cylinder",
+     "part",
+     "part"
+    ],
+    "operation_count": 4,
+    "model_operation_count": 4,
+    "declared_bodies": [
+     "cube",
+     "pin"
+    ],
+    "has_plan": true,
+    "questions": [],
+    "summary": "A 40 mm cube and a 20 mm diameter cylinder positioned beside it, declared as two separate bodies.",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": true,
+    "execution_failure": null,
+    "bodies": [
+     {
+      "id": "cube",
+      "features": [
+       "cube"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 63999.999999999985,
+      "face_count": 6,
+      "edge_count": 12,
+      "minimum": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       40.0,
+       40.0,
+       40.0
+      ]
+     },
+     {
+      "id": "pin",
+      "features": [
+       "pin"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 9424.777960769377,
+      "face_count": 3,
+      "edge_count": 3,
+      "minimum": [
+       50.0,
+       10.0,
+       0.0
+      ],
+      "maximum": [
+       70.0,
+       30.0,
+       30.0
+      ]
+     }
+    ],
+    "body_count": 2,
+    "raw_text": "{\"status\": \"generated\", \"summary\": \"A 40 mm cube and a 20 mm diameter cylinder positioned beside it, declared as two separate bodies.\", \"operations\": [{\"id\": \"cube\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 40, \"z\": 40}}, {\"id\": \"pin\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 20, \"height\": 30, \"position\": {\"x\": 60, \"y\": 20, \"z\": 0}}}, {\"id\": \"b1\", \"type\": \"part\", \"target\": \"cube\"}, {\"id\": \"b2\", \"type\": \"part\", \"target\": \"pin\"}]}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "plan_valid": true,
+    "built": true,
+    "body_count": true,
+    "declared_every_body": true,
+    "body_ids": true,
+    "volumes": true,
+    "bodies_disjoint": true
+   },
+   "strict_success": true,
+   "codes": [],
+   "label": "MODEL_GENERATED",
+   "attempt": 6
+  },
+  {
+   "case": "M2",
+   "group": "creation",
+   "seconds": 3.06,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 11597,
+    "output_tokens": 164
+   },
+   "fenced": false,
+   "observation": {
+    "case": "M2",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "generated",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [
+     {
+      "id": "cube",
+      "type": "box"
+     },
+     {
+      "id": "pin",
+      "type": "cylinder"
+     },
+     {
+      "id": "b1",
+      "type": "part",
+      "target": "cube"
+     },
+     {
+      "id": "b2",
+      "type": "part",
+      "target": "pin"
+     }
+    ],
+    "operation_types": [
+     "box",
+     "cylinder",
+     "part",
+     "part"
+    ],
+    "operation_count": 4,
+    "model_operation_count": 4,
+    "declared_bodies": [
+     "cube",
+     "pin"
+    ],
+    "has_plan": true,
+    "questions": [],
+    "summary": "A 40 mm cube and a 20 mm diameter cylinder positioned beside it, declared as two separate bodies.",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": true,
+    "execution_failure": null,
+    "bodies": [
+     {
+      "id": "cube",
+      "features": [
+       "cube"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 63999.999999999985,
+      "face_count": 6,
+      "edge_count": 12,
+      "minimum": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       40.0,
+       40.0,
+       40.0
+      ]
+     },
+     {
+      "id": "pin",
+      "features": [
+       "pin"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 9424.777960769377,
+      "face_count": 3,
+      "edge_count": 3,
+      "minimum": [
+       50.0,
+       10.0,
+       0.0
+      ],
+      "maximum": [
+       70.0,
+       30.0,
+       30.0
+      ]
+     }
+    ],
+    "body_count": 2,
+    "raw_text": "{\"status\": \"generated\", \"summary\": \"A 40 mm cube and a 20 mm diameter cylinder positioned beside it, declared as two separate bodies.\", \"operations\": [{\"id\": \"cube\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 40, \"z\": 40}}, {\"id\": \"pin\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 20, \"height\": 30, \"position\": {\"x\": 60, \"y\": 20, \"z\": 0}}}, {\"id\": \"b1\", \"type\": \"part\", \"target\": \"cube\"}, {\"id\": \"b2\", \"type\": \"part\", \"target\": \"pin\"}]}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "plan_valid": true,
+    "built": true,
+    "body_count": true,
+    "declared_every_body": true,
+    "body_ids": true,
+    "volumes": true,
+    "bodies_disjoint": true
+   },
+   "strict_success": true,
+   "codes": [],
+   "label": "MODEL_GENERATED",
+   "attempt": 7
+  },
+  {
+   "case": "M2",
+   "group": "creation",
+   "seconds": 3.08,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 11597,
+    "output_tokens": 162
+   },
+   "fenced": false,
+   "observation": {
+    "case": "M2",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "generated",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [
+     {
+      "id": "cube",
+      "type": "box"
+     },
+     {
+      "id": "pin",
+      "type": "cylinder"
+     },
+     {
+      "id": "b1",
+      "type": "part",
+      "target": "cube"
+     },
+     {
+      "id": "b2",
+      "type": "part",
+      "target": "pin"
+     }
+    ],
+    "operation_types": [
+     "box",
+     "cylinder",
+     "part",
+     "part"
+    ],
+    "operation_count": 4,
+    "model_operation_count": 4,
+    "declared_bodies": [
+     "cube",
+     "pin"
+    ],
+    "has_plan": true,
+    "questions": [],
+    "summary": "A 40 mm cube and a 20 mm diameter cylinder positioned beside it as two separate bodies.",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": true,
+    "execution_failure": null,
+    "bodies": [
+     {
+      "id": "cube",
+      "features": [
+       "cube"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 63999.999999999985,
+      "face_count": 6,
+      "edge_count": 12,
+      "minimum": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       40.0,
+       40.0,
+       40.0
+      ]
+     },
+     {
+      "id": "pin",
+      "features": [
+       "pin"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 9424.777960769377,
+      "face_count": 3,
+      "edge_count": 3,
+      "minimum": [
+       40.0,
+       10.0,
+       0.0
+      ],
+      "maximum": [
+       60.0,
+       30.0,
+       30.0
+      ]
+     }
+    ],
+    "body_count": 2,
+    "raw_text": "{\"status\": \"generated\", \"summary\": \"A 40 mm cube and a 20 mm diameter cylinder positioned beside it as two separate bodies.\", \"operations\": [{\"id\": \"cube\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 40, \"z\": 40}}, {\"id\": \"pin\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 20, \"height\": 30, \"position\": {\"x\": 50, \"y\": 20, \"z\": 0}}}, {\"id\": \"b1\", \"type\": \"part\", \"target\": \"cube\"}, {\"id\": \"b2\", \"type\": \"part\", \"target\": \"pin\"}]}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "plan_valid": true,
+    "built": true,
+    "body_count": true,
+    "declared_every_body": true,
+    "body_ids": true,
+    "volumes": true,
+    "bodies_disjoint": true
+   },
+   "strict_success": true,
+   "codes": [],
+   "label": "MODEL_GENERATED",
+   "attempt": 8
+  },
+  {
+   "case": "M3",
+   "group": "creation",
+   "seconds": 2.89,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 11593,
+    "output_tokens": 161
+   },
+   "fenced": false,
+   "observation": {
+    "case": "M3",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "generated",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [
+     {
+      "id": "box1",
+      "type": "box"
+     },
+     {
+      "id": "box2",
+      "type": "box"
+     },
+     {
+      "id": "b1",
+      "type": "part",
+      "target": "box1"
+     },
+     {
+      "id": "b2",
+      "type": "part",
+      "target": "box2"
+     }
+    ],
+    "operation_types": [
+     "box",
+     "box",
+     "part",
+     "part"
+    ],
+    "operation_count": 4,
+    "model_operation_count": 4,
+    "declared_bodies": [
+     "box1",
+     "box2"
+    ],
+    "has_plan": true,
+    "questions": [],
+    "summary": "Two separate boxes positioned side by side as independent bodies.",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": true,
+    "execution_failure": null,
+    "bodies": [
+     {
+      "id": "box1",
+      "features": [
+       "box1"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 99999.99999999997,
+      "face_count": 6,
+      "edge_count": 12,
+      "minimum": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       40.0,
+       50.0,
+       50.0
+      ]
+     },
+     {
+      "id": "box2",
+      "features": [
+       "box2"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 49999.999999999985,
+      "face_count": 6,
+      "edge_count": 12,
+      "minimum": [
+       40.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       60.0,
+       50.0,
+       50.0
+      ]
+     }
+    ],
+    "body_count": 2,
+    "raw_text": "{\"status\": \"generated\", \"summary\": \"Two separate boxes positioned side by side as independent bodies.\", \"operations\": [{\"id\": \"box1\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 50, \"z\": 50}}, {\"id\": \"box2\", \"type\": \"box\", \"parameters\": {\"x\": 20, \"y\": 50, \"z\": 50, \"position\": {\"x\": 40, \"y\": 0, \"z\": 0}}}, {\"id\": \"b1\", \"type\": \"part\", \"target\": \"box1\"}, {\"id\": \"b2\", \"type\": \"part\", \"target\": \"box2\"}]}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "plan_valid": true,
+    "built": true,
+    "body_count": true,
+    "declared_every_body": true,
+    "bodies_disjoint": true,
+    "both_bodies_prismatic": true,
+    "stated_extents_present": true
+   },
+   "strict_success": true,
+   "codes": [],
+   "label": "MODEL_GENERATED",
+   "attempt": 1
+  },
+  {
+   "case": "M3",
+   "group": "creation",
+   "seconds": 2.76,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 11593,
+    "output_tokens": 161
+   },
+   "fenced": false,
+   "observation": {
+    "case": "M3",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "generated",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [
+     {
+      "id": "box1",
+      "type": "box"
+     },
+     {
+      "id": "box2",
+      "type": "box"
+     },
+     {
+      "id": "b1",
+      "type": "part",
+      "target": "box1"
+     },
+     {
+      "id": "b2",
+      "type": "part",
+      "target": "box2"
+     }
+    ],
+    "operation_types": [
+     "box",
+     "box",
+     "part",
+     "part"
+    ],
+    "operation_count": 4,
+    "model_operation_count": 4,
+    "declared_bodies": [
+     "box1",
+     "box2"
+    ],
+    "has_plan": true,
+    "questions": [],
+    "summary": "Two separate boxes placed side by side as independent bodies.",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": true,
+    "execution_failure": null,
+    "bodies": [
+     {
+      "id": "box1",
+      "features": [
+       "box1"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 15999.999999999996,
+      "face_count": 6,
+      "edge_count": 12,
+      "minimum": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       40.0,
+       20.0,
+       20.0
+      ]
+     },
+     {
+      "id": "box2",
+      "features": [
+       "box2"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 7999.999999999998,
+      "face_count": 6,
+      "edge_count": 12,
+      "minimum": [
+       40.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       60.0,
+       20.0,
+       20.0
+      ]
+     }
+    ],
+    "body_count": 2,
+    "raw_text": "{\"status\": \"generated\", \"summary\": \"Two separate boxes placed side by side as independent bodies.\", \"operations\": [{\"id\": \"box1\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 20, \"z\": 20}}, {\"id\": \"box2\", \"type\": \"box\", \"parameters\": {\"x\": 20, \"y\": 20, \"z\": 20, \"position\": {\"x\": 40, \"y\": 0, \"z\": 0}}}, {\"id\": \"b1\", \"type\": \"part\", \"target\": \"box1\"}, {\"id\": \"b2\", \"type\": \"part\", \"target\": \"box2\"}]}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "plan_valid": true,
+    "built": true,
+    "body_count": true,
+    "declared_every_body": true,
+    "bodies_disjoint": true,
+    "both_bodies_prismatic": true,
+    "stated_extents_present": true
+   },
+   "strict_success": true,
+   "codes": [],
+   "label": "MODEL_GENERATED",
+   "attempt": 2
+  },
+  {
+   "case": "M3",
+   "group": "creation",
+   "seconds": 2.92,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 11593,
+    "output_tokens": 161
+   },
+   "fenced": false,
+   "observation": {
+    "case": "M3",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "generated",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [
+     {
+      "id": "box1",
+      "type": "box"
+     },
+     {
+      "id": "box2",
+      "type": "box"
+     },
+     {
+      "id": "b1",
+      "type": "part",
+      "target": "box1"
+     },
+     {
+      "id": "b2",
+      "type": "part",
+      "target": "box2"
+     }
+    ],
+    "operation_types": [
+     "box",
+     "box",
+     "part",
+     "part"
+    ],
+    "operation_count": 4,
+    "model_operation_count": 4,
+    "declared_bodies": [
+     "box1",
+     "box2"
+    ],
+    "has_plan": true,
+    "questions": [],
+    "summary": "Two separate boxes positioned beside each other as independent bodies.",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": true,
+    "execution_failure": null,
+    "bodies": [
+     {
+      "id": "box1",
+      "features": [
+       "box1"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 99999.99999999997,
+      "face_count": 6,
+      "edge_count": 12,
+      "minimum": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       40.0,
+       50.0,
+       50.0
+      ]
+     },
+     {
+      "id": "box2",
+      "features": [
+       "box2"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 49999.999999999985,
+      "face_count": 6,
+      "edge_count": 12,
+      "minimum": [
+       40.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       60.0,
+       50.0,
+       50.0
+      ]
+     }
+    ],
+    "body_count": 2,
+    "raw_text": "{\"status\": \"generated\", \"summary\": \"Two separate boxes positioned beside each other as independent bodies.\", \"operations\": [{\"id\": \"box1\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 50, \"z\": 50}}, {\"id\": \"box2\", \"type\": \"box\", \"parameters\": {\"x\": 20, \"y\": 50, \"z\": 50, \"position\": {\"x\": 40, \"y\": 0, \"z\": 0}}}, {\"id\": \"b1\", \"type\": \"part\", \"target\": \"box1\"}, {\"id\": \"b2\", \"type\": \"part\", \"target\": \"box2\"}]}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "plan_valid": true,
+    "built": true,
+    "body_count": true,
+    "declared_every_body": true,
+    "bodies_disjoint": true,
+    "both_bodies_prismatic": true,
+    "stated_extents_present": true
+   },
+   "strict_success": true,
+   "codes": [],
+   "label": "MODEL_GENERATED",
+   "attempt": 3
+  },
+  {
+   "case": "M3",
+   "group": "creation",
+   "seconds": 3.12,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 11593,
+    "output_tokens": 178
+   },
+   "fenced": false,
+   "observation": {
+    "case": "M3",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "generated",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [
+     {
+      "id": "box1",
+      "type": "box"
+     },
+     {
+      "id": "box2",
+      "type": "box"
+     },
+     {
+      "id": "b1",
+      "type": "part",
+      "target": "box1"
+     },
+     {
+      "id": "b2",
+      "type": "part",
+      "target": "box2"
+     }
+    ],
+    "operation_types": [
+     "box",
+     "box",
+     "part",
+     "part"
+    ],
+    "operation_count": 4,
+    "model_operation_count": 4,
+    "declared_bodies": [
+     "box1",
+     "box2"
+    ],
+    "has_plan": true,
+    "questions": [],
+    "summary": "Two separate boxes created as independent bodies: a 40 mm wide box and a 20 mm wide box positioned side by side.",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": true,
+    "execution_failure": null,
+    "bodies": [
+     {
+      "id": "box1",
+      "features": [
+       "box1"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 99999.99999999997,
+      "face_count": 6,
+      "edge_count": 12,
+      "minimum": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       40.0,
+       50.0,
+       50.0
+      ]
+     },
+     {
+      "id": "box2",
+      "features": [
+       "box2"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 49999.999999999985,
+      "face_count": 6,
+      "edge_count": 12,
+      "minimum": [
+       40.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       60.0,
+       50.0,
+       50.0
+      ]
+     }
+    ],
+    "body_count": 2,
+    "raw_text": "{\"status\": \"generated\", \"summary\": \"Two separate boxes created as independent bodies: a 40 mm wide box and a 20 mm wide box positioned side by side.\", \"operations\": [{\"id\": \"box1\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 50, \"z\": 50}}, {\"id\": \"box2\", \"type\": \"box\", \"parameters\": {\"x\": 20, \"y\": 50, \"z\": 50, \"position\": {\"x\": 40, \"y\": 0, \"z\": 0}}}, {\"id\": \"b1\", \"type\": \"part\", \"target\": \"box1\"}, {\"id\": \"b2\", \"type\": \"part\", \"target\": \"box2\"}]}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "plan_valid": true,
+    "built": true,
+    "body_count": true,
+    "declared_every_body": true,
+    "bodies_disjoint": true,
+    "both_bodies_prismatic": true,
+    "stated_extents_present": true
+   },
+   "strict_success": true,
+   "codes": [],
+   "label": "MODEL_GENERATED",
+   "attempt": 4
+  },
+  {
+   "case": "M3",
+   "group": "creation",
+   "seconds": 2.72,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 11593,
+    "output_tokens": 161
+   },
+   "fenced": false,
+   "observation": {
+    "case": "M3",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "generated",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [
+     {
+      "id": "box1",
+      "type": "box"
+     },
+     {
+      "id": "box2",
+      "type": "box"
+     },
+     {
+      "id": "body1",
+      "type": "part",
+      "target": "box1"
+     },
+     {
+      "id": "body2",
+      "type": "part",
+      "target": "box2"
+     }
+    ],
+    "operation_types": [
+     "box",
+     "box",
+     "part",
+     "part"
+    ],
+    "operation_count": 4,
+    "model_operation_count": 4,
+    "declared_bodies": [
+     "box1",
+     "box2"
+    ],
+    "has_plan": true,
+    "questions": [],
+    "summary": "Two separate boxes created side by side as independent bodies.",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": true,
+    "execution_failure": null,
+    "bodies": [
+     {
+      "id": "box1",
+      "features": [
+       "box1"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 63999.999999999985,
+      "face_count": 6,
+      "edge_count": 12,
+      "minimum": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       40.0,
+       40.0,
+       40.0
+      ]
+     },
+     {
+      "id": "box2",
+      "features": [
+       "box2"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 31999.999999999993,
+      "face_count": 6,
+      "edge_count": 12,
+      "minimum": [
+       40.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       60.0,
+       40.0,
+       40.0
+      ]
+     }
+    ],
+    "body_count": 2,
+    "raw_text": "{\"status\": \"generated\", \"summary\": \"Two separate boxes created side by side as independent bodies.\", \"operations\": [{\"id\": \"box1\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 40, \"z\": 40}}, {\"id\": \"box2\", \"type\": \"box\", \"parameters\": {\"x\": 20, \"y\": 40, \"z\": 40, \"position\": {\"x\": 40, \"y\": 0, \"z\": 0}}}, {\"id\": \"body1\", \"type\": \"part\", \"target\": \"box1\"}, {\"id\": \"body2\", \"type\": \"part\", \"target\": \"box2\"}]}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "plan_valid": true,
+    "built": true,
+    "body_count": true,
+    "declared_every_body": true,
+    "bodies_disjoint": true,
+    "both_bodies_prismatic": true,
+    "stated_extents_present": true
+   },
+   "strict_success": true,
+   "codes": [],
+   "label": "MODEL_GENERATED",
+   "attempt": 5
+  },
+  {
+   "case": "M3",
+   "group": "creation",
+   "seconds": 2.95,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 11593,
+    "output_tokens": 161
+   },
+   "fenced": false,
+   "observation": {
+    "case": "M3",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "generated",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [
+     {
+      "id": "box1",
+      "type": "box"
+     },
+     {
+      "id": "box2",
+      "type": "box"
+     },
+     {
+      "id": "b1",
+      "type": "part",
+      "target": "box1"
+     },
+     {
+      "id": "b2",
+      "type": "part",
+      "target": "box2"
+     }
+    ],
+    "operation_types": [
+     "box",
+     "box",
+     "part",
+     "part"
+    ],
+    "operation_count": 4,
+    "model_operation_count": 4,
+    "declared_bodies": [
+     "box1",
+     "box2"
+    ],
+    "has_plan": true,
+    "questions": [],
+    "summary": "Two separate boxes created side by side as independent bodies.",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": true,
+    "execution_failure": null,
+    "bodies": [
+     {
+      "id": "box1",
+      "features": [
+       "box1"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 36000.0,
+      "face_count": 6,
+      "edge_count": 12,
+      "minimum": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       40.0,
+       30.0,
+       30.0
+      ]
+     },
+     {
+      "id": "box2",
+      "features": [
+       "box2"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 18000.0,
+      "face_count": 6,
+      "edge_count": 12,
+      "minimum": [
+       40.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       60.0,
+       30.0,
+       30.0
+      ]
+     }
+    ],
+    "body_count": 2,
+    "raw_text": "{\"status\": \"generated\", \"summary\": \"Two separate boxes created side by side as independent bodies.\", \"operations\": [{\"id\": \"box1\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 30, \"z\": 30}}, {\"id\": \"box2\", \"type\": \"box\", \"parameters\": {\"x\": 20, \"y\": 30, \"z\": 30, \"position\": {\"x\": 40, \"y\": 0, \"z\": 0}}}, {\"id\": \"b1\", \"type\": \"part\", \"target\": \"box1\"}, {\"id\": \"b2\", \"type\": \"part\", \"target\": \"box2\"}]}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "plan_valid": true,
+    "built": true,
+    "body_count": true,
+    "declared_every_body": true,
+    "bodies_disjoint": true,
+    "both_bodies_prismatic": true,
+    "stated_extents_present": true
+   },
+   "strict_success": true,
+   "codes": [],
+   "label": "MODEL_GENERATED",
+   "attempt": 6
+  },
+  {
+   "case": "M3",
+   "group": "creation",
+   "seconds": 2.76,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 11593,
+    "output_tokens": 165
+   },
+   "fenced": false,
+   "observation": {
+    "case": "M3",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "generated",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [
+     {
+      "id": "box_40",
+      "type": "box"
+     },
+     {
+      "id": "box_20",
+      "type": "box"
+     },
+     {
+      "id": "b1",
+      "type": "part",
+      "target": "box_40"
+     },
+     {
+      "id": "b2",
+      "type": "part",
+      "target": "box_20"
+     }
+    ],
+    "operation_types": [
+     "box",
+     "box",
+     "part",
+     "part"
+    ],
+    "operation_count": 4,
+    "model_operation_count": 4,
+    "declared_bodies": [
+     "box_40",
+     "box_20"
+    ],
+    "has_plan": true,
+    "questions": [],
+    "summary": "Two separate boxes positioned side by side as independent bodies.",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": true,
+    "execution_failure": null,
+    "bodies": [
+     {
+      "id": "box_40",
+      "features": [
+       "box_40"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 36000.0,
+      "face_count": 6,
+      "edge_count": 12,
+      "minimum": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       40.0,
+       30.0,
+       30.0
+      ]
+     },
+     {
+      "id": "box_20",
+      "features": [
+       "box_20"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 18000.0,
+      "face_count": 6,
+      "edge_count": 12,
+      "minimum": [
+       40.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       60.0,
+       30.0,
+       30.0
+      ]
+     }
+    ],
+    "body_count": 2,
+    "raw_text": "{\"status\": \"generated\", \"summary\": \"Two separate boxes positioned side by side as independent bodies.\", \"operations\": [{\"id\": \"box_40\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 30, \"z\": 30}}, {\"id\": \"box_20\", \"type\": \"box\", \"parameters\": {\"x\": 20, \"y\": 30, \"z\": 30, \"position\": {\"x\": 40, \"y\": 0, \"z\": 0}}}, {\"id\": \"b1\", \"type\": \"part\", \"target\": \"box_40\"}, {\"id\": \"b2\", \"type\": \"part\", \"target\": \"box_20\"}]}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "plan_valid": true,
+    "built": true,
+    "body_count": true,
+    "declared_every_body": true,
+    "bodies_disjoint": true,
+    "both_bodies_prismatic": true,
+    "stated_extents_present": true
+   },
+   "strict_success": true,
+   "codes": [],
+   "label": "MODEL_GENERATED",
+   "attempt": 7
+  },
+  {
+   "case": "M3",
+   "group": "creation",
+   "seconds": 2.84,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 11593,
+    "output_tokens": 126
+   },
+   "fenced": false,
+   "observation": {
+    "case": "M3",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "generated",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [
+     {
+      "id": "box_large",
+      "type": "box"
+     },
+     {
+      "id": "box_small",
+      "type": "box"
+     },
+     {
+      "id": "b1",
+      "type": "part",
+      "target": "box_large"
+     },
+     {
+      "id": "b2",
+      "type": "part",
+      "target": "box_small"
+     }
+    ],
+    "operation_types": [
+     "box",
+     "box",
+     "part",
+     "part"
+    ],
+    "operation_count": 4,
+    "model_operation_count": 4,
+    "declared_bodies": [
+     "box_large",
+     "box_small"
+    ],
+    "has_plan": true,
+    "questions": [],
+    "summary": "Two separate boxes side by side as independent bodies.",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": true,
+    "execution_failure": null,
+    "bodies": [
+     {
+      "id": "box_large",
+      "features": [
+       "box_large"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 15999.999999999996,
+      "face_count": 6,
+      "edge_count": 12,
+      "minimum": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       40.0,
+       20.0,
+       20.0
+      ]
+     },
+     {
+      "id": "box_small",
+      "features": [
+       "box_small"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 7999.999999999998,
+      "face_count": 6,
+      "edge_count": 12,
+      "minimum": [
+       40.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       60.0,
+       20.0,
+       20.0
+      ]
+     }
+    ],
+    "body_count": 2,
+    "raw_text": "{\"status\":\"generated\",\"summary\":\"Two separate boxes side by side as independent bodies.\",\"operations\":[{\"id\":\"box_large\",\"type\":\"box\",\"parameters\":{\"x\":40,\"y\":20,\"z\":20}},{\"id\":\"box_small\",\"type\":\"box\",\"parameters\":{\"x\":20,\"y\":20,\"z\":20,\"position\":{\"x\":40,\"y\":0,\"z\":0}}},{\"id\":\"b1\",\"type\":\"part\",\"target\":\"box_large\"},{\"id\":\"b2\",\"type\":\"part\",\"target\":\"box_small\"}]}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "plan_valid": true,
+    "built": true,
+    "body_count": true,
+    "declared_every_body": true,
+    "bodies_disjoint": true,
+    "both_bodies_prismatic": true,
+    "stated_extents_present": true
+   },
+   "strict_success": true,
+   "codes": [],
+   "label": "MODEL_GENERATED",
+   "attempt": 8
+  },
+  {
+   "case": "M5",
+   "group": "creation",
+   "seconds": 2.08,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 11590,
+    "output_tokens": 194
+   },
+   "fenced": false,
+   "observation": {
+    "case": "M5",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "generated",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [
+     {
+      "id": "cube",
+      "type": "box"
+     },
+     {
+      "id": "cylinder",
+      "type": "cylinder"
+     },
+     {
+      "id": "hole",
+      "type": "through_hole",
+      "target": "cylinder"
+     },
+     {
+      "id": "b1",
+      "type": "part",
+      "target": "cube"
+     },
+     {
+      "id": "b2",
+      "type": "part",
+      "target": "cylinder"
+     }
+    ],
+    "operation_types": [
+     "box",
+     "cylinder",
+     "through_hole",
+     "part",
+     "part"
+    ],
+    "operation_count": 5,
+    "model_operation_count": 5,
+    "declared_bodies": [
+     "cube",
+     "cylinder"
+    ],
+    "has_plan": true,
+    "questions": [],
+    "summary": "Created a cube and a cylinder as separate bodies, with a 6 mm through hole drilled through the cylinder.",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": true,
+    "execution_failure": null,
+    "bodies": [
+     {
+      "id": "cube",
+      "features": [
+       "cube"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 999.9999999999998,
+      "face_count": 6,
+      "edge_count": 12,
+      "minimum": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       10.0,
+       10.0,
+       10.0
+      ]
+     },
+     {
+      "id": "cylinder",
+      "features": [
+       "cylinder",
+       "hole"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 502.6548245743669,
+      "face_count": 4,
+      "edge_count": 6,
+      "minimum": [
+       -5.0,
+       -5.0,
+       0.0
+      ],
+      "maximum": [
+       5.0,
+       5.0,
+       10.0
+      ]
+     }
+    ],
+    "body_count": 2,
+    "raw_text": "{\"status\": \"generated\", \"summary\": \"Created a cube and a cylinder as separate bodies, with a 6 mm through hole drilled through the cylinder.\", \"operations\": [{\"id\": \"cube\", \"type\": \"box\", \"parameters\": {\"x\": 10, \"y\": 10, \"z\": 10}}, {\"id\": \"cylinder\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 10, \"height\": 10}}, {\"id\": \"hole\", \"type\": \"through_hole\", \"target\": \"cylinder\", \"parameters\": {\"diameter\": 6, \"position\": {\"x\": 0, \"y\": 0, \"z\": 0}}}, {\"id\": \"b1\", \"type\": \"part\", \"target\": \"cube\"}, {\"id\": \"b2\", \"type\": \"part\", \"target\": \"cylinder\"}]}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "plan_valid": true,
+    "built": true,
+    "body_count": true,
+    "declared_every_body": true,
+    "untouched_body_intact": true,
+    "drilled_body_has_the_hole": true,
+    "bore_fits_the_body": true
+   },
+   "strict_success": true,
+   "codes": [],
+   "label": "MODEL_GENERATED",
+   "attempt": 1
+  },
+  {
+   "case": "M5",
+   "group": "creation",
+   "seconds": 1.77,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 11590,
+    "output_tokens": 192
+   },
+   "fenced": false,
+   "observation": {
+    "case": "M5",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "generated",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [
+     {
+      "id": "cube",
+      "type": "box"
+     },
+     {
+      "id": "cylinder",
+      "type": "cylinder"
+     },
+     {
+      "id": "hole",
+      "type": "through_hole",
+      "target": "cylinder"
+     },
+     {
+      "id": "b1",
+      "type": "part",
+      "target": "cube"
+     },
+     {
+      "id": "b2",
+      "type": "part",
+      "target": "cylinder"
+     }
+    ],
+    "operation_types": [
+     "box",
+     "cylinder",
+     "through_hole",
+     "part",
+     "part"
+    ],
+    "operation_count": 5,
+    "model_operation_count": 5,
+    "declared_bodies": [
+     "cube",
+     "cylinder"
+    ],
+    "has_plan": true,
+    "questions": [],
+    "summary": "A cube and cylinder as separate bodies, with a 6 mm through hole drilled through the cylinder.",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": true,
+    "execution_failure": null,
+    "bodies": [
+     {
+      "id": "cube",
+      "features": [
+       "cube"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 999.9999999999998,
+      "face_count": 6,
+      "edge_count": 12,
+      "minimum": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       10.0,
+       10.0,
+       10.0
+      ]
+     },
+     {
+      "id": "cylinder",
+      "features": [
+       "cylinder",
+       "hole"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 502.6548245743669,
+      "face_count": 4,
+      "edge_count": 6,
+      "minimum": [
+       -5.0,
+       -5.0,
+       0.0
+      ],
+      "maximum": [
+       5.0,
+       5.0,
+       10.0
+      ]
+     }
+    ],
+    "body_count": 2,
+    "raw_text": "{\"status\": \"generated\", \"summary\": \"A cube and cylinder as separate bodies, with a 6 mm through hole drilled through the cylinder.\", \"operations\": [{\"id\": \"cube\", \"type\": \"box\", \"parameters\": {\"x\": 10, \"y\": 10, \"z\": 10}}, {\"id\": \"cylinder\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 10, \"height\": 10}}, {\"id\": \"hole\", \"type\": \"through_hole\", \"target\": \"cylinder\", \"parameters\": {\"diameter\": 6, \"position\": {\"x\": 0, \"y\": 0, \"z\": 0}}}, {\"id\": \"b1\", \"type\": \"part\", \"target\": \"cube\"}, {\"id\": \"b2\", \"type\": \"part\", \"target\": \"cylinder\"}]}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "plan_valid": true,
+    "built": true,
+    "body_count": true,
+    "declared_every_body": true,
+    "untouched_body_intact": true,
+    "drilled_body_has_the_hole": true,
+    "bore_fits_the_body": true
+   },
+   "strict_success": true,
+   "codes": [],
+   "label": "MODEL_GENERATED",
+   "attempt": 2
+  },
+  {
+   "case": "M5",
+   "group": "creation",
+   "seconds": 1.92,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 11590,
+    "output_tokens": 193
+   },
+   "fenced": false,
+   "observation": {
+    "case": "M5",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "generated",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [
+     {
+      "id": "cube",
+      "type": "box"
+     },
+     {
+      "id": "cylinder",
+      "type": "cylinder"
+     },
+     {
+      "id": "hole",
+      "type": "through_hole",
+      "target": "cylinder"
+     },
+     {
+      "id": "b1",
+      "type": "part",
+      "target": "cube"
+     },
+     {
+      "id": "b2",
+      "type": "part",
+      "target": "cylinder"
+     }
+    ],
+    "operation_types": [
+     "box",
+     "cylinder",
+     "through_hole",
+     "part",
+     "part"
+    ],
+    "operation_count": 5,
+    "model_operation_count": 5,
+    "declared_bodies": [
+     "cube",
+     "cylinder"
+    ],
+    "has_plan": true,
+    "questions": [],
+    "summary": "A cube and a cylinder as separate bodies, with a 6 mm through hole drilled through the cylinder.",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": true,
+    "execution_failure": null,
+    "bodies": [
+     {
+      "id": "cube",
+      "features": [
+       "cube"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 999.9999999999998,
+      "face_count": 6,
+      "edge_count": 12,
+      "minimum": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       10.0,
+       10.0,
+       10.0
+      ]
+     },
+     {
+      "id": "cylinder",
+      "features": [
+       "cylinder",
+       "hole"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 1005.3096491487338,
+      "face_count": 4,
+      "edge_count": 6,
+      "minimum": [
+       -5.0,
+       -5.0,
+       0.0
+      ],
+      "maximum": [
+       5.0,
+       5.0,
+       20.0
+      ]
+     }
+    ],
+    "body_count": 2,
+    "raw_text": "{\"status\": \"generated\", \"summary\": \"A cube and a cylinder as separate bodies, with a 6 mm through hole drilled through the cylinder.\", \"operations\": [{\"id\": \"cube\", \"type\": \"box\", \"parameters\": {\"x\": 10, \"y\": 10, \"z\": 10}}, {\"id\": \"cylinder\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 10, \"height\": 20}}, {\"id\": \"hole\", \"type\": \"through_hole\", \"target\": \"cylinder\", \"parameters\": {\"diameter\": 6, \"position\": {\"x\": 0, \"y\": 0, \"z\": 0}}}, {\"id\": \"b1\", \"type\": \"part\", \"target\": \"cube\"}, {\"id\": \"b2\", \"type\": \"part\", \"target\": \"cylinder\"}]}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "plan_valid": true,
+    "built": true,
+    "body_count": true,
+    "declared_every_body": true,
+    "untouched_body_intact": true,
+    "drilled_body_has_the_hole": true,
+    "bore_fits_the_body": true
+   },
+   "strict_success": true,
+   "codes": [],
+   "label": "MODEL_GENERATED",
+   "attempt": 3
+  },
+  {
+   "case": "M5",
+   "group": "creation",
+   "seconds": 1.98,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 11590,
+    "output_tokens": 200
+   },
+   "fenced": false,
+   "observation": {
+    "case": "M5",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "generated",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [
+     {
+      "id": "cube",
+      "type": "box"
+     },
+     {
+      "id": "cylinder",
+      "type": "cylinder"
+     },
+     {
+      "id": "hole",
+      "type": "through_hole",
+      "target": "cylinder"
+     },
+     {
+      "id": "b1",
+      "type": "part",
+      "target": "cube"
+     },
+     {
+      "id": "b2",
+      "type": "part",
+      "target": "cylinder"
+     }
+    ],
+    "operation_types": [
+     "box",
+     "cylinder",
+     "through_hole",
+     "part",
+     "part"
+    ],
+    "operation_count": 5,
+    "model_operation_count": 5,
+    "declared_bodies": [
+     "cube",
+     "cylinder"
+    ],
+    "has_plan": true,
+    "questions": [],
+    "summary": "Created a cube and a cylinder as separate bodies, with a 6 mm through hole drilled through the cylinder.",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": true,
+    "execution_failure": null,
+    "bodies": [
+     {
+      "id": "cube",
+      "features": [
+       "cube"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 999.9999999999998,
+      "face_count": 6,
+      "edge_count": 12,
+      "minimum": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       10.0,
+       10.0,
+       10.0
+      ]
+     },
+     {
+      "id": "cylinder",
+      "features": [
+       "cylinder",
+       "hole"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 502.6548245743669,
+      "face_count": 4,
+      "edge_count": 6,
+      "minimum": [
+       -5.0,
+       -5.0,
+       0.0
+      ],
+      "maximum": [
+       5.0,
+       5.0,
+       10.0
+      ]
+     }
+    ],
+    "body_count": 2,
+    "raw_text": "{\"status\": \"generated\", \"summary\": \"Created a cube and a cylinder as separate bodies, with a 6 mm through hole drilled through the cylinder.\", \"operations\": [{\"id\": \"cube\", \"type\": \"box\", \"parameters\": {\"x\": 10, \"y\": 10, \"z\": 10}}, {\"id\": \"cylinder\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 10, \"height\": 10}}, {\"id\": \"hole\", \"type\": \"through_hole\", \"target\": \"cylinder\", \"parameters\": {\"diameter\": 6, \"position\": {\"x\": 0, \"y\": 0, \"z\": 0}, \"axis\": \"+Z\"}}, {\"id\": \"b1\", \"type\": \"part\", \"target\": \"cube\"}, {\"id\": \"b2\", \"type\": \"part\", \"target\": \"cylinder\"}]}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "plan_valid": true,
+    "built": true,
+    "body_count": true,
+    "declared_every_body": true,
+    "untouched_body_intact": true,
+    "drilled_body_has_the_hole": true,
+    "bore_fits_the_body": true
+   },
+   "strict_success": true,
+   "codes": [],
+   "label": "MODEL_GENERATED",
+   "attempt": 4
+  },
+  {
+   "case": "M5",
+   "group": "creation",
+   "seconds": 1.9,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 11590,
+    "output_tokens": 192
+   },
+   "fenced": false,
+   "observation": {
+    "case": "M5",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "generated",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [
+     {
+      "id": "cube",
+      "type": "box"
+     },
+     {
+      "id": "cylinder",
+      "type": "cylinder"
+     },
+     {
+      "id": "hole",
+      "type": "through_hole",
+      "target": "cylinder"
+     },
+     {
+      "id": "b1",
+      "type": "part",
+      "target": "cube"
+     },
+     {
+      "id": "b2",
+      "type": "part",
+      "target": "cylinder"
+     }
+    ],
+    "operation_types": [
+     "box",
+     "cylinder",
+     "through_hole",
+     "part",
+     "part"
+    ],
+    "operation_count": 5,
+    "model_operation_count": 5,
+    "declared_bodies": [
+     "cube",
+     "cylinder"
+    ],
+    "has_plan": true,
+    "questions": [],
+    "summary": "Created a cube and cylinder as separate bodies with a through hole in the cylinder.",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": true,
+    "execution_failure": null,
+    "bodies": [
+     {
+      "id": "cube",
+      "features": [
+       "cube"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 999.9999999999998,
+      "face_count": 6,
+      "edge_count": 12,
+      "minimum": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       10.0,
+       10.0,
+       10.0
+      ]
+     },
+     {
+      "id": "cylinder",
+      "features": [
+       "cylinder",
+       "hole"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 502.6548245743669,
+      "face_count": 4,
+      "edge_count": 6,
+      "minimum": [
+       -5.0,
+       -5.0,
+       0.0
+      ],
+      "maximum": [
+       5.0,
+       5.0,
+       10.0
+      ]
+     }
+    ],
+    "body_count": 2,
+    "raw_text": "{\"status\": \"generated\", \"summary\": \"Created a cube and cylinder as separate bodies with a through hole in the cylinder.\", \"operations\": [{\"id\": \"cube\", \"type\": \"box\", \"parameters\": {\"x\": 10, \"y\": 10, \"z\": 10}}, {\"id\": \"cylinder\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 10, \"height\": 10}}, {\"id\": \"hole\", \"type\": \"through_hole\", \"target\": \"cylinder\", \"parameters\": {\"diameter\": 6, \"position\": {\"x\": 0, \"y\": 0, \"z\": 0}, \"axis\": \"+Z\"}}, {\"id\": \"b1\", \"type\": \"part\", \"target\": \"cube\"}, {\"id\": \"b2\", \"type\": \"part\", \"target\": \"cylinder\"}]}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "plan_valid": true,
+    "built": true,
+    "body_count": true,
+    "declared_every_body": true,
+    "untouched_body_intact": true,
+    "drilled_body_has_the_hole": true,
+    "bore_fits_the_body": true
+   },
+   "strict_success": true,
+   "codes": [],
+   "label": "MODEL_GENERATED",
+   "attempt": 5
+  },
+  {
+   "case": "M5",
+   "group": "creation",
+   "seconds": 1.89,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 11590,
+    "output_tokens": 192
+   },
+   "fenced": false,
+   "observation": {
+    "case": "M5",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "generated",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [
+     {
+      "id": "cube",
+      "type": "box"
+     },
+     {
+      "id": "cylinder",
+      "type": "cylinder"
+     },
+     {
+      "id": "hole",
+      "type": "through_hole",
+      "target": "cylinder"
+     },
+     {
+      "id": "b1",
+      "type": "part",
+      "target": "cube"
+     },
+     {
+      "id": "b2",
+      "type": "part",
+      "target": "cylinder"
+     }
+    ],
+    "operation_types": [
+     "box",
+     "cylinder",
+     "through_hole",
+     "part",
+     "part"
+    ],
+    "operation_count": 5,
+    "model_operation_count": 5,
+    "declared_bodies": [
+     "cube",
+     "cylinder"
+    ],
+    "has_plan": true,
+    "questions": [],
+    "summary": "Created a cube and a cylinder as separate bodies, with a 6 mm through hole in the cylinder.",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": true,
+    "execution_failure": null,
+    "bodies": [
+     {
+      "id": "cube",
+      "features": [
+       "cube"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 999.9999999999998,
+      "face_count": 6,
+      "edge_count": 12,
+      "minimum": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       10.0,
+       10.0,
+       10.0
+      ]
+     },
+     {
+      "id": "cylinder",
+      "features": [
+       "cylinder",
+       "hole"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 8576.547944300135,
+      "face_count": 4,
+      "edge_count": 6,
+      "minimum": [
+       -10.0,
+       -10.0,
+       0.0
+      ],
+      "maximum": [
+       10.0,
+       10.0,
+       30.0
+      ]
+     }
+    ],
+    "body_count": 2,
+    "raw_text": "{\"status\": \"generated\", \"summary\": \"Created a cube and a cylinder as separate bodies, with a 6 mm through hole in the cylinder.\", \"operations\": [{\"id\": \"cube\", \"type\": \"box\", \"parameters\": {\"x\": 10, \"y\": 10, \"z\": 10}}, {\"id\": \"cylinder\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 20, \"height\": 30}}, {\"id\": \"hole\", \"type\": \"through_hole\", \"target\": \"cylinder\", \"parameters\": {\"diameter\": 6, \"position\": {\"x\": 0, \"y\": 0, \"z\": 0}}}, {\"id\": \"b1\", \"type\": \"part\", \"target\": \"cube\"}, {\"id\": \"b2\", \"type\": \"part\", \"target\": \"cylinder\"}]}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "plan_valid": true,
+    "built": true,
+    "body_count": true,
+    "declared_every_body": true,
+    "untouched_body_intact": true,
+    "drilled_body_has_the_hole": true,
+    "bore_fits_the_body": true
+   },
+   "strict_success": true,
+   "codes": [],
+   "label": "MODEL_GENERATED",
+   "attempt": 6
+  },
+  {
+   "case": "M5",
+   "group": "creation",
+   "seconds": 1.91,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 11590,
+    "output_tokens": 191
+   },
+   "fenced": false,
+   "observation": {
+    "case": "M5",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "generated",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [
+     {
+      "id": "cube",
+      "type": "box"
+     },
+     {
+      "id": "cylinder",
+      "type": "cylinder"
+     },
+     {
+      "id": "hole",
+      "type": "through_hole",
+      "target": "cylinder"
+     },
+     {
+      "id": "b1",
+      "type": "part",
+      "target": "cube"
+     },
+     {
+      "id": "b2",
+      "type": "part",
+      "target": "cylinder"
+     }
+    ],
+    "operation_types": [
+     "box",
+     "cylinder",
+     "through_hole",
+     "part",
+     "part"
+    ],
+    "operation_count": 5,
+    "model_operation_count": 5,
+    "declared_bodies": [
+     "cube",
+     "cylinder"
+    ],
+    "has_plan": true,
+    "questions": [],
+    "summary": "Created a cube and cylinder as separate bodies, with a 6 mm through hole through the cylinder.",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": true,
+    "execution_failure": null,
+    "bodies": [
+     {
+      "id": "cube",
+      "features": [
+       "cube"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 999.9999999999998,
+      "face_count": 6,
+      "edge_count": 12,
+      "minimum": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       10.0,
+       10.0,
+       10.0
+      ]
+     },
+     {
+      "id": "cylinder",
+      "features": [
+       "cylinder",
+       "hole"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 502.6548245743669,
+      "face_count": 4,
+      "edge_count": 6,
+      "minimum": [
+       -5.0,
+       -5.0,
+       0.0
+      ],
+      "maximum": [
+       5.0,
+       5.0,
+       10.0
+      ]
+     }
+    ],
+    "body_count": 2,
+    "raw_text": "{\"status\": \"generated\", \"summary\": \"Created a cube and cylinder as separate bodies, with a 6 mm through hole through the cylinder.\", \"operations\": [{\"id\": \"cube\", \"type\": \"box\", \"parameters\": {\"x\": 10, \"y\": 10, \"z\": 10}}, {\"id\": \"cylinder\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 10, \"height\": 10}}, {\"id\": \"hole\", \"type\": \"through_hole\", \"target\": \"cylinder\", \"parameters\": {\"diameter\": 6, \"position\": {\"x\": 0, \"y\": 0, \"z\": 0}}}, {\"id\": \"b1\", \"type\": \"part\", \"target\": \"cube\"}, {\"id\": \"b2\", \"type\": \"part\", \"target\": \"cylinder\"}]}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "plan_valid": true,
+    "built": true,
+    "body_count": true,
+    "declared_every_body": true,
+    "untouched_body_intact": true,
+    "drilled_body_has_the_hole": true,
+    "bore_fits_the_body": true
+   },
+   "strict_success": true,
+   "codes": [],
+   "label": "MODEL_GENERATED",
+   "attempt": 7
+  },
+  {
+   "case": "M5",
+   "group": "creation",
+   "seconds": 1.74,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 11590,
+    "output_tokens": 150
+   },
+   "fenced": false,
+   "observation": {
+    "case": "M5",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "generated",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [
+     {
+      "id": "cube",
+      "type": "box"
+     },
+     {
+      "id": "cylinder",
+      "type": "cylinder"
+     },
+     {
+      "id": "hole",
+      "type": "through_hole",
+      "target": "cylinder"
+     },
+     {
+      "id": "b1",
+      "type": "part",
+      "target": "cube"
+     },
+     {
+      "id": "b2",
+      "type": "part",
+      "target": "cylinder"
+     }
+    ],
+    "operation_types": [
+     "box",
+     "cylinder",
+     "through_hole",
+     "part",
+     "part"
+    ],
+    "operation_count": 5,
+    "model_operation_count": 5,
+    "declared_bodies": [
+     "cube",
+     "cylinder"
+    ],
+    "has_plan": true,
+    "questions": [],
+    "summary": "Created a cube and cylinder as separate bodies, with a 6 mm through hole drilled through the cylinder.",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": true,
+    "execution_failure": null,
+    "bodies": [
+     {
+      "id": "cube",
+      "features": [
+       "cube"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 124999.99999999999,
+      "face_count": 6,
+      "edge_count": 12,
+      "minimum": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       50.0,
+       50.0,
+       50.0
+      ]
+     },
+     {
+      "id": "cylinder",
+      "features": [
+       "cylinder",
+       "hole"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 96761.05373056563,
+      "face_count": 4,
+      "edge_count": 6,
+      "minimum": [
+       -25.0,
+       -25.0,
+       0.0
+      ],
+      "maximum": [
+       25.0,
+       25.0,
+       50.0
+      ]
+     }
+    ],
+    "body_count": 2,
+    "raw_text": "{\"status\":\"generated\",\"summary\":\"Created a cube and cylinder as separate bodies, with a 6 mm through hole drilled through the cylinder.\",\"operations\":[{\"id\":\"cube\",\"type\":\"box\",\"parameters\":{\"x\":50,\"y\":50,\"z\":50}},{\"id\":\"cylinder\",\"type\":\"cylinder\",\"parameters\":{\"diameter\":50,\"height\":50}},{\"id\":\"hole\",\"type\":\"through_hole\",\"target\":\"cylinder\",\"parameters\":{\"diameter\":6,\"position\":{\"x\":0,\"y\":0,\"z\":0}}},{\"id\":\"b1\",\"type\":\"part\",\"target\":\"cube\"},{\"id\":\"b2\",\"type\":\"part\",\"target\":\"cylinder\"}]}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "plan_valid": true,
+    "built": true,
+    "body_count": true,
+    "declared_every_body": true,
+    "untouched_body_intact": true,
+    "drilled_body_has_the_hole": true,
+    "bore_fits_the_body": true
+   },
+   "strict_success": true,
+   "codes": [],
+   "label": "MODEL_GENERATED",
+   "attempt": 8
+  },
+  {
+   "case": "N2",
+   "group": "creation",
+   "seconds": 2.95,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 11623,
+    "output_tokens": 158
+   },
+   "fenced": false,
+   "observation": {
+    "case": "N2",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "generated",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [
+     {
+      "id": "cube",
+      "type": "box"
+     },
+     {
+      "id": "cylinder",
+      "type": "cylinder"
+     },
+     {
+      "id": "fuse",
+      "type": "union",
+      "target": "cube"
+     }
+    ],
+    "operation_types": [
+     "box",
+     "cylinder",
+     "union"
+    ],
+    "operation_count": 3,
+    "model_operation_count": 3,
+    "declared_bodies": [],
+    "has_plan": true,
+    "questions": [],
+    "summary": "A 40 mm cube at the origin with a 30 mm cylinder on top, fused into one body.",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": true,
+    "execution_failure": null,
+    "bodies": [
+     {
+      "id": "cube",
+      "features": [
+       "cube",
+       "fuse"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 70283.18530717959,
+      "face_count": 8,
+      "edge_count": 15,
+      "minimum": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       40.0,
+       40.0,
+       60.0
+      ]
+     }
+    ],
+    "body_count": 1,
+    "raw_text": "{\"status\": \"generated\", \"summary\": \"A 40 mm cube at the origin with a 30 mm cylinder on top, fused into one body.\", \"operations\": [{\"id\": \"cube\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 40, \"z\": 40}}, {\"id\": \"cylinder\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 20, \"height\": 30, \"position\": {\"x\": 20, \"y\": 20, \"z\": 30}, \"axis\": \"+Z\"}}, {\"id\": \"fuse\", \"type\": \"union\", \"target\": \"cube\", \"tools\": [\"cylinder\"]}]}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "plan_valid": true,
+    "built": true,
+    "body_count": true,
+    "declared_nothing_spurious": true,
+    "volumes": true
+   },
+   "strict_success": true,
+   "codes": [],
+   "label": "MODEL_GENERATED",
+   "attempt": 1
+  },
+  {
+   "case": "N2",
+   "group": "creation",
+   "seconds": 2.88,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 11623,
+    "output_tokens": 163
+   },
+   "fenced": false,
+   "observation": {
+    "case": "N2",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "generated",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [
+     {
+      "id": "cube",
+      "type": "box"
+     },
+     {
+      "id": "cylinder",
+      "type": "cylinder"
+     },
+     {
+      "id": "fuse",
+      "type": "union",
+      "target": "cube"
+     }
+    ],
+    "operation_types": [
+     "box",
+     "cylinder",
+     "union"
+    ],
+    "operation_count": 3,
+    "model_operation_count": 3,
+    "declared_bodies": [],
+    "has_plan": true,
+    "questions": [],
+    "summary": "A 40 mm cube at the origin fused with a 20 mm diameter cylinder sunk 10 mm into its top face.",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": true,
+    "execution_failure": null,
+    "bodies": [
+     {
+      "id": "cube",
+      "features": [
+       "cube",
+       "fuse"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 70283.18530717959,
+      "face_count": 8,
+      "edge_count": 15,
+      "minimum": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       40.0,
+       40.0,
+       60.0
+      ]
+     }
+    ],
+    "body_count": 1,
+    "raw_text": "{\"status\": \"generated\", \"summary\": \"A 40 mm cube at the origin fused with a 20 mm diameter cylinder sunk 10 mm into its top face.\", \"operations\": [{\"id\": \"cube\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 40, \"z\": 40}}, {\"id\": \"cylinder\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 20, \"height\": 30, \"position\": {\"x\": 20, \"y\": 20, \"z\": 30}, \"axis\": \"+Z\"}}, {\"id\": \"fuse\", \"type\": \"union\", \"target\": \"cube\", \"tools\": [\"cylinder\"]}]}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "plan_valid": true,
+    "built": true,
+    "body_count": true,
+    "declared_nothing_spurious": true,
+    "volumes": true
+   },
+   "strict_success": true,
+   "codes": [],
+   "label": "MODEL_GENERATED",
+   "attempt": 2
+  },
+  {
+   "case": "N2",
+   "group": "creation",
+   "seconds": 2.7,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 11623,
+    "output_tokens": 122
+   },
+   "fenced": false,
+   "observation": {
+    "case": "N2",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "generated",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [
+     {
+      "id": "cube",
+      "type": "box"
+     },
+     {
+      "id": "cylinder",
+      "type": "cylinder"
+     },
+     {
+      "id": "fuse",
+      "type": "union",
+      "target": "cube"
+     }
+    ],
+    "operation_types": [
+     "box",
+     "cylinder",
+     "union"
+    ],
+    "operation_count": 3,
+    "model_operation_count": 3,
+    "declared_bodies": [],
+    "has_plan": true,
+    "questions": [],
+    "summary": "A 40 mm cube with a 30 mm cylinder fused into its top face.",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": true,
+    "execution_failure": null,
+    "bodies": [
+     {
+      "id": "cube",
+      "features": [
+       "cube",
+       "fuse"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 63999.999999999985,
+      "face_count": 6,
+      "edge_count": 12,
+      "minimum": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       40.0,
+       40.0,
+       40.0
+      ]
+     }
+    ],
+    "body_count": 1,
+    "raw_text": "{\"status\":\"generated\",\"summary\":\"A 40 mm cube with a 30 mm cylinder fused into its top face.\",\"operations\":[{\"id\":\"cube\",\"type\":\"box\",\"parameters\":{\"x\":40,\"y\":40,\"z\":40}},{\"id\":\"cylinder\",\"type\":\"cylinder\",\"parameters\":{\"diameter\":20,\"height\":30,\"position\":{\"x\":20,\"y\":20,\"z\":10},\"axis\":\"+Z\"}},{\"id\":\"fuse\",\"type\":\"union\",\"target\":\"cube\",\"tools\":[\"cylinder\"]}]}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "plan_valid": true,
+    "built": true,
+    "body_count": true,
+    "declared_nothing_spurious": true,
+    "volumes": false
+   },
+   "strict_success": false,
+   "codes": [
+    "G:incoherent_dimensions"
+   ],
+   "label": "MODEL_GENERATED",
+   "attempt": 3
+  },
+  {
+   "case": "N2",
+   "group": "creation",
+   "seconds": 2.61,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 11623,
+    "output_tokens": 122
+   },
+   "fenced": false,
+   "observation": {
+    "case": "N2",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "generated",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [
+     {
+      "id": "cube",
+      "type": "box"
+     },
+     {
+      "id": "cylinder",
+      "type": "cylinder"
+     },
+     {
+      "id": "fuse",
+      "type": "union",
+      "target": "cube"
+     }
+    ],
+    "operation_types": [
+     "box",
+     "cylinder",
+     "union"
+    ],
+    "operation_count": 3,
+    "model_operation_count": 3,
+    "declared_bodies": [],
+    "has_plan": true,
+    "questions": [],
+    "summary": "A 40 mm cube with a 20 mm cylinder fused into its top surface.",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": true,
+    "execution_failure": null,
+    "bodies": [
+     {
+      "id": "cube",
+      "features": [
+       "cube",
+       "fuse"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 63999.999999999985,
+      "face_count": 6,
+      "edge_count": 12,
+      "minimum": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       40.0,
+       40.0,
+       40.0
+      ]
+     }
+    ],
+    "body_count": 1,
+    "raw_text": "{\"status\":\"generated\",\"summary\":\"A 40 mm cube with a 20 mm cylinder fused into its top surface.\",\"operations\":[{\"id\":\"cube\",\"type\":\"box\",\"parameters\":{\"x\":40,\"y\":40,\"z\":40}},{\"id\":\"cylinder\",\"type\":\"cylinder\",\"parameters\":{\"diameter\":20,\"height\":30,\"position\":{\"x\":20,\"y\":20,\"z\":10},\"axis\":\"+Z\"}},{\"id\":\"fuse\",\"type\":\"union\",\"target\":\"cube\",\"tools\":[\"cylinder\"]}]}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "plan_valid": true,
+    "built": true,
+    "body_count": true,
+    "declared_nothing_spurious": true,
+    "volumes": false
+   },
+   "strict_success": false,
+   "codes": [
+    "G:incoherent_dimensions"
+   ],
+   "label": "MODEL_GENERATED",
+   "attempt": 4
+  },
+  {
+   "case": "N2",
+   "group": "creation",
+   "seconds": 3.08,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 11623,
+    "output_tokens": 183
+   },
+   "fenced": false,
+   "observation": {
+    "case": "N2",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "generated",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [
+     {
+      "id": "cube",
+      "type": "box"
+     },
+     {
+      "id": "cylinder",
+      "type": "cylinder"
+     },
+     {
+      "id": "fuse",
+      "type": "union",
+      "target": "cube"
+     }
+    ],
+    "operation_types": [
+     "box",
+     "cylinder",
+     "union"
+    ],
+    "operation_count": 3,
+    "model_operation_count": 3,
+    "declared_bodies": [],
+    "has_plan": true,
+    "questions": [],
+    "summary": "A 40 mm cube with a 30 mm tall cylinder fused on top, sunk 10 mm into the cube.",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": true,
+    "execution_failure": null,
+    "bodies": [
+     {
+      "id": "cube",
+      "features": [
+       "cube",
+       "fuse"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 70283.18530717959,
+      "face_count": 8,
+      "edge_count": 15,
+      "minimum": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       40.0,
+       40.0,
+       60.0
+      ]
+     }
+    ],
+    "body_count": 1,
+    "raw_text": "{\"status\": \"generated\", \"summary\": \"A 40 mm cube with a 30 mm tall cylinder fused on top, sunk 10 mm into the cube.\", \"operations\": [{\"id\": \"cube\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 40, \"z\": 40, \"position\": {\"x\": 0, \"y\": 0, \"z\": 0}}}, {\"id\": \"cylinder\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 20, \"height\": 30, \"position\": {\"x\": 20, \"y\": 20, \"z\": 30}, \"axis\": \"+Z\"}}, {\"id\": \"fuse\", \"type\": \"union\", \"target\": \"cube\", \"tools\": [\"cylinder\"]}]}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "plan_valid": true,
+    "built": true,
+    "body_count": true,
+    "declared_nothing_spurious": true,
+    "volumes": true
+   },
+   "strict_success": true,
+   "codes": [],
+   "label": "MODEL_GENERATED",
+   "attempt": 5
+  },
+  {
+   "case": "N2",
+   "group": "creation",
+   "seconds": 2.95,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 11623,
+    "output_tokens": 156
+   },
+   "fenced": false,
+   "observation": {
+    "case": "N2",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "generated",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [
+     {
+      "id": "cube",
+      "type": "box"
+     },
+     {
+      "id": "cylinder",
+      "type": "cylinder"
+     },
+     {
+      "id": "fuse",
+      "type": "union",
+      "target": "cube"
+     }
+    ],
+    "operation_types": [
+     "box",
+     "cylinder",
+     "union"
+    ],
+    "operation_count": 3,
+    "model_operation_count": 3,
+    "declared_bodies": [],
+    "has_plan": true,
+    "questions": [],
+    "summary": "A 40 mm cube at the origin with a 30 mm cylinder fused into its top face.",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": true,
+    "execution_failure": null,
+    "bodies": [
+     {
+      "id": "cube",
+      "features": [
+       "cube",
+       "fuse"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 70283.18530717959,
+      "face_count": 8,
+      "edge_count": 15,
+      "minimum": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       40.0,
+       40.0,
+       60.0
+      ]
+     }
+    ],
+    "body_count": 1,
+    "raw_text": "{\"status\": \"generated\", \"summary\": \"A 40 mm cube at the origin with a 30 mm cylinder fused into its top face.\", \"operations\": [{\"id\": \"cube\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 40, \"z\": 40}}, {\"id\": \"cylinder\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 20, \"height\": 30, \"position\": {\"x\": 20, \"y\": 20, \"z\": 30}, \"axis\": \"+Z\"}}, {\"id\": \"fuse\", \"type\": \"union\", \"target\": \"cube\", \"tools\": [\"cylinder\"]}]}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "plan_valid": true,
+    "built": true,
+    "body_count": true,
+    "declared_nothing_spurious": true,
+    "volumes": true
+   },
+   "strict_success": true,
+   "codes": [],
+   "label": "MODEL_GENERATED",
+   "attempt": 6
+  },
+  {
+   "case": "N2",
+   "group": "creation",
+   "seconds": 3.13,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 11623,
+    "output_tokens": 184
+   },
+   "fenced": false,
+   "observation": {
+    "case": "N2",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "generated",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [
+     {
+      "id": "cube",
+      "type": "box"
+     },
+     {
+      "id": "cylinder",
+      "type": "cylinder"
+     },
+     {
+      "id": "fuse",
+      "type": "union",
+      "target": "cube"
+     }
+    ],
+    "operation_types": [
+     "box",
+     "cylinder",
+     "union"
+    ],
+    "operation_count": 3,
+    "model_operation_count": 3,
+    "declared_bodies": [],
+    "has_plan": true,
+    "questions": [],
+    "summary": "A 40 mm cube with a 30 mm cylinder fused into its top face, centered and sunk 10 mm deep.",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": true,
+    "execution_failure": null,
+    "bodies": [
+     {
+      "id": "cube",
+      "features": [
+       "cube",
+       "fuse"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 70283.18530717959,
+      "face_count": 8,
+      "edge_count": 15,
+      "minimum": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       40.0,
+       40.0,
+       60.0
+      ]
+     }
+    ],
+    "body_count": 1,
+    "raw_text": "{\"status\": \"generated\", \"summary\": \"A 40 mm cube with a 30 mm cylinder fused into its top face, centered and sunk 10 mm deep.\", \"operations\": [{\"id\": \"cube\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 40, \"z\": 40, \"position\": {\"x\": 0, \"y\": 0, \"z\": 0}}}, {\"id\": \"cylinder\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 20, \"height\": 30, \"position\": {\"x\": 20, \"y\": 20, \"z\": 30}, \"axis\": \"+Z\"}}, {\"id\": \"fuse\", \"type\": \"union\", \"target\": \"cube\", \"tools\": [\"cylinder\"]}]}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "plan_valid": true,
+    "built": true,
+    "body_count": true,
+    "declared_nothing_spurious": true,
+    "volumes": true
+   },
+   "strict_success": true,
+   "codes": [],
+   "label": "MODEL_GENERATED",
+   "attempt": 7
+  },
+  {
+   "case": "N2",
+   "group": "creation",
+   "seconds": 2.85,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 11623,
+    "output_tokens": 155
+   },
+   "fenced": false,
+   "observation": {
+    "case": "N2",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "generated",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [
+     {
+      "id": "cube",
+      "type": "box"
+     },
+     {
+      "id": "cylinder",
+      "type": "cylinder"
+     },
+     {
+      "id": "fuse",
+      "type": "union",
+      "target": "cube"
+     }
+    ],
+    "operation_types": [
+     "box",
+     "cylinder",
+     "union"
+    ],
+    "operation_count": 3,
+    "model_operation_count": 3,
+    "declared_bodies": [],
+    "has_plan": true,
+    "questions": [],
+    "summary": "A 40 mm cube at the origin fused with a cylinder partially sunk into its top face.",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": true,
+    "execution_failure": null,
+    "bodies": [
+     {
+      "id": "cube",
+      "features": [
+       "cube",
+       "fuse"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 70283.18530717959,
+      "face_count": 8,
+      "edge_count": 15,
+      "minimum": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       40.0,
+       40.0,
+       60.0
+      ]
+     }
+    ],
+    "body_count": 1,
+    "raw_text": "{\"status\": \"generated\", \"summary\": \"A 40 mm cube at the origin fused with a cylinder partially sunk into its top face.\", \"operations\": [{\"id\": \"cube\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 40, \"z\": 40}}, {\"id\": \"cylinder\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 20, \"height\": 30, \"position\": {\"x\": 20, \"y\": 20, \"z\": 30}, \"axis\": \"+Z\"}}, {\"id\": \"fuse\", \"type\": \"union\", \"target\": \"cube\", \"tools\": [\"cylinder\"]}]}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "plan_valid": true,
+    "built": true,
+    "body_count": true,
+    "declared_nothing_spurious": true,
+    "volumes": true
+   },
+   "strict_success": true,
+   "codes": [],
+   "label": "MODEL_GENERATED",
+   "attempt": 8
+  },
+  {
+   "case": "N3",
+   "group": "creation",
+   "seconds": 2.85,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 11605,
+    "output_tokens": 163
+   },
+   "fenced": false,
+   "observation": {
+    "case": "N3",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "generated",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [
+     {
+      "id": "cube",
+      "type": "box"
+     },
+     {
+      "id": "cylinder",
+      "type": "cylinder"
+     },
+     {
+      "id": "b1",
+      "type": "part",
+      "target": "cube"
+     },
+     {
+      "id": "b2",
+      "type": "part",
+      "target": "cylinder"
+     }
+    ],
+    "operation_types": [
+     "box",
+     "cylinder",
+     "part",
+     "part"
+    ],
+    "operation_count": 4,
+    "model_operation_count": 4,
+    "declared_bodies": [
+     "cube",
+     "cylinder"
+    ],
+    "has_plan": true,
+    "questions": [],
+    "summary": "A 40 mm cube and a 40 mm long cylinder as two separate bodies positioned beside each other.",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": true,
+    "execution_failure": null,
+    "bodies": [
+     {
+      "id": "cube",
+      "features": [
+       "cube"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 63999.999999999985,
+      "face_count": 6,
+      "edge_count": 12,
+      "minimum": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       40.0,
+       40.0,
+       40.0
+      ]
+     },
+     {
+      "id": "cylinder",
+      "features": [
+       "cylinder"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 12566.370614359172,
+      "face_count": 3,
+      "edge_count": 3,
+      "minimum": [
+       50.0,
+       10.0,
+       0.0
+      ],
+      "maximum": [
+       70.0,
+       30.0,
+       40.0
+      ]
+     }
+    ],
+    "body_count": 2,
+    "raw_text": "{\"status\": \"generated\", \"summary\": \"A 40 mm cube and a 40 mm long cylinder as two separate bodies positioned beside each other.\", \"operations\": [{\"id\": \"cube\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 40, \"z\": 40}}, {\"id\": \"cylinder\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 20, \"height\": 40, \"position\": {\"x\": 60, \"y\": 20, \"z\": 0}}}, {\"id\": \"b1\", \"type\": \"part\", \"target\": \"cube\"}, {\"id\": \"b2\", \"type\": \"part\", \"target\": \"cylinder\"}]}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "plan_valid": true,
+    "built": true,
+    "body_count": true,
+    "declared_every_body": true,
+    "edited_body": true,
+    "other_body_untouched": true,
+    "bodies_disjoint": true
+   },
+   "strict_success": true,
+   "codes": [],
+   "label": "MODEL_GENERATED",
+   "attempt": 1
+  },
+  {
+   "case": "N3",
+   "group": "creation",
+   "seconds": 3.78,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 11605,
+    "output_tokens": 140
+   },
+   "fenced": false,
+   "observation": {
+    "case": "N3",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "unsupported",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [],
+    "operation_types": [],
+    "operation_count": 0,
+    "model_operation_count": 0,
+    "declared_bodies": [],
+    "has_plan": true,
+    "questions": [],
+    "summary": "Two separate bodies that are not touching cannot form a valid single solid, which this language requires.",
+    "plan_reason": "This language requires exactly one connected solid at the end. Two bodies standing beside each other and not touching are disconnected lumps. The language has no assembly or group operation, and a union requires the pieces to actually touch or overlap. Declaring them as separate bodies with `part` is only valid after they have been created, but the instruction to place them not touching means they cannot be joined into one solid, and leaving two disconnected solids without declaring them is an error.",
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": false,
+    "execution_failure": {
+     "code": "not_generated",
+     "message": "a `unsupported` plan has no geometry to build",
+     "operation": null
+    },
+    "bodies": [],
+    "body_count": 0,
+    "raw_text": "{\"status\":\"unsupported\",\"summary\":\"Two separate bodies that are not touching cannot form a valid single solid, which this language requires.\",\"reason\":\"This language requires exactly one connected solid at the end. Two bodies standing beside each other and not touching are disconnected lumps. The language has no assembly or group operation, and a union requires the pieces to actually touch or overlap. Declaring them as separate bodies with `part` is only valid after they have been created, but the instruction to place them not touching means they cannot be joined into one solid, and leaving two disconnected solids without declaring them is an error.\",\"questions\":[],\"operations\":[]}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "plan_valid": true,
+    "built": false,
+    "body_count": false,
+    "declared_every_body": false,
+    "edited_body": false,
+    "other_body_untouched": false,
+    "bodies_disjoint": true
+   },
+   "strict_success": false,
+   "codes": [
+    "K:invalid_plan",
+    "E:cross_body_edit",
+    "D:wrong_target",
+    "L:other"
+   ],
+   "label": "REFUSED",
+   "attempt": 2
+  },
+  {
+   "case": "N3",
+   "group": "creation",
+   "seconds": 2.99,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 11605,
+    "output_tokens": 166
+   },
+   "fenced": false,
+   "observation": {
+    "case": "N3",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "generated",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [
+     {
+      "id": "cube",
+      "type": "box"
+     },
+     {
+      "id": "cylinder",
+      "type": "cylinder"
+     },
+     {
+      "id": "b1",
+      "type": "part",
+      "target": "cube"
+     },
+     {
+      "id": "b2",
+      "type": "part",
+      "target": "cylinder"
+     }
+    ],
+    "operation_types": [
+     "box",
+     "cylinder",
+     "part",
+     "part"
+    ],
+    "operation_count": 4,
+    "model_operation_count": 4,
+    "declared_bodies": [
+     "cube",
+     "cylinder"
+    ],
+    "has_plan": true,
+    "questions": [],
+    "summary": "Created a 40 mm cube and a 40 mm long cylinder as two separate bodies positioned beside each other without touching.",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": true,
+    "execution_failure": null,
+    "bodies": [
+     {
+      "id": "cube",
+      "features": [
+       "cube"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 63999.999999999985,
+      "face_count": 6,
+      "edge_count": 12,
+      "minimum": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       40.0,
+       40.0,
+       40.0
+      ]
+     },
+     {
+      "id": "cylinder",
+      "features": [
+       "cylinder"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 12566.370614359172,
+      "face_count": 3,
+      "edge_count": 3,
+      "minimum": [
+       50.0,
+       10.0,
+       0.0
+      ],
+      "maximum": [
+       70.0,
+       30.0,
+       40.0
+      ]
+     }
+    ],
+    "body_count": 2,
+    "raw_text": "{\"status\": \"generated\", \"summary\": \"Created a 40 mm cube and a 40 mm long cylinder as two separate bodies positioned beside each other without touching.\", \"operations\": [{\"id\": \"cube\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 40, \"z\": 40}}, {\"id\": \"cylinder\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 20, \"height\": 40, \"position\": {\"x\": 60, \"y\": 20, \"z\": 0}}}, {\"id\": \"b1\", \"type\": \"part\", \"target\": \"cube\"}, {\"id\": \"b2\", \"type\": \"part\", \"target\": \"cylinder\"}]}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "plan_valid": true,
+    "built": true,
+    "body_count": true,
+    "declared_every_body": true,
+    "edited_body": true,
+    "other_body_untouched": true,
+    "bodies_disjoint": true
+   },
+   "strict_success": true,
+   "codes": [],
+   "label": "MODEL_GENERATED",
+   "attempt": 3
+  },
+  {
+   "case": "N3",
+   "group": "creation",
+   "seconds": 3.04,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 11605,
+    "output_tokens": 169
+   },
+   "fenced": false,
+   "observation": {
+    "case": "N3",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "generated",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [
+     {
+      "id": "cube",
+      "type": "box"
+     },
+     {
+      "id": "cylinder",
+      "type": "cylinder"
+     },
+     {
+      "id": "b1",
+      "type": "part",
+      "target": "cube"
+     },
+     {
+      "id": "b2",
+      "type": "part",
+      "target": "cylinder"
+     }
+    ],
+    "operation_types": [
+     "box",
+     "cylinder",
+     "part",
+     "part"
+    ],
+    "operation_count": 4,
+    "model_operation_count": 4,
+    "declared_bodies": [
+     "cube",
+     "cylinder"
+    ],
+    "has_plan": true,
+    "questions": [],
+    "summary": "A 40 mm cube and a 40 mm tall, 20 mm diameter cylinder as two separate, non-touching bodies.",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": true,
+    "execution_failure": null,
+    "bodies": [
+     {
+      "id": "cube",
+      "features": [
+       "cube"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 63999.999999999985,
+      "face_count": 6,
+      "edge_count": 12,
+      "minimum": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       40.0,
+       40.0,
+       40.0
+      ]
+     },
+     {
+      "id": "cylinder",
+      "features": [
+       "cylinder"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 12566.370614359172,
+      "face_count": 3,
+      "edge_count": 3,
+      "minimum": [
+       50.0,
+       10.0,
+       0.0
+      ],
+      "maximum": [
+       70.0,
+       30.0,
+       40.0
+      ]
+     }
+    ],
+    "body_count": 2,
+    "raw_text": "{\"status\": \"generated\", \"summary\": \"A 40 mm cube and a 40 mm tall, 20 mm diameter cylinder as two separate, non-touching bodies.\", \"operations\": [{\"id\": \"cube\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 40, \"z\": 40}}, {\"id\": \"cylinder\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 20, \"height\": 40, \"position\": {\"x\": 60, \"y\": 20, \"z\": 0}}}, {\"id\": \"b1\", \"type\": \"part\", \"target\": \"cube\"}, {\"id\": \"b2\", \"type\": \"part\", \"target\": \"cylinder\"}]}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "plan_valid": true,
+    "built": true,
+    "body_count": true,
+    "declared_every_body": true,
+    "edited_body": true,
+    "other_body_untouched": true,
+    "bodies_disjoint": true
+   },
+   "strict_success": true,
+   "codes": [],
+   "label": "MODEL_GENERATED",
+   "attempt": 4
+  },
+  {
+   "case": "N3",
+   "group": "creation",
+   "seconds": 2.88,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 11605,
+    "output_tokens": 162
+   },
+   "fenced": false,
+   "observation": {
+    "case": "N3",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "generated",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [
+     {
+      "id": "cube",
+      "type": "box"
+     },
+     {
+      "id": "cylinder",
+      "type": "cylinder"
+     },
+     {
+      "id": "b1",
+      "type": "part",
+      "target": "cube"
+     },
+     {
+      "id": "b2",
+      "type": "part",
+      "target": "cylinder"
+     }
+    ],
+    "operation_types": [
+     "box",
+     "cylinder",
+     "part",
+     "part"
+    ],
+    "operation_count": 4,
+    "model_operation_count": 4,
+    "declared_bodies": [
+     "cube",
+     "cylinder"
+    ],
+    "has_plan": true,
+    "questions": [],
+    "summary": "Created a 40 mm cube and a 40 mm tall cylinder positioned separately as two independent bodies.",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": true,
+    "execution_failure": null,
+    "bodies": [
+     {
+      "id": "cube",
+      "features": [
+       "cube"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 63999.999999999985,
+      "face_count": 6,
+      "edge_count": 12,
+      "minimum": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       40.0,
+       40.0,
+       40.0
+      ]
+     },
+     {
+      "id": "cylinder",
+      "features": [
+       "cylinder"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 12566.370614359172,
+      "face_count": 3,
+      "edge_count": 3,
+      "minimum": [
+       50.0,
+       10.0,
+       0.0
+      ],
+      "maximum": [
+       70.0,
+       30.0,
+       40.0
+      ]
+     }
+    ],
+    "body_count": 2,
+    "raw_text": "{\"status\": \"generated\", \"summary\": \"Created a 40 mm cube and a 40 mm tall cylinder positioned separately as two independent bodies.\", \"operations\": [{\"id\": \"cube\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 40, \"z\": 40}}, {\"id\": \"cylinder\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 20, \"height\": 40, \"position\": {\"x\": 60, \"y\": 20, \"z\": 0}}}, {\"id\": \"b1\", \"type\": \"part\", \"target\": \"cube\"}, {\"id\": \"b2\", \"type\": \"part\", \"target\": \"cylinder\"}]}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "plan_valid": true,
+    "built": true,
+    "body_count": true,
+    "declared_every_body": true,
+    "edited_body": true,
+    "other_body_untouched": true,
+    "bodies_disjoint": true
+   },
+   "strict_success": true,
+   "codes": [],
+   "label": "MODEL_GENERATED",
+   "attempt": 5
+  },
+  {
+   "case": "N3",
+   "group": "creation",
+   "seconds": 2.89,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 11605,
+    "output_tokens": 164
+   },
+   "fenced": false,
+   "observation": {
+    "case": "N3",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "generated",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [
+     {
+      "id": "cube",
+      "type": "box"
+     },
+     {
+      "id": "cylinder",
+      "type": "cylinder"
+     },
+     {
+      "id": "b1",
+      "type": "part",
+      "target": "cube"
+     },
+     {
+      "id": "b2",
+      "type": "part",
+      "target": "cylinder"
+     }
+    ],
+    "operation_types": [
+     "box",
+     "cylinder",
+     "part",
+     "part"
+    ],
+    "operation_count": 4,
+    "model_operation_count": 4,
+    "declared_bodies": [
+     "cube",
+     "cylinder"
+    ],
+    "has_plan": true,
+    "questions": [],
+    "summary": "Created a 40 mm cube and a 40 mm long cylinder as two separate bodies positioned beside each other.",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": true,
+    "execution_failure": null,
+    "bodies": [
+     {
+      "id": "cube",
+      "features": [
+       "cube"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 63999.999999999985,
+      "face_count": 6,
+      "edge_count": 12,
+      "minimum": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       40.0,
+       40.0,
+       40.0
+      ]
+     },
+     {
+      "id": "cylinder",
+      "features": [
+       "cylinder"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 12566.370614359172,
+      "face_count": 3,
+      "edge_count": 3,
+      "minimum": [
+       50.0,
+       10.0,
+       0.0
+      ],
+      "maximum": [
+       70.0,
+       30.0,
+       40.0
+      ]
+     }
+    ],
+    "body_count": 2,
+    "raw_text": "{\"status\": \"generated\", \"summary\": \"Created a 40 mm cube and a 40 mm long cylinder as two separate bodies positioned beside each other.\", \"operations\": [{\"id\": \"cube\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 40, \"z\": 40}}, {\"id\": \"cylinder\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 20, \"height\": 40, \"position\": {\"x\": 60, \"y\": 20, \"z\": 0}}}, {\"id\": \"b1\", \"type\": \"part\", \"target\": \"cube\"}, {\"id\": \"b2\", \"type\": \"part\", \"target\": \"cylinder\"}]}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "plan_valid": true,
+    "built": true,
+    "body_count": true,
+    "declared_every_body": true,
+    "edited_body": true,
+    "other_body_untouched": true,
+    "bodies_disjoint": true
+   },
+   "strict_success": true,
+   "codes": [],
+   "label": "MODEL_GENERATED",
+   "attempt": 6
+  },
+  {
+   "case": "N3",
+   "group": "creation",
+   "seconds": 3.0,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 11605,
+    "output_tokens": 167
+   },
+   "fenced": false,
+   "observation": {
+    "case": "N3",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "generated",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [
+     {
+      "id": "cube",
+      "type": "box"
+     },
+     {
+      "id": "cylinder",
+      "type": "cylinder"
+     },
+     {
+      "id": "b1",
+      "type": "part",
+      "target": "cube"
+     },
+     {
+      "id": "b2",
+      "type": "part",
+      "target": "cylinder"
+     }
+    ],
+    "operation_types": [
+     "box",
+     "cylinder",
+     "part",
+     "part"
+    ],
+    "operation_count": 4,
+    "model_operation_count": 4,
+    "declared_bodies": [
+     "cube",
+     "cylinder"
+    ],
+    "has_plan": true,
+    "questions": [],
+    "summary": "Created a 40 mm cube and a separate 40 mm tall, 20 mm diameter cylinder positioned beside each other.",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": true,
+    "execution_failure": null,
+    "bodies": [
+     {
+      "id": "cube",
+      "features": [
+       "cube"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 63999.999999999985,
+      "face_count": 6,
+      "edge_count": 12,
+      "minimum": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "maximum": [
+       40.0,
+       40.0,
+       40.0
+      ]
+     },
+     {
+      "id": "cylinder",
+      "features": [
+       "cylinder"
+      ],
+      "is_valid": true,
+      "solid_count": 1,
+      "volume": 12566.370614359172,
+      "face_count": 3,
+      "edge_count": 3,
+      "minimum": [
+       50.0,
+       10.0,
+       0.0
+      ],
+      "maximum": [
+       70.0,
+       30.0,
+       40.0
+      ]
+     }
+    ],
+    "body_count": 2,
+    "raw_text": "{\"status\": \"generated\", \"summary\": \"Created a 40 mm cube and a separate 40 mm tall, 20 mm diameter cylinder positioned beside each other.\", \"operations\": [{\"id\": \"cube\", \"type\": \"box\", \"parameters\": {\"x\": 40, \"y\": 40, \"z\": 40}}, {\"id\": \"cylinder\", \"type\": \"cylinder\", \"parameters\": {\"diameter\": 20, \"height\": 40, \"position\": {\"x\": 60, \"y\": 20, \"z\": 0}}}, {\"id\": \"b1\", \"type\": \"part\", \"target\": \"cube\"}, {\"id\": \"b2\", \"type\": \"part\", \"target\": \"cylinder\"}]}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "plan_valid": true,
+    "built": true,
+    "body_count": true,
+    "declared_every_body": true,
+    "edited_body": true,
+    "other_body_untouched": true,
+    "bodies_disjoint": true
+   },
+   "strict_success": true,
+   "codes": [],
+   "label": "MODEL_GENERATED",
+   "attempt": 7
+  },
+  {
+   "case": "N3",
+   "group": "creation",
+   "seconds": 2.79,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 11605,
+    "output_tokens": 113
+   },
+   "fenced": false,
+   "observation": {
+    "case": "N3",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "needs_clarification",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [],
+    "operation_types": [],
+    "operation_count": 0,
+    "model_operation_count": 0,
+    "declared_bodies": [],
+    "has_plan": true,
+    "questions": [
+     "You want a 40 mm cube and a 40 mm long, 20 mm diameter cylinder as two separate bodies not touching. Where should the cylinder be positioned relative to the cube? For example, should it be centered on the X-axis at a specific distance away, or positioned at particular coordinates?"
+    ],
+    "summary": "The description asks for two separate bodies not touching, but also declares them as independent parts. Clarification is needed on positioning.",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": false,
+    "execution_failure": {
+     "code": "not_generated",
+     "message": "a `needs_clarification` plan has no geometry to build",
+     "operation": null
+    },
+    "bodies": [],
+    "body_count": 0,
+    "raw_text": "{\"status\":\"needs_clarification\",\"summary\":\"The description asks for two separate bodies not touching, but also declares them as independent parts. Clarification is needed on positioning.\",\"questions\":[\"You want a 40 mm cube and a 40 mm long, 20 mm diameter cylinder as two separate bodies not touching. Where should the cylinder be positioned relative to the cube? For example, should it be centered on the X-axis at a specific distance away, or positioned at particular coordinates?\"],\"operations\":[]}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "plan_valid": true,
+    "built": false,
+    "body_count": false,
+    "declared_every_body": false,
+    "edited_body": false,
+    "other_body_untouched": false,
+    "bodies_disjoint": true
+   },
+   "strict_success": false,
+   "codes": [
+    "K:invalid_plan",
+    "E:cross_body_edit",
+    "D:wrong_target",
+    "L:other"
+   ],
+   "label": "REFUSED",
+   "attempt": 8
+  }
+ ],
+ "model": "claude-haiku-4-5-20251001",
+ "provider": "anthropic",
+ "prompt_version": "2026-09-24.2",
+ "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+ "prompt_characters": 33759,
+ "schema_name": "strict_selector_union_part",
+ "schema_inlined": 3874,
+ "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+ "summary": {
+  "per_case": {
+   "M1": {
+    "calls": 8,
+    "strict": 8,
+    "codes": {},
+    "labels": {
+     "MODEL_GENERATED": 8
+    },
+    "rate": 1.0,
+    "group": "creation"
+   },
+   "M2": {
+    "calls": 8,
+    "strict": 8,
+    "codes": {},
+    "labels": {
+     "MODEL_GENERATED": 8
+    },
+    "rate": 1.0,
+    "group": "creation"
+   },
+   "M3": {
+    "calls": 8,
+    "strict": 8,
+    "codes": {},
+    "labels": {
+     "MODEL_GENERATED": 8
+    },
+    "rate": 1.0,
+    "group": "creation"
+   },
+   "M5": {
+    "calls": 8,
+    "strict": 8,
+    "codes": {},
+    "labels": {
+     "MODEL_GENERATED": 8
+    },
+    "rate": 1.0,
+    "group": "creation"
+   },
+   "N2": {
+    "calls": 8,
+    "strict": 6,
+    "codes": {
+     "G:incoherent_dimensions": 2
+    },
+    "labels": {
+     "MODEL_GENERATED": 8
+    },
+    "rate": 0.75,
+    "group": "creation"
+   },
+   "N3": {
+    "calls": 8,
+    "strict": 6,
+    "codes": {
+     "K:invalid_plan": 2,
+     "E:cross_body_edit": 2,
+     "D:wrong_target": 2,
+     "L:other": 2
+    },
+    "labels": {
+     "MODEL_GENERATED": 6,
+     "REFUSED": 2
+    },
+    "rate": 0.75,
+    "group": "creation"
+   }
+  },
+  "per_group": {
+   "creation": {
+    "calls": 48,
+    "strict": 44,
+    "rate": 0.9166666666666666
+   }
+  },
+  "labels": {
+   "MODEL_GENERATED": 46,
+   "REFUSED": 2
+  },
+  "structured_output": 48,
+  "fenced": 0
+ },
+ "arm": "D0-baseline",
+ "arm_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+ "arm_characters": 33759,
+ "baseline_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+ "prompt_is_committed": true,
+ "classes_note": "no refusal case in this run; the A-F taxonomy describes refusals only",
+ "regraded_note": "what the runner recorded before the taxonomy was corrected, kept as the record of the defect rather than deleted. The A-F taxonomy describes REFUSALS: on a creation case there are no bodies a clarification must name and no pinned noun, so every naming test is vacuously true and a correct BUILD reads as `E`. Re-derived offline -- no model was re-called, no attempt was changed, and no rate in this file moved: `strict_success`, the per-case rates and the failure codes are all `evaluate75`'s and the taxonomy never fed them.",
+ "classes_recorded_in_error": {
+  "E": 46,
+  "F": 0,
+  "D": 1,
+  "C": 0,
+  "B": 0,
+  "A": 1
+ }
+}

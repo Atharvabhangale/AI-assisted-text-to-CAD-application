@@ -1,0 +1,2330 @@
+{
+ "stage": 75,
+ "is_live_model_result": true,
+ "credential_from": "CAD_ANTHROPIC_API_KEY",
+ "backend": "cadquery",
+ "backend_version": "2.8.0",
+ "calls_per_case": 32,
+ "cases": [
+  "R2"
+ ],
+ "corpus": {
+  "R2": {
+   "group": "refusal",
+   "text": "Make the bracket 10 mm taller.",
+   "expected": {
+    "name": "R2",
+    "group": "refusal",
+    "text": "Make the bracket 10 mm taller.",
+    "bodies": null,
+    "body_ids": null,
+    "declaration_required": false,
+    "volumes": null,
+    "disjoint": false,
+    "edited_body_volume": null,
+    "unchanged_body_volume": null,
+    "topology": null,
+    "refusal_must_name": [
+     "block",
+     "rod"
+    ],
+    "refusal_question_must_mention": [
+     "bracket"
+    ],
+    "operations_permitted": false,
+    "volume_tolerance": 1e-06
+   }
+  }
+ },
+ "attempts": [
+  {
+   "case": "R2",
+   "group": "refusal",
+   "seconds": 1.51,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 12141,
+    "output_tokens": 61
+   },
+   "fenced": false,
+   "observation": {
+    "case": "R2",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "needs_clarification",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [],
+    "operation_types": [],
+    "operation_count": 0,
+    "model_operation_count": 0,
+    "declared_bodies": [],
+    "has_plan": true,
+    "questions": [
+     "This part has two bodies, `block` and `rod`. Which one should be made 10 mm taller?"
+    ],
+    "summary": "the request does not say which body to change",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": false,
+    "execution_failure": {
+     "code": "not_generated",
+     "message": "a `needs_clarification` plan has no geometry to build",
+     "operation": null
+    },
+    "bodies": [],
+    "body_count": 0,
+    "raw_text": "{\"status\": \"needs_clarification\", \"summary\": \"the request does not say which body to change\", \"questions\": [\"This part has two bodies, `block` and `rod`. Which one should be made 10 mm taller?\"], \"operations\": []}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "refused": true,
+    "named_the_bodies": true,
+    "built_nothing": true,
+    "asked_a_question": true,
+    "emitted_no_operations": true,
+    "question_addressed_the_request": false
+   },
+   "strict_success": false,
+   "metrics": {
+    "bodies_expected": 2,
+    "bodies_named": 2,
+    "operations_written": 0,
+    "questions_asked": 1
+   },
+   "codes": [
+    "J:bad_clarification"
+   ],
+   "label": "REFUSED",
+   "attempt": 1
+  },
+  {
+   "case": "R2",
+   "group": "refusal",
+   "seconds": 1.41,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 12141,
+    "output_tokens": 88
+   },
+   "fenced": false,
+   "observation": {
+    "case": "R2",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "needs_clarification",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [],
+    "operation_types": [],
+    "operation_count": 0,
+    "model_operation_count": 0,
+    "declared_bodies": [],
+    "has_plan": true,
+    "questions": [
+     "This part has two bodies: `block` (a 30\u00d730\u00d730 mm box) and `rod` (a 10 mm diameter, 25 mm tall cylinder). Which one should be made 10 mm taller?"
+    ],
+    "summary": "the request does not specify which body to modify",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": false,
+    "execution_failure": {
+     "code": "not_generated",
+     "message": "a `needs_clarification` plan has no geometry to build",
+     "operation": null
+    },
+    "bodies": [],
+    "body_count": 0,
+    "raw_text": "{\"status\": \"needs_clarification\", \"summary\": \"the request does not specify which body to modify\", \"questions\": [\"This part has two bodies: `block` (a 30\u00d730\u00d730 mm box) and `rod` (a 10 mm diameter, 25 mm tall cylinder). Which one should be made 10 mm taller?\"], \"operations\": []}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "refused": true,
+    "named_the_bodies": true,
+    "built_nothing": true,
+    "asked_a_question": true,
+    "emitted_no_operations": true,
+    "question_addressed_the_request": false
+   },
+   "strict_success": false,
+   "metrics": {
+    "bodies_expected": 2,
+    "bodies_named": 2,
+    "operations_written": 0,
+    "questions_asked": 1
+   },
+   "codes": [
+    "J:bad_clarification"
+   ],
+   "label": "REFUSED",
+   "attempt": 2
+  },
+  {
+   "case": "R2",
+   "group": "refusal",
+   "seconds": 1.08,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 12141,
+    "output_tokens": 61
+   },
+   "fenced": false,
+   "observation": {
+    "case": "R2",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "needs_clarification",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [],
+    "operation_types": [],
+    "operation_count": 0,
+    "model_operation_count": 0,
+    "declared_bodies": [],
+    "has_plan": true,
+    "questions": [
+     "This part has two bodies, `block` and `rod`. Which one should be made 10 mm taller?"
+    ],
+    "summary": "the request does not say which body to change",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": false,
+    "execution_failure": {
+     "code": "not_generated",
+     "message": "a `needs_clarification` plan has no geometry to build",
+     "operation": null
+    },
+    "bodies": [],
+    "body_count": 0,
+    "raw_text": "{\"status\": \"needs_clarification\", \"summary\": \"the request does not say which body to change\", \"questions\": [\"This part has two bodies, `block` and `rod`. Which one should be made 10 mm taller?\"], \"operations\": []}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "refused": true,
+    "named_the_bodies": true,
+    "built_nothing": true,
+    "asked_a_question": true,
+    "emitted_no_operations": true,
+    "question_addressed_the_request": false
+   },
+   "strict_success": false,
+   "metrics": {
+    "bodies_expected": 2,
+    "bodies_named": 2,
+    "operations_written": 0,
+    "questions_asked": 1
+   },
+   "codes": [
+    "J:bad_clarification"
+   ],
+   "label": "REFUSED",
+   "attempt": 3
+  },
+  {
+   "case": "R2",
+   "group": "refusal",
+   "seconds": 1.36,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 12141,
+    "output_tokens": 88
+   },
+   "fenced": false,
+   "observation": {
+    "case": "R2",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "needs_clarification",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [],
+    "operation_types": [],
+    "operation_count": 0,
+    "model_operation_count": 0,
+    "declared_bodies": [],
+    "has_plan": true,
+    "questions": [
+     "This part has two bodies: `block` (a 30\u00d730\u00d730 mm box) and `rod` (a 10 mm diameter cylinder, 25 mm tall). Which one should be made 10 mm taller?"
+    ],
+    "summary": "the request does not say which body to change",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": false,
+    "execution_failure": {
+     "code": "not_generated",
+     "message": "a `needs_clarification` plan has no geometry to build",
+     "operation": null
+    },
+    "bodies": [],
+    "body_count": 0,
+    "raw_text": "{\"status\": \"needs_clarification\", \"summary\": \"the request does not say which body to change\", \"questions\": [\"This part has two bodies: `block` (a 30\u00d730\u00d730 mm box) and `rod` (a 10 mm diameter cylinder, 25 mm tall). Which one should be made 10 mm taller?\"], \"operations\": []}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "refused": true,
+    "named_the_bodies": true,
+    "built_nothing": true,
+    "asked_a_question": true,
+    "emitted_no_operations": true,
+    "question_addressed_the_request": false
+   },
+   "strict_success": false,
+   "metrics": {
+    "bodies_expected": 2,
+    "bodies_named": 2,
+    "operations_written": 0,
+    "questions_asked": 1
+   },
+   "codes": [
+    "J:bad_clarification"
+   ],
+   "label": "REFUSED",
+   "attempt": 4
+  },
+  {
+   "case": "R2",
+   "group": "refusal",
+   "seconds": 1.32,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 12141,
+    "output_tokens": 88
+   },
+   "fenced": false,
+   "observation": {
+    "case": "R2",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "needs_clarification",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [],
+    "operation_types": [],
+    "operation_count": 0,
+    "model_operation_count": 0,
+    "declared_bodies": [],
+    "has_plan": true,
+    "questions": [
+     "This part has two bodies: `block` (a 30\u00d730\u00d730 mm box) and `rod` (a 10 mm diameter cylinder, 25 mm tall). Which one should be made 10 mm taller?"
+    ],
+    "summary": "the request does not specify which body to change",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": false,
+    "execution_failure": {
+     "code": "not_generated",
+     "message": "a `needs_clarification` plan has no geometry to build",
+     "operation": null
+    },
+    "bodies": [],
+    "body_count": 0,
+    "raw_text": "{\"status\": \"needs_clarification\", \"summary\": \"the request does not specify which body to change\", \"questions\": [\"This part has two bodies: `block` (a 30\u00d730\u00d730 mm box) and `rod` (a 10 mm diameter cylinder, 25 mm tall). Which one should be made 10 mm taller?\"], \"operations\": []}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "refused": true,
+    "named_the_bodies": true,
+    "built_nothing": true,
+    "asked_a_question": true,
+    "emitted_no_operations": true,
+    "question_addressed_the_request": false
+   },
+   "strict_success": false,
+   "metrics": {
+    "bodies_expected": 2,
+    "bodies_named": 2,
+    "operations_written": 0,
+    "questions_asked": 1
+   },
+   "codes": [
+    "J:bad_clarification"
+   ],
+   "label": "REFUSED",
+   "attempt": 5
+  },
+  {
+   "case": "R2",
+   "group": "refusal",
+   "seconds": 1.04,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 12141,
+    "output_tokens": 61
+   },
+   "fenced": false,
+   "observation": {
+    "case": "R2",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "needs_clarification",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [],
+    "operation_types": [],
+    "operation_count": 0,
+    "model_operation_count": 0,
+    "declared_bodies": [],
+    "has_plan": true,
+    "questions": [
+     "This part has two bodies, `block` and `rod`. Which one should be made 10 mm taller?"
+    ],
+    "summary": "the request does not say which body to change",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": false,
+    "execution_failure": {
+     "code": "not_generated",
+     "message": "a `needs_clarification` plan has no geometry to build",
+     "operation": null
+    },
+    "bodies": [],
+    "body_count": 0,
+    "raw_text": "{\"status\": \"needs_clarification\", \"summary\": \"the request does not say which body to change\", \"questions\": [\"This part has two bodies, `block` and `rod`. Which one should be made 10 mm taller?\"], \"operations\": []}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "refused": true,
+    "named_the_bodies": true,
+    "built_nothing": true,
+    "asked_a_question": true,
+    "emitted_no_operations": true,
+    "question_addressed_the_request": false
+   },
+   "strict_success": false,
+   "metrics": {
+    "bodies_expected": 2,
+    "bodies_named": 2,
+    "operations_written": 0,
+    "questions_asked": 1
+   },
+   "codes": [
+    "J:bad_clarification"
+   ],
+   "label": "REFUSED",
+   "attempt": 6
+  },
+  {
+   "case": "R2",
+   "group": "refusal",
+   "seconds": 1.44,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 12141,
+    "output_tokens": 90
+   },
+   "fenced": false,
+   "observation": {
+    "case": "R2",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "needs_clarification",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [],
+    "operation_types": [],
+    "operation_count": 0,
+    "model_operation_count": 0,
+    "declared_bodies": [],
+    "has_plan": true,
+    "questions": [
+     "This part has two bodies: `block` (a 30\u00d730\u00d730 mm box) and `rod` (a cylinder 10 mm diameter, 25 mm tall). Which one should be made 10 mm taller?"
+    ],
+    "summary": "the request does not say which body to make taller",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": false,
+    "execution_failure": {
+     "code": "not_generated",
+     "message": "a `needs_clarification` plan has no geometry to build",
+     "operation": null
+    },
+    "bodies": [],
+    "body_count": 0,
+    "raw_text": "{\"status\": \"needs_clarification\", \"summary\": \"the request does not say which body to make taller\", \"questions\": [\"This part has two bodies: `block` (a 30\u00d730\u00d730 mm box) and `rod` (a cylinder 10 mm diameter, 25 mm tall). Which one should be made 10 mm taller?\"], \"operations\": []}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "refused": true,
+    "named_the_bodies": true,
+    "built_nothing": true,
+    "asked_a_question": true,
+    "emitted_no_operations": true,
+    "question_addressed_the_request": false
+   },
+   "strict_success": false,
+   "metrics": {
+    "bodies_expected": 2,
+    "bodies_named": 2,
+    "operations_written": 0,
+    "questions_asked": 1
+   },
+   "codes": [
+    "J:bad_clarification"
+   ],
+   "label": "REFUSED",
+   "attempt": 7
+  },
+  {
+   "case": "R2",
+   "group": "refusal",
+   "seconds": 1.38,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 12141,
+    "output_tokens": 88
+   },
+   "fenced": false,
+   "observation": {
+    "case": "R2",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "needs_clarification",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [],
+    "operation_types": [],
+    "operation_count": 0,
+    "model_operation_count": 0,
+    "declared_bodies": [],
+    "has_plan": true,
+    "questions": [
+     "This part has two bodies: `block` (a 30\u00d730\u00d730 mm box) and `rod` (a 10 mm diameter, 25 mm tall cylinder). Which one should be made 10 mm taller?"
+    ],
+    "summary": "the request does not say which body to change",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": false,
+    "execution_failure": {
+     "code": "not_generated",
+     "message": "a `needs_clarification` plan has no geometry to build",
+     "operation": null
+    },
+    "bodies": [],
+    "body_count": 0,
+    "raw_text": "{\"status\": \"needs_clarification\", \"summary\": \"the request does not say which body to change\", \"questions\": [\"This part has two bodies: `block` (a 30\u00d730\u00d730 mm box) and `rod` (a 10 mm diameter, 25 mm tall cylinder). Which one should be made 10 mm taller?\"], \"operations\": []}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "refused": true,
+    "named_the_bodies": true,
+    "built_nothing": true,
+    "asked_a_question": true,
+    "emitted_no_operations": true,
+    "question_addressed_the_request": false
+   },
+   "strict_success": false,
+   "metrics": {
+    "bodies_expected": 2,
+    "bodies_named": 2,
+    "operations_written": 0,
+    "questions_asked": 1
+   },
+   "codes": [
+    "J:bad_clarification"
+   ],
+   "label": "REFUSED",
+   "attempt": 8
+  },
+  {
+   "case": "R2",
+   "group": "refusal",
+   "seconds": 1.13,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 12141,
+    "output_tokens": 61
+   },
+   "fenced": false,
+   "observation": {
+    "case": "R2",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "needs_clarification",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [],
+    "operation_types": [],
+    "operation_count": 0,
+    "model_operation_count": 0,
+    "declared_bodies": [],
+    "has_plan": true,
+    "questions": [
+     "This part has two bodies, `block` and `rod`. Which one should be made 10 mm taller?"
+    ],
+    "summary": "the request does not say which body to change",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": false,
+    "execution_failure": {
+     "code": "not_generated",
+     "message": "a `needs_clarification` plan has no geometry to build",
+     "operation": null
+    },
+    "bodies": [],
+    "body_count": 0,
+    "raw_text": "{\"status\": \"needs_clarification\", \"summary\": \"the request does not say which body to change\", \"questions\": [\"This part has two bodies, `block` and `rod`. Which one should be made 10 mm taller?\"], \"operations\": []}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "refused": true,
+    "named_the_bodies": true,
+    "built_nothing": true,
+    "asked_a_question": true,
+    "emitted_no_operations": true,
+    "question_addressed_the_request": false
+   },
+   "strict_success": false,
+   "metrics": {
+    "bodies_expected": 2,
+    "bodies_named": 2,
+    "operations_written": 0,
+    "questions_asked": 1
+   },
+   "codes": [
+    "J:bad_clarification"
+   ],
+   "label": "REFUSED",
+   "attempt": 9
+  },
+  {
+   "case": "R2",
+   "group": "refusal",
+   "seconds": 1.25,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 12141,
+    "output_tokens": 88
+   },
+   "fenced": false,
+   "observation": {
+    "case": "R2",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "needs_clarification",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [],
+    "operation_types": [],
+    "operation_count": 0,
+    "model_operation_count": 0,
+    "declared_bodies": [],
+    "has_plan": true,
+    "questions": [
+     "This part has two bodies: `block` (a 30\u00d730\u00d730 mm box) and `rod` (a 10 mm diameter, 25 mm tall cylinder). Which one should be made 10 mm taller?"
+    ],
+    "summary": "the request does not say which body to change",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": false,
+    "execution_failure": {
+     "code": "not_generated",
+     "message": "a `needs_clarification` plan has no geometry to build",
+     "operation": null
+    },
+    "bodies": [],
+    "body_count": 0,
+    "raw_text": "{\"status\": \"needs_clarification\", \"summary\": \"the request does not say which body to change\", \"questions\": [\"This part has two bodies: `block` (a 30\u00d730\u00d730 mm box) and `rod` (a 10 mm diameter, 25 mm tall cylinder). Which one should be made 10 mm taller?\"], \"operations\": []}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "refused": true,
+    "named_the_bodies": true,
+    "built_nothing": true,
+    "asked_a_question": true,
+    "emitted_no_operations": true,
+    "question_addressed_the_request": false
+   },
+   "strict_success": false,
+   "metrics": {
+    "bodies_expected": 2,
+    "bodies_named": 2,
+    "operations_written": 0,
+    "questions_asked": 1
+   },
+   "codes": [
+    "J:bad_clarification"
+   ],
+   "label": "REFUSED",
+   "attempt": 10
+  },
+  {
+   "case": "R2",
+   "group": "refusal",
+   "seconds": 1.53,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 12141,
+    "output_tokens": 61
+   },
+   "fenced": false,
+   "observation": {
+    "case": "R2",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "needs_clarification",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [],
+    "operation_types": [],
+    "operation_count": 0,
+    "model_operation_count": 0,
+    "declared_bodies": [],
+    "has_plan": true,
+    "questions": [
+     "This part has two bodies, `block` and `rod`. Which one should be made 10 mm taller?"
+    ],
+    "summary": "the request does not say which body to change",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": false,
+    "execution_failure": {
+     "code": "not_generated",
+     "message": "a `needs_clarification` plan has no geometry to build",
+     "operation": null
+    },
+    "bodies": [],
+    "body_count": 0,
+    "raw_text": "{\"status\": \"needs_clarification\", \"summary\": \"the request does not say which body to change\", \"questions\": [\"This part has two bodies, `block` and `rod`. Which one should be made 10 mm taller?\"], \"operations\": []}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "refused": true,
+    "named_the_bodies": true,
+    "built_nothing": true,
+    "asked_a_question": true,
+    "emitted_no_operations": true,
+    "question_addressed_the_request": false
+   },
+   "strict_success": false,
+   "metrics": {
+    "bodies_expected": 2,
+    "bodies_named": 2,
+    "operations_written": 0,
+    "questions_asked": 1
+   },
+   "codes": [
+    "J:bad_clarification"
+   ],
+   "label": "REFUSED",
+   "attempt": 11
+  },
+  {
+   "case": "R2",
+   "group": "refusal",
+   "seconds": 1.04,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 12141,
+    "output_tokens": 61
+   },
+   "fenced": false,
+   "observation": {
+    "case": "R2",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "needs_clarification",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [],
+    "operation_types": [],
+    "operation_count": 0,
+    "model_operation_count": 0,
+    "declared_bodies": [],
+    "has_plan": true,
+    "questions": [
+     "This part has two bodies, `block` and `rod`. Which one should be made 10 mm taller?"
+    ],
+    "summary": "the request does not say which body to change",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": false,
+    "execution_failure": {
+     "code": "not_generated",
+     "message": "a `needs_clarification` plan has no geometry to build",
+     "operation": null
+    },
+    "bodies": [],
+    "body_count": 0,
+    "raw_text": "{\"status\": \"needs_clarification\", \"summary\": \"the request does not say which body to change\", \"questions\": [\"This part has two bodies, `block` and `rod`. Which one should be made 10 mm taller?\"], \"operations\": []}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "refused": true,
+    "named_the_bodies": true,
+    "built_nothing": true,
+    "asked_a_question": true,
+    "emitted_no_operations": true,
+    "question_addressed_the_request": false
+   },
+   "strict_success": false,
+   "metrics": {
+    "bodies_expected": 2,
+    "bodies_named": 2,
+    "operations_written": 0,
+    "questions_asked": 1
+   },
+   "codes": [
+    "J:bad_clarification"
+   ],
+   "label": "REFUSED",
+   "attempt": 12
+  },
+  {
+   "case": "R2",
+   "group": "refusal",
+   "seconds": 1.53,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 12141,
+    "output_tokens": 61
+   },
+   "fenced": false,
+   "observation": {
+    "case": "R2",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "needs_clarification",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [],
+    "operation_types": [],
+    "operation_count": 0,
+    "model_operation_count": 0,
+    "declared_bodies": [],
+    "has_plan": true,
+    "questions": [
+     "This part has two bodies, `block` and `rod`. Which one should be made 10 mm taller?"
+    ],
+    "summary": "the request does not say which body to change",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": false,
+    "execution_failure": {
+     "code": "not_generated",
+     "message": "a `needs_clarification` plan has no geometry to build",
+     "operation": null
+    },
+    "bodies": [],
+    "body_count": 0,
+    "raw_text": "{\"status\": \"needs_clarification\", \"summary\": \"the request does not say which body to change\", \"questions\": [\"This part has two bodies, `block` and `rod`. Which one should be made 10 mm taller?\"], \"operations\": []}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "refused": true,
+    "named_the_bodies": true,
+    "built_nothing": true,
+    "asked_a_question": true,
+    "emitted_no_operations": true,
+    "question_addressed_the_request": false
+   },
+   "strict_success": false,
+   "metrics": {
+    "bodies_expected": 2,
+    "bodies_named": 2,
+    "operations_written": 0,
+    "questions_asked": 1
+   },
+   "codes": [
+    "J:bad_clarification"
+   ],
+   "label": "REFUSED",
+   "attempt": 13
+  },
+  {
+   "case": "R2",
+   "group": "refusal",
+   "seconds": 1.57,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 12141,
+    "output_tokens": 89
+   },
+   "fenced": false,
+   "observation": {
+    "case": "R2",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "needs_clarification",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [],
+    "operation_types": [],
+    "operation_count": 0,
+    "model_operation_count": 0,
+    "declared_bodies": [],
+    "has_plan": true,
+    "questions": [
+     "This part has two bodies: `block` (a 30\u00d730\u00d730 mm box) and `rod` (a cylinder with 10 mm diameter and 25 mm height). Which one should be made 10 mm taller?"
+    ],
+    "summary": "the request does not specify which body to modify",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": false,
+    "execution_failure": {
+     "code": "not_generated",
+     "message": "a `needs_clarification` plan has no geometry to build",
+     "operation": null
+    },
+    "bodies": [],
+    "body_count": 0,
+    "raw_text": "{\"status\": \"needs_clarification\", \"summary\": \"the request does not specify which body to modify\", \"questions\": [\"This part has two bodies: `block` (a 30\u00d730\u00d730 mm box) and `rod` (a cylinder with 10 mm diameter and 25 mm height). Which one should be made 10 mm taller?\"], \"operations\": []}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "refused": true,
+    "named_the_bodies": true,
+    "built_nothing": true,
+    "asked_a_question": true,
+    "emitted_no_operations": true,
+    "question_addressed_the_request": false
+   },
+   "strict_success": false,
+   "metrics": {
+    "bodies_expected": 2,
+    "bodies_named": 2,
+    "operations_written": 0,
+    "questions_asked": 1
+   },
+   "codes": [
+    "J:bad_clarification"
+   ],
+   "label": "REFUSED",
+   "attempt": 14
+  },
+  {
+   "case": "R2",
+   "group": "refusal",
+   "seconds": 1.87,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 12141,
+    "output_tokens": 88
+   },
+   "fenced": false,
+   "observation": {
+    "case": "R2",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "needs_clarification",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [],
+    "operation_types": [],
+    "operation_count": 0,
+    "model_operation_count": 0,
+    "declared_bodies": [],
+    "has_plan": true,
+    "questions": [
+     "This part has two bodies: `block` (a 30\u00d730\u00d730 mm box) and `rod` (a 10 mm diameter, 25 mm tall cylinder). Which one should be made 10 mm taller?"
+    ],
+    "summary": "the request does not say which body to change",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": false,
+    "execution_failure": {
+     "code": "not_generated",
+     "message": "a `needs_clarification` plan has no geometry to build",
+     "operation": null
+    },
+    "bodies": [],
+    "body_count": 0,
+    "raw_text": "{\"status\": \"needs_clarification\", \"summary\": \"the request does not say which body to change\", \"questions\": [\"This part has two bodies: `block` (a 30\u00d730\u00d730 mm box) and `rod` (a 10 mm diameter, 25 mm tall cylinder). Which one should be made 10 mm taller?\"], \"operations\": []}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "refused": true,
+    "named_the_bodies": true,
+    "built_nothing": true,
+    "asked_a_question": true,
+    "emitted_no_operations": true,
+    "question_addressed_the_request": false
+   },
+   "strict_success": false,
+   "metrics": {
+    "bodies_expected": 2,
+    "bodies_named": 2,
+    "operations_written": 0,
+    "questions_asked": 1
+   },
+   "codes": [
+    "J:bad_clarification"
+   ],
+   "label": "REFUSED",
+   "attempt": 15
+  },
+  {
+   "case": "R2",
+   "group": "refusal",
+   "seconds": 1.48,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 12141,
+    "output_tokens": 87
+   },
+   "fenced": false,
+   "observation": {
+    "case": "R2",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "needs_clarification",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [],
+    "operation_types": [],
+    "operation_count": 0,
+    "model_operation_count": 0,
+    "declared_bodies": [],
+    "has_plan": true,
+    "questions": [
+     "This part has two bodies: `block` (a 30\u00d730\u00d730 mm box) and `rod` (a 10 mm diameter cylinder, 25 mm tall). Which one should be 10 mm taller?"
+    ],
+    "summary": "the request does not say which body to change",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": false,
+    "execution_failure": {
+     "code": "not_generated",
+     "message": "a `needs_clarification` plan has no geometry to build",
+     "operation": null
+    },
+    "bodies": [],
+    "body_count": 0,
+    "raw_text": "{\"status\": \"needs_clarification\", \"summary\": \"the request does not say which body to change\", \"questions\": [\"This part has two bodies: `block` (a 30\u00d730\u00d730 mm box) and `rod` (a 10 mm diameter cylinder, 25 mm tall). Which one should be 10 mm taller?\"], \"operations\": []}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "refused": true,
+    "named_the_bodies": true,
+    "built_nothing": true,
+    "asked_a_question": true,
+    "emitted_no_operations": true,
+    "question_addressed_the_request": false
+   },
+   "strict_success": false,
+   "metrics": {
+    "bodies_expected": 2,
+    "bodies_named": 2,
+    "operations_written": 0,
+    "questions_asked": 1
+   },
+   "codes": [
+    "J:bad_clarification"
+   ],
+   "label": "REFUSED",
+   "attempt": 16
+  },
+  {
+   "case": "R2",
+   "group": "refusal",
+   "seconds": 1.33,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 12141,
+    "output_tokens": 61
+   },
+   "fenced": false,
+   "observation": {
+    "case": "R2",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "needs_clarification",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [],
+    "operation_types": [],
+    "operation_count": 0,
+    "model_operation_count": 0,
+    "declared_bodies": [],
+    "has_plan": true,
+    "questions": [
+     "This part has two bodies, `block` and `rod`. Which one should be made 10 mm taller?"
+    ],
+    "summary": "the request does not say which body to change",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": false,
+    "execution_failure": {
+     "code": "not_generated",
+     "message": "a `needs_clarification` plan has no geometry to build",
+     "operation": null
+    },
+    "bodies": [],
+    "body_count": 0,
+    "raw_text": "{\"status\": \"needs_clarification\", \"summary\": \"the request does not say which body to change\", \"questions\": [\"This part has two bodies, `block` and `rod`. Which one should be made 10 mm taller?\"], \"operations\": []}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "refused": true,
+    "named_the_bodies": true,
+    "built_nothing": true,
+    "asked_a_question": true,
+    "emitted_no_operations": true,
+    "question_addressed_the_request": false
+   },
+   "strict_success": false,
+   "metrics": {
+    "bodies_expected": 2,
+    "bodies_named": 2,
+    "operations_written": 0,
+    "questions_asked": 1
+   },
+   "codes": [
+    "J:bad_clarification"
+   ],
+   "label": "REFUSED",
+   "attempt": 17
+  },
+  {
+   "case": "R2",
+   "group": "refusal",
+   "seconds": 1.63,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 12141,
+    "output_tokens": 88
+   },
+   "fenced": false,
+   "observation": {
+    "case": "R2",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "needs_clarification",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [],
+    "operation_types": [],
+    "operation_count": 0,
+    "model_operation_count": 0,
+    "declared_bodies": [],
+    "has_plan": true,
+    "questions": [
+     "This part has two bodies: `block` (a 30\u00d730\u00d730 mm box) and `rod` (a 10 mm diameter, 25 mm tall cylinder). Which one should be made 10 mm taller?"
+    ],
+    "summary": "the request does not specify which body to change",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": false,
+    "execution_failure": {
+     "code": "not_generated",
+     "message": "a `needs_clarification` plan has no geometry to build",
+     "operation": null
+    },
+    "bodies": [],
+    "body_count": 0,
+    "raw_text": "{\"status\": \"needs_clarification\", \"summary\": \"the request does not specify which body to change\", \"questions\": [\"This part has two bodies: `block` (a 30\u00d730\u00d730 mm box) and `rod` (a 10 mm diameter, 25 mm tall cylinder). Which one should be made 10 mm taller?\"], \"operations\": []}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "refused": true,
+    "named_the_bodies": true,
+    "built_nothing": true,
+    "asked_a_question": true,
+    "emitted_no_operations": true,
+    "question_addressed_the_request": false
+   },
+   "strict_success": false,
+   "metrics": {
+    "bodies_expected": 2,
+    "bodies_named": 2,
+    "operations_written": 0,
+    "questions_asked": 1
+   },
+   "codes": [
+    "J:bad_clarification"
+   ],
+   "label": "REFUSED",
+   "attempt": 18
+  },
+  {
+   "case": "R2",
+   "group": "refusal",
+   "seconds": 1.38,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 12141,
+    "output_tokens": 88
+   },
+   "fenced": false,
+   "observation": {
+    "case": "R2",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "needs_clarification",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [],
+    "operation_types": [],
+    "operation_count": 0,
+    "model_operation_count": 0,
+    "declared_bodies": [],
+    "has_plan": true,
+    "questions": [
+     "This part has two bodies: `block` (a 30\u00d730\u00d730 mm box) and `rod` (a cylinder 10 mm diameter, 25 mm tall). Which one should be made 10 mm taller?"
+    ],
+    "summary": "the request does not specify which body to change",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": false,
+    "execution_failure": {
+     "code": "not_generated",
+     "message": "a `needs_clarification` plan has no geometry to build",
+     "operation": null
+    },
+    "bodies": [],
+    "body_count": 0,
+    "raw_text": "{\"status\": \"needs_clarification\", \"summary\": \"the request does not specify which body to change\", \"questions\": [\"This part has two bodies: `block` (a 30\u00d730\u00d730 mm box) and `rod` (a cylinder 10 mm diameter, 25 mm tall). Which one should be made 10 mm taller?\"], \"operations\": []}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "refused": true,
+    "named_the_bodies": true,
+    "built_nothing": true,
+    "asked_a_question": true,
+    "emitted_no_operations": true,
+    "question_addressed_the_request": false
+   },
+   "strict_success": false,
+   "metrics": {
+    "bodies_expected": 2,
+    "bodies_named": 2,
+    "operations_written": 0,
+    "questions_asked": 1
+   },
+   "codes": [
+    "J:bad_clarification"
+   ],
+   "label": "REFUSED",
+   "attempt": 19
+  },
+  {
+   "case": "R2",
+   "group": "refusal",
+   "seconds": 1.08,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 12141,
+    "output_tokens": 61
+   },
+   "fenced": false,
+   "observation": {
+    "case": "R2",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "needs_clarification",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [],
+    "operation_types": [],
+    "operation_count": 0,
+    "model_operation_count": 0,
+    "declared_bodies": [],
+    "has_plan": true,
+    "questions": [
+     "This part has two bodies, `block` and `rod`. Which one should be made 10 mm taller?"
+    ],
+    "summary": "the request does not say which body to change",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": false,
+    "execution_failure": {
+     "code": "not_generated",
+     "message": "a `needs_clarification` plan has no geometry to build",
+     "operation": null
+    },
+    "bodies": [],
+    "body_count": 0,
+    "raw_text": "{\"status\": \"needs_clarification\", \"summary\": \"the request does not say which body to change\", \"questions\": [\"This part has two bodies, `block` and `rod`. Which one should be made 10 mm taller?\"], \"operations\": []}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "refused": true,
+    "named_the_bodies": true,
+    "built_nothing": true,
+    "asked_a_question": true,
+    "emitted_no_operations": true,
+    "question_addressed_the_request": false
+   },
+   "strict_success": false,
+   "metrics": {
+    "bodies_expected": 2,
+    "bodies_named": 2,
+    "operations_written": 0,
+    "questions_asked": 1
+   },
+   "codes": [
+    "J:bad_clarification"
+   ],
+   "label": "REFUSED",
+   "attempt": 20
+  },
+  {
+   "case": "R2",
+   "group": "refusal",
+   "seconds": 1.17,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 12141,
+    "output_tokens": 61
+   },
+   "fenced": false,
+   "observation": {
+    "case": "R2",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "needs_clarification",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [],
+    "operation_types": [],
+    "operation_count": 0,
+    "model_operation_count": 0,
+    "declared_bodies": [],
+    "has_plan": true,
+    "questions": [
+     "This part has two bodies, `block` and `rod`. Which one should be made 10 mm taller?"
+    ],
+    "summary": "the request does not say which body to change",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": false,
+    "execution_failure": {
+     "code": "not_generated",
+     "message": "a `needs_clarification` plan has no geometry to build",
+     "operation": null
+    },
+    "bodies": [],
+    "body_count": 0,
+    "raw_text": "{\"status\": \"needs_clarification\", \"summary\": \"the request does not say which body to change\", \"questions\": [\"This part has two bodies, `block` and `rod`. Which one should be made 10 mm taller?\"], \"operations\": []}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "refused": true,
+    "named_the_bodies": true,
+    "built_nothing": true,
+    "asked_a_question": true,
+    "emitted_no_operations": true,
+    "question_addressed_the_request": false
+   },
+   "strict_success": false,
+   "metrics": {
+    "bodies_expected": 2,
+    "bodies_named": 2,
+    "operations_written": 0,
+    "questions_asked": 1
+   },
+   "codes": [
+    "J:bad_clarification"
+   ],
+   "label": "REFUSED",
+   "attempt": 21
+  },
+  {
+   "case": "R2",
+   "group": "refusal",
+   "seconds": 1.1,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 12141,
+    "output_tokens": 61
+   },
+   "fenced": false,
+   "observation": {
+    "case": "R2",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "needs_clarification",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [],
+    "operation_types": [],
+    "operation_count": 0,
+    "model_operation_count": 0,
+    "declared_bodies": [],
+    "has_plan": true,
+    "questions": [
+     "This part has two bodies, `block` and `rod`. Which one should be made 10 mm taller?"
+    ],
+    "summary": "the request does not say which body to change",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": false,
+    "execution_failure": {
+     "code": "not_generated",
+     "message": "a `needs_clarification` plan has no geometry to build",
+     "operation": null
+    },
+    "bodies": [],
+    "body_count": 0,
+    "raw_text": "{\"status\": \"needs_clarification\", \"summary\": \"the request does not say which body to change\", \"questions\": [\"This part has two bodies, `block` and `rod`. Which one should be made 10 mm taller?\"], \"operations\": []}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "refused": true,
+    "named_the_bodies": true,
+    "built_nothing": true,
+    "asked_a_question": true,
+    "emitted_no_operations": true,
+    "question_addressed_the_request": false
+   },
+   "strict_success": false,
+   "metrics": {
+    "bodies_expected": 2,
+    "bodies_named": 2,
+    "operations_written": 0,
+    "questions_asked": 1
+   },
+   "codes": [
+    "J:bad_clarification"
+   ],
+   "label": "REFUSED",
+   "attempt": 22
+  },
+  {
+   "case": "R2",
+   "group": "refusal",
+   "seconds": 1.38,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 12141,
+    "output_tokens": 88
+   },
+   "fenced": false,
+   "observation": {
+    "case": "R2",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "needs_clarification",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [],
+    "operation_types": [],
+    "operation_count": 0,
+    "model_operation_count": 0,
+    "declared_bodies": [],
+    "has_plan": true,
+    "questions": [
+     "This part has two bodies: `block` (a 30\u00d730\u00d730 mm box) and `rod` (a 10 mm diameter cylinder, 25 mm tall). Which one should be made 10 mm taller?"
+    ],
+    "summary": "the request does not specify which body to modify",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": false,
+    "execution_failure": {
+     "code": "not_generated",
+     "message": "a `needs_clarification` plan has no geometry to build",
+     "operation": null
+    },
+    "bodies": [],
+    "body_count": 0,
+    "raw_text": "{\"status\": \"needs_clarification\", \"summary\": \"the request does not specify which body to modify\", \"questions\": [\"This part has two bodies: `block` (a 30\u00d730\u00d730 mm box) and `rod` (a 10 mm diameter cylinder, 25 mm tall). Which one should be made 10 mm taller?\"], \"operations\": []}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "refused": true,
+    "named_the_bodies": true,
+    "built_nothing": true,
+    "asked_a_question": true,
+    "emitted_no_operations": true,
+    "question_addressed_the_request": false
+   },
+   "strict_success": false,
+   "metrics": {
+    "bodies_expected": 2,
+    "bodies_named": 2,
+    "operations_written": 0,
+    "questions_asked": 1
+   },
+   "codes": [
+    "J:bad_clarification"
+   ],
+   "label": "REFUSED",
+   "attempt": 23
+  },
+  {
+   "case": "R2",
+   "group": "refusal",
+   "seconds": 1.33,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 12141,
+    "output_tokens": 88
+   },
+   "fenced": false,
+   "observation": {
+    "case": "R2",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "needs_clarification",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [],
+    "operation_types": [],
+    "operation_count": 0,
+    "model_operation_count": 0,
+    "declared_bodies": [],
+    "has_plan": true,
+    "questions": [
+     "This part has two bodies: `block` (a 30\u00d730\u00d730 mm box) and `rod` (a 10 mm diameter cylinder, 25 mm tall). Which one should be made 10 mm taller?"
+    ],
+    "summary": "the request does not specify which body to modify",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": false,
+    "execution_failure": {
+     "code": "not_generated",
+     "message": "a `needs_clarification` plan has no geometry to build",
+     "operation": null
+    },
+    "bodies": [],
+    "body_count": 0,
+    "raw_text": "{\"status\": \"needs_clarification\", \"summary\": \"the request does not specify which body to modify\", \"questions\": [\"This part has two bodies: `block` (a 30\u00d730\u00d730 mm box) and `rod` (a 10 mm diameter cylinder, 25 mm tall). Which one should be made 10 mm taller?\"], \"operations\": []}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "refused": true,
+    "named_the_bodies": true,
+    "built_nothing": true,
+    "asked_a_question": true,
+    "emitted_no_operations": true,
+    "question_addressed_the_request": false
+   },
+   "strict_success": false,
+   "metrics": {
+    "bodies_expected": 2,
+    "bodies_named": 2,
+    "operations_written": 0,
+    "questions_asked": 1
+   },
+   "codes": [
+    "J:bad_clarification"
+   ],
+   "label": "REFUSED",
+   "attempt": 24
+  },
+  {
+   "case": "R2",
+   "group": "refusal",
+   "seconds": 1.37,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 12141,
+    "output_tokens": 88
+   },
+   "fenced": false,
+   "observation": {
+    "case": "R2",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "needs_clarification",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [],
+    "operation_types": [],
+    "operation_count": 0,
+    "model_operation_count": 0,
+    "declared_bodies": [],
+    "has_plan": true,
+    "questions": [
+     "This part has two bodies: `block` (a 30\u00d730\u00d730 mm box) and `rod` (a 10 mm diameter, 25 mm tall cylinder). Which one should be made 10 mm taller?"
+    ],
+    "summary": "the request does not say which body to change",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": false,
+    "execution_failure": {
+     "code": "not_generated",
+     "message": "a `needs_clarification` plan has no geometry to build",
+     "operation": null
+    },
+    "bodies": [],
+    "body_count": 0,
+    "raw_text": "{\"status\": \"needs_clarification\", \"summary\": \"the request does not say which body to change\", \"questions\": [\"This part has two bodies: `block` (a 30\u00d730\u00d730 mm box) and `rod` (a 10 mm diameter, 25 mm tall cylinder). Which one should be made 10 mm taller?\"], \"operations\": []}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "refused": true,
+    "named_the_bodies": true,
+    "built_nothing": true,
+    "asked_a_question": true,
+    "emitted_no_operations": true,
+    "question_addressed_the_request": false
+   },
+   "strict_success": false,
+   "metrics": {
+    "bodies_expected": 2,
+    "bodies_named": 2,
+    "operations_written": 0,
+    "questions_asked": 1
+   },
+   "codes": [
+    "J:bad_clarification"
+   ],
+   "label": "REFUSED",
+   "attempt": 25
+  },
+  {
+   "case": "R2",
+   "group": "refusal",
+   "seconds": 1.15,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 12141,
+    "output_tokens": 61
+   },
+   "fenced": false,
+   "observation": {
+    "case": "R2",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "needs_clarification",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [],
+    "operation_types": [],
+    "operation_count": 0,
+    "model_operation_count": 0,
+    "declared_bodies": [],
+    "has_plan": true,
+    "questions": [
+     "This part has two bodies, `block` and `rod`. Which one should be made 10 mm taller?"
+    ],
+    "summary": "the request does not say which body to change",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": false,
+    "execution_failure": {
+     "code": "not_generated",
+     "message": "a `needs_clarification` plan has no geometry to build",
+     "operation": null
+    },
+    "bodies": [],
+    "body_count": 0,
+    "raw_text": "{\"status\": \"needs_clarification\", \"summary\": \"the request does not say which body to change\", \"questions\": [\"This part has two bodies, `block` and `rod`. Which one should be made 10 mm taller?\"], \"operations\": []}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "refused": true,
+    "named_the_bodies": true,
+    "built_nothing": true,
+    "asked_a_question": true,
+    "emitted_no_operations": true,
+    "question_addressed_the_request": false
+   },
+   "strict_success": false,
+   "metrics": {
+    "bodies_expected": 2,
+    "bodies_named": 2,
+    "operations_written": 0,
+    "questions_asked": 1
+   },
+   "codes": [
+    "J:bad_clarification"
+   ],
+   "label": "REFUSED",
+   "attempt": 26
+  },
+  {
+   "case": "R2",
+   "group": "refusal",
+   "seconds": 1.14,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 12141,
+    "output_tokens": 61
+   },
+   "fenced": false,
+   "observation": {
+    "case": "R2",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "needs_clarification",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [],
+    "operation_types": [],
+    "operation_count": 0,
+    "model_operation_count": 0,
+    "declared_bodies": [],
+    "has_plan": true,
+    "questions": [
+     "This part has two bodies, `block` and `rod`. Which one should be made 10 mm taller?"
+    ],
+    "summary": "the request does not say which body to change",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": false,
+    "execution_failure": {
+     "code": "not_generated",
+     "message": "a `needs_clarification` plan has no geometry to build",
+     "operation": null
+    },
+    "bodies": [],
+    "body_count": 0,
+    "raw_text": "{\"status\": \"needs_clarification\", \"summary\": \"the request does not say which body to change\", \"questions\": [\"This part has two bodies, `block` and `rod`. Which one should be made 10 mm taller?\"], \"operations\": []}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "refused": true,
+    "named_the_bodies": true,
+    "built_nothing": true,
+    "asked_a_question": true,
+    "emitted_no_operations": true,
+    "question_addressed_the_request": false
+   },
+   "strict_success": false,
+   "metrics": {
+    "bodies_expected": 2,
+    "bodies_named": 2,
+    "operations_written": 0,
+    "questions_asked": 1
+   },
+   "codes": [
+    "J:bad_clarification"
+   ],
+   "label": "REFUSED",
+   "attempt": 27
+  },
+  {
+   "case": "R2",
+   "group": "refusal",
+   "seconds": 1.37,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 12141,
+    "output_tokens": 88
+   },
+   "fenced": false,
+   "observation": {
+    "case": "R2",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "needs_clarification",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [],
+    "operation_types": [],
+    "operation_count": 0,
+    "model_operation_count": 0,
+    "declared_bodies": [],
+    "has_plan": true,
+    "questions": [
+     "This part has two bodies: `block` (a 30\u00d730\u00d730 mm box) and `rod` (a cylinder 10 mm diameter, 25 mm tall). Which one should be made 10 mm taller?"
+    ],
+    "summary": "the request does not say which body to change",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": false,
+    "execution_failure": {
+     "code": "not_generated",
+     "message": "a `needs_clarification` plan has no geometry to build",
+     "operation": null
+    },
+    "bodies": [],
+    "body_count": 0,
+    "raw_text": "{\"status\": \"needs_clarification\", \"summary\": \"the request does not say which body to change\", \"questions\": [\"This part has two bodies: `block` (a 30\u00d730\u00d730 mm box) and `rod` (a cylinder 10 mm diameter, 25 mm tall). Which one should be made 10 mm taller?\"], \"operations\": []}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "refused": true,
+    "named_the_bodies": true,
+    "built_nothing": true,
+    "asked_a_question": true,
+    "emitted_no_operations": true,
+    "question_addressed_the_request": false
+   },
+   "strict_success": false,
+   "metrics": {
+    "bodies_expected": 2,
+    "bodies_named": 2,
+    "operations_written": 0,
+    "questions_asked": 1
+   },
+   "codes": [
+    "J:bad_clarification"
+   ],
+   "label": "REFUSED",
+   "attempt": 28
+  },
+  {
+   "case": "R2",
+   "group": "refusal",
+   "seconds": 1.04,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 12141,
+    "output_tokens": 61
+   },
+   "fenced": false,
+   "observation": {
+    "case": "R2",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "needs_clarification",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [],
+    "operation_types": [],
+    "operation_count": 0,
+    "model_operation_count": 0,
+    "declared_bodies": [],
+    "has_plan": true,
+    "questions": [
+     "This part has two bodies, `block` and `rod`. Which one should be made 10 mm taller?"
+    ],
+    "summary": "the request does not say which body to change",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": false,
+    "execution_failure": {
+     "code": "not_generated",
+     "message": "a `needs_clarification` plan has no geometry to build",
+     "operation": null
+    },
+    "bodies": [],
+    "body_count": 0,
+    "raw_text": "{\"status\": \"needs_clarification\", \"summary\": \"the request does not say which body to change\", \"questions\": [\"This part has two bodies, `block` and `rod`. Which one should be made 10 mm taller?\"], \"operations\": []}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "refused": true,
+    "named_the_bodies": true,
+    "built_nothing": true,
+    "asked_a_question": true,
+    "emitted_no_operations": true,
+    "question_addressed_the_request": false
+   },
+   "strict_success": false,
+   "metrics": {
+    "bodies_expected": 2,
+    "bodies_named": 2,
+    "operations_written": 0,
+    "questions_asked": 1
+   },
+   "codes": [
+    "J:bad_clarification"
+   ],
+   "label": "REFUSED",
+   "attempt": 29
+  },
+  {
+   "case": "R2",
+   "group": "refusal",
+   "seconds": 1.31,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 12141,
+    "output_tokens": 88
+   },
+   "fenced": false,
+   "observation": {
+    "case": "R2",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "needs_clarification",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [],
+    "operation_types": [],
+    "operation_count": 0,
+    "model_operation_count": 0,
+    "declared_bodies": [],
+    "has_plan": true,
+    "questions": [
+     "This part has two bodies: `block` (a 30\u00d730\u00d730 mm box) and `rod` (a cylinder 10 mm diameter, 25 mm tall). Which one should be made 10 mm taller?"
+    ],
+    "summary": "the request does not specify which body to change",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": false,
+    "execution_failure": {
+     "code": "not_generated",
+     "message": "a `needs_clarification` plan has no geometry to build",
+     "operation": null
+    },
+    "bodies": [],
+    "body_count": 0,
+    "raw_text": "{\"status\": \"needs_clarification\", \"summary\": \"the request does not specify which body to change\", \"questions\": [\"This part has two bodies: `block` (a 30\u00d730\u00d730 mm box) and `rod` (a cylinder 10 mm diameter, 25 mm tall). Which one should be made 10 mm taller?\"], \"operations\": []}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "refused": true,
+    "named_the_bodies": true,
+    "built_nothing": true,
+    "asked_a_question": true,
+    "emitted_no_operations": true,
+    "question_addressed_the_request": false
+   },
+   "strict_success": false,
+   "metrics": {
+    "bodies_expected": 2,
+    "bodies_named": 2,
+    "operations_written": 0,
+    "questions_asked": 1
+   },
+   "codes": [
+    "J:bad_clarification"
+   ],
+   "label": "REFUSED",
+   "attempt": 30
+  },
+  {
+   "case": "R2",
+   "group": "refusal",
+   "seconds": 1.03,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 12141,
+    "output_tokens": 61
+   },
+   "fenced": false,
+   "observation": {
+    "case": "R2",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "needs_clarification",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [],
+    "operation_types": [],
+    "operation_count": 0,
+    "model_operation_count": 0,
+    "declared_bodies": [],
+    "has_plan": true,
+    "questions": [
+     "This part has two bodies, `block` and `rod`. Which one should be made 10 mm taller?"
+    ],
+    "summary": "the request does not say which body to change",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": false,
+    "execution_failure": {
+     "code": "not_generated",
+     "message": "a `needs_clarification` plan has no geometry to build",
+     "operation": null
+    },
+    "bodies": [],
+    "body_count": 0,
+    "raw_text": "{\"status\": \"needs_clarification\", \"summary\": \"the request does not say which body to change\", \"questions\": [\"This part has two bodies, `block` and `rod`. Which one should be made 10 mm taller?\"], \"operations\": []}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "refused": true,
+    "named_the_bodies": true,
+    "built_nothing": true,
+    "asked_a_question": true,
+    "emitted_no_operations": true,
+    "question_addressed_the_request": false
+   },
+   "strict_success": false,
+   "metrics": {
+    "bodies_expected": 2,
+    "bodies_named": 2,
+    "operations_written": 0,
+    "questions_asked": 1
+   },
+   "codes": [
+    "J:bad_clarification"
+   ],
+   "label": "REFUSED",
+   "attempt": 31
+  },
+  {
+   "case": "R2",
+   "group": "refusal",
+   "seconds": 1.39,
+   "structured_output": true,
+   "stop_reason": "end_turn",
+   "usage": {
+    "input_tokens": 12141,
+    "output_tokens": 90
+   },
+   "fenced": false,
+   "observation": {
+    "case": "R2",
+    "model": "claude-haiku-4-5-20251001",
+    "schema_name": "strict_selector_union_part",
+    "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+    "prompt_version": "2026-09-24.2",
+    "prompt_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+    "outcome_declared": "needs_clarification",
+    "structured_output": true,
+    "plan_valid": true,
+    "plan_problems": [],
+    "operations": [],
+    "operation_types": [],
+    "operation_count": 0,
+    "model_operation_count": 0,
+    "declared_bodies": [],
+    "has_plan": true,
+    "questions": [
+     "This part has two bodies: `block` (a 30\u00d730\u00d730 mm box) and `rod` (a cylinder 10 mm diameter, 25 mm tall). Which one should be made 10 mm taller?"
+    ],
+    "summary": "the request does not say which body to make taller",
+    "plan_reason": null,
+    "system_error": null,
+    "executed": true,
+    "execution_succeeded": false,
+    "execution_failure": {
+     "code": "not_generated",
+     "message": "a `needs_clarification` plan has no geometry to build",
+     "operation": null
+    },
+    "bodies": [],
+    "body_count": 0,
+    "raw_text": "{\"status\": \"needs_clarification\", \"summary\": \"the request does not say which body to make taller\", \"questions\": [\"This part has two bodies: `block` (a 30\u00d730\u00d730 mm box) and `rod` (a cylinder 10 mm diameter, 25 mm tall). Which one should be made 10 mm taller?\"], \"operations\": []}"
+   },
+   "checks": {
+    "provider_output_valid": true,
+    "refused": true,
+    "named_the_bodies": true,
+    "built_nothing": true,
+    "asked_a_question": true,
+    "emitted_no_operations": true,
+    "question_addressed_the_request": false
+   },
+   "strict_success": false,
+   "metrics": {
+    "bodies_expected": 2,
+    "bodies_named": 2,
+    "operations_written": 0,
+    "questions_asked": 1
+   },
+   "codes": [
+    "J:bad_clarification"
+   ],
+   "label": "REFUSED",
+   "attempt": 32
+  }
+ ],
+ "model": "claude-haiku-4-5-20251001",
+ "provider": "anthropic",
+ "prompt_version": "2026-09-24.2",
+ "prompt_fingerprint": "cf9271e44ad1679d5b09cbe95e0daaa33687be100e61cc67ccc8ce78e4ba474a",
+ "prompt_characters": 34140,
+ "schema_name": "strict_selector_union_part",
+ "schema_inlined": 3874,
+ "schema_fingerprint": "ef7427700af93ed7106a14863529cc9db81fe0ced26b61c84567a7a0a109247f",
+ "refusal_fixture": {
+  "plan": {
+   "status": "generated",
+   "summary": "two independent bodies",
+   "operations": [
+    {
+     "id": "block",
+     "type": "box",
+     "parameters": {
+      "x": 30.0,
+      "y": 30.0,
+      "z": 30.0
+     }
+    },
+    {
+     "id": "rod",
+     "type": "cylinder",
+     "parameters": {
+      "diameter": 10.0,
+      "height": 25.0,
+      "position": {
+       "x": 60.0,
+       "y": 15.0,
+       "z": 0.0
+      }
+     }
+    },
+    {
+     "id": "b1",
+     "type": "part",
+     "target": "block"
+    },
+    {
+     "id": "b2",
+     "type": "part",
+     "target": "rod"
+    }
+   ]
+  },
+  "bodies": [
+   {
+    "id": "block",
+    "volume": 27000.0,
+    "faces": 6
+   },
+   {
+    "id": "rod",
+    "volume": 1963.4954084936207,
+    "faces": 3
+   }
+  ],
+  "is_deterministic": true,
+  "is_live_model_result": false
+ },
+ "summary": {
+  "per_case": {
+   "R2": {
+    "calls": 32,
+    "strict": 0,
+    "codes": {
+     "J:bad_clarification": 32
+    },
+    "labels": {
+     "REFUSED": 32
+    },
+    "rate": 0.0,
+    "group": "refusal"
+   }
+  },
+  "per_group": {
+   "refusal": {
+    "calls": 32,
+    "strict": 0,
+    "rate": 0.0
+   }
+  },
+  "clarification": {
+   "per_case": {
+    "R2": {
+     "naming": {
+      "both": 32,
+      "one": 0,
+      "zero": 0
+     },
+     "operations": {
+      "none": 32,
+      "some": 0
+     },
+     "asked": 32,
+     "calls": 32
+    }
+   },
+   "total": {
+    "naming": {
+     "both": 32,
+     "one": 0,
+     "zero": 0
+    },
+    "operations": {
+     "none": 32,
+     "some": 0
+    },
+    "asked": 32,
+    "calls": 32
+   }
+  },
+  "labels": {
+   "REFUSED": 32
+  },
+  "structured_output": 32,
+  "fenced": 0
+ },
+ "arm": "D3-example-at-bodies-rule",
+ "arm_fingerprint": "cf9271e44ad1679d5b09cbe95e0daaa33687be100e61cc67ccc8ce78e4ba474a",
+ "arm_characters": 34140,
+ "baseline_fingerprint": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+ "prompt_is_committed": false,
+ "classes": {
+  "E": 0,
+  "F": 0,
+  "D": 0,
+  "C": 0,
+  "B": 32,
+  "A": 0
+ },
+ "classes_per_case": {
+  "R2": {
+   "E": 0,
+   "F": 0,
+   "D": 0,
+   "C": 0,
+   "B": 32,
+   "A": 0
+  }
+ },
+ "prompt_fingerprint_recorded_in_error": "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+ "identity_note": "`prompt_fingerprint` was corrected offline. `arena75.identity()` calls `prompt.prompt_fingerprint()`, which hashes the module CONSTANT -- and the arm patches `system_prompt`, not the constant. So this block recorded the COMMITTED prompt's fingerprint beside the ARM's character count: two fields of one identity describing two different texts. The value now here is the fingerprint of the text that was actually sent, and it equals `arm_fingerprint`, which was always recorded correctly and is what the adoption was verified against. `prompt_version` is left as recorded: an arm has no version of its own and that field names the version it was patched over. No model was re-called and no attempt was changed. `arena75d.patched()` now patches `prompt_fingerprint` too, so a future arm records one consistent identity."
+}
