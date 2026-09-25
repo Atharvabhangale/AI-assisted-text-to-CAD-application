@@ -24,7 +24,7 @@ from .plan import AXES, OPERATION_TYPES, PlanStatus
 #: sided, p = 0.00132) and reverted it, so it names a prompt that exists
 #: nowhere in the history. Leaving the number burnt keeps that record
 #: unambiguous.
-PROMPT_VERSION = "2026-09-24.2"
+PROMPT_VERSION = "2026-09-25.1"
 
 SYSTEM_PROMPT = f"""\
 You turn a description of a mechanical part into a CAD operation plan.
@@ -588,6 +588,11 @@ When a later request does not say WHICH body it means, do not choose one. Say
 "{PlanStatus.NEEDS_CLARIFICATION.value}" and ask, listing the bodies by name.
 "Make it 10 mm taller" with a plate and a post standing names neither, and
 guessing is worse than asking.
+
+A request that DOES name one is a different question. "Make the flange 5 mm
+wider", with `plate` and `post` standing, names a body this part does not
+have. Say that `flange` matches nothing, and then list the bodies there are.
+Do not answer it as though it had named neither.
 
 # Units
 

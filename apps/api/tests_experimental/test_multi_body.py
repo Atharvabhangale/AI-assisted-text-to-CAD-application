@@ -178,10 +178,10 @@ class TheDeclarationTierChangesNoRecordedIdentityTests(unittest.TestCase):
         `2026-09-18.5` -> `2026-09-24.1` (Stage 75) ->
         `2026-09-24.2` (Phase C, the worked reply example).
         """
-        self.assertEqual(prompt_module.PROMPT_VERSION, "2026-09-24.2")
+        self.assertEqual(prompt_module.PROMPT_VERSION, "2026-09-25.1")
         self.assertEqual(
             prompt_module.prompt_fingerprint(),
-            "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+            "f265d7d1e279e95a04a5ac09343cef387a0688a7732f90d60a7362a271299675",
         )
         text = prompt_module.system_prompt()
         self.assertIn("# Several bodies", text)

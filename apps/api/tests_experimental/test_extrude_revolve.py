@@ -1237,10 +1237,10 @@ class PromptTests(unittest.TestCase):
         # (`strict_selector_union_part`, 3874 inlined) was measured accepted
         # live BEFORE the prompt moved, so the two halves of the Stage 44
         # defect were closed in that order and separately.
-        self.assertEqual(self.version, "2026-09-24.2")
+        self.assertEqual(self.version, "2026-09-25.1")
         self.assertEqual(
             self.fingerprint,
-            "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+            "f265d7d1e279e95a04a5ac09343cef387a0688a7732f90d60a7362a271299675",
         )
         self.assertEqual(len(self.fingerprint), 64)
 

@@ -9,6 +9,7 @@ three phases of results as well:
 | **A** | 64 calls; three of its four zeros were the instrument or the corpus | `baseline.json`, `PHASE-A-INVALID-CASES.md` |
 | **B** | observer and corpus repaired, re-measured: creation **45/48**, refusal **7/24** | `baseline-phase-b*.json` |
 | **C** | the clarification measured properly and fixed: 432 calls, prompt `2026-09-24.2` | `phase-c-clarification/` |
+| **D** | R2 measured and largely removed: 168 calls, prompt `2026-09-25.1`. A worked ENVELOPE moved 0/64; four lines of prose CONTRAST moved it to 13/16 | `phase-d-r2/` |
 
 The **45/48** above is a reckoning across two files, not a figure any single
 run recorded: `baseline-phase-b.json` says creation 38/48 over a case list
@@ -28,7 +29,7 @@ different model is a different number and must not be compared to these.
 | | |
 |---|---|
 | model | `claude-haiku-4-5-20251001` |
-| prompt | `2026-09-24.2` / `90ebab2c38d615fb` / 33759 chars (Phases A and B were measured against `2026-09-24.1` / `c0c4a1be0d23052f` / 33407; their files say so) |
+| prompt | `2026-09-25.1` / `f265d7d1e279e95a` / 34036 chars (Phase D). Phase C was measured against `2026-09-24.2` / `90ebab2c38d615fb` / 33759, and Phases A and B against `2026-09-24.1` / `c0c4a1be0d23052f` / 33407; every file says which |
 | encoding | `strict_selector_union_part` / **3874** inlined / `ef7427700af93ed7` |
 | branches | 6 — box, cylinder, through_hole, `subtract\|union`, `fillet\|chamfer`, **`part`** |
 | live verdict on the grammar | **ACCEPTED** — one probe, `structured_output` true 2/2, 0/2 fenced |

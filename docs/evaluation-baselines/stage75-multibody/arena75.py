@@ -81,9 +81,9 @@ def identity() -> dict:
 #: than recording a number that looks like the others.
 COMMITTED = {
     "model": "claude-haiku-4-5-20251001",
-    "prompt_version": "2026-09-24.2",
+    "prompt_version": "2026-09-25.1",
     "prompt_fingerprint":
-        "90ebab2c38d615fb04b31e6494e4826b817d308fb70a66a39f727df966483948",
+        "f265d7d1e279e95a04a5ac09343cef387a0688a7732f90d60a7362a271299675",
     "schema_name": "strict_selector_union_part",
     "schema_inlined": 3874,
     "schema_fingerprint":
