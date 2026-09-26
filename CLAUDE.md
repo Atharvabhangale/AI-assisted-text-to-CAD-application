@@ -18,9 +18,9 @@ written**, and §19 is authoritative instead:
   them as "the normal way in"; they arrived on stable after the fork. Use the
   manual `uvicorn` / `npm run dev` sequence, or §19's commands.
 - **§5's test counts are stable's.** On this branch the current measured
-  figures are **`tests_experimental` 2188 passed, 5 skipped** and
+  figures are **`tests_experimental` 2250 passed, 5 skipped** and
   **cad-core 1481 passed**, both on Linux with FreeCAD 1.0.0 present
-  (Stage 76). §5's own note carries the older Windows figures as history.
+  (Stage 77). §5's own note carries the older Windows figures as history.
   §5's "no known failing tests" is a statement about stable only.
 - **§17's structure map omits this branch's three experimental trees**:
   `apps/api/src/cad_experimental/`, `apps/api/tests_experimental/` and
@@ -289,8 +289,8 @@ skipped or weakened to make the suite pass.
 
 **On `experiment/cad-operation-graph` the numbers above are stable's.**
 
-**CURRENT (Stage 76, Linux, FreeCAD 1.0.0 present):** `tests_experimental`
-**2188 passed, 5 skipped, 0 failed**; cad-core **1481 passed, 0 failed**.
+**CURRENT (Stage 77, Linux, FreeCAD 1.0.0 present):** `tests_experimental`
+**2250 passed, 5 skipped, 0 failed**; cad-core **1481 passed, 0 failed**.
 The six cad-core errors described below are **Windows-only** and do not
 reproduce on Linux.
 
@@ -1080,7 +1080,7 @@ current facts** (here), **historical milestone facts** (the per-stage
 subsections below, which are a record and are not rewritten), **known
 limitations** and **planned work**.
 
-**Branch and checkpoint.** `experiment/cad-operation-graph`, Stages 32–76
+**Branch and checkpoint.** `experiment/cad-operation-graph`, Stages 32–77
 complete and pushed. `git log --oneline -5` and `git status` are
 authoritative; this is a snapshot.
 
@@ -1964,8 +1964,8 @@ present).
 **`npm run e2e:cases` FAILS**, and did before Stage 71 — see the limitations
 below.
 
-**Test counts (current):** `tests_experimental` **2188 passed, 5 skipped, 0
-failed** (2193 collected), measured at Stage 76 on Linux with FreeCAD
+**Test counts (current):** `tests_experimental` **2250 passed, 5 skipped, 0
+failed** (2255 collected), measured at Stage 77 on Linux with FreeCAD
 1.0.0 present and `CAD_FREECAD_HOME`/`LD_LIBRARY_PATH` exported; cad-core
 **1481 passed**. Frontend `tsc --noEmit` clean, `vite build` succeeds. **The skip
 count depends on the environment.** The 5 here are three drawing-view
@@ -1998,8 +1998,8 @@ build path.
 
 ### Where this branch stands, and what is next
 
-Stages 32–76 are complete and pushed. The subsections below are the index,
-in order; they stop at Stage 48, and **Stages 49–76 are documented only in
+Stages 32–77 are complete and pushed. The subsections below are the index,
+in order; they stop at Stage 48, and **Stages 49–77 are documented only in
 `docs/experimental-operation-plan.md`** and in the per-stage subsections
 here — read its `## Stage NN` headings for those. The most recent are:
 
@@ -2011,6 +2011,7 @@ here — read its `## Stage NN` headings for those. The most recent are:
 | **61** | **A CAD session that needs no model at all**: `union` (eleventh type, still eight schema branches), two provider-neutral grammars, and an evidence answerer that labels every number `MEASURED` / `DECLARED` / `CALCULATED`. |
 | **62** | The four defects Stage 61 left behind — **an operation is not one edit.** The live route could not *say* `union` (Stage 44's defect a third time); a `union` plan could lose a solid silently; `ExecutionUnsupported` named the wrong reason for it; and a recorded schema size had drifted unpinned. |
 | **64** | **The AI provider usage policy, and CLAUDE.md reconciled.** The rule forbidding Claude Code Web a real credential is retired: where one is available a real provider is used, and live calls are encouraged. `CREDENTIAL_PRECEDENCE` makes the two-variable behaviour explicit instead of implicit. 22 guards now pin the policy and stop the document drifting from the code. |
+| **77** | **The broader live multi-body corpus: 240 calls, and ONE mechanism behind every failure.** Stage 75's corpus was nine cases against one two-body shape; this is **18 cases over 9 geometric families**, up to **five bodies**, with measurement, aggregate and export as post-conditions on every creation attempt. **Six denominators, never pooled:** creation **100/104 = 96.2 %**, edit **77/88** per turn and **53/64** per chain, refusal **48/48**, measurement **96/96**, aggregate **96/96**, export **104/104** all at rung `F:verified`. Sixteen of eighteen cases are 8/8. **All fifteen creation and edit failures are one confusion: an AXIS is not an EXTENT**, and the model fails toward the extent — 11/11 ED-02 failures bored at the cylinder's outer edge (x=110, axis 100) producing the identical wrong volume, and 4/4 CR-06 failures put a cylinder's axis on the plate's edge so half of it lay inside. Both are arithmetic on a body AWAY FROM THE ORIGIN, which no earlier corpus had. **No prompt arm was run**, deliberately. RF-04 **retired, and the model was right 8/8** — an ordinal IS resolvable from the ordered plan the model is handed. RF-02 is **32/32 where Stage 75's equivalent was 34/48 (p = 0.0005)**, so that failure is sensitive to the fixture and the noun, not only to the prompt. All **177** claimed successes rebuilt from the model's own raw text: **177/177 on CadQuery 2.8.0 and 177/177 on FreeCAD 1.0.0**, agreeing body for body. **`npm run e2e:live`** is the project's first browser run driven by a real model, and it passes all eight steps. 33 mutants, 33 caught. |
 | **76** | **The multi-body OBSERVATION layer, and no live call.** `corpus-design.md` said dimensions 8 (measurement) and 9 (export) could not be graded by any existing instrument. This builds the one that can, and stops at the brief's gate: **no model was called and none was configured**, so all of it is `DETERMINISTIC`. Truth takes a case NAME and the observer reaches its probes through a NARROWED view that carries no expected answer. Export gets **six rungs** where *file exists* is level B at best, formed from the ARTEFACT rather than from the writer's own verdict, and *not assessed* is kept distinct from *failed*. Seven cases on both kernels: **7/7 geometry, 7/7 measurement, 7/7 export at `F:verified`**, cross-readable both ways. **28 mutants, 28 caught** — six survived the first sweep and every one was a weak TEST, not a missing guard. Three product findings measured, none patched: the body-name check is a substring scan that accepts `SOLID`, `part`, `Open` and `cub`; the single-body writer puts no body name in the file at all; an `answered` reply carries no `bodies` list while a `refused` one does. And one defect in its own observer, caught by the offline gate before any live call. |
 | **75 E** | **The R2 tail characterised, and nothing adopted.** 192 live calls. 48 fresh calls put R2 at **34/48 = 70.8 %** (Phase D's 13/16 is the same quantity on a smaller sample, p = 0.52). The residual is ONE mechanism: 14/14 failures diagnose the request as *"does not say which body"* and 34/34 successes as *"names a body this part does not have"*, with nine failures byte-identical and none mentioning `bracket` at all. The prompt supplies the failing sentence — its first rule's trigger. One candidate narrowed that trigger (37/48, **p = 0.64**, rejected by a rule committed first); one CONTROL merely rephrased it and **collapsed the case to 9/48, p < 1e-6**. So the mechanism is proved and the committed wording sits near a local optimum. Instrument proved before the conclusion, 12 mutants 12 caught, no defect found, nothing re-graded. Broader corpus designed, not started. |
 | **75 D** | **R2 measured, and the example that LOST.** 168 live calls. The baseline is 0/32 and perfectly systematic: all 32 decline, name both bodies, ask a real question, write no operations, and never say `bracket`. The prompt explains it — its only worked clarification is the PRONOUN case, and R2's request is that sentence with a noun where the pronoun is, so the model gives that rule's answer correctly to a different question. A worked reply ENVELOPE moved nothing in EITHER section (0/64, byte-identical text at two sites); four lines of prose CONTRASTING the two cases, at the site of the mis-firing rule, took it to 23/32 and 13/16 on a fresh confirmation, p = 0.000003. **The first time in this project that an example lost and prose won**, because the defect was never the reply's shape but which case the model thought it was in. Adopted against a rule committed first, with same-session controls: R1 16/16, R3 15/16, creation 44/48 → 47/48, single-body golden 22/24 → 23/24, wrong-target codes 2 → 0. Prompt `2026-09-25.1`. R2 is bounded, not resolved. |
@@ -2210,6 +2211,35 @@ Separate from the historical record, and none of these is a plan.
   a `PlanGenerationResult` to `observe76` — execute the model's plan, then
   observe — and where that join goes decides whether a failed BUILD is
   recorded as a measurement failure or as what it is.
+- **The multi-body generalization profile is MEASURED, and it is not
+  uniform** (Stage 77, 240 live calls). Creation **96.2 %**, edit **87.5 %**
+  per turn and **82.8 %** per chain, refusal / measurement / aggregate /
+  export all **100 %**. Six denominators, never pooled.
+- **An AXIS is not an EXTENT, and the model confuses them** (Stage 77).
+  Every one of the fifteen creation and edit failures is this: a bore whose
+  axis is put at the target's own outer edge (11/11 of ED-02's failures, at
+  x = 110 where the axis is 100, byte-identical), or a cylinder whose axis
+  is put at the neighbour's edge so half of it lies inside (4/4 of CR-06's).
+  Both are arithmetic on a body AWAY FROM THE ORIGIN. **Systematic in
+  mechanism, stochastic in rate** — 34 % and 12.5 %. No prompt arm was run;
+  designing one is the next milestone.
+- **Stage 75's R2 rate is a number about that CASE, not about the prompt.**
+  Stage 77's RF-02 is the same shape of request on a different fixture with
+  a different missing noun and scores **32/32** against R2's 34/48, same
+  prompt and model, **p = 0.0005**. Carry neither as "the" clarification
+  rate.
+- **`evaluate77`/`ground_truth77` are provider-neutral** and a local-model
+  comparison needs no change to the corpus — but none has been run, so
+  nothing is known about any provider other than
+  `claude-haiku-4-5-20251001`.
+- **The HTTP app never bridges the credential** (Stage 77). Every arena
+  calls `config.bridge_credential()`; `cad_experimental/app.py` does not.
+  With the key under `CAD_ANTHROPIC_API_KEY` — which is how Claude Code Web
+  supplies it — the experimental server **cannot reach a model at all**
+  unless the operator exports `ANTHROPIC_API_KEY` by hand. Every browser
+  run in this project's history before `e2e:live` was deterministic partly
+  for this reason. Recorded, not fixed; the fix is one line in
+  `app_from_environment`.
 - **The multi-body OBSERVER is proven and has never met a model**
   (Stage 76). Seven fixture cases, 7/7 on both kernels, 28 mutants 28
   caught — and all of it `DETERMINISTIC`. It says a great deal about the
@@ -2416,6 +2446,146 @@ verify before the first call, what the five identities are, and the rules
 the run is held to — creation, refusal, measurement and export reported as
 four rates and never pooled, and every multi-body number recorded so far
 counted as `DETERMINISTIC`, because it is.
+
+**Stage 77 ran that corpus, and the profile is now measured.** 240 live
+calls over 18 cases and 9 geometric families: creation 96.2 %, edit 87.5 %
+per turn, and refusal, measurement, aggregate and export all 100 %. Sixteen
+of eighteen cases are 8/8.
+
+**THE NEXT MILESTONE IS THE AXIS-VERSUS-EXTENT DEFECT, and it is a prompt
+experiment with a protocol, not an edit.** Every creation and edit failure
+in those 240 calls is one confusion: the model puts a body's AXIS where its
+EXTENT is, on bodies away from the origin. It is systematic in mechanism
+(11/11 and 4/4 identical) and stochastic in rate (34 %, 12.5 %). Four
+stages have now found that **what the model imitates is what the prompt
+SHOWS**, and every worked example in the prompt places a cylinder at the
+origin or at a coordinate that is also its axis — so the hypothesis writes
+itself and so does the control. Run it the way Stages 69, 70 and 75 were
+run: a pre-registered adoption rule committed BEFORE any arm text exists,
+one variable per arm, an exploratory sample, a fresh confirmation, and
+same-session controls on creation, edit and refusal so a fix for one
+dimension cannot quietly cost another. `ED-02` and `CR-06` are the two
+cases to measure it on, and their baselines are 21/32 and 28/32.
+
+**Two smaller things, in order after it.** The one-line credential bridge in
+`app_from_environment`, without which the product cannot reach a model in
+Claude Code Web at all; and a **local-model comparison**, which the corpus
+is already provider-neutral for — `evaluate77` and `ground_truth77` import
+no vendor SDK, so it is an adapter and a second column in the same table.
+
+### Stage 77: the broader live multi-body corpus
+
+**240 live calls** to `claude-haiku-4-5-20251001`, every one
+`MODEL_GENERATED`. Record:
+`docs/evaluation-baselines/stage77-multibody-corpus/`. A **measurement**
+milestone: no prompt was changed and no arm was run.
+
+**What it measures that Stage 75 could not.** Stage 75's corpus is nine
+cases against ONE two-body shape, and its own design note says why 47/48
+creation is not general reliability: four of its six creation cases are the
+same part, nothing above two bodies had ever been asked of a model, and no
+creation case exercised a downstream surface.
+
+| | Stage 75 | Stage 77 |
+|---|---|---|
+| cases | 9 | **18** (+1 retired) |
+| geometric families | 1 | **9** |
+| most bodies in a case | 2 | **5** |
+| bodies of identical dimension | none | **CR-05** |
+| edit chains | none | **2 and 3 turns** |
+| downstream surfaces | none | on **every** creation attempt |
+
+**Six denominators, and `summarise` refuses a combined number.** Structured
+output 240/240, fenced 0/240; 232 graded, RF-04's 8 excluded.
+
+| quantity | rate | 95 % CI |
+|---|---|---|
+| creation | **100/104 = 96.2 %** | 90.5–98.5 |
+| edit, per turn | **77/88 = 87.5 %** | 79.0–92.9 |
+| edit, per whole chain | **53/64 = 82.8 %** | 71.8–90.1 |
+| refusal | **48/48 = 100 %** | 92.6–100 |
+| measurement | **96/96 = 100 %** | 96.2–100 |
+| aggregate | **96/96 = 100 %** | 96.2–100 |
+| export | **104/104 = 100 %**, all rung `F:verified` | 96.4–100 |
+
+Sixteen of eighteen cases are **8/8** — including five bodies at once, two
+bodies identical to the last digit, a three-turn interleaved edit chain, and
+the fusion control.
+
+**THE ONE MECHANISM: AN AXIS IS NOT AN EXTENT.** All fifteen creation and
+edit failures in 240 calls are the same confusion, and the model fails
+*toward the extent*.
+
+| | |
+|---|---|
+| **ED-02**, 21/32 | the cylinder's axis is at x = 100 and it spans 90…110. **Eleven of eleven failures are byte-identical**: they bore at **x = 110**, its outer edge, cutting a half-moon notch rather than a hole — the same wrong volume 9027.7241 against 8576.5479 every time. The successes write x = 100. |
+| **CR-06**, 28/32 | the plate spans x 0…60. **Four of four** put the Ø16 cylinder's **axis at x = 60**, the plate's edge, so half of it lies inside the plate. Volumes, faces, declarations and body count all correct; the bodies interpenetrate. |
+
+Both are arithmetic on a body **away from the origin**, which every earlier
+multi-body case had at most one of. **Systematic in mechanism, stochastic in
+rate**: 11/11 and 4/4 identical, at 34 % and 12.5 %.
+
+**No prompt arm was run, deliberately.** A real experiment is a
+pre-registered rule, one variable, an exploratory arm, a fresh confirmation
+and same-session controls — Stage 70's and Stage 75's protocol — and that is
+its own stage. The mechanism is recorded precisely enough to design it.
+
+**RF-04 is RETIRED, and the model was right 8/8.** *"Make the second one
+bigger"* on a plate/boss/rod part: the case assumed an ordinal is not a body
+reference. It is not a safe assumption — `revision_context` hands the model
+the whole plan IN ORDER — and on all eight attempts the model resolved it to
+`boss`, which IS the second, declined, wrote no operations, built nothing,
+and asked the one genuinely open question: bigger in WHICH dimension. A
+better answer than the case demanded. Retired verbatim, its eight attempts
+preserved and excluded from every denominator.
+
+**RF-02 is 32/32 where Stage 75's R2 was 34/48**, on the same prompt, schema
+and model — Fisher exact two sided **p = 0.0005**. The difference is the
+REQUEST and the FIXTURE, which is Stage 68's finding again. That does not
+make Stage 75's 70.8 % wrong; it makes it a number about **that case**.
+**Do not read it as R2 being fixed.**
+
+**Kernel evidence, from the model's own recorded answers.** All **177**
+claimed successes parsed again, built again and compared against the CLOSED
+FORMS — never against the arena's verdict: **CadQuery 2.8.0 177/177**,
+**FreeCAD 1.0.0 177/177**, and the two agree body for body on volume, faces
+and edges **177/177**.
+
+**The first browser run in this project driven by a REAL MODEL.**
+`npm run e2e:live` asserts `metadata.model` and
+`metadata.prompt_fingerprint` are the identity the corpus was measured
+against, so a deterministic fallback FAILS the step rather than passing it.
+Eight steps, all pass on real Chromium and real FreeCAD 1.0.0, 0 server
+errors, 0 console errors. One attempt per step: evidence the product path
+carries a live multi-body answer end to end, **not a rate**.
+
+**Two findings that are not about the model.** The HTTP app **never bridges
+the credential** — every arena calls `config.bridge_credential()` and
+`cad_experimental/app.py` does not, so with the key under
+`CAD_ANTHROPIC_API_KEY` the experimental server cannot reach a model at all
+unless the operator exports it by hand. Recorded, not fixed: changing the
+product mid-measurement would mean the browser run tested something other
+than what the corpus measured. And a **mutation sweep that disables a safety
+check performs the unsafe action** — the mutant disabling the arena's
+baseline-write guard made the test driving it write into Stage 75's
+immutable directory for real.
+
+**How it is kept honest.** Truth takes a case NAME and a turn INDEX and
+`ground_truth77` imports `math` and `typing` and nothing else; the preflight
+builds a developer-written reference plan for every creation and edit turn
+and grades it through the live run's own grader, **18/18 on both engines**,
+which is what proves the expectations agree with the kernel before a model
+is blamed for disagreeing and proves the grader can say YES; measurement and
+export are post-conditions, so a part that did not build is `NOT_ASSESSED`
+and never a measurement failure; `P:export_identity_unproven` rides on all
+96 multi-body exports and is excluded from every failure count; and
+**33 mutants, 33 caught** — four survived the first sweep, two of them real
+gaps with no trap isolating them.
+
+**Provider-neutral by construction.** `evaluate77` and `ground_truth77`
+import no vendor SDK and no provider module; only `arena77` constructs one,
+so the same cases and the same scoring run against a different provider by
+changing the adapter. A local-model comparison needs no change to the corpus.
 
 ### Stage 76: the multi-body observation layer, and no live call
 
@@ -3575,9 +3745,32 @@ Stage 48 live commands — `--probe-live` (3 calls) and `--live` (215 calls at
 5 attempts) — are written out in full in
 `docs/evaluation-baselines/stage48-widened-schema/README.md`.
 
-**Stage 76's observer is free too, and calls no model.** It needs the
-stage directory on `PYTHONPATH` because its modules import each other by
-bare name, the way Stage 75's do:
+**Stage 77's corpus and Stage 76's observer are free too, and call no
+model.** Both need their stage directory on `PYTHONPATH` because their
+modules import each other by bare name, the way Stage 75's do:
+
+```sh
+export PYTHONPATH=packages/cad-core/src:apps/api/src:docs/evaluation-baselines/stage76-observation:docs/evaluation-baselines/stage77-multibody-corpus
+export CAD_FREECAD_HOME=/root/freecad/squashfs-root
+export LD_LIBRARY_PATH=$CAD_FREECAD_HOME/usr/lib      # BEFORE python starts
+
+cd docs/evaluation-baselines/stage77-multibody-corpus
+python3 selfcheck77.py            # 18/18 reference turns, on every engine
+python3 mutation_test_77.py       # 33 mutants
+python3 arena77.py --check        # identity, case count, call count
+python3 regrade77.py baseline.json widened.json --out results.json
+python3 verify77.py  baseline.json widened.json --out kernel-verification.json
+
+# LIVE. Spends real provider calls; --live is REQUIRED.
+python3 arena77.py --live --calls 8 --out baseline.json
+```
+
+A **live browser** run additionally needs the credential bridged into the
+backend's own process, because the app does not do it itself:
+`export ANTHROPIC_API_KEY="$CAD_ANTHROPIC_API_KEY"` before starting
+uvicorn, then `cd apps/web-experimental && npm run e2e:live`.
+
+**Stage 76's observer**, the same way:
 
 ```sh
 export PYTHONPATH=packages/cad-core/src:apps/api/src:docs/evaluation-baselines/stage76-observation
@@ -3596,18 +3789,18 @@ The POSIX forms remain correct on Linux/macOS, where `python3` and a
 `CAD_FREECAD_HOME` plus `LD_LIBRARY_PATH=$CAD_FREECAD_HOME/usr/lib` set
 **before Python starts**, or `test_cad_backends` skips.
 
-**2188 passed, 5 skipped** (2193 collected) with FreeCAD 1.0.0 present on
-Linux and its environment exported, measured at Stage 76. The +67 over
-Stage 75 Phase E is `test_stage76_observation` entire.
+**2250 passed, 5 skipped** (2255 collected) with FreeCAD 1.0.0 present on
+Linux and its environment exported, measured at Stage 77. The +62 over
+Stage 76 is `test_stage77_corpus` entire.
 
 **The two numbers are not in conflict**, and the pairing is worth keeping:
 unittest's "Ran N tests" is the COLLECTED count and includes the skips, so
-2193 collected = 2188 passed + 5 skipped + 0 failed. Both were re-measured
-at `a44b901` before this stage began, which is how the Stage 71 pair
+2255 collected = 2250 passed + 5 skipped + 0 failed. Both were re-measured
+at `d85eda8` before this stage began, which is how the Stage 71 pair
 (1915 collected / 1910 passed) was confirmed rather than corrected.
 
-Earlier figures, each describing a real environment: 2126 at Stage 75
-Phase E; 2104 at Stage 75 Phase D; 2060 at Phase C; 1979 at Stage 74; 1936 at Stage 72;
+Earlier figures, each describing a real environment: 2193 at Stage 76;
+2126 at Stage 75 Phase E; 2104 at Stage 75 Phase D; 2060 at Phase C; 1979 at Stage 74; 1936 at Stage 72;
 1910 at Stage 71;
 1867 at Stage 70; 1856 at Stage 69;
 1852 at Stage 68;
