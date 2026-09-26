@@ -167,6 +167,24 @@ MUTATIONS = [
    '',
    ["test_the_adopted_arm_now_renders_the_committed_prompt"]),
 
+  # --- Stage 75 Phase E: the trigger clause is load-bearing -------------
+  ("rewrite the trigger clause to Phase E's REJECTED candidate (E1, p=0.64)",
+   PROMPT, "When a later request does not say WHICH body it means,",
+           "When a later request uses no name at all,",
+   ["test_the_committed_trigger_is_the_one_that_was_measured",
+    "test_the_rejected_rewrites_are_NOT_in_the_prompt"]),
+
+  ("rewrite it to Phase E's CONTROL, measured 52 points worse (E2)",
+   PROMPT, "When a later request does not say WHICH body it means,",
+           "When a later request leaves WHICH body unclear,",
+   ["test_the_committed_trigger_is_the_one_that_was_measured",
+    "test_the_rejected_rewrites_are_NOT_in_the_prompt"]),
+
+  ("delete the second rule, so there is nothing to choose between",
+   PROMPT, "A request that DOES name one is a different question.",
+           "A request naming something is covered too.",
+   ["test_the_two_rules_still_read_as_a_PAIR"]),
+
   ("assert the WRONG paragraph order",
    TEST, "        self.assertLess(\n            pronoun, where,",
          "        self.assertGreater(\n            pronoun, where,",

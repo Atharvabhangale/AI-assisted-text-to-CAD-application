@@ -18,7 +18,7 @@ written**, and §19 is authoritative instead:
   them as "the normal way in"; they arrived on stable after the fork. Use the
   manual `uvicorn` / `npm run dev` sequence, or §19's commands.
 - **§5's test counts are stable's.** On this branch the current measured
-  figures are **`tests_experimental` 2099 passed, 5 skipped** and
+  figures are **`tests_experimental` 2121 passed, 5 skipped** and
   **cad-core 1481 passed**, both on Linux with FreeCAD 1.0.0 present
   (Stage 72). §5's own note carries the older Windows figures as history.
   §5's "no known failing tests" is a statement about stable only.
@@ -290,7 +290,7 @@ skipped or weakened to make the suite pass.
 **On `experiment/cad-operation-graph` the numbers above are stable's.**
 
 **CURRENT (Stage 74, Linux, FreeCAD 1.0.0 present):** `tests_experimental`
-**2099 passed, 5 skipped, 0 failed**; cad-core **1481 passed, 0 failed**.
+**2121 passed, 5 skipped, 0 failed**; cad-core **1481 passed, 0 failed**.
 The six cad-core errors described below are **Windows-only** and do not
 reproduce on Linux.
 
@@ -1964,8 +1964,8 @@ present).
 **`npm run e2e:cases` FAILS**, and did before Stage 71 — see the limitations
 below.
 
-**Test counts (current):** `tests_experimental` **2099 passed, 5 skipped, 0
-failed** (2104 collected), measured at Stage 75 Phase D on Linux with FreeCAD
+**Test counts (current):** `tests_experimental` **2121 passed, 5 skipped, 0
+failed** (2126 collected), measured at Stage 75 Phase E on Linux with FreeCAD
 1.0.0 present and `CAD_FREECAD_HOME`/`LD_LIBRARY_PATH` exported; cad-core
 **1481 passed**. Frontend `tsc --noEmit` clean, `vite build` succeeds. **The skip
 count depends on the environment.** The 5 here are three drawing-view
@@ -2011,6 +2011,7 @@ here — read its `## Stage NN` headings for those. The most recent are:
 | **61** | **A CAD session that needs no model at all**: `union` (eleventh type, still eight schema branches), two provider-neutral grammars, and an evidence answerer that labels every number `MEASURED` / `DECLARED` / `CALCULATED`. |
 | **62** | The four defects Stage 61 left behind — **an operation is not one edit.** The live route could not *say* `union` (Stage 44's defect a third time); a `union` plan could lose a solid silently; `ExecutionUnsupported` named the wrong reason for it; and a recorded schema size had drifted unpinned. |
 | **64** | **The AI provider usage policy, and CLAUDE.md reconciled.** The rule forbidding Claude Code Web a real credential is retired: where one is available a real provider is used, and live calls are encouraged. `CREDENTIAL_PRECEDENCE` makes the two-variable behaviour explicit instead of implicit. 22 guards now pin the policy and stop the document drifting from the code. |
+| **75 E** | **The R2 tail characterised, and nothing adopted.** 192 live calls. 48 fresh calls put R2 at **34/48 = 70.8 %** (Phase D's 13/16 is the same quantity on a smaller sample, p = 0.52). The residual is ONE mechanism: 14/14 failures diagnose the request as *"does not say which body"* and 34/34 successes as *"names a body this part does not have"*, with nine failures byte-identical and none mentioning `bracket` at all. The prompt supplies the failing sentence — its first rule's trigger. One candidate narrowed that trigger (37/48, **p = 0.64**, rejected by a rule committed first); one CONTROL merely rephrased it and **collapsed the case to 9/48, p < 1e-6**. So the mechanism is proved and the committed wording sits near a local optimum. Instrument proved before the conclusion, 12 mutants 12 caught, no defect found, nothing re-graded. Broader corpus designed, not started. |
 | **75 D** | **R2 measured, and the example that LOST.** 168 live calls. The baseline is 0/32 and perfectly systematic: all 32 decline, name both bodies, ask a real question, write no operations, and never say `bracket`. The prompt explains it — its only worked clarification is the PRONOUN case, and R2's request is that sentence with a noun where the pronoun is, so the model gives that rule's answer correctly to a different question. A worked reply ENVELOPE moved nothing in EITHER section (0/64, byte-identical text at two sites); four lines of prose CONTRASTING the two cases, at the site of the mis-firing rule, took it to 23/32 and 13/16 on a fresh confirmation, p = 0.000003. **The first time in this project that an example lost and prose won**, because the defect was never the reply's shape but which case the model thought it was in. Adopted against a rule committed first, with same-session controls: R1 16/16, R3 15/16, creation 44/48 → 47/48, single-body golden 22/24 → 23/24, wrong-target codes 2 → 0. Prompt `2026-09-25.1`. R2 is bounded, not resolved. |
 | **75** | **The live multi-body path opened, measured, and its clarification fixed.** The grammar was measured FIRST: `strict_selector_union_part` (3874 inlined, 6 branches, `ef7427700af93ed7`) is **ACCEPTED** live. Only then did the prompt move — so the two halves of the Stage 44 defect were closed in that order and separately. Nine recorded provider fingerprints are byte-identical: `part` stays out of `OPERATION_TYPES`. **Phase A** ran 64 calls and found three of its four zeros were the instrument or the corpus, not the model. **Phase B** repaired both and re-measured: creation **45/48**, refusal **7/24**. **Phase C** measured the clarification properly and found the metric for it was DEAD — it read the parsed plan, which is empty precisely when the model ships operations, so it was `False` 0 times while the model shipped operations 5 times. Fixed, then 432 live calls: the prompt had shown the model the FIELDS of a reply and never a reply, with `"status"` occurring exactly once in 33407 characters. One worked envelope took naming every body **26 % → 100 %** and carrying no operations **68 % → 100 %**, both p < 0.0001 on a fresh confirmation, adopted against a rule committed first. A control arm proved the naming WORDING is not the ingredient (p = 0.62) — showing an envelope at all is. Prompt `2026-09-24.2`. |
 | **73/74** | **Multi-body steps 4 and 5: measuring it, and exporting it.** No new operation, P-code, schema or prompt change — again. A question naming a body is answered from THAT body; one naming none of several is **REFUSED**, phrased for a question rather than an edit; a total is explicitly summed and the combined **envelope** is `ASSUMED`, the fourth provenance, because that box holds the air between the bodies too. Export writes a real STEP assembly: every body, none fused, each under its own id, verified by reading the file back and counting solids **and** checking the names survived — handed a compound BOTH engines write a geometrically perfect file whose bodies are anonymous, and no count can see that. Found and fixed the last `bodies[0]`, in the BROWSER, and an engineering route that was never gated and merged both bodies' holes into one list. A detail drawing of one body is real; an assembly drawing is refused by name. |
@@ -2194,6 +2195,16 @@ Separate from the historical record, and none of these is a plan.
   took strict success from 135/144 to 21/32, p = 0.0001.
 - **One attempt in 96 wrote all three bores on `+Z`** (`F:bore_direction`),
   a mode not seen before Stage 69. Still rare; 3/336 across Stages 69–70.
+- **The multi-body corpus is nine cases against one two-body shape, and
+  47/48 creation is not general reliability** (Stage 75 Phase E). Four of
+  the six creation cases build the same cube-and-cylinder part, no case
+  declares more than two bodies where `MAX_BODIES` is 8, and no creation
+  case exercises measurement, drawing or export. A broader corpus is
+  DESIGNED across nine dimensions in
+  `docs/evaluation-baselines/stage75-multibody/phase-e-r2-tail/corpus-design.md`
+  and deliberately not started: two of its dimensions need a per-body
+  observer for measurement and export that does not exist, because neither
+  is visible in a `PlanGenerationResult`.
 - **`comparison_corpus.py` case `12-union` is stale** — it expects
   `unsupported` for a request the language now answers. **Deliberately not
   edited**: it is a frozen instrument and Stage 48's `legacy` group reads out
@@ -2233,14 +2244,22 @@ Separate from the historical record, and none of these is a plan.
   has not been. The name check proves each id **reached the file**, not
   which solid carries it — that needs a per-engine assembly reader and the
   two engines' readers differ.
-- **R2 is bounded, not resolved** (Stage 75 Phase D). A clarification that
-  names both bodies and never says the user's noun matched nothing was
-  **32/32** on the committed prompt; after the adopted contrast it is
-  **3/16**. The fix is a prose distinction at the site of the rule that was
-  mis-firing, and the two arms that showed the usual mechanism — a worked
-  reply envelope, in either section — moved **0 of 64**. What remains
-  unmeasured is whether the residual 3/16 has a cause of its own or is the
-  same failure at a lower rate; no arm was run against it.
+- **R2 is bounded, characterised, and NOT resolved** (Stage 75 Phases D
+  and E). A clarification that names both bodies and never says the user's
+  noun matched nothing was **32/32** on the pre-Phase-D prompt; on the
+  committed one it is **14/48 = 29.2 %**, measured over 48 fresh calls
+  (R2 itself is **34/48 = 70.8 %**, 95 % CI 56.8–81.8; Phase D's 13/16 is
+  the same quantity on a smaller sample, p = 0.52). The residual is ONE
+  mechanism, not noise: every failure states the diagnosis *"the request
+  does not say which body"* and every success states *"the request names a
+  body this part does not have"*, and the prompt's own first rule opens with
+  the failing phrase. Phase E proved that by control — rephrasing that
+  clause without narrowing it took R2 to **9/48, p < 1e-6** — and its
+  candidate, which narrowed it, reached only 37/48 at p = 0.64 and was
+  rejected. **The committed wording sits near a local optimum and a rewrite
+  must be a measurement, not an edit**; a test pins the clause and refuses
+  both rejected rewrites. The residual fails closed: all 14 still refuse,
+  name both bodies, ask a real question and build nothing.
 - **There is no assembly drawing, and it is refused by name** (Stage 73).
   A **detail drawing of one named body** is real and implemented. A drawing
   of all bodies at once answers **HTTP 501** with
@@ -2513,6 +2532,104 @@ them. Four pins moved together. Mutation sweep **32/32**.
 **Still open, and the next measurable thing:** R2. A clarification that names
 both bodies and never says the user's noun matched nothing is still wrong,
 and it is now the only clarification failure left.
+
+### Stage 75 Phase E: the R2 tail characterised, and nothing adopted
+
+**192 live calls** to `claude-haiku-4-5-20251001`. Record:
+`docs/evaluation-baselines/stage75-multibody/phase-e-r2-tail/`. Phases A-D
+are untouched. **The prompt is unchanged at `2026-09-25.1`.**
+
+**The residual is bigger than Phase D's sample said, and it is ONE
+mechanism.** 48 fresh calls on the committed instrument put R2 at
+**34/48 = 70.8 %** [56.8, 81.8]. Phase D's 13/16 is the same quantity on a
+smaller sample — 13/16 against 34/48 is p = 0.52 — and pooled over the
+committed prompt the rate is 47/64 = 73.4 %. The 48-call run is the number
+to carry.
+
+Every one of the 48 refuses, asks, names both bodies and builds nothing.
+What differs is the **diagnosis** the reply states, and the split is total:
+
+| | |
+|---|--:|
+| **FAIL** *"the request does not say / specify / name **which body**"* | **14/14** |
+| **PASS** *"the request **names a body this part does not have**"* | **34/34** |
+
+Nine of the fourteen failures are byte-identical, and not one mentions
+`bracket` in any form. So it is the brief's mechanism **C** — a failure to
+distinguish "the requested noun does not exist" from "the request names no
+body" — and not stochastic wording: the failures are a different, complete
+answer rather than degraded successes.
+
+**The prompt hands the model the failing sentence.** `# Several bodies`
+opens its first rule with *"When a later request does not say WHICH body it
+means"*, which is nearly verbatim what all fourteen write back. Read
+literally, a request naming a body that does not exist **does** fail to say
+which body it means, so both rules' triggers match R2 and the first is
+stated first.
+
+**ONE ARM, ONE CONTROL, AND THE CONTROL IS THE RESULT.** One variable: that
+trigger clause. Nothing added, moved or exemplified — Phase D already
+measured that a worked reply envelope moves 0 of 64, and the reply shape is
+right in both templates.
+
+| arm | the clause | chars | R2 | vs baseline |
+|---|---|--:|--:|---|
+| E0 committed | *does not say WHICH body it means* | 34036 | **34/48** | |
+| **E1** candidate | *uses no name at all* | −13 | 37/48 | **p = 0.64** |
+| **E2** CONTROL | *leaves WHICH body unclear* | −7 | **9/48** | **p < 1e-6** |
+
+E2 was built to be inert and instead **collapsed the case by 52 points**.
+E1 against E2 is p = 1.4e-8. So the mechanism is established beyond
+argument — which of the two rules the model applies is driven by how the
+first rule's trigger reads — and the committed wording sits near a local
+optimum: the edit that should help helped by six points and missed
+significance, and the edit that merely rephrased the same idea destroyed
+the case. Stage 70's B3 was the first time a pure rewrite at one site moved
+a great deal; this is the second.
+
+**REJECTED by a rule committed before either arm's text existed** (`a80b47a`).
+It does not restate Phase D's rule, it imports it, and changes one thing:
+`MIN_N` 16 → 32, with an assertion that the floor may only rise.
+
+```
+ADOPT: False
+  - R2 strict: 37/48 vs 34/48, p=0.6424, gain=+0.062
+  - R2 did not improve significantly; gain is below MIN_GAIN=0.25
+```
+
+No confirmation battery was run: a candidate failing the significance clause
+on 48 calls cannot be rescued by measuring the preservation clauses, and
+separating 77 % from 71 % needs several hundred calls per arm. No trade was
+hidden either — `refused`, `named_the_bodies`, `asked_a_question`,
+`emitted_no_operations` and `built_nothing` are 48/48 on both.
+
+**THE INSTRUMENT WAS PROVED FIRST, AND NO DEFECT WAS FOUND**, so nothing was
+re-graded and the evaluator is unchanged. `test_r2_instrument.py` (18 tests,
+**12 mutants, 12 caught**) shows the noun check cannot be satisfied by the
+SYSTEM's sentence — the crossing Phase A made for the body names, which
+nothing had pinned for this criterion — that it CAN be satisfied by the
+model saying it in either field, that a refusal cannot pass by not
+declining, asking nothing, naming one body, carrying operations or building
+geometry, that `outcome_label` fails closed on all seven values and the
+generation layer imports **no** deterministic route, and that the 48
+recorded attempts **re-graded** partition exactly, with no false negative and
+no false positive. Two mutants missed on the first sweep and both were
+weaknesses in the tests: one read recorded booleans instead of re-grading,
+and one AST walk read only `node.module`, missing `from . import normalize`.
+
+**The finding is pinned so it cannot be lost.**
+`TheTriggerSentenceIsLoadBearingTests` asserts the committed clause is the
+one that was measured and that **neither rejected rewrite is in the prompt**.
+It deliberately does not claim the clause is optimal — nothing measured says
+that — only that it is the one with a number attached, so a future rewrite
+has to be a measurement. Phase D's sweep is now **26 mutants, 26 caught**.
+
+**The broader corpus is DESIGNED and not started**
+(`phase-e-r2-tail/corpus-design.md`): nine dimensions, creation and refusal
+never pooled, R2's 70.8 % carried forward as a known floor rather than
+re-discovered, and dimensions 8 and 9 (measurement, export) blocked on a
+per-body observer that does not exist yet — a `PlanGenerationResult` cannot
+see either.
 
 ### Stage 75 Phase D: R2 measured, and the example that lost
 
@@ -3296,19 +3413,19 @@ The POSIX forms remain correct on Linux/macOS, where `python3` and a
 `CAD_FREECAD_HOME` plus `LD_LIBRARY_PATH=$CAD_FREECAD_HOME/usr/lib` set
 **before Python starts**, or `test_cad_backends` skips.
 
-**2099 passed, 5 skipped** (2104 collected) with FreeCAD 1.0.0 present on
-Linux and its environment exported, measured at Stage 75 Phase D. The +39
-over Phase C is exactly the one new module,
-`test_missing_body_reference` (39).
+**2121 passed, 5 skipped** (2126 collected) with FreeCAD 1.0.0 present on
+Linux and its environment exported, measured at Stage 75 Phase E. The +22
+over Phase D is `test_r2_instrument` (18) plus four prompt guards added to
+`test_missing_body_reference`, which is now 43.
 
 **The two numbers are not in conflict**, and the pairing is worth keeping:
 unittest's "Ran N tests" is the COLLECTED count and includes the skips, so
-2104 collected = 2099 passed + 5 skipped + 0 failed. Both were re-measured
+2126 collected = 2121 passed + 5 skipped + 0 failed. Both were re-measured
 at `8e1371c` before this stage began, which is how the Stage 71 pair
 (1915 collected / 1910 passed) was confirmed rather than corrected.
 
-Earlier figures, each describing a real environment: 2060 at Stage 75
-Phase C; 1979 at Stage 74; 1936 at Stage 72;
+Earlier figures, each describing a real environment: 2104 at Stage 75
+Phase D; 2060 at Phase C; 1979 at Stage 74; 1936 at Stage 72;
 1910 at Stage 71;
 1867 at Stage 70; 1856 at Stage 69;
 1852 at Stage 68;

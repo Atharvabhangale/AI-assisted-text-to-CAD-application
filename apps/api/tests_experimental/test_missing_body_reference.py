@@ -691,6 +691,87 @@ class TheArmsAreWhatTheyClaimTests(unittest.TestCase):
                             "prompt; that is the fact the constant records")
 
 
+class TheTriggerSentenceIsLoadBearingTests(unittest.TestCase):
+    """Stage 75 Phase E, and the most expensive thing it learned.
+
+    `# Several bodies` opens its first rule with a trigger clause. Phase E
+    rewrote that clause and nothing else, twice, 48 live calls each:
+
+        committed   "does not say WHICH body it means"   R2 34/48 = 70.8%
+        E1          "uses no name at all"                R2 37/48 = 77.1%
+                                                          p = 0.64, rejected
+        E2          "leaves WHICH body unclear"          R2  9/48 = 18.8%
+                                                          p < 1e-6, a
+                                                          52-POINT COLLAPSE
+
+    One sentence, six or thirteen characters different, and the case swings
+    across fifty points. The committed wording is not decorative and it is
+    not obviously improvable: the edit that should help helped by six points
+    and did not reach significance, and the edit that merely rephrased the
+    same idea destroyed it.
+
+    So this class does not assert that the sentence is optimal -- nothing
+    measured says that. It asserts that it is the one that was measured, so
+    a future rewrite has to be a measurement rather than an edit.
+    """
+
+    #: The clause, and the two Phase E measured against it. Read from the
+    #: variants module so the test and the experiment cannot disagree about
+    #: what was sent.
+    def _variants(self):
+        sys.path.insert(0, str(STAGE75 / "phase-e-r2-tail"))
+        import variants_e as V
+        return V
+
+    def test_the_committed_trigger_is_the_one_that_was_measured(self) -> None:
+        V = self._variants()
+        section = bodies_section(prompt_module.system_prompt())
+        self.assertIn(V.TRIGGER, section,
+                      "the trigger clause Phase E measured is not in the "
+                      "prompt; whatever replaced it is unmeasured")
+
+    def test_the_rejected_rewrites_are_NOT_in_the_prompt(self) -> None:
+        """E1 was rejected by the pre-registered rule and E2 is a control
+        that made the case 52 points worse. Either appearing in the
+        committed prompt would mean an unmeasured or a measured-harmful
+        text was adopted."""
+        V = self._variants()
+        text = prompt_module.system_prompt()
+        self.assertNotIn(V.TRIGGER_NARROWED, text)
+        self.assertNotIn(V.TRIGGER_REPHRASED, text)
+
+    def test_the_two_rules_still_read_as_a_PAIR(self) -> None:
+        """The first rule's trigger and the second's opening are what the
+        model chooses between. Phase E's 14 failures all state the first
+        rule's diagnosis; the 34 successes all state the second's. If one
+        of the two ever goes missing there is nothing to choose between and
+        the measurement stops describing the prompt."""
+        section = bodies_section(prompt_module.system_prompt())
+        first = section.index("do not choose one")
+        second = section.index("A request that DOES name one")
+        self.assertLess(first, second)
+
+    def test_the_measured_rate_is_recorded_where_it_was_measured(
+            self) -> None:
+        """The number and the text that produced it live together.
+
+        Phase D reported 13/16 on a sample whose interval was wide; Phase E
+        measured the same quantity at 34/48 in one contiguous run, and
+        13/16 against 34/48 is p = 0.52. The larger run is the number to
+        carry, and this asserts the record still says so.
+        """
+        record = STAGE75 / "phase-e-r2-tail" / "residual-r2.json"
+        if not record.is_file():                       # pragma: no cover
+            self.skipTest("no Phase E residual in this checkout")
+        data = json.loads(record.read_text(encoding="utf-8"))
+        self.assertEqual(data["prompt_fingerprint"],
+                         prompt_module.prompt_fingerprint(),
+                         "the residual was measured on a different prompt "
+                         "than the one committed")
+        entry = data["summary"]["per_case"]["R2"]
+        self.assertEqual((entry["strict"], entry["calls"]), (34, 48))
+
+
 class TheAdoptedTextIsWhatWasMeasuredTests(unittest.TestCase):
     """The committed prompt must be the arm the confirmation ran on.
 
