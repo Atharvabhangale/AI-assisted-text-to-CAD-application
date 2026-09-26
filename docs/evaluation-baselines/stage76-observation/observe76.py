@@ -199,11 +199,35 @@ def measure(
     body does this mean" would be a second opinion, and the two would
     disagree the first time an id gained a hyphen.
     """
+    return measure_probes(G.probes_to_ask(case_name), plan, execution,
+                          backend_name=backend_name)
+
+
+def measure_probes(
+    probes: Sequence[Mapping[str, str]],
+    plan: Mapping[str, Any],
+    execution: Any,
+    *,
+    backend_name: str = "the CAD engine",
+) -> List[Dict[str, Any]]:
+    """The same observation, for probes the CALLER supplies.
+
+    :func:`measure` is this with `ground_truth76`'s own narrowed probe view;
+    a later corpus whose bodies the MODEL names cannot use that view,
+    because its probe texts are not knowable before the part exists. So the
+    door is opened here rather than duplicated there: one implementation of
+    "ask the product and record what came back", and the caller decides what
+    to ask.
+
+    Each probe is a mapping carrying `name`, `kind` and `text`, and
+    **nothing else** -- the same shape `probes_to_ask` returns, so a caller
+    cannot smuggle an expectation in through it either.
+    """
     per_body = bodies_by_id(execution)
     part = part_measurement(execution)
     rows: List[Dict[str, Any]] = []
 
-    for probe in G.probes_to_ask(case_name):
+    for probe in probes:
         text = probe["text"]
         row: Dict[str, Any] = {
             "probe": probe["name"],
@@ -451,5 +475,6 @@ def observation(
 
 __all__ = [
     "bodies_by_id", "cross_read", "export", "geometry", "measure",
+    "measure_probes",
     "observation", "part_measurement", "step_product_names",
 ]
