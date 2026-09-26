@@ -1,0 +1,2363 @@
+{
+  "cases": [
+    "X1",
+    "X2",
+    "X3",
+    "X4",
+    "X5",
+    "X6",
+    "X7"
+  ],
+  "cross_reads": [
+    {
+      "case": "X1",
+      "engine": "freecad",
+      "error": null,
+      "readable": true,
+      "solids_read": 2,
+      "volumes_read": [
+        63999.999999999985,
+        9424.777960769381
+      ],
+      "written_by": "cadquery"
+    },
+    {
+      "case": "X2",
+      "engine": "freecad",
+      "error": null,
+      "readable": true,
+      "solids_read": 3,
+      "volumes_read": [
+        63999.999999999985,
+        9424.777960769381,
+        1500.0
+      ],
+      "written_by": "cadquery"
+    },
+    {
+      "case": "X3",
+      "engine": "freecad",
+      "error": null,
+      "readable": true,
+      "solids_read": 1,
+      "volumes_read": [
+        63999.999999999985
+      ],
+      "written_by": "cadquery"
+    },
+    {
+      "case": "X4",
+      "engine": "freecad",
+      "error": null,
+      "readable": true,
+      "solids_read": 2,
+      "volumes_read": [
+        22827.43338823091,
+        9424.777960769381
+      ],
+      "written_by": "cadquery"
+    },
+    {
+      "case": "X5",
+      "engine": "freecad",
+      "error": null,
+      "readable": true,
+      "solids_read": 1,
+      "volumes_read": [
+        68000.0
+      ],
+      "written_by": "cadquery"
+    },
+    {
+      "case": "X6",
+      "engine": "freecad",
+      "error": null,
+      "readable": true,
+      "solids_read": 2,
+      "volumes_read": [
+        63999.999999999985,
+        63999.999999999985
+      ],
+      "written_by": "cadquery"
+    },
+    {
+      "case": "X7",
+      "engine": "freecad",
+      "error": null,
+      "readable": true,
+      "solids_read": 2,
+      "volumes_read": [
+        63999.999999999985,
+        9424.777960769381
+      ],
+      "written_by": "cadquery"
+    }
+  ],
+  "engine": "cadquery",
+  "is_live_model_result": false,
+  "observations": [
+    {
+      "case": "X1",
+      "cross_reads": [],
+      "export": {
+        "asked_for": [
+          "cube",
+          "pin"
+        ],
+        "body_count": 2,
+        "bytes": 22630,
+        "case": "X1",
+        "engine": "cadquery",
+        "error": null,
+        "identity_binding": "unproven",
+        "identity_binding_note": "a body id found in the file is a PRODUCT of that name, and the volume multiset matches; which SOLID carries which NAME is NOT proven here. Binding them needs the PRODUCT -> SHAPE_REPRESENTATION -> MANIFOLD_SOLID_BREP chain followed per engine, and the two engines' assembly readers differ",
+        "measured_bodies": {
+          "cube": {
+            "edge_count": 12,
+            "face_count": 6,
+            "is_valid": true,
+            "maximum": [
+              40.0,
+              40.0,
+              40.0
+            ],
+            "minimum": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "size": [
+              40.0,
+              40.0,
+              40.0
+            ],
+            "solid_count": 1,
+            "volume": 63999.999999999985
+          },
+          "pin": {
+            "edge_count": 3,
+            "face_count": 3,
+            "is_valid": true,
+            "maximum": [
+              70.0,
+              30.0,
+              30.0
+            ],
+            "minimum": [
+              50.0,
+              10.0,
+              0.0
+            ],
+            "size": [
+              20.0,
+              20.0,
+              30.0
+            ],
+            "solid_count": 1,
+            "volume": 9424.777960769377
+          }
+        },
+        "names_found": [
+          "cube",
+          "pin"
+        ],
+        "names_found_by_substring": [
+          "cube",
+          "pin"
+        ],
+        "names_missing": [],
+        "product_names": [
+          "69fd02d8-b9a2-11f1-ade1-02fc00000001",
+          "cube",
+          "pin"
+        ],
+        "read_error": null,
+        "readable": true,
+        "solids_read": 2,
+        "volumes_read": [
+          63999.999999999985,
+          9424.777960769381
+        ],
+        "writer": "assembly",
+        "writer_raised": false,
+        "wrote_file": true
+      },
+      "geometry": {
+        "backend": "cadquery",
+        "bodies": {
+          "cube": {
+            "edge_count": 12,
+            "face_count": 6,
+            "is_valid": true,
+            "maximum": [
+              40.0,
+              40.0,
+              40.0
+            ],
+            "minimum": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "size": [
+              40.0,
+              40.0,
+              40.0
+            ],
+            "solid_count": 1,
+            "volume": 63999.999999999985
+          },
+          "pin": {
+            "edge_count": 3,
+            "face_count": 3,
+            "is_valid": true,
+            "maximum": [
+              70.0,
+              30.0,
+              30.0
+            ],
+            "minimum": [
+              50.0,
+              10.0,
+              0.0
+            ],
+            "size": [
+              20.0,
+              20.0,
+              30.0
+            ],
+            "solid_count": 1,
+            "volume": 9424.777960769377
+          }
+        },
+        "body_ids": [
+          "cube",
+          "pin"
+        ],
+        "declared": [
+          "cube",
+          "pin"
+        ],
+        "failure": null,
+        "single_live_body": null,
+        "succeeded": true
+      },
+      "is_live_model_result": false,
+      "measurement": [
+        {
+          "about": "cube",
+          "aggregate": false,
+          "kind": "named",
+          "label": "cube",
+          "label_is_prefix": true,
+          "outcome": "answered",
+          "probe": "X1-named-cube",
+          "provenance": "measured",
+          "said": "cube: Volume 64000.000 mm3.",
+          "source": "cadquery measured the current build of cube",
+          "text": "What is the volume of the cube?",
+          "value": 64000.0,
+          "working": null
+        },
+        {
+          "about": "pin",
+          "aggregate": false,
+          "kind": "named",
+          "label": "pin",
+          "label_is_prefix": true,
+          "outcome": "answered",
+          "probe": "X1-named-pin",
+          "provenance": "measured",
+          "said": "pin: Volume 9424.778 mm3.",
+          "source": "cadquery measured the current build of pin",
+          "text": "What is the volume of the pin?",
+          "value": 9424.778,
+          "working": null
+        },
+        {
+          "about": null,
+          "aggregate": false,
+          "kind": "unnamed_several",
+          "label": "",
+          "label_is_prefix": null,
+          "outcome": "refused",
+          "probe": "X1-unnamed",
+          "provenance": null,
+          "said": "this part has 2 separate bodies ('cube', 'pin'), and the request does not say which one to measure. Name it and it will be done",
+          "source": null,
+          "text": "What is the volume?",
+          "value": null,
+          "working": null
+        },
+        {
+          "about": null,
+          "aggregate": false,
+          "kind": "two_at_once",
+          "label": "",
+          "label_is_prefix": null,
+          "outcome": "refused",
+          "probe": "X1-two-at-once",
+          "provenance": null,
+          "said": "this request names more than one body ('cube', 'pin'); one operation measures one body, so say which",
+          "source": null,
+          "text": "What is the volume of the cube and the pin?",
+          "value": null,
+          "working": null
+        },
+        {
+          "about": null,
+          "aggregate": true,
+          "kind": "aggregate_total",
+          "label": "all 2 bodies",
+          "label_is_prefix": true,
+          "outcome": "answered",
+          "probe": "X1-total",
+          "provenance": "calculated",
+          "said": "all 2 bodies: Volume 73424.778 mm3.",
+          "source": "summed over every body's own measurement",
+          "text": "What is the total volume?",
+          "value": 73424.778,
+          "working": null
+        },
+        {
+          "about": null,
+          "aggregate": true,
+          "kind": "aggregate_size",
+          "label": "all 2 bodies",
+          "label_is_prefix": true,
+          "outcome": "answered",
+          "probe": "X1-overall-size",
+          "provenance": "assumed",
+          "said": "all 2 bodies: Overall 70 x 40 x 40 mm (X x Y x Z).",
+          "source": "the box containing every body -- no kernel measured it, and it includes the space between them",
+          "text": "What is the overall size of the whole part?",
+          "value": 70.0,
+          "working": null
+        }
+      ],
+      "model_output": null,
+      "note": "a hand-written fixture plan built by a real kernel; no model was called and none was configured for this run",
+      "plan_problems": [],
+      "plan_valid": true,
+      "source": "DETERMINISTIC"
+    },
+    {
+      "case": "X2",
+      "cross_reads": [],
+      "export": {
+        "asked_for": [
+          "block",
+          "rod",
+          "shim"
+        ],
+        "body_count": 3,
+        "bytes": 38137,
+        "case": "X2",
+        "engine": "cadquery",
+        "error": null,
+        "identity_binding": "unproven",
+        "identity_binding_note": "a body id found in the file is a PRODUCT of that name, and the volume multiset matches; which SOLID carries which NAME is NOT proven here. Binding them needs the PRODUCT -> SHAPE_REPRESENTATION -> MANIFOLD_SOLID_BREP chain followed per engine, and the two engines' assembly readers differ",
+        "measured_bodies": {
+          "block": {
+            "edge_count": 12,
+            "face_count": 6,
+            "is_valid": true,
+            "maximum": [
+              40.0,
+              40.0,
+              40.0
+            ],
+            "minimum": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "size": [
+              40.0,
+              40.0,
+              40.0
+            ],
+            "solid_count": 1,
+            "volume": 63999.999999999985
+          },
+          "rod": {
+            "edge_count": 3,
+            "face_count": 3,
+            "is_valid": true,
+            "maximum": [
+              70.0,
+              30.0,
+              30.0
+            ],
+            "minimum": [
+              50.0,
+              10.0,
+              0.0
+            ],
+            "size": [
+              20.0,
+              20.0,
+              30.0
+            ],
+            "solid_count": 1,
+            "volume": 9424.777960769377
+          },
+          "shim": {
+            "edge_count": 12,
+            "face_count": 6,
+            "is_valid": true,
+            "maximum": [
+              130.0,
+              10.0,
+              5.0
+            ],
+            "minimum": [
+              100.0,
+              0.0,
+              0.0
+            ],
+            "size": [
+              30.0,
+              10.0,
+              5.0
+            ],
+            "solid_count": 1,
+            "volume": 1500.0
+          }
+        },
+        "names_found": [
+          "block",
+          "rod",
+          "shim"
+        ],
+        "names_found_by_substring": [
+          "block",
+          "rod",
+          "shim"
+        ],
+        "names_missing": [],
+        "product_names": [
+          "6a023a82-b9a2-11f1-ade1-02fc00000001",
+          "block",
+          "rod",
+          "shim"
+        ],
+        "read_error": null,
+        "readable": true,
+        "solids_read": 3,
+        "volumes_read": [
+          63999.999999999985,
+          9424.777960769381,
+          1500.0
+        ],
+        "writer": "assembly",
+        "writer_raised": false,
+        "wrote_file": true
+      },
+      "geometry": {
+        "backend": "cadquery",
+        "bodies": {
+          "block": {
+            "edge_count": 12,
+            "face_count": 6,
+            "is_valid": true,
+            "maximum": [
+              40.0,
+              40.0,
+              40.0
+            ],
+            "minimum": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "size": [
+              40.0,
+              40.0,
+              40.0
+            ],
+            "solid_count": 1,
+            "volume": 63999.999999999985
+          },
+          "rod": {
+            "edge_count": 3,
+            "face_count": 3,
+            "is_valid": true,
+            "maximum": [
+              70.0,
+              30.0,
+              30.0
+            ],
+            "minimum": [
+              50.0,
+              10.0,
+              0.0
+            ],
+            "size": [
+              20.0,
+              20.0,
+              30.0
+            ],
+            "solid_count": 1,
+            "volume": 9424.777960769377
+          },
+          "shim": {
+            "edge_count": 12,
+            "face_count": 6,
+            "is_valid": true,
+            "maximum": [
+              130.0,
+              10.0,
+              5.0
+            ],
+            "minimum": [
+              100.0,
+              0.0,
+              0.0
+            ],
+            "size": [
+              30.0,
+              10.0,
+              5.0
+            ],
+            "solid_count": 1,
+            "volume": 1500.0
+          }
+        },
+        "body_ids": [
+          "block",
+          "rod",
+          "shim"
+        ],
+        "declared": [
+          "block",
+          "rod",
+          "shim"
+        ],
+        "failure": null,
+        "single_live_body": null,
+        "succeeded": true
+      },
+      "is_live_model_result": false,
+      "measurement": [
+        {
+          "about": "block",
+          "aggregate": false,
+          "kind": "named",
+          "label": "block",
+          "label_is_prefix": true,
+          "outcome": "answered",
+          "probe": "X2-named-block",
+          "provenance": "measured",
+          "said": "block: Volume 64000.000 mm3.",
+          "source": "cadquery measured the current build of block",
+          "text": "What is the volume of the block?",
+          "value": 64000.0,
+          "working": null
+        },
+        {
+          "about": "rod",
+          "aggregate": false,
+          "kind": "named",
+          "label": "rod",
+          "label_is_prefix": true,
+          "outcome": "answered",
+          "probe": "X2-named-rod",
+          "provenance": "measured",
+          "said": "rod: Volume 9424.778 mm3.",
+          "source": "cadquery measured the current build of rod",
+          "text": "What is the volume of the rod?",
+          "value": 9424.778,
+          "working": null
+        },
+        {
+          "about": "shim",
+          "aggregate": false,
+          "kind": "named",
+          "label": "shim",
+          "label_is_prefix": true,
+          "outcome": "answered",
+          "probe": "X2-named-shim",
+          "provenance": "measured",
+          "said": "shim: Volume 1500.000 mm3.",
+          "source": "cadquery measured the current build of shim",
+          "text": "What is the volume of the shim?",
+          "value": 1500.0,
+          "working": null
+        },
+        {
+          "about": null,
+          "aggregate": false,
+          "kind": "unnamed_several",
+          "label": "",
+          "label_is_prefix": null,
+          "outcome": "refused",
+          "probe": "X2-unnamed",
+          "provenance": null,
+          "said": "this part has 3 separate bodies ('block', 'rod', 'shim'), and the request does not say which one to measure. Name it and it will be done",
+          "source": null,
+          "text": "What is the volume?",
+          "value": null,
+          "working": null
+        },
+        {
+          "about": null,
+          "aggregate": false,
+          "kind": "two_at_once",
+          "label": "",
+          "label_is_prefix": null,
+          "outcome": "refused",
+          "probe": "X2-two-at-once",
+          "provenance": null,
+          "said": "this request names more than one body ('block', 'shim'); one operation measures one body, so say which",
+          "source": null,
+          "text": "What is the volume of the block and the shim?",
+          "value": null,
+          "working": null
+        },
+        {
+          "about": null,
+          "aggregate": true,
+          "kind": "aggregate_total",
+          "label": "all 3 bodies",
+          "label_is_prefix": true,
+          "outcome": "answered",
+          "probe": "X2-total",
+          "provenance": "calculated",
+          "said": "all 3 bodies: Volume 74924.778 mm3.",
+          "source": "summed over every body's own measurement",
+          "text": "What is the total volume?",
+          "value": 74924.778,
+          "working": null
+        }
+      ],
+      "model_output": null,
+      "note": "a hand-written fixture plan built by a real kernel; no model was called and none was configured for this run",
+      "plan_problems": [],
+      "plan_valid": true,
+      "source": "DETERMINISTIC"
+    },
+    {
+      "case": "X3",
+      "cross_reads": [],
+      "export": {
+        "asked_for": [
+          "cube"
+        ],
+        "body_count": 1,
+        "bytes": 15416,
+        "case": "X3",
+        "engine": "cadquery",
+        "error": null,
+        "identity_binding": "unproven",
+        "identity_binding_note": "a body id found in the file is a PRODUCT of that name, and the volume multiset matches; which SOLID carries which NAME is NOT proven here. Binding them needs the PRODUCT -> SHAPE_REPRESENTATION -> MANIFOLD_SOLID_BREP chain followed per engine, and the two engines' assembly readers differ",
+        "measured_bodies": {
+          "cube": {
+            "edge_count": 12,
+            "face_count": 6,
+            "is_valid": true,
+            "maximum": [
+              40.0,
+              40.0,
+              40.0
+            ],
+            "minimum": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "size": [
+              40.0,
+              40.0,
+              40.0
+            ],
+            "solid_count": 1,
+            "volume": 63999.999999999985
+          }
+        },
+        "names_found": [],
+        "names_found_by_substring": [],
+        "names_missing": [
+          "cube"
+        ],
+        "product_names": [
+          "Open CASCADE STEP translator 7.9 3"
+        ],
+        "read_error": null,
+        "readable": true,
+        "solids_read": 1,
+        "volumes_read": [
+          63999.999999999985
+        ],
+        "writer": "single",
+        "writer_raised": false,
+        "wrote_file": true
+      },
+      "geometry": {
+        "backend": "cadquery",
+        "bodies": {
+          "cube": {
+            "edge_count": 12,
+            "face_count": 6,
+            "is_valid": true,
+            "maximum": [
+              40.0,
+              40.0,
+              40.0
+            ],
+            "minimum": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "size": [
+              40.0,
+              40.0,
+              40.0
+            ],
+            "solid_count": 1,
+            "volume": 63999.999999999985
+          }
+        },
+        "body_ids": [
+          "cube"
+        ],
+        "declared": [],
+        "failure": null,
+        "single_live_body": "cube",
+        "succeeded": true
+      },
+      "is_live_model_result": false,
+      "measurement": [
+        {
+          "about": null,
+          "aggregate": false,
+          "kind": "unnamed_single",
+          "label": "",
+          "label_is_prefix": null,
+          "outcome": "answered",
+          "probe": "X3-unnamed",
+          "provenance": "measured",
+          "said": "Volume 64000.000 mm3.",
+          "source": "cadquery measured the current build",
+          "text": "What is the volume?",
+          "value": 64000.0,
+          "working": null
+        },
+        {
+          "about": null,
+          "aggregate": false,
+          "kind": "named",
+          "label": "",
+          "label_is_prefix": null,
+          "outcome": "answered",
+          "probe": "X3-named",
+          "provenance": "measured",
+          "said": "Volume 64000.000 mm3.",
+          "source": "cadquery measured the current build",
+          "text": "What is the volume of the cube?",
+          "value": 64000.0,
+          "working": null
+        },
+        {
+          "about": null,
+          "aggregate": false,
+          "kind": "aggregate_size",
+          "label": "",
+          "label_is_prefix": null,
+          "outcome": "answered",
+          "probe": "X3-overall-size",
+          "provenance": "measured",
+          "said": "Overall 40 x 40 x 40 mm (X x Y x Z).",
+          "source": "cadquery measured the current build",
+          "text": "What is the overall size?",
+          "value": 40.0,
+          "working": null
+        }
+      ],
+      "model_output": null,
+      "note": "a hand-written fixture plan built by a real kernel; no model was called and none was configured for this run",
+      "plan_problems": [],
+      "plan_valid": true,
+      "source": "DETERMINISTIC"
+    },
+    {
+      "case": "X4",
+      "cross_reads": [],
+      "export": {
+        "asked_for": [
+          "plate",
+          "pin"
+        ],
+        "body_count": 2,
+        "bytes": 26459,
+        "case": "X4",
+        "engine": "cadquery",
+        "error": null,
+        "identity_binding": "unproven",
+        "identity_binding_note": "a body id found in the file is a PRODUCT of that name, and the volume multiset matches; which SOLID carries which NAME is NOT proven here. Binding them needs the PRODUCT -> SHAPE_REPRESENTATION -> MANIFOLD_SOLID_BREP chain followed per engine, and the two engines' assembly readers differ",
+        "measured_bodies": {
+          "pin": {
+            "edge_count": 3,
+            "face_count": 3,
+            "is_valid": true,
+            "maximum": [
+              110.0,
+              35.0,
+              30.0
+            ],
+            "minimum": [
+              90.0,
+              15.0,
+              0.0
+            ],
+            "size": [
+              20.0,
+              20.0,
+              30.0
+            ],
+            "solid_count": 1,
+            "volume": 9424.77796076938
+          },
+          "plate": {
+            "edge_count": 15,
+            "face_count": 8,
+            "is_valid": true,
+            "maximum": [
+              50.0,
+              50.0,
+              33.0
+            ],
+            "minimum": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "size": [
+              50.0,
+              50.0,
+              33.0
+            ],
+            "solid_count": 1,
+            "volume": 22827.433388230813
+          }
+        },
+        "names_found": [
+          "plate",
+          "pin"
+        ],
+        "names_found_by_substring": [
+          "plate",
+          "pin"
+        ],
+        "names_missing": [],
+        "product_names": [
+          "6a0b142c-b9a2-11f1-ade1-02fc00000001",
+          "plate",
+          "pin"
+        ],
+        "read_error": null,
+        "readable": true,
+        "solids_read": 2,
+        "volumes_read": [
+          22827.43338823091,
+          9424.777960769381
+        ],
+        "writer": "assembly",
+        "writer_raised": false,
+        "wrote_file": true
+      },
+      "geometry": {
+        "backend": "cadquery",
+        "bodies": {
+          "pin": {
+            "edge_count": 3,
+            "face_count": 3,
+            "is_valid": true,
+            "maximum": [
+              110.0,
+              35.0,
+              30.0
+            ],
+            "minimum": [
+              90.0,
+              15.0,
+              0.0
+            ],
+            "size": [
+              20.0,
+              20.0,
+              30.0
+            ],
+            "solid_count": 1,
+            "volume": 9424.77796076938
+          },
+          "plate": {
+            "edge_count": 15,
+            "face_count": 8,
+            "is_valid": true,
+            "maximum": [
+              50.0,
+              50.0,
+              33.0
+            ],
+            "minimum": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "size": [
+              50.0,
+              50.0,
+              33.0
+            ],
+            "solid_count": 1,
+            "volume": 22827.433388230813
+          }
+        },
+        "body_ids": [
+          "plate",
+          "pin"
+        ],
+        "declared": [
+          "plate",
+          "pin"
+        ],
+        "failure": null,
+        "single_live_body": null,
+        "succeeded": true
+      },
+      "is_live_model_result": false,
+      "measurement": [
+        {
+          "about": "plate",
+          "aggregate": false,
+          "kind": "named",
+          "label": "plate",
+          "label_is_prefix": true,
+          "outcome": "answered",
+          "probe": "X4-named-plate",
+          "provenance": "measured",
+          "said": "plate: Volume 22827.433 mm3.",
+          "source": "cadquery measured the current build of plate",
+          "text": "What is the volume of the plate?",
+          "value": 22827.433,
+          "working": null
+        },
+        {
+          "about": "pin",
+          "aggregate": false,
+          "kind": "named",
+          "label": "pin",
+          "label_is_prefix": true,
+          "outcome": "answered",
+          "probe": "X4-named-pin",
+          "provenance": "measured",
+          "said": "pin: Volume 9424.778 mm3.",
+          "source": "cadquery measured the current build of pin",
+          "text": "What is the volume of the pin?",
+          "value": 9424.778,
+          "working": null
+        },
+        {
+          "about": null,
+          "aggregate": false,
+          "kind": "consumed",
+          "label": "",
+          "label_is_prefix": null,
+          "outcome": "refused",
+          "probe": "X4-consumed",
+          "provenance": null,
+          "said": "'boss' is not a body of this part any more -- 'fuse' consumed it. The bodies are: 'plate', 'pin'",
+          "source": null,
+          "text": "What is the volume of the boss?",
+          "value": null,
+          "working": null
+        },
+        {
+          "about": null,
+          "aggregate": false,
+          "kind": "unnamed_several",
+          "label": "",
+          "label_is_prefix": null,
+          "outcome": "refused",
+          "probe": "X4-unnamed",
+          "provenance": null,
+          "said": "this part has 2 separate bodies ('plate', 'pin'), and the request does not say which one to measure. Name it and it will be done",
+          "source": null,
+          "text": "What is the volume?",
+          "value": null,
+          "working": null
+        },
+        {
+          "about": null,
+          "aggregate": true,
+          "kind": "aggregate_total",
+          "label": "all 2 bodies",
+          "label_is_prefix": true,
+          "outcome": "answered",
+          "probe": "X4-total",
+          "provenance": "calculated",
+          "said": "all 2 bodies: Volume 32252.211 mm3.",
+          "source": "summed over every body's own measurement",
+          "text": "What is the total volume?",
+          "value": 32252.211,
+          "working": null
+        }
+      ],
+      "model_output": null,
+      "note": "a hand-written fixture plan built by a real kernel; no model was called and none was configured for this run",
+      "plan_problems": [],
+      "plan_valid": true,
+      "source": "DETERMINISTIC"
+    },
+    {
+      "case": "X5",
+      "cross_reads": [],
+      "export": {
+        "asked_for": [
+          "pad"
+        ],
+        "body_count": 1,
+        "bytes": 25694,
+        "case": "X5",
+        "engine": "cadquery",
+        "error": null,
+        "identity_binding": "unproven",
+        "identity_binding_note": "a body id found in the file is a PRODUCT of that name, and the volume multiset matches; which SOLID carries which NAME is NOT proven here. Binding them needs the PRODUCT -> SHAPE_REPRESENTATION -> MANIFOLD_SOLID_BREP chain followed per engine, and the two engines' assembly readers differ",
+        "measured_bodies": {
+          "pad": {
+            "edge_count": 21,
+            "face_count": 9,
+            "is_valid": true,
+            "maximum": [
+              50.0,
+              40.0,
+              40.0
+            ],
+            "minimum": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "size": [
+              50.0,
+              40.0,
+              40.0
+            ],
+            "solid_count": 1,
+            "volume": 68000.0
+          }
+        },
+        "names_found": [],
+        "names_found_by_substring": [],
+        "names_missing": [
+          "pad"
+        ],
+        "product_names": [
+          "Open CASCADE STEP translator 7.9 5"
+        ],
+        "read_error": null,
+        "readable": true,
+        "solids_read": 1,
+        "volumes_read": [
+          68000.0
+        ],
+        "writer": "single",
+        "writer_raised": false,
+        "wrote_file": true
+      },
+      "geometry": {
+        "backend": "cadquery",
+        "bodies": {
+          "pad": {
+            "edge_count": 21,
+            "face_count": 9,
+            "is_valid": true,
+            "maximum": [
+              50.0,
+              40.0,
+              40.0
+            ],
+            "minimum": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "size": [
+              50.0,
+              40.0,
+              40.0
+            ],
+            "solid_count": 1,
+            "volume": 68000.0
+          }
+        },
+        "body_ids": [
+          "pad"
+        ],
+        "declared": [],
+        "failure": null,
+        "single_live_body": "pad",
+        "succeeded": true
+      },
+      "is_live_model_result": false,
+      "measurement": [
+        {
+          "about": null,
+          "aggregate": false,
+          "kind": "unnamed_single",
+          "label": "",
+          "label_is_prefix": null,
+          "outcome": "answered",
+          "probe": "X5-unnamed",
+          "provenance": "measured",
+          "said": "Volume 68000.000 mm3.",
+          "source": "cadquery measured the current build",
+          "text": "What is the volume?",
+          "value": 68000.0,
+          "working": null
+        },
+        {
+          "about": null,
+          "aggregate": false,
+          "kind": "consumed",
+          "label": "",
+          "label_is_prefix": null,
+          "outcome": "answered",
+          "probe": "X5-consumed",
+          "provenance": "measured",
+          "said": "Volume 68000.000 mm3.",
+          "source": "cadquery measured the current build",
+          "text": "What is the volume of the lug?",
+          "value": 68000.0,
+          "working": null
+        }
+      ],
+      "model_output": null,
+      "note": "a hand-written fixture plan built by a real kernel; no model was called and none was configured for this run",
+      "plan_problems": [],
+      "plan_valid": true,
+      "source": "DETERMINISTIC"
+    },
+    {
+      "case": "X6",
+      "cross_reads": [],
+      "export": {
+        "asked_for": [
+          "left",
+          "right"
+        ],
+        "body_count": 2,
+        "bytes": 32462,
+        "case": "X6",
+        "engine": "cadquery",
+        "error": null,
+        "identity_binding": "unproven",
+        "identity_binding_note": "a body id found in the file is a PRODUCT of that name, and the volume multiset matches; which SOLID carries which NAME is NOT proven here. Binding them needs the PRODUCT -> SHAPE_REPRESENTATION -> MANIFOLD_SOLID_BREP chain followed per engine, and the two engines' assembly readers differ",
+        "measured_bodies": {
+          "left": {
+            "edge_count": 12,
+            "face_count": 6,
+            "is_valid": true,
+            "maximum": [
+              40.0,
+              40.0,
+              40.0
+            ],
+            "minimum": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "size": [
+              40.0,
+              40.0,
+              40.0
+            ],
+            "solid_count": 1,
+            "volume": 63999.999999999985
+          },
+          "right": {
+            "edge_count": 12,
+            "face_count": 6,
+            "is_valid": true,
+            "maximum": [
+              100.0,
+              40.0,
+              40.0
+            ],
+            "minimum": [
+              60.0,
+              0.0,
+              0.0
+            ],
+            "size": [
+              40.0,
+              40.0,
+              40.0
+            ],
+            "solid_count": 1,
+            "volume": 63999.999999999985
+          }
+        },
+        "names_found": [
+          "left",
+          "right"
+        ],
+        "names_found_by_substring": [
+          "left",
+          "right"
+        ],
+        "names_missing": [],
+        "product_names": [
+          "6a13ead4-b9a2-11f1-ade1-02fc00000001",
+          "left",
+          "right"
+        ],
+        "read_error": null,
+        "readable": true,
+        "solids_read": 2,
+        "volumes_read": [
+          63999.999999999985,
+          63999.999999999985
+        ],
+        "writer": "assembly",
+        "writer_raised": false,
+        "wrote_file": true
+      },
+      "geometry": {
+        "backend": "cadquery",
+        "bodies": {
+          "left": {
+            "edge_count": 12,
+            "face_count": 6,
+            "is_valid": true,
+            "maximum": [
+              40.0,
+              40.0,
+              40.0
+            ],
+            "minimum": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "size": [
+              40.0,
+              40.0,
+              40.0
+            ],
+            "solid_count": 1,
+            "volume": 63999.999999999985
+          },
+          "right": {
+            "edge_count": 12,
+            "face_count": 6,
+            "is_valid": true,
+            "maximum": [
+              100.0,
+              40.0,
+              40.0
+            ],
+            "minimum": [
+              60.0,
+              0.0,
+              0.0
+            ],
+            "size": [
+              40.0,
+              40.0,
+              40.0
+            ],
+            "solid_count": 1,
+            "volume": 63999.999999999985
+          }
+        },
+        "body_ids": [
+          "left",
+          "right"
+        ],
+        "declared": [
+          "left",
+          "right"
+        ],
+        "failure": null,
+        "single_live_body": null,
+        "succeeded": true
+      },
+      "is_live_model_result": false,
+      "measurement": [
+        {
+          "about": "left",
+          "aggregate": false,
+          "kind": "named",
+          "label": "left",
+          "label_is_prefix": true,
+          "outcome": "answered",
+          "probe": "X6-named-left",
+          "provenance": "measured",
+          "said": "left: Volume 64000.000 mm3.",
+          "source": "cadquery measured the current build of left",
+          "text": "What is the volume of the left?",
+          "value": 64000.0,
+          "working": null
+        },
+        {
+          "about": "right",
+          "aggregate": false,
+          "kind": "named",
+          "label": "right",
+          "label_is_prefix": true,
+          "outcome": "answered",
+          "probe": "X6-named-right",
+          "provenance": "measured",
+          "said": "right: Volume 64000.000 mm3.",
+          "source": "cadquery measured the current build of right",
+          "text": "What is the volume of the right?",
+          "value": 64000.0,
+          "working": null
+        },
+        {
+          "about": null,
+          "aggregate": false,
+          "kind": "unnamed_several",
+          "label": "",
+          "label_is_prefix": null,
+          "outcome": "refused",
+          "probe": "X6-unnamed",
+          "provenance": null,
+          "said": "this part has 2 separate bodies ('left', 'right'), and the request does not say which one to measure. Name it and it will be done",
+          "source": null,
+          "text": "What is the volume?",
+          "value": null,
+          "working": null
+        },
+        {
+          "about": null,
+          "aggregate": true,
+          "kind": "aggregate_total",
+          "label": "all 2 bodies",
+          "label_is_prefix": true,
+          "outcome": "answered",
+          "probe": "X6-total",
+          "provenance": "calculated",
+          "said": "all 2 bodies: Volume 128000.000 mm3.",
+          "source": "summed over every body's own measurement",
+          "text": "What is the total volume?",
+          "value": 128000.0,
+          "working": null
+        }
+      ],
+      "model_output": null,
+      "note": "a hand-written fixture plan built by a real kernel; no model was called and none was configured for this run",
+      "plan_problems": [],
+      "plan_valid": true,
+      "source": "DETERMINISTIC"
+    },
+    {
+      "case": "X7",
+      "cross_reads": [],
+      "export": {
+        "asked_for": [
+          "cube",
+          "cylinder"
+        ],
+        "body_count": 2,
+        "bytes": 22647,
+        "case": "X7",
+        "engine": "cadquery",
+        "error": null,
+        "identity_binding": "unproven",
+        "identity_binding_note": "a body id found in the file is a PRODUCT of that name, and the volume multiset matches; which SOLID carries which NAME is NOT proven here. Binding them needs the PRODUCT -> SHAPE_REPRESENTATION -> MANIFOLD_SOLID_BREP chain followed per engine, and the two engines' assembly readers differ",
+        "measured_bodies": {
+          "cube": {
+            "edge_count": 12,
+            "face_count": 6,
+            "is_valid": true,
+            "maximum": [
+              40.0,
+              40.0,
+              40.0
+            ],
+            "minimum": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "size": [
+              40.0,
+              40.0,
+              40.0
+            ],
+            "solid_count": 1,
+            "volume": 63999.999999999985
+          },
+          "cylinder": {
+            "edge_count": 3,
+            "face_count": 3,
+            "is_valid": true,
+            "maximum": [
+              70.0,
+              30.0,
+              30.0
+            ],
+            "minimum": [
+              50.0,
+              10.0,
+              0.0
+            ],
+            "size": [
+              20.0,
+              20.0,
+              30.0
+            ],
+            "solid_count": 1,
+            "volume": 9424.777960769377
+          }
+        },
+        "names_found": [
+          "cube",
+          "cylinder"
+        ],
+        "names_found_by_substring": [
+          "cube",
+          "cylinder"
+        ],
+        "names_missing": [],
+        "product_names": [
+          "6a193c3c-b9a2-11f1-ade1-02fc00000001",
+          "cube",
+          "cylinder"
+        ],
+        "read_error": null,
+        "readable": true,
+        "solids_read": 2,
+        "volumes_read": [
+          63999.999999999985,
+          9424.777960769381
+        ],
+        "writer": "assembly",
+        "writer_raised": false,
+        "wrote_file": true
+      },
+      "geometry": {
+        "backend": "cadquery",
+        "bodies": {
+          "cube": {
+            "edge_count": 12,
+            "face_count": 6,
+            "is_valid": true,
+            "maximum": [
+              40.0,
+              40.0,
+              40.0
+            ],
+            "minimum": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "size": [
+              40.0,
+              40.0,
+              40.0
+            ],
+            "solid_count": 1,
+            "volume": 63999.999999999985
+          },
+          "cylinder": {
+            "edge_count": 3,
+            "face_count": 3,
+            "is_valid": true,
+            "maximum": [
+              70.0,
+              30.0,
+              30.0
+            ],
+            "minimum": [
+              50.0,
+              10.0,
+              0.0
+            ],
+            "size": [
+              20.0,
+              20.0,
+              30.0
+            ],
+            "solid_count": 1,
+            "volume": 9424.777960769377
+          }
+        },
+        "body_ids": [
+          "cube",
+          "cylinder"
+        ],
+        "declared": [
+          "cube",
+          "cylinder"
+        ],
+        "failure": null,
+        "single_live_body": null,
+        "succeeded": true
+      },
+      "is_live_model_result": false,
+      "measurement": [
+        {
+          "about": "cylinder",
+          "aggregate": false,
+          "kind": "named",
+          "label": "cylinder",
+          "label_is_prefix": true,
+          "outcome": "answered",
+          "probe": "X7-named-cylinder",
+          "provenance": "measured",
+          "said": "cylinder: Volume 9424.778 mm3.",
+          "source": "cadquery measured the current build of cylinder",
+          "text": "What is the volume of the cylinder?",
+          "value": 9424.778,
+          "working": null
+        },
+        {
+          "about": "cube",
+          "aggregate": false,
+          "kind": "named",
+          "label": "cube",
+          "label_is_prefix": true,
+          "outcome": "answered",
+          "probe": "X7-named-cube",
+          "provenance": "measured",
+          "said": "cube: Volume 64000.000 mm3.",
+          "source": "cadquery measured the current build of cube",
+          "text": "What is the volume of the cube?",
+          "value": 64000.0,
+          "working": null
+        },
+        {
+          "about": null,
+          "aggregate": false,
+          "kind": "unnamed_several",
+          "label": "",
+          "label_is_prefix": null,
+          "outcome": "refused",
+          "probe": "X7-unnamed",
+          "provenance": null,
+          "said": "this part has 2 separate bodies ('cube', 'cylinder'), and the request does not say which one to measure. Name it and it will be done",
+          "source": null,
+          "text": "What is the volume?",
+          "value": null,
+          "working": null
+        },
+        {
+          "about": null,
+          "aggregate": true,
+          "kind": "aggregate_total",
+          "label": "all 2 bodies",
+          "label_is_prefix": true,
+          "outcome": "answered",
+          "probe": "X7-total",
+          "provenance": "calculated",
+          "said": "all 2 bodies: Volume 73424.778 mm3.",
+          "source": "summed over every body's own measurement",
+          "text": "What is the total volume?",
+          "value": 73424.778,
+          "working": null
+        }
+      ],
+      "model_output": null,
+      "note": "a hand-written fixture plan built by a real kernel; no model was called and none was configured for this run",
+      "plan_problems": [],
+      "plan_valid": true,
+      "source": "DETERMINISTIC"
+    }
+  ],
+  "source": "DETERMINISTIC",
+  "summary": {
+    "by_group": {
+      "multi_body": {
+        "cases": 5,
+        "export": {
+          "of": 5,
+          "passed": 5
+        },
+        "geometry": {
+          "of": 5,
+          "passed": 5
+        },
+        "measurement": {
+          "of": 5,
+          "passed": 5
+        }
+      },
+      "single_body": {
+        "cases": 2,
+        "export": {
+          "of": 2,
+          "passed": 2
+        },
+        "geometry": {
+          "of": 2,
+          "passed": 2
+        },
+        "measurement": {
+          "of": 2,
+          "passed": 2
+        }
+      }
+    },
+    "cases": 7,
+    "combined_rate": null,
+    "export": {
+      "of": 7,
+      "passed": 7
+    },
+    "export_levels": {
+      "A:not_written": 0,
+      "B:unreadable": 0,
+      "C:wrong_solid_count": 0,
+      "D:names_missing": 0,
+      "E:geometry_mismatch": 0,
+      "F:verified": 7
+    },
+    "geometry": {
+      "of": 7,
+      "passed": 7
+    },
+    "live_model_results": 0,
+    "measurement": {
+      "of": 7,
+      "passed": 7
+    },
+    "why_no_combined_rate": "measurement and export are different quantities, and a multi-body case and a single-body case ask different questions; a number that mixes them is one nobody can act on"
+  },
+  "verdicts": [
+    {
+      "case": "X1",
+      "export": {
+        "expected_level": "F:verified",
+        "geometry_assessed": true,
+        "identity_note": "a body id found in the file is a PRODUCT of that name, and the volume multiset matches; which SOLID carries which NAME is NOT proven here. Binding them needs the PRODUCT -> SHAPE_REPRESENTATION -> MANIFOLD_SOLID_BREP chain followed per engine, and the two engines' assembly readers differ",
+        "identity_state": "unproven",
+        "level": "F:verified",
+        "level_means": "the right number of solids, every id present, and every volume matching its closed form",
+        "names_checked": [
+          "cube",
+          "pin"
+        ],
+        "passed": true,
+        "reached_expected": true,
+        "why_geometry_not_assessed": null,
+        "writer": "assembly",
+        "writer_right": true
+      },
+      "geometry": {
+        "checks": {
+          "body_count": true,
+          "body_ids": true,
+          "declared": true,
+          "single_live_body": true,
+          "succeeded": true,
+          "volumes": true
+        },
+        "passed": true,
+        "volumes": [
+          63999.999999999985,
+          9424.777960769377
+        ]
+      },
+      "group": "multi_body",
+      "is_live_model_result": false,
+      "measurement": {
+        "kinds_covered": [
+          "aggregate_size",
+          "aggregate_total",
+          "named",
+          "two_at_once",
+          "unnamed_several"
+        ],
+        "passed": true,
+        "probes": {
+          "X1-named-cube": {
+            "checks": {
+              "about": true,
+              "aggregate": true,
+              "asked": true,
+              "labelled": true,
+              "outcome": true,
+              "provenance": true,
+              "value": true
+            },
+            "kind": "named",
+            "outcome": "answered",
+            "passed": true
+          },
+          "X1-named-pin": {
+            "checks": {
+              "about": true,
+              "aggregate": true,
+              "asked": true,
+              "labelled": true,
+              "outcome": true,
+              "provenance": true,
+              "value": true
+            },
+            "kind": "named",
+            "outcome": "answered",
+            "passed": true
+          },
+          "X1-overall-size": {
+            "checks": {
+              "about": true,
+              "aggregate": true,
+              "asked": true,
+              "labelled": true,
+              "outcome": true,
+              "provenance": true
+            },
+            "kind": "aggregate_size",
+            "outcome": "answered",
+            "passed": true
+          },
+          "X1-total": {
+            "checks": {
+              "about": true,
+              "aggregate": true,
+              "asked": true,
+              "labelled": true,
+              "outcome": true,
+              "provenance": true,
+              "value": true
+            },
+            "kind": "aggregate_total",
+            "outcome": "answered",
+            "passed": true
+          },
+          "X1-two-at-once": {
+            "checks": {
+              "asked": true,
+              "named": true,
+              "outcome": true
+            },
+            "kind": "two_at_once",
+            "outcome": "refused",
+            "passed": true
+          },
+          "X1-unnamed": {
+            "checks": {
+              "asked": true,
+              "named": true,
+              "outcome": true
+            },
+            "kind": "unnamed_several",
+            "outcome": "refused",
+            "passed": true
+          }
+        },
+        "unexpected_probes": []
+      },
+      "passed": true,
+      "source": "DETERMINISTIC"
+    },
+    {
+      "case": "X2",
+      "export": {
+        "expected_level": "F:verified",
+        "geometry_assessed": true,
+        "identity_note": "a body id found in the file is a PRODUCT of that name, and the volume multiset matches; which SOLID carries which NAME is NOT proven here. Binding them needs the PRODUCT -> SHAPE_REPRESENTATION -> MANIFOLD_SOLID_BREP chain followed per engine, and the two engines' assembly readers differ",
+        "identity_state": "unproven",
+        "level": "F:verified",
+        "level_means": "the right number of solids, every id present, and every volume matching its closed form",
+        "names_checked": [
+          "block",
+          "rod",
+          "shim"
+        ],
+        "passed": true,
+        "reached_expected": true,
+        "why_geometry_not_assessed": null,
+        "writer": "assembly",
+        "writer_right": true
+      },
+      "geometry": {
+        "checks": {
+          "body_count": true,
+          "body_ids": true,
+          "declared": true,
+          "single_live_body": true,
+          "succeeded": true,
+          "volumes": true
+        },
+        "passed": true,
+        "volumes": [
+          63999.999999999985,
+          9424.777960769377,
+          1500.0
+        ]
+      },
+      "group": "multi_body",
+      "is_live_model_result": false,
+      "measurement": {
+        "kinds_covered": [
+          "aggregate_total",
+          "named",
+          "two_at_once",
+          "unnamed_several"
+        ],
+        "passed": true,
+        "probes": {
+          "X2-named-block": {
+            "checks": {
+              "about": true,
+              "aggregate": true,
+              "asked": true,
+              "labelled": true,
+              "outcome": true,
+              "provenance": true,
+              "value": true
+            },
+            "kind": "named",
+            "outcome": "answered",
+            "passed": true
+          },
+          "X2-named-rod": {
+            "checks": {
+              "about": true,
+              "aggregate": true,
+              "asked": true,
+              "labelled": true,
+              "outcome": true,
+              "provenance": true,
+              "value": true
+            },
+            "kind": "named",
+            "outcome": "answered",
+            "passed": true
+          },
+          "X2-named-shim": {
+            "checks": {
+              "about": true,
+              "aggregate": true,
+              "asked": true,
+              "labelled": true,
+              "outcome": true,
+              "provenance": true,
+              "value": true
+            },
+            "kind": "named",
+            "outcome": "answered",
+            "passed": true
+          },
+          "X2-total": {
+            "checks": {
+              "about": true,
+              "aggregate": true,
+              "asked": true,
+              "labelled": true,
+              "outcome": true,
+              "provenance": true,
+              "value": true
+            },
+            "kind": "aggregate_total",
+            "outcome": "answered",
+            "passed": true
+          },
+          "X2-two-at-once": {
+            "checks": {
+              "asked": true,
+              "named": true,
+              "outcome": true
+            },
+            "kind": "two_at_once",
+            "outcome": "refused",
+            "passed": true
+          },
+          "X2-unnamed": {
+            "checks": {
+              "asked": true,
+              "named": true,
+              "outcome": true
+            },
+            "kind": "unnamed_several",
+            "outcome": "refused",
+            "passed": true
+          }
+        },
+        "unexpected_probes": []
+      },
+      "passed": true,
+      "source": "DETERMINISTIC"
+    },
+    {
+      "case": "X3",
+      "export": {
+        "expected_level": "F:verified",
+        "geometry_assessed": true,
+        "identity_note": "this writer puts no body name in the file at all -- measured on CadQuery 2.8.0 and FreeCAD 1.0.0, which both write the translator's own product string -- so nothing here is evidence about identity in either direction",
+        "identity_state": "not_written",
+        "level": "F:verified",
+        "level_means": "the right number of solids, every id present, and every volume matching its closed form",
+        "names_checked": [],
+        "passed": true,
+        "reached_expected": true,
+        "why_geometry_not_assessed": null,
+        "writer": "single",
+        "writer_right": true
+      },
+      "geometry": {
+        "checks": {
+          "body_count": true,
+          "body_ids": true,
+          "declared": true,
+          "single_live_body": true,
+          "succeeded": true,
+          "volumes": true
+        },
+        "passed": true,
+        "volumes": [
+          63999.999999999985
+        ]
+      },
+      "group": "single_body",
+      "is_live_model_result": false,
+      "measurement": {
+        "kinds_covered": [
+          "aggregate_size",
+          "named",
+          "unnamed_single"
+        ],
+        "passed": true,
+        "probes": {
+          "X3-named": {
+            "checks": {
+              "about": true,
+              "aggregate": true,
+              "asked": true,
+              "outcome": true,
+              "provenance": true,
+              "value": true
+            },
+            "kind": "named",
+            "outcome": "answered",
+            "passed": true
+          },
+          "X3-overall-size": {
+            "checks": {
+              "about": true,
+              "aggregate": true,
+              "asked": true,
+              "outcome": true,
+              "provenance": true
+            },
+            "kind": "aggregate_size",
+            "outcome": "answered",
+            "passed": true
+          },
+          "X3-unnamed": {
+            "checks": {
+              "about": true,
+              "aggregate": true,
+              "asked": true,
+              "outcome": true,
+              "provenance": true,
+              "value": true
+            },
+            "kind": "unnamed_single",
+            "outcome": "answered",
+            "passed": true
+          }
+        },
+        "unexpected_probes": []
+      },
+      "passed": true,
+      "source": "DETERMINISTIC"
+    },
+    {
+      "case": "X4",
+      "export": {
+        "expected_level": "F:verified",
+        "geometry_assessed": true,
+        "identity_note": "a body id found in the file is a PRODUCT of that name, and the volume multiset matches; which SOLID carries which NAME is NOT proven here. Binding them needs the PRODUCT -> SHAPE_REPRESENTATION -> MANIFOLD_SOLID_BREP chain followed per engine, and the two engines' assembly readers differ",
+        "identity_state": "unproven",
+        "level": "F:verified",
+        "level_means": "the right number of solids, every id present, and every volume matching its closed form",
+        "names_checked": [
+          "plate",
+          "pin"
+        ],
+        "passed": true,
+        "reached_expected": true,
+        "why_geometry_not_assessed": null,
+        "writer": "assembly",
+        "writer_right": true
+      },
+      "geometry": {
+        "checks": {
+          "body_count": true,
+          "body_ids": true,
+          "declared": true,
+          "single_live_body": true,
+          "succeeded": true,
+          "volumes": true
+        },
+        "passed": true,
+        "volumes": [
+          22827.433388230813,
+          9424.77796076938
+        ]
+      },
+      "group": "multi_body",
+      "is_live_model_result": false,
+      "measurement": {
+        "kinds_covered": [
+          "aggregate_total",
+          "consumed",
+          "named",
+          "unnamed_several"
+        ],
+        "passed": true,
+        "probes": {
+          "X4-consumed": {
+            "checks": {
+              "asked": true,
+              "named": true,
+              "outcome": true
+            },
+            "kind": "consumed",
+            "outcome": "refused",
+            "passed": true
+          },
+          "X4-named-pin": {
+            "checks": {
+              "about": true,
+              "aggregate": true,
+              "asked": true,
+              "labelled": true,
+              "outcome": true,
+              "provenance": true,
+              "value": true
+            },
+            "kind": "named",
+            "outcome": "answered",
+            "passed": true
+          },
+          "X4-named-plate": {
+            "checks": {
+              "about": true,
+              "aggregate": true,
+              "asked": true,
+              "labelled": true,
+              "outcome": true,
+              "provenance": true,
+              "value": true
+            },
+            "kind": "named",
+            "outcome": "answered",
+            "passed": true
+          },
+          "X4-total": {
+            "checks": {
+              "about": true,
+              "aggregate": true,
+              "asked": true,
+              "labelled": true,
+              "outcome": true,
+              "provenance": true,
+              "value": true
+            },
+            "kind": "aggregate_total",
+            "outcome": "answered",
+            "passed": true
+          },
+          "X4-unnamed": {
+            "checks": {
+              "asked": true,
+              "named": true,
+              "outcome": true
+            },
+            "kind": "unnamed_several",
+            "outcome": "refused",
+            "passed": true
+          }
+        },
+        "unexpected_probes": []
+      },
+      "passed": true,
+      "source": "DETERMINISTIC"
+    },
+    {
+      "case": "X5",
+      "export": {
+        "expected_level": "F:verified",
+        "geometry_assessed": true,
+        "identity_note": "this writer puts no body name in the file at all -- measured on CadQuery 2.8.0 and FreeCAD 1.0.0, which both write the translator's own product string -- so nothing here is evidence about identity in either direction",
+        "identity_state": "not_written",
+        "level": "F:verified",
+        "level_means": "the right number of solids, every id present, and every volume matching its closed form",
+        "names_checked": [],
+        "passed": true,
+        "reached_expected": true,
+        "why_geometry_not_assessed": null,
+        "writer": "single",
+        "writer_right": true
+      },
+      "geometry": {
+        "checks": {
+          "body_count": true,
+          "body_ids": true,
+          "declared": true,
+          "single_live_body": true,
+          "succeeded": true,
+          "volumes": true
+        },
+        "passed": true,
+        "volumes": [
+          68000.0
+        ]
+      },
+      "group": "single_body",
+      "is_live_model_result": false,
+      "measurement": {
+        "kinds_covered": [
+          "consumed",
+          "unnamed_single"
+        ],
+        "passed": true,
+        "probes": {
+          "X5-consumed": {
+            "checks": {
+              "about": true,
+              "aggregate": true,
+              "asked": true,
+              "outcome": true,
+              "provenance": true,
+              "value": true
+            },
+            "kind": "consumed",
+            "outcome": "answered",
+            "passed": true
+          },
+          "X5-unnamed": {
+            "checks": {
+              "about": true,
+              "aggregate": true,
+              "asked": true,
+              "outcome": true,
+              "provenance": true,
+              "value": true
+            },
+            "kind": "unnamed_single",
+            "outcome": "answered",
+            "passed": true
+          }
+        },
+        "unexpected_probes": []
+      },
+      "passed": true,
+      "source": "DETERMINISTIC"
+    },
+    {
+      "case": "X6",
+      "export": {
+        "expected_level": "F:verified",
+        "geometry_assessed": true,
+        "identity_note": "a body id found in the file is a PRODUCT of that name, and the volume multiset matches; which SOLID carries which NAME is NOT proven here. Binding them needs the PRODUCT -> SHAPE_REPRESENTATION -> MANIFOLD_SOLID_BREP chain followed per engine, and the two engines' assembly readers differ",
+        "identity_state": "unproven",
+        "level": "F:verified",
+        "level_means": "the right number of solids, every id present, and every volume matching its closed form",
+        "names_checked": [
+          "left",
+          "right"
+        ],
+        "passed": true,
+        "reached_expected": true,
+        "why_geometry_not_assessed": null,
+        "writer": "assembly",
+        "writer_right": true
+      },
+      "geometry": {
+        "checks": {
+          "body_count": true,
+          "body_ids": true,
+          "declared": true,
+          "single_live_body": true,
+          "succeeded": true,
+          "volumes": true
+        },
+        "passed": true,
+        "volumes": [
+          63999.999999999985,
+          63999.999999999985
+        ]
+      },
+      "group": "multi_body",
+      "is_live_model_result": false,
+      "measurement": {
+        "kinds_covered": [
+          "aggregate_total",
+          "named",
+          "unnamed_several"
+        ],
+        "passed": true,
+        "probes": {
+          "X6-named-left": {
+            "checks": {
+              "about": true,
+              "aggregate": true,
+              "asked": true,
+              "labelled": true,
+              "outcome": true,
+              "provenance": true,
+              "value": true
+            },
+            "kind": "named",
+            "outcome": "answered",
+            "passed": true
+          },
+          "X6-named-right": {
+            "checks": {
+              "about": true,
+              "aggregate": true,
+              "asked": true,
+              "labelled": true,
+              "outcome": true,
+              "provenance": true,
+              "value": true
+            },
+            "kind": "named",
+            "outcome": "answered",
+            "passed": true
+          },
+          "X6-total": {
+            "checks": {
+              "about": true,
+              "aggregate": true,
+              "asked": true,
+              "labelled": true,
+              "outcome": true,
+              "provenance": true,
+              "value": true
+            },
+            "kind": "aggregate_total",
+            "outcome": "answered",
+            "passed": true
+          },
+          "X6-unnamed": {
+            "checks": {
+              "asked": true,
+              "named": true,
+              "outcome": true
+            },
+            "kind": "unnamed_several",
+            "outcome": "refused",
+            "passed": true
+          }
+        },
+        "unexpected_probes": []
+      },
+      "passed": true,
+      "source": "DETERMINISTIC"
+    },
+    {
+      "case": "X7",
+      "export": {
+        "expected_level": "F:verified",
+        "geometry_assessed": true,
+        "identity_note": "a body id found in the file is a PRODUCT of that name, and the volume multiset matches; which SOLID carries which NAME is NOT proven here. Binding them needs the PRODUCT -> SHAPE_REPRESENTATION -> MANIFOLD_SOLID_BREP chain followed per engine, and the two engines' assembly readers differ",
+        "identity_state": "unproven",
+        "level": "F:verified",
+        "level_means": "the right number of solids, every id present, and every volume matching its closed form",
+        "names_checked": [
+          "cube",
+          "cylinder"
+        ],
+        "passed": true,
+        "reached_expected": true,
+        "why_geometry_not_assessed": null,
+        "writer": "assembly",
+        "writer_right": true
+      },
+      "geometry": {
+        "checks": {
+          "body_count": true,
+          "body_ids": true,
+          "declared": true,
+          "single_live_body": true,
+          "succeeded": true,
+          "volumes": true
+        },
+        "passed": true,
+        "volumes": [
+          63999.999999999985,
+          9424.777960769377
+        ]
+      },
+      "group": "multi_body",
+      "is_live_model_result": false,
+      "measurement": {
+        "kinds_covered": [
+          "aggregate_total",
+          "named",
+          "unnamed_several"
+        ],
+        "passed": true,
+        "probes": {
+          "X7-named-cube": {
+            "checks": {
+              "about": true,
+              "aggregate": true,
+              "asked": true,
+              "labelled": true,
+              "outcome": true,
+              "provenance": true,
+              "value": true
+            },
+            "kind": "named",
+            "outcome": "answered",
+            "passed": true
+          },
+          "X7-named-cylinder": {
+            "checks": {
+              "about": true,
+              "aggregate": true,
+              "asked": true,
+              "labelled": true,
+              "outcome": true,
+              "provenance": true,
+              "value": true
+            },
+            "kind": "named",
+            "outcome": "answered",
+            "passed": true
+          },
+          "X7-total": {
+            "checks": {
+              "about": true,
+              "aggregate": true,
+              "asked": true,
+              "labelled": true,
+              "outcome": true,
+              "provenance": true,
+              "value": true
+            },
+            "kind": "aggregate_total",
+            "outcome": "answered",
+            "passed": true
+          },
+          "X7-unnamed": {
+            "checks": {
+              "asked": true,
+              "named": true,
+              "outcome": true
+            },
+            "kind": "unnamed_several",
+            "outcome": "refused",
+            "passed": true
+          }
+        },
+        "unexpected_probes": []
+      },
+      "passed": true,
+      "source": "DETERMINISTIC"
+    }
+  ]
+}
