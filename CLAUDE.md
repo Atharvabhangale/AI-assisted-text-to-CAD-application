@@ -2810,12 +2810,12 @@ reproducible: `test_stage75_multibody_evaluator.py` documents each.
 **What must NOT change before the baseline is recorded**, because changing
 any of it makes the run unrepeatable and the number incomparable:
 
-- the prompt: `2026-09-25.1` / `f265d7d1e279e95a` / 34036 chars
-  (Phase D; `2026-09-24.2` / `90ebab2c38d615fb` / 33759 is what Phase C
-  was measured against and `2026-09-24.1` / `c0c4a1be0d23052f` / 33407 what
-  Phases A and B were)
-  (Phase C; `2026-09-24.1` / `c0c4a1be0d23052f` / 33407 is what
-  Phases A and B were measured against, and their files say so);
+- the prompt: `2026-09-25.1` / `f265d7d1e279e95a` / 34036 chars. Adopted at
+  Phase D and UNCHANGED by Phase E, which measured two rewrites of one clause
+  and adopted neither. Earlier phases were measured against earlier prompts
+  and every recorded file says which: Phase C against `2026-09-24.2` /
+  `90ebab2c38d615fb` / 33759, and Phases A and B against `2026-09-24.1` /
+  `c0c4a1be0d23052f` / 33407;
 - the encoding: `strict_selector_union_part` / 3874 / `ef7427700af93ed7`;
 - the model: `claude-haiku-4-5-20251001`;
 - every request text in `ground_truth75.py`, verbatim — Stage 68's finding
