@@ -69,30 +69,49 @@ def patched(arm: str):
     original_prompt = prompt_module.system_prompt
     original_gen = gen.system_prompt
 
-    import hashlib
-    original_fp = prompt_module.prompt_fingerprint
-    digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
-
     class _Patch:
         def __enter__(self):
             prompt_module.system_prompt = lambda: text
             gen.system_prompt = lambda: text
-            # `prompt_fingerprint` hashes the module CONSTANT, which no
-            # patch touches. Leave it alone and `arena75.identity()` writes
-            # the committed prompt's fingerprint into the record beside the
-            # ARM's character count -- two fields of one identity block
-            # describing two different texts, and the fingerprint is the one
-            # a reader trusts.
-            prompt_module.prompt_fingerprint = lambda: digest
             return text
 
         def __exit__(self, *exc):
             prompt_module.system_prompt = original_prompt
             gen.system_prompt = original_gen
-            prompt_module.prompt_fingerprint = original_fp
             return False
 
     return _Patch()
+
+
+def record_the_arms_identity(record: dict, text: str) -> dict:
+    """Make the record's identity block describe ONE text: the arm's.
+
+    `arena75.identity()` reads `prompt.prompt_fingerprint()`, which hashes
+    the module CONSTANT that no patch touches, while `prompt_characters`
+    reads `system_prompt()`, which the patch does replace. Left alone, the
+    block names the committed prompt's fingerprint beside the arm's length.
+
+    The fix is here and not in `patched()`. Patching `prompt_fingerprint`
+    itself was tried and is wrong: `arena75.run` calls `check_identity()`
+    INSIDE the patched context to refuse a run whose live route is not what
+    the corpus was built against, so a patched fingerprint makes every arm
+    look like drift and the run exits before its first call. The guard is
+    doing its job; the record is what needed correcting, so the record is
+    what this corrects -- after the run, from the arm's own text.
+    """
+    import hashlib
+    record["prompt_fingerprint_of_committed_prompt"] = \
+        record.get("prompt_fingerprint")
+    record["prompt_fingerprint"] = hashlib.sha256(
+        text.encode("utf-8")).hexdigest()
+    record["prompt_characters"] = len(text)
+    record["identity_note"] = (
+        "`prompt_fingerprint` and `prompt_characters` describe the ARM's "
+        "text -- what was actually sent. `prompt_version` is left as "
+        "recorded: an arm has no version of its own and that field names "
+        "the version it was patched over, whose fingerprint is kept beside "
+        "it as `prompt_fingerprint_of_committed_prompt`.")
+    return record
 
 
 def check_identity_for_arm() -> list:
@@ -204,6 +223,7 @@ def main(argv=None) -> int:
             raise SystemExit("the patch did not reach the live route")
         record = A.run(cases, args.calls)
 
+    record_the_arms_identity(record, text)
     record["arm"] = args.arm
     record["arm_fingerprint"] = V.fingerprint(text)
     record["arm_characters"] = len(text)
