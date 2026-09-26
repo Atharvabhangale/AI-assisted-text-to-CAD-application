@@ -754,11 +754,19 @@ def classify(
             if checks.get(name) is False:
                 codes.append(G.G_WRONG_DIMENSION)
                 break
-        # Bodies that interpenetrate have been merged in space, which is
-        # a fusion the request never asked for. Over-declaring is NOT a
-        # fusion and belongs with the plan-legality failures above.
+        # Bodies that interpenetrate are in the WRONG PLACE, not fused:
+        # they are still separate solids, each at its own correct volume,
+        # standing where they were not asked to stand. `H:unwanted_fusion`
+        # is for a part that came back as ONE body carrying the total of
+        # several, which the branch above already names.
+        #
+        # MEASURED, and the reason this distinction is not cosmetic: all
+        # four CR-06 failures put a cylinder's AXIS at the plate's edge, so
+        # half of it lay inside the plate. Calling that a fusion would have
+        # filed it with a different mechanism and hidden that it is the
+        # same axis-versus-extent confusion as every ED-02 failure.
         if checks.get("bodies_disjoint") is False:
-            codes.append(G.H_UNWANTED_FUSION)
+            codes.append(G.F_WRONG_PLACEMENT)
 
     if measurement and measurement.get("verdict") == "assessed" \
             and not measurement.get("passed"):
