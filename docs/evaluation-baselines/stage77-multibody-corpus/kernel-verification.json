@@ -1,0 +1,9798 @@
+{
+ "engines_agree": 177,
+ "per_engine": {
+  "cadquery": 177,
+  "freecad": 177
+ },
+ "rebuilt": 177,
+ "rows": [
+  {
+   "attempt": 0,
+   "case": "CR-01",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "cylinder": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.777960769377
+      }
+     },
+     "declared": [
+      "cube",
+      "cylinder"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "cylinder": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.777960769377
+      }
+     },
+     "declared": [
+      "cube",
+      "cylinder"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 1,
+   "case": "CR-01",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "cylinder": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.777960769377
+      }
+     },
+     "declared": [
+      "cube",
+      "cylinder"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "cylinder": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.777960769377
+      }
+     },
+     "declared": [
+      "cube",
+      "cylinder"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 2,
+   "case": "CR-01",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "cylinder": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.777960769377
+      }
+     },
+     "declared": [
+      "cube",
+      "cylinder"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "cylinder": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.777960769377
+      }
+     },
+     "declared": [
+      "cube",
+      "cylinder"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 3,
+   "case": "CR-01",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "cylinder": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.777960769377
+      }
+     },
+     "declared": [
+      "cube",
+      "cylinder"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "cylinder": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.777960769377
+      }
+     },
+     "declared": [
+      "cube",
+      "cylinder"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 4,
+   "case": "CR-01",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "cylinder": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.777960769377
+      }
+     },
+     "declared": [
+      "cube",
+      "cylinder"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "cylinder": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.777960769377
+      }
+     },
+     "declared": [
+      "cube",
+      "cylinder"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 5,
+   "case": "CR-01",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "cylinder": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.777960769377
+      }
+     },
+     "declared": [
+      "cube",
+      "cylinder"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "cylinder": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.777960769377
+      }
+     },
+     "declared": [
+      "cube",
+      "cylinder"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 6,
+   "case": "CR-01",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "cylinder": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.777960769377
+      }
+     },
+     "declared": [
+      "cube",
+      "cylinder"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "cylinder": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.777960769377
+      }
+     },
+     "declared": [
+      "cube",
+      "cylinder"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 7,
+   "case": "CR-01",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "cylinder": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.777960769377
+      }
+     },
+     "declared": [
+      "cube",
+      "cylinder"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "cylinder": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.777960769377
+      }
+     },
+     "declared": [
+      "cube",
+      "cylinder"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 0,
+   "case": "CR-02",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "base": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "post": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.777960769377
+      }
+     },
+     "declared": [
+      "base",
+      "post"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "base": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "post": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.777960769377
+      }
+     },
+     "declared": [
+      "base",
+      "post"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 1,
+   "case": "CR-02",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "base": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "post": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.777960769377
+      }
+     },
+     "declared": [
+      "base",
+      "post"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "base": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "post": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.777960769377
+      }
+     },
+     "declared": [
+      "base",
+      "post"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 2,
+   "case": "CR-02",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "base": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "post": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.777960769377
+      }
+     },
+     "declared": [
+      "base",
+      "post"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "base": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "post": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.777960769377
+      }
+     },
+     "declared": [
+      "base",
+      "post"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 3,
+   "case": "CR-02",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "base": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "post": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.777960769377
+      }
+     },
+     "declared": [
+      "base",
+      "post"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "base": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "post": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.777960769377
+      }
+     },
+     "declared": [
+      "base",
+      "post"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 4,
+   "case": "CR-02",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "base": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "post": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.777960769377
+      }
+     },
+     "declared": [
+      "base",
+      "post"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "base": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "post": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.777960769377
+      }
+     },
+     "declared": [
+      "base",
+      "post"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 5,
+   "case": "CR-02",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "base": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "post": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.777960769377
+      }
+     },
+     "declared": [
+      "base",
+      "post"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "base": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "post": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.777960769377
+      }
+     },
+     "declared": [
+      "base",
+      "post"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 6,
+   "case": "CR-02",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "base": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "post": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.777960769377
+      }
+     },
+     "declared": [
+      "base",
+      "post"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "base": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "post": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.777960769377
+      }
+     },
+     "declared": [
+      "base",
+      "post"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 7,
+   "case": "CR-02",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "base": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "post": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.777960769377
+      }
+     },
+     "declared": [
+      "base",
+      "post"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "base": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "post": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.777960769377
+      }
+     },
+     "declared": [
+      "base",
+      "post"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 0,
+   "case": "CR-03",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cyl_large": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 14137.166941154072
+      },
+      "cyl_small": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3926.9908169872415
+      }
+     },
+     "declared": [
+      "cyl_large",
+      "cyl_small"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cyl_large": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 14137.166941154072
+      },
+      "cyl_small": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3926.9908169872415
+      }
+     },
+     "declared": [
+      "cyl_large",
+      "cyl_small"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 1,
+   "case": "CR-03",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "large_cyl": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 14137.166941154072
+      },
+      "small_cyl": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3926.9908169872415
+      }
+     },
+     "declared": [
+      "large_cyl",
+      "small_cyl"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "large_cyl": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 14137.166941154072
+      },
+      "small_cyl": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3926.9908169872415
+      }
+     },
+     "declared": [
+      "large_cyl",
+      "small_cyl"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 2,
+   "case": "CR-03",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cylinder_large": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 14137.166941154072
+      },
+      "cylinder_small": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3926.9908169872415
+      }
+     },
+     "declared": [
+      "cylinder_large",
+      "cylinder_small"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cylinder_large": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 14137.166941154072
+      },
+      "cylinder_small": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3926.9908169872415
+      }
+     },
+     "declared": [
+      "cylinder_large",
+      "cylinder_small"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 3,
+   "case": "CR-03",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cylinder1": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 14137.166941154072
+      },
+      "cylinder2": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3926.9908169872415
+      }
+     },
+     "declared": [
+      "cylinder1",
+      "cylinder2"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cylinder1": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 14137.166941154072
+      },
+      "cylinder2": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3926.9908169872415
+      }
+     },
+     "declared": [
+      "cylinder1",
+      "cylinder2"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 4,
+   "case": "CR-03",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cylinder1": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 14137.166941154072
+      },
+      "cylinder2": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3926.9908169872415
+      }
+     },
+     "declared": [
+      "cylinder1",
+      "cylinder2"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cylinder1": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 14137.166941154072
+      },
+      "cylinder2": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3926.9908169872415
+      }
+     },
+     "declared": [
+      "cylinder1",
+      "cylinder2"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 5,
+   "case": "CR-03",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cylinder_large": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 14137.166941154072
+      },
+      "cylinder_small": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3926.9908169872415
+      }
+     },
+     "declared": [
+      "cylinder_large",
+      "cylinder_small"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cylinder_large": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 14137.166941154072
+      },
+      "cylinder_small": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3926.9908169872415
+      }
+     },
+     "declared": [
+      "cylinder_large",
+      "cylinder_small"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 6,
+   "case": "CR-03",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cylinder1": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 14137.166941154072
+      },
+      "cylinder2": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3926.9908169872415
+      }
+     },
+     "declared": [
+      "cylinder1",
+      "cylinder2"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cylinder1": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 14137.166941154072
+      },
+      "cylinder2": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3926.9908169872415
+      }
+     },
+     "declared": [
+      "cylinder1",
+      "cylinder2"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 7,
+   "case": "CR-03",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "large_cylinder": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 14137.166941154072
+      },
+      "small_cylinder": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3926.9908169872415
+      }
+     },
+     "declared": [
+      "large_cylinder",
+      "small_cylinder"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "large_cylinder": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 14137.166941154072
+      },
+      "small_cylinder": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3926.9908169872415
+      }
+     },
+     "declared": [
+      "large_cylinder",
+      "small_cylinder"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 0,
+   "case": "CR-04",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 7999.999999999998
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19999.999999999996
+      }
+     },
+     "declared": [
+      "plate",
+      "cube"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 7999.999999999998
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19999.999999999996
+      }
+     },
+     "declared": [
+      "plate",
+      "cube"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 1,
+   "case": "CR-04",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 7999.999999999998
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19999.999999999996
+      }
+     },
+     "declared": [
+      "plate",
+      "cube"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 7999.999999999998
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19999.999999999996
+      }
+     },
+     "declared": [
+      "plate",
+      "cube"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 2,
+   "case": "CR-04",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 7999.999999999998
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19999.999999999996
+      }
+     },
+     "declared": [
+      "plate",
+      "cube"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 7999.999999999998
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19999.999999999996
+      }
+     },
+     "declared": [
+      "plate",
+      "cube"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 3,
+   "case": "CR-04",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 7999.999999999998
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19999.999999999996
+      }
+     },
+     "declared": [
+      "plate",
+      "cube"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 7999.999999999998
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19999.999999999996
+      }
+     },
+     "declared": [
+      "plate",
+      "cube"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 4,
+   "case": "CR-04",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 7999.999999999998
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19999.999999999996
+      }
+     },
+     "declared": [
+      "plate",
+      "cube"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 7999.999999999998
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19999.999999999996
+      }
+     },
+     "declared": [
+      "plate",
+      "cube"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 5,
+   "case": "CR-04",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 7999.999999999998
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19999.999999999996
+      }
+     },
+     "declared": [
+      "plate",
+      "cube"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 7999.999999999998
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19999.999999999996
+      }
+     },
+     "declared": [
+      "plate",
+      "cube"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 6,
+   "case": "CR-04",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 7999.999999999998
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19999.999999999996
+      }
+     },
+     "declared": [
+      "plate",
+      "cube"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 7999.999999999998
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19999.999999999996
+      }
+     },
+     "declared": [
+      "plate",
+      "cube"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 7,
+   "case": "CR-04",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 7999.999999999998
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19999.999999999996
+      }
+     },
+     "declared": [
+      "plate",
+      "cube"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 7999.999999999998
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19999.999999999996
+      }
+     },
+     "declared": [
+      "plate",
+      "cube"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 0,
+   "case": "CR-05",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "left": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 27000.0
+      },
+      "right": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 27000.0
+      }
+     },
+     "declared": [
+      "left",
+      "right"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "left": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 27000.0
+      },
+      "right": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 27000.0
+      }
+     },
+     "declared": [
+      "left",
+      "right"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 1,
+   "case": "CR-05",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "left": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 27000.0
+      },
+      "right": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 27000.0
+      }
+     },
+     "declared": [
+      "left",
+      "right"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "left": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 27000.0
+      },
+      "right": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 27000.0
+      }
+     },
+     "declared": [
+      "left",
+      "right"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 2,
+   "case": "CR-05",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "left": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 27000.0
+      },
+      "right": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 27000.0
+      }
+     },
+     "declared": [
+      "left",
+      "right"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "left": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 27000.0
+      },
+      "right": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 27000.0
+      }
+     },
+     "declared": [
+      "left",
+      "right"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 3,
+   "case": "CR-05",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "left": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 27000.0
+      },
+      "right": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 27000.0
+      }
+     },
+     "declared": [
+      "left",
+      "right"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "left": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 27000.0
+      },
+      "right": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 27000.0
+      }
+     },
+     "declared": [
+      "left",
+      "right"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 4,
+   "case": "CR-05",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "left": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 27000.0
+      },
+      "right": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 27000.0
+      }
+     },
+     "declared": [
+      "left",
+      "right"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "left": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 27000.0
+      },
+      "right": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 27000.0
+      }
+     },
+     "declared": [
+      "left",
+      "right"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 5,
+   "case": "CR-05",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "left": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 27000.0
+      },
+      "right": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 27000.0
+      }
+     },
+     "declared": [
+      "left",
+      "right"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "left": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 27000.0
+      },
+      "right": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 27000.0
+      }
+     },
+     "declared": [
+      "left",
+      "right"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 6,
+   "case": "CR-05",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "left": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 27000.0
+      },
+      "right": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 27000.0
+      }
+     },
+     "declared": [
+      "left",
+      "right"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "left": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 27000.0
+      },
+      "right": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 27000.0
+      }
+     },
+     "declared": [
+      "left",
+      "right"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 7,
+   "case": "CR-05",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "left": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 27000.0
+      },
+      "right": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 27000.0
+      }
+     },
+     "declared": [
+      "left",
+      "right"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "left": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 27000.0
+      },
+      "right": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 27000.0
+      }
+     },
+     "declared": [
+      "left",
+      "right"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 0,
+   "case": "CR-06",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cylinder_1": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "cylinder_2": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      }
+     },
+     "declared": [
+      "plate",
+      "cylinder_1",
+      "cylinder_2"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cylinder_1": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "cylinder_2": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      }
+     },
+     "declared": [
+      "plate",
+      "cylinder_1",
+      "cylinder_2"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 1,
+   "case": "CR-06",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cyl_10": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      },
+      "cyl_16": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      }
+     },
+     "declared": [
+      "plate",
+      "cyl_16",
+      "cyl_10"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cyl_10": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      },
+      "cyl_16": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      }
+     },
+     "declared": [
+      "plate",
+      "cyl_16",
+      "cyl_10"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 2,
+   "case": "CR-06",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cyl_10": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      },
+      "cyl_16": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      }
+     },
+     "declared": [
+      "plate",
+      "cyl_16",
+      "cyl_10"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cyl_10": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      },
+      "cyl_16": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      }
+     },
+     "declared": [
+      "plate",
+      "cyl_16",
+      "cyl_10"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 3,
+   "case": "CR-06",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cyl_1": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "cyl_2": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      }
+     },
+     "declared": [
+      "plate",
+      "cyl_1",
+      "cyl_2"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cyl_1": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "cyl_2": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      }
+     },
+     "declared": [
+      "plate",
+      "cyl_1",
+      "cyl_2"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 4,
+   "case": "CR-06",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cyl_10": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      },
+      "cyl_16": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      }
+     },
+     "declared": [
+      "plate",
+      "cyl_16",
+      "cyl_10"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cyl_10": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      },
+      "cyl_16": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      }
+     },
+     "declared": [
+      "plate",
+      "cyl_16",
+      "cyl_10"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 5,
+   "case": "CR-06",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      },
+      "short_cyl": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "tall_cyl": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      }
+     },
+     "declared": [
+      "plate",
+      "short_cyl",
+      "tall_cyl"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      },
+      "short_cyl": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "tall_cyl": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      }
+     },
+     "declared": [
+      "plate",
+      "short_cyl",
+      "tall_cyl"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 6,
+   "case": "CR-06",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cyl_large": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "cyl_small": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      }
+     },
+     "declared": [
+      "plate",
+      "cyl_large",
+      "cyl_small"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cyl_large": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "cyl_small": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      }
+     },
+     "declared": [
+      "plate",
+      "cyl_large",
+      "cyl_small"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 0,
+   "case": "CR-07",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 7999.999999999998
+      },
+      "plate": {
+       "edges": 15,
+       "faces": 7,
+       "solids": 1,
+       "volume": 24497.34517542563
+      }
+     },
+     "declared": [
+      "plate",
+      "cube"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 7999.999999999998
+      },
+      "plate": {
+       "edges": 15,
+       "faces": 7,
+       "solids": 1,
+       "volume": 24497.34517542563
+      }
+     },
+     "declared": [
+      "plate",
+      "cube"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 1,
+   "case": "CR-07",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 7999.999999999998
+      },
+      "plate": {
+       "edges": 15,
+       "faces": 7,
+       "solids": 1,
+       "volume": 24497.34517542563
+      }
+     },
+     "declared": [
+      "plate",
+      "cube"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 7999.999999999998
+      },
+      "plate": {
+       "edges": 15,
+       "faces": 7,
+       "solids": 1,
+       "volume": 24497.34517542563
+      }
+     },
+     "declared": [
+      "plate",
+      "cube"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 2,
+   "case": "CR-07",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 7999.999999999998
+      },
+      "plate": {
+       "edges": 15,
+       "faces": 7,
+       "solids": 1,
+       "volume": 24497.34517542563
+      }
+     },
+     "declared": [
+      "plate",
+      "cube"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 7999.999999999998
+      },
+      "plate": {
+       "edges": 15,
+       "faces": 7,
+       "solids": 1,
+       "volume": 24497.34517542563
+      }
+     },
+     "declared": [
+      "plate",
+      "cube"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 3,
+   "case": "CR-07",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 7999.999999999998
+      },
+      "plate": {
+       "edges": 15,
+       "faces": 7,
+       "solids": 1,
+       "volume": 24497.34517542563
+      }
+     },
+     "declared": [
+      "plate",
+      "cube"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 7999.999999999998
+      },
+      "plate": {
+       "edges": 15,
+       "faces": 7,
+       "solids": 1,
+       "volume": 24497.34517542563
+      }
+     },
+     "declared": [
+      "plate",
+      "cube"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 4,
+   "case": "CR-07",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 7999.999999999998
+      },
+      "plate": {
+       "edges": 15,
+       "faces": 7,
+       "solids": 1,
+       "volume": 24497.34517542563
+      }
+     },
+     "declared": [
+      "plate",
+      "cube"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 7999.999999999998
+      },
+      "plate": {
+       "edges": 15,
+       "faces": 7,
+       "solids": 1,
+       "volume": 24497.34517542563
+      }
+     },
+     "declared": [
+      "plate",
+      "cube"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 5,
+   "case": "CR-07",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 7999.999999999998
+      },
+      "plate": {
+       "edges": 15,
+       "faces": 7,
+       "solids": 1,
+       "volume": 24497.34517542563
+      }
+     },
+     "declared": [
+      "plate",
+      "cube"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 7999.999999999998
+      },
+      "plate": {
+       "edges": 15,
+       "faces": 7,
+       "solids": 1,
+       "volume": 24497.34517542563
+      }
+     },
+     "declared": [
+      "plate",
+      "cube"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 6,
+   "case": "CR-07",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 7999.999999999998
+      },
+      "plate": {
+       "edges": 15,
+       "faces": 7,
+       "solids": 1,
+       "volume": 24497.34517542563
+      }
+     },
+     "declared": [
+      "plate",
+      "cube"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 7999.999999999998
+      },
+      "plate": {
+       "edges": 15,
+       "faces": 7,
+       "solids": 1,
+       "volume": 24497.34517542563
+      }
+     },
+     "declared": [
+      "plate",
+      "cube"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 7,
+   "case": "CR-07",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 7999.999999999998
+      },
+      "plate": {
+       "edges": 15,
+       "faces": 7,
+       "solids": 1,
+       "volume": 24497.34517542563
+      }
+     },
+     "declared": [
+      "plate",
+      "cube"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 7999.999999999998
+      },
+      "plate": {
+       "edges": 15,
+       "faces": 7,
+       "solids": 1,
+       "volume": 24497.34517542563
+      }
+     },
+     "declared": [
+      "plate",
+      "cube"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 0,
+   "case": "CR-08",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 21,
+       "faces": 9,
+       "solids": 1,
+       "volume": 68000.0
+      }
+     },
+     "declared": [],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 21,
+       "faces": 9,
+       "solids": 1,
+       "volume": 68000.0
+      }
+     },
+     "declared": [],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 1,
+   "case": "CR-08",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 21,
+       "faces": 9,
+       "solids": 1,
+       "volume": 68000.0
+      }
+     },
+     "declared": [],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 21,
+       "faces": 9,
+       "solids": 1,
+       "volume": 68000.0
+      }
+     },
+     "declared": [],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 2,
+   "case": "CR-08",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 21,
+       "faces": 9,
+       "solids": 1,
+       "volume": 68000.0
+      }
+     },
+     "declared": [],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 21,
+       "faces": 9,
+       "solids": 1,
+       "volume": 68000.0
+      }
+     },
+     "declared": [],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 3,
+   "case": "CR-08",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 21,
+       "faces": 9,
+       "solids": 1,
+       "volume": 68000.0
+      }
+     },
+     "declared": [],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 21,
+       "faces": 9,
+       "solids": 1,
+       "volume": 68000.0
+      }
+     },
+     "declared": [],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 4,
+   "case": "CR-08",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 21,
+       "faces": 9,
+       "solids": 1,
+       "volume": 68000.0
+      }
+     },
+     "declared": [],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 21,
+       "faces": 9,
+       "solids": 1,
+       "volume": 68000.0
+      }
+     },
+     "declared": [],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 5,
+   "case": "CR-08",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 21,
+       "faces": 9,
+       "solids": 1,
+       "volume": 68000.0
+      }
+     },
+     "declared": [],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 21,
+       "faces": 9,
+       "solids": 1,
+       "volume": 68000.0
+      }
+     },
+     "declared": [],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 6,
+   "case": "CR-08",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 21,
+       "faces": 9,
+       "solids": 1,
+       "volume": 68000.0
+      }
+     },
+     "declared": [],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 21,
+       "faces": 9,
+       "solids": 1,
+       "volume": 68000.0
+      }
+     },
+     "declared": [],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 7,
+   "case": "CR-08",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 21,
+       "faces": 9,
+       "solids": 1,
+       "volume": 68000.0
+      }
+     },
+     "declared": [],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 21,
+       "faces": 9,
+       "solids": 1,
+       "volume": 68000.0
+      }
+     },
+     "declared": [],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 0,
+   "case": "CR-09",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "box1": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19999.999999999996
+      },
+      "box2": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 7999.999999999998
+      }
+     },
+     "declared": [
+      "box1",
+      "box2"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "box1": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19999.999999999996
+      },
+      "box2": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 7999.999999999998
+      }
+     },
+     "declared": [
+      "box1",
+      "box2"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 1,
+   "case": "CR-09",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "box1": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19999.999999999996
+      },
+      "box2": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 7999.999999999998
+      }
+     },
+     "declared": [
+      "box1",
+      "box2"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "box1": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19999.999999999996
+      },
+      "box2": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 7999.999999999998
+      }
+     },
+     "declared": [
+      "box1",
+      "box2"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 2,
+   "case": "CR-09",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "box1": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19999.999999999996
+      },
+      "box2": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 7999.999999999998
+      }
+     },
+     "declared": [
+      "box1",
+      "box2"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "box1": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19999.999999999996
+      },
+      "box2": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 7999.999999999998
+      }
+     },
+     "declared": [
+      "box1",
+      "box2"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 3,
+   "case": "CR-09",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "box1": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19999.999999999996
+      },
+      "box2": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 7999.999999999998
+      }
+     },
+     "declared": [
+      "box1",
+      "box2"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "box1": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19999.999999999996
+      },
+      "box2": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 7999.999999999998
+      }
+     },
+     "declared": [
+      "box1",
+      "box2"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 4,
+   "case": "CR-09",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "box1": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19999.999999999996
+      },
+      "box2": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 7999.999999999998
+      }
+     },
+     "declared": [
+      "box1",
+      "box2"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "box1": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19999.999999999996
+      },
+      "box2": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 7999.999999999998
+      }
+     },
+     "declared": [
+      "box1",
+      "box2"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 5,
+   "case": "CR-09",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "box1": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19999.999999999996
+      },
+      "box2": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 7999.999999999998
+      }
+     },
+     "declared": [
+      "box1",
+      "box2"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "box1": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19999.999999999996
+      },
+      "box2": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 7999.999999999998
+      }
+     },
+     "declared": [
+      "box1",
+      "box2"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 6,
+   "case": "CR-09",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "box1": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19999.999999999996
+      },
+      "box2": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 7999.999999999998
+      }
+     },
+     "declared": [
+      "box1",
+      "box2"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "box1": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19999.999999999996
+      },
+      "box2": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 7999.999999999998
+      }
+     },
+     "declared": [
+      "box1",
+      "box2"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 7,
+   "case": "CR-09",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "box1": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19999.999999999996
+      },
+      "box2": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 7999.999999999998
+      }
+     },
+     "declared": [
+      "box1",
+      "box2"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "box1": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19999.999999999996
+      },
+      "box2": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 7999.999999999998
+      }
+     },
+     "declared": [
+      "box1",
+      "box2"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 0,
+   "case": "CR-10",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube1": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube2": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube3": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube4": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube5": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      }
+     },
+     "declared": [
+      "cube1",
+      "cube2",
+      "cube3",
+      "cube4",
+      "cube5"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube1": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube2": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube3": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube4": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube5": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      }
+     },
+     "declared": [
+      "cube1",
+      "cube2",
+      "cube3",
+      "cube4",
+      "cube5"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 1,
+   "case": "CR-10",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube1": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube2": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube3": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube4": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube5": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      }
+     },
+     "declared": [
+      "cube1",
+      "cube2",
+      "cube3",
+      "cube4",
+      "cube5"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube1": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube2": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube3": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube4": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube5": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      }
+     },
+     "declared": [
+      "cube1",
+      "cube2",
+      "cube3",
+      "cube4",
+      "cube5"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 2,
+   "case": "CR-10",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube1": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube2": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube3": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube4": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube5": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      }
+     },
+     "declared": [
+      "cube1",
+      "cube2",
+      "cube3",
+      "cube4",
+      "cube5"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube1": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube2": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube3": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube4": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube5": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      }
+     },
+     "declared": [
+      "cube1",
+      "cube2",
+      "cube3",
+      "cube4",
+      "cube5"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 3,
+   "case": "CR-10",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube1": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube2": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube3": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube4": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube5": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      }
+     },
+     "declared": [
+      "cube1",
+      "cube2",
+      "cube3",
+      "cube4",
+      "cube5"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube1": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube2": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube3": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube4": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube5": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      }
+     },
+     "declared": [
+      "cube1",
+      "cube2",
+      "cube3",
+      "cube4",
+      "cube5"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 4,
+   "case": "CR-10",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube1": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube2": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube3": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube4": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube5": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      }
+     },
+     "declared": [
+      "cube1",
+      "cube2",
+      "cube3",
+      "cube4",
+      "cube5"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube1": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube2": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube3": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube4": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube5": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      }
+     },
+     "declared": [
+      "cube1",
+      "cube2",
+      "cube3",
+      "cube4",
+      "cube5"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 5,
+   "case": "CR-10",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube1": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube2": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube3": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube4": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube5": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      }
+     },
+     "declared": [
+      "cube1",
+      "cube2",
+      "cube3",
+      "cube4",
+      "cube5"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube1": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube2": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube3": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube4": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube5": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      }
+     },
+     "declared": [
+      "cube1",
+      "cube2",
+      "cube3",
+      "cube4",
+      "cube5"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 6,
+   "case": "CR-10",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube1": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube2": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube3": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube4": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube5": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      }
+     },
+     "declared": [
+      "cube1",
+      "cube2",
+      "cube3",
+      "cube4",
+      "cube5"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube1": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube2": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube3": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube4": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube5": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      }
+     },
+     "declared": [
+      "cube1",
+      "cube2",
+      "cube3",
+      "cube4",
+      "cube5"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 7,
+   "case": "CR-10",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube1": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube2": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube3": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube4": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube5": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      }
+     },
+     "declared": [
+      "cube1",
+      "cube2",
+      "cube3",
+      "cube4",
+      "cube5"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube1": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube2": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube3": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube4": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      },
+      "cube5": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 999.9999999999998
+      }
+     },
+     "declared": [
+      "cube1",
+      "cube2",
+      "cube3",
+      "cube4",
+      "cube5"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 0,
+   "case": "ED-01",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 79999.99999999999
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 79999.99999999999
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 1,
+   "case": "ED-01",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 79999.99999999999
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 79999.99999999999
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 2,
+   "case": "ED-01",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 79999.99999999999
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 79999.99999999999
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 3,
+   "case": "ED-01",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 79999.99999999999
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 79999.99999999999
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 4,
+   "case": "ED-01",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 79999.99999999999
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 79999.99999999999
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 5,
+   "case": "ED-01",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 79999.99999999999
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 79999.99999999999
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 6,
+   "case": "ED-01",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 79999.99999999999
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 79999.99999999999
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 7,
+   "case": "ED-01",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 79999.99999999999
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 79999.99999999999
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 1,
+   "case": "ED-02",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 6,
+       "faces": 4,
+       "solids": 1,
+       "volume": 8576.547944300135
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 6,
+       "faces": 4,
+       "solids": 1,
+       "volume": 8576.547944300135
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 2,
+   "case": "ED-02",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 6,
+       "faces": 4,
+       "solids": 1,
+       "volume": 8576.547944300135
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 6,
+       "faces": 4,
+       "solids": 1,
+       "volume": 8576.547944300135
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 3,
+   "case": "ED-02",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 6,
+       "faces": 4,
+       "solids": 1,
+       "volume": 8576.547944300135
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 6,
+       "faces": 4,
+       "solids": 1,
+       "volume": 8576.547944300135
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 4,
+   "case": "ED-02",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 6,
+       "faces": 4,
+       "solids": 1,
+       "volume": 8576.547944300135
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 6,
+       "faces": 4,
+       "solids": 1,
+       "volume": 8576.547944300135
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 5,
+   "case": "ED-02",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 6,
+       "faces": 4,
+       "solids": 1,
+       "volume": 8576.547944300135
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 6,
+       "faces": 4,
+       "solids": 1,
+       "volume": 8576.547944300135
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 6,
+   "case": "ED-02",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 6,
+       "faces": 4,
+       "solids": 1,
+       "volume": 8576.547944300135
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 6,
+       "faces": 4,
+       "solids": 1,
+       "volume": 8576.547944300135
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 0,
+   "case": "ED-05",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 15707.963267948966
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 15707.963267948966
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 1,
+   "case": "ED-05",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 15707.963267948966
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 15707.963267948966
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 2,
+   "case": "ED-05",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 15707.963267948966
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 15707.963267948966
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 3,
+   "case": "ED-05",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 15707.963267948966
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 15707.963267948966
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 4,
+   "case": "ED-05",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 15707.963267948966
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 15707.963267948966
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 5,
+   "case": "ED-05",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 15707.963267948966
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 15707.963267948966
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 6,
+   "case": "ED-05",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 15707.963267948966
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 15707.963267948966
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 7,
+   "case": "ED-05",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 15707.963267948966
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 15707.963267948966
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 0,
+   "case": "ED-03",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 96000.0
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 96000.0
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 0,
+   "case": "ED-03",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 15,
+       "faces": 7,
+       "solids": 1,
+       "volume": 92858.40734641021
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 15,
+       "faces": 7,
+       "solids": 1,
+       "volume": 92858.40734641021
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 1
+  },
+  {
+   "attempt": 1,
+   "case": "ED-03",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 96000.0
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 96000.0
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 1,
+   "case": "ED-03",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 15,
+       "faces": 7,
+       "solids": 1,
+       "volume": 92858.40734641021
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 15,
+       "faces": 7,
+       "solids": 1,
+       "volume": 92858.40734641021
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 1
+  },
+  {
+   "attempt": 2,
+   "case": "ED-03",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 96000.0
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 96000.0
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 2,
+   "case": "ED-03",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 15,
+       "faces": 7,
+       "solids": 1,
+       "volume": 92858.40734641021
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 15,
+       "faces": 7,
+       "solids": 1,
+       "volume": 92858.40734641021
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 1
+  },
+  {
+   "attempt": 3,
+   "case": "ED-03",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 96000.0
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 96000.0
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 3,
+   "case": "ED-03",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 15,
+       "faces": 7,
+       "solids": 1,
+       "volume": 92858.40734641021
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 15,
+       "faces": 7,
+       "solids": 1,
+       "volume": 92858.40734641021
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 1
+  },
+  {
+   "attempt": 4,
+   "case": "ED-03",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 96000.0
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 96000.0
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 4,
+   "case": "ED-03",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 15,
+       "faces": 7,
+       "solids": 1,
+       "volume": 92858.40734641021
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 15,
+       "faces": 7,
+       "solids": 1,
+       "volume": 92858.40734641021
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 1
+  },
+  {
+   "attempt": 5,
+   "case": "ED-03",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 96000.0
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 96000.0
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 5,
+   "case": "ED-03",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 15,
+       "faces": 7,
+       "solids": 1,
+       "volume": 92858.40734641021
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 15,
+       "faces": 7,
+       "solids": 1,
+       "volume": 92858.40734641021
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 1
+  },
+  {
+   "attempt": 6,
+   "case": "ED-03",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 96000.0
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 96000.0
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 6,
+   "case": "ED-03",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 15,
+       "faces": 7,
+       "solids": 1,
+       "volume": 92858.40734641021
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 15,
+       "faces": 7,
+       "solids": 1,
+       "volume": 92858.40734641021
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 1
+  },
+  {
+   "attempt": 7,
+   "case": "ED-03",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 96000.0
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 96000.0
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 7,
+   "case": "ED-03",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 15,
+       "faces": 7,
+       "solids": 1,
+       "volume": 92858.40734641021
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 15,
+       "faces": 7,
+       "solids": 1,
+       "volume": 92858.40734641021
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 1
+  },
+  {
+   "attempt": 0,
+   "case": "ED-04",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 96000.0
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 96000.0
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 0,
+   "case": "ED-04",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 96000.0
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 15707.963267948966
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 96000.0
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 15707.963267948966
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 1
+  },
+  {
+   "attempt": 0,
+   "case": "ED-04",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 15,
+       "faces": 7,
+       "solids": 1,
+       "volume": 92858.40734641021
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 15707.963267948966
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 15,
+       "faces": 7,
+       "solids": 1,
+       "volume": 92858.40734641021
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 15707.963267948966
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 2
+  },
+  {
+   "attempt": 1,
+   "case": "ED-04",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 96000.0
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 96000.0
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 1,
+   "case": "ED-04",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 96000.0
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 15707.963267948966
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 96000.0
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 15707.963267948966
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 1
+  },
+  {
+   "attempt": 1,
+   "case": "ED-04",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 15,
+       "faces": 7,
+       "solids": 1,
+       "volume": 92858.40734641021
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 15707.963267948966
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 15,
+       "faces": 7,
+       "solids": 1,
+       "volume": 92858.40734641021
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 15707.963267948966
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 2
+  },
+  {
+   "attempt": 2,
+   "case": "ED-04",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 96000.0
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 96000.0
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 2,
+   "case": "ED-04",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 96000.0
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 15707.963267948966
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 96000.0
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 15707.963267948966
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 1
+  },
+  {
+   "attempt": 2,
+   "case": "ED-04",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 15,
+       "faces": 7,
+       "solids": 1,
+       "volume": 92858.40734641021
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 15707.963267948966
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 15,
+       "faces": 7,
+       "solids": 1,
+       "volume": 92858.40734641021
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 15707.963267948966
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 2
+  },
+  {
+   "attempt": 3,
+   "case": "ED-04",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 96000.0
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 96000.0
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 3,
+   "case": "ED-04",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 96000.0
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 15707.963267948966
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 96000.0
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 15707.963267948966
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 1
+  },
+  {
+   "attempt": 3,
+   "case": "ED-04",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 15,
+       "faces": 7,
+       "solids": 1,
+       "volume": 92858.40734641021
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 15707.963267948966
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 15,
+       "faces": 7,
+       "solids": 1,
+       "volume": 92858.40734641021
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 15707.963267948966
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 2
+  },
+  {
+   "attempt": 4,
+   "case": "ED-04",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 96000.0
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 96000.0
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 4,
+   "case": "ED-04",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 96000.0
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 15707.963267948966
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 96000.0
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 15707.963267948966
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 1
+  },
+  {
+   "attempt": 4,
+   "case": "ED-04",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 15,
+       "faces": 7,
+       "solids": 1,
+       "volume": 92858.40734641021
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 15707.963267948966
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 15,
+       "faces": 7,
+       "solids": 1,
+       "volume": 92858.40734641021
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 15707.963267948966
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 2
+  },
+  {
+   "attempt": 5,
+   "case": "ED-04",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 96000.0
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 96000.0
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 5,
+   "case": "ED-04",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 96000.0
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 15707.963267948966
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 96000.0
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 15707.963267948966
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 1
+  },
+  {
+   "attempt": 5,
+   "case": "ED-04",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 15,
+       "faces": 7,
+       "solids": 1,
+       "volume": 92858.40734641021
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 15707.963267948966
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 15,
+       "faces": 7,
+       "solids": 1,
+       "volume": 92858.40734641021
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 15707.963267948966
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 2
+  },
+  {
+   "attempt": 6,
+   "case": "ED-04",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 96000.0
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 96000.0
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 6,
+   "case": "ED-04",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 96000.0
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 15707.963267948966
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 96000.0
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 15707.963267948966
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 1
+  },
+  {
+   "attempt": 6,
+   "case": "ED-04",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 15,
+       "faces": 7,
+       "solids": 1,
+       "volume": 92858.40734641021
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 15707.963267948966
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 15,
+       "faces": 7,
+       "solids": 1,
+       "volume": 92858.40734641021
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 15707.963267948966
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 2
+  },
+  {
+   "attempt": 7,
+   "case": "ED-04",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 96000.0
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 96000.0
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 9424.77796076938
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 7,
+   "case": "ED-04",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 96000.0
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 15707.963267948966
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 96000.0
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 15707.963267948966
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 1
+  },
+  {
+   "attempt": 7,
+   "case": "ED-04",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 15,
+       "faces": 7,
+       "solids": 1,
+       "volume": 92858.40734641021
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 15707.963267948966
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 15,
+       "faces": 7,
+       "solids": 1,
+       "volume": 92858.40734641021
+      },
+      "pin": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 15707.963267948966
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 2
+  },
+  {
+   "attempt": 0,
+   "case": "CR-06",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cyl1": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "cyl2": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      }
+     },
+     "declared": [
+      "plate",
+      "cyl1",
+      "cyl2"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cyl1": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "cyl2": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      }
+     },
+     "declared": [
+      "plate",
+      "cyl1",
+      "cyl2"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 1,
+   "case": "CR-06",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cyl_10": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      },
+      "cyl_16": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      }
+     },
+     "declared": [
+      "plate",
+      "cyl_16",
+      "cyl_10"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cyl_10": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      },
+      "cyl_16": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      }
+     },
+     "declared": [
+      "plate",
+      "cyl_16",
+      "cyl_10"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 3,
+   "case": "CR-06",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cyl_10": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      },
+      "cyl_16": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      }
+     },
+     "declared": [
+      "plate",
+      "cyl_16",
+      "cyl_10"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cyl_10": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      },
+      "cyl_16": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      }
+     },
+     "declared": [
+      "plate",
+      "cyl_16",
+      "cyl_10"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 4,
+   "case": "CR-06",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cyl1": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "cyl2": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      }
+     },
+     "declared": [
+      "plate",
+      "cyl1",
+      "cyl2"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cyl1": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "cyl2": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      }
+     },
+     "declared": [
+      "plate",
+      "cyl1",
+      "cyl2"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 5,
+   "case": "CR-06",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      },
+      "short_cyl": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "tall_cyl": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      }
+     },
+     "declared": [
+      "plate",
+      "short_cyl",
+      "tall_cyl"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      },
+      "short_cyl": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "tall_cyl": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      }
+     },
+     "declared": [
+      "plate",
+      "short_cyl",
+      "tall_cyl"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 6,
+   "case": "CR-06",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cyl_10": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      },
+      "cyl_16": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      }
+     },
+     "declared": [
+      "plate",
+      "cyl_16",
+      "cyl_10"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cyl_10": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      },
+      "cyl_16": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      }
+     },
+     "declared": [
+      "plate",
+      "cyl_16",
+      "cyl_10"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 7,
+   "case": "CR-06",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cyl1": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "cyl2": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      }
+     },
+     "declared": [
+      "plate",
+      "cyl1",
+      "cyl2"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cyl1": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "cyl2": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      }
+     },
+     "declared": [
+      "plate",
+      "cyl1",
+      "cyl2"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 9,
+   "case": "CR-06",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cylinder_10": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      },
+      "cylinder_16": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      }
+     },
+     "declared": [
+      "plate",
+      "cylinder_16",
+      "cylinder_10"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cylinder_10": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      },
+      "cylinder_16": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      }
+     },
+     "declared": [
+      "plate",
+      "cylinder_16",
+      "cylinder_10"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 10,
+   "case": "CR-06",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      },
+      "short_cyl": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "tall_cyl": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      }
+     },
+     "declared": [
+      "plate",
+      "short_cyl",
+      "tall_cyl"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      },
+      "short_cyl": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "tall_cyl": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      }
+     },
+     "declared": [
+      "plate",
+      "short_cyl",
+      "tall_cyl"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 11,
+   "case": "CR-06",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "long_cyl": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      },
+      "short_cyl": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      }
+     },
+     "declared": [
+      "plate",
+      "short_cyl",
+      "long_cyl"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "long_cyl": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      },
+      "short_cyl": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      }
+     },
+     "declared": [
+      "plate",
+      "short_cyl",
+      "long_cyl"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 12,
+   "case": "CR-06",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cyl_medium": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "cyl_tall": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      }
+     },
+     "declared": [
+      "plate",
+      "cyl_medium",
+      "cyl_tall"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cyl_medium": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "cyl_tall": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      }
+     },
+     "declared": [
+      "plate",
+      "cyl_medium",
+      "cyl_tall"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 13,
+   "case": "CR-06",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      },
+      "short_cyl": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "tall_cyl": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      }
+     },
+     "declared": [
+      "plate",
+      "short_cyl",
+      "tall_cyl"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      },
+      "short_cyl": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "tall_cyl": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      }
+     },
+     "declared": [
+      "plate",
+      "short_cyl",
+      "tall_cyl"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 14,
+   "case": "CR-06",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      },
+      "short_cyl": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "tall_cyl": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      }
+     },
+     "declared": [
+      "plate",
+      "short_cyl",
+      "tall_cyl"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      },
+      "short_cyl": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "tall_cyl": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      }
+     },
+     "declared": [
+      "plate",
+      "short_cyl",
+      "tall_cyl"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 15,
+   "case": "CR-06",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cylinder1": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "cylinder2": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      }
+     },
+     "declared": [
+      "plate",
+      "cylinder1",
+      "cylinder2"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cylinder1": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "cylinder2": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      }
+     },
+     "declared": [
+      "plate",
+      "cylinder1",
+      "cylinder2"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 16,
+   "case": "CR-06",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      },
+      "short_cyl": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "tall_cyl": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      }
+     },
+     "declared": [
+      "plate",
+      "short_cyl",
+      "tall_cyl"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      },
+      "short_cyl": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "tall_cyl": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      }
+     },
+     "declared": [
+      "plate",
+      "short_cyl",
+      "tall_cyl"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 17,
+   "case": "CR-06",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cyl1": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "cyl2": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      }
+     },
+     "declared": [
+      "plate",
+      "cyl1",
+      "cyl2"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cyl1": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "cyl2": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      }
+     },
+     "declared": [
+      "plate",
+      "cyl1",
+      "cyl2"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 18,
+   "case": "CR-06",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cylinder1": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "cylinder2": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      }
+     },
+     "declared": [
+      "plate",
+      "cylinder1",
+      "cylinder2"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cylinder1": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "cylinder2": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      }
+     },
+     "declared": [
+      "plate",
+      "cylinder1",
+      "cylinder2"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 20,
+   "case": "CR-06",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cyl_large": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "cyl_small": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      }
+     },
+     "declared": [
+      "plate",
+      "cyl_large",
+      "cyl_small"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cyl_large": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "cyl_small": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      }
+     },
+     "declared": [
+      "plate",
+      "cyl_large",
+      "cyl_small"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 21,
+   "case": "CR-06",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "medium_cyl": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      },
+      "tall_cyl": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      }
+     },
+     "declared": [
+      "plate",
+      "medium_cyl",
+      "tall_cyl"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "medium_cyl": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      },
+      "tall_cyl": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      }
+     },
+     "declared": [
+      "plate",
+      "medium_cyl",
+      "tall_cyl"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 22,
+   "case": "CR-06",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cylinder_1": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "cylinder_2": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      }
+     },
+     "declared": [
+      "plate",
+      "cylinder_1",
+      "cylinder_2"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cylinder_1": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "cylinder_2": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      }
+     },
+     "declared": [
+      "plate",
+      "cylinder_1",
+      "cylinder_2"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 23,
+   "case": "CR-06",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cylinder_10": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      },
+      "cylinder_16": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      }
+     },
+     "declared": [
+      "plate",
+      "cylinder_16",
+      "cylinder_10"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cylinder_10": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 3141.5926535897934
+      },
+      "cylinder_16": {
+       "edges": 3,
+       "faces": 3,
+       "solids": 1,
+       "volume": 4021.238596594934
+      },
+      "plate": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 19200.0
+      }
+     },
+     "declared": [
+      "plate",
+      "cylinder_16",
+      "cylinder_10"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 1,
+   "case": "ED-02",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 6,
+       "faces": 4,
+       "solids": 1,
+       "volume": 8576.547944300135
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 6,
+       "faces": 4,
+       "solids": 1,
+       "volume": 8576.547944300135
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 2,
+   "case": "ED-02",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 6,
+       "faces": 4,
+       "solids": 1,
+       "volume": 8576.547944300135
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 6,
+       "faces": 4,
+       "solids": 1,
+       "volume": 8576.547944300135
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 6,
+   "case": "ED-02",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 6,
+       "faces": 4,
+       "solids": 1,
+       "volume": 8576.547944300135
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 6,
+       "faces": 4,
+       "solids": 1,
+       "volume": 8576.547944300135
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 7,
+   "case": "ED-02",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 6,
+       "faces": 4,
+       "solids": 1,
+       "volume": 8576.547944300135
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 6,
+       "faces": 4,
+       "solids": 1,
+       "volume": 8576.547944300135
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 8,
+   "case": "ED-02",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 6,
+       "faces": 4,
+       "solids": 1,
+       "volume": 8576.547944300135
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 6,
+       "faces": 4,
+       "solids": 1,
+       "volume": 8576.547944300135
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 9,
+   "case": "ED-02",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 6,
+       "faces": 4,
+       "solids": 1,
+       "volume": 8576.547944300135
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 6,
+       "faces": 4,
+       "solids": 1,
+       "volume": 8576.547944300135
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 10,
+   "case": "ED-02",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 6,
+       "faces": 4,
+       "solids": 1,
+       "volume": 8576.547944300135
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 6,
+       "faces": 4,
+       "solids": 1,
+       "volume": 8576.547944300135
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 11,
+   "case": "ED-02",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 6,
+       "faces": 4,
+       "solids": 1,
+       "volume": 8576.547944300135
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 6,
+       "faces": 4,
+       "solids": 1,
+       "volume": 8576.547944300135
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 12,
+   "case": "ED-02",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 6,
+       "faces": 4,
+       "solids": 1,
+       "volume": 8576.547944300135
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 6,
+       "faces": 4,
+       "solids": 1,
+       "volume": 8576.547944300135
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 13,
+   "case": "ED-02",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 6,
+       "faces": 4,
+       "solids": 1,
+       "volume": 8576.547944300135
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 6,
+       "faces": 4,
+       "solids": 1,
+       "volume": 8576.547944300135
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 15,
+   "case": "ED-02",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 6,
+       "faces": 4,
+       "solids": 1,
+       "volume": 8576.547944300135
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 6,
+       "faces": 4,
+       "solids": 1,
+       "volume": 8576.547944300135
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 16,
+   "case": "ED-02",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 6,
+       "faces": 4,
+       "solids": 1,
+       "volume": 8576.547944300135
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 6,
+       "faces": 4,
+       "solids": 1,
+       "volume": 8576.547944300135
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 17,
+   "case": "ED-02",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 6,
+       "faces": 4,
+       "solids": 1,
+       "volume": 8576.547944300135
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 6,
+       "faces": 4,
+       "solids": 1,
+       "volume": 8576.547944300135
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 20,
+   "case": "ED-02",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 6,
+       "faces": 4,
+       "solids": 1,
+       "volume": 8576.547944300135
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 6,
+       "faces": 4,
+       "solids": 1,
+       "volume": 8576.547944300135
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  },
+  {
+   "attempt": 21,
+   "case": "ED-02",
+   "engines": {
+    "cadquery": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 6,
+       "faces": 4,
+       "solids": 1,
+       "volume": 8576.547944300135
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    },
+    "freecad": {
+     "bodies": {
+      "cube": {
+       "edges": 12,
+       "faces": 6,
+       "solids": 1,
+       "volume": 63999.999999999985
+      },
+      "pin": {
+       "edges": 6,
+       "faces": 4,
+       "solids": 1,
+       "volume": 8576.547944300135
+      }
+     },
+     "declared": [
+      "cube",
+      "pin"
+     ],
+     "matches_closed_form": true,
+     "ok": true
+    }
+   },
+   "engines_agree": true,
+   "turn": 0
+  }
+ ]
+}
