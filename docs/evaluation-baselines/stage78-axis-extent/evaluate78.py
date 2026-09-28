@@ -333,8 +333,26 @@ def classify(seen: Mapping[str, Any], graded: Mapping[str, Any],
 
 
 def score_turn(case_name: str, raw_text: Optional[str],
-               stage77_strict: bool) -> Dict[str, Any]:
-    """One turn, observed, graded and classified. Never raises."""
+               stage77_strict: bool, *, label: Optional[str] = None
+               ) -> Dict[str, Any]:
+    """One turn, observed, graded and classified. Never raises.
+
+    `label` is Stage 64's outcome label. A turn the PROVIDER never answered
+    is **UNMEASURED**, not failed: it carries no information about the model
+    and must stay out of every denominator. This is the project's oldest
+    standing rule -- "do not conflate provider reliability with model
+    quality" -- and the first draft of this function broke it, scoring 96 to
+    128 rate-limited calls per arm as `X4:no_feature_written`. At 768 calls
+    the provider rate-limited hard, and a confirmation run graded that way
+    would have reported a number about the rate limiter.
+    """
+    if label == "PROVIDER_ERROR" or (label is None and not raw_text):
+        return {
+            "case": case_name, "observation": {"case": case_name},
+            "checks": {}, "axis_ok": None, "stage78_strict": None,
+            "stage77_strict": None, "codes": [], "measured": False,
+            "label": label or "PROVIDER_ERROR",
+        }
     seen = OBSERVERS[case_name](raw_text)
     graded = GRADERS[case_name](seen)
     codes = classify(seen, graded, stage77_strict)
@@ -347,6 +365,8 @@ def score_turn(case_name: str, raw_text: Optional[str],
         "stage78_strict": bool(stage77_strict and graded["axis_ok"]),
         "stage77_strict": bool(stage77_strict),
         "codes": list(codes),
+        "measured": True,
+        "label": label or "MODEL_GENERATED",
     }
 
 
@@ -356,7 +376,12 @@ def summarise(rows: Sequence[Mapping[str, Any]]) -> Dict[str, Any]:
     for row in rows:
         entry = per_case.setdefault(row["case"], {
             "calls": 0, "stage78_strict": 0, "axis_ok": 0,
-            "stage77_strict": 0, "codes": {}})
+            "stage77_strict": 0, "unmeasured": 0, "codes": {}})
+        # A call the provider never answered is UNMEASURED. It is counted,
+        # reported, and kept OUT of the denominator -- never as a failure.
+        if not row.get("measured", True):
+            entry["unmeasured"] += 1
+            continue
         entry["calls"] += 1
         entry["stage78_strict"] += 1 if row["stage78_strict"] else 0
         entry["axis_ok"] += 1 if row["axis_ok"] else 0

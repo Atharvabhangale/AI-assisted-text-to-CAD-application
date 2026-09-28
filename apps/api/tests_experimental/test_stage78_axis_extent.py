@@ -349,6 +349,79 @@ class Cr06Tests(unittest.TestCase):
         self.assertIs(row["checks"]["three_solids"], False)
 
 
+class UnmeasuredTests(unittest.TestCase):
+    """A call the provider never answered is UNMEASURED, not failed.
+
+    THE FOURTH AND WORST DEFECT THIS STAGE FOUND IN ITS OWN INSTRUMENT. The
+    768-call confirmation run lost 96 to 128 calls PER ARM to provider rate
+    limiting -- empty body, no `stop_reason` -- and the grader counted every
+    one as `X4:no_feature_written`, a model failure. The project's oldest
+    standing rule is that provider reliability is not model quality and a
+    rate-limited call must stay out of every denominator. Graded the wrong
+    way the confirmation would have reported a number about the rate
+    limiter and called it a result.
+    """
+
+    def test_a_provider_error_is_not_a_failure(self) -> None:
+        row = E78.score_turn("ED-02", None, False, label="PROVIDER_ERROR")
+        self.assertFalse(row["measured"])
+        self.assertIsNone(row["stage78_strict"])
+        self.assertIsNone(row["axis_ok"])
+        self.assertEqual(row["codes"], [])
+
+    def test_an_empty_body_with_no_label_is_also_unmeasured(self) -> None:
+        for raw in (None, ""):
+            row = E78.score_turn("ED-02", raw, False)
+            self.assertFalse(row["measured"], repr(raw))
+
+    def test_unmeasured_calls_are_out_of_the_denominator(self) -> None:
+        rows = [E78.score_turn("ED-02", ed02_correct(), True),
+                E78.score_turn("ED-02", None, False, label="PROVIDER_ERROR"),
+                E78.score_turn("ED-02", None, False, label="PROVIDER_ERROR")]
+        entry = E78.summarise(rows)["per_case"]["ED-02"]
+        self.assertEqual(entry["calls"], 1)
+        self.assertEqual(entry["stage78_strict"], 1)
+        self.assertEqual(entry["unmeasured"], 2)
+        self.assertEqual(entry["rate"], 1.0,
+                         "two rate-limited calls must not make this 1/3")
+
+    def test_a_real_model_answer_is_still_measured(self) -> None:
+        """The exclusion must not swallow a genuine wrong answer: a model
+        that DID reply with a bad plan is measured and it fails."""
+        row = E78.score_turn("ED-02",
+                             plan([CUBE, pin(), bore(x=110.0), *DECLS]),
+                             False, label="MODEL_GENERATED")
+        self.assertTrue(row["measured"])
+        self.assertFalse(row["stage78_strict"])
+        self.assertIn(E78.AXIS_AT_MAX_EXTENT, row["codes"])
+
+    def test_the_rule_floor_is_on_measured_calls(self) -> None:
+        """80 measured out of 128 sent does not meet a floor of 128. The
+        rule TEXT always said so; the first implementation checked the
+        exploratory minimum instead and returned ADOPT on 64 calls."""
+        thin = R78.assess_case("ED-02", 80, 80, 49, 80, 0, 31,
+                               required_n=R78.MIN_CONFIRMATION_CALLS_PER_CASE)
+        self.assertFalse(thin["enough_n"])
+        out = R78.verdict([thin], is_confirmation=True)
+        self.assertEqual(out["verdict"], R78.INCONCLUSIVE)
+        self.assertTrue(any("below the pre-registered minimum" in r
+                            for r in out["reasons"]))
+
+    def test_an_underpowered_run_is_inconclusive_not_rejected(self) -> None:
+        """A candidate that was never given the specified test has not been
+        rejected by it. Recording REJECT there would say it was measured
+        and failed when it was not measured."""
+        thin = R78.assess_case("ED-02", 80, 80, 49, 80, 0, 31,
+                               required_n=128)
+        self.assertEqual(R78.verdict([thin], is_confirmation=True)["verdict"],
+                         R78.INCONCLUSIVE)
+        # but a genuine regression is still a REJECT, not an excuse
+        bad = R78.assess_case("ED-02", 10, 128, 49, 128, 30, 31,
+                              required_n=128)
+        self.assertEqual(R78.verdict([bad], is_confirmation=True)["verdict"],
+                         R78.REJECT)
+
+
 class LayeringTests(unittest.TestCase):
     """Stage 78 is strictly stronger than Stage 77, never weaker."""
 

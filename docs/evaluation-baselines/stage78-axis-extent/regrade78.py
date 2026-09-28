@@ -57,7 +57,7 @@ def regrade() -> Dict[str, Any]:
             continue
         for turn in attempt["turns"]:
             raw = (turn["observation"] or {}).get("raw_text")
-            row = E78.score_turn(case, raw, turn_passed_stage77(turn))
+            row = E78.score_turn(case, raw, turn_passed_stage77(turn), label=turn.get("label"))
             row["attempt"] = attempt["attempt"]
             row["turn"] = turn["turn"]
             row["stage77_codes"] = list(turn["codes"])

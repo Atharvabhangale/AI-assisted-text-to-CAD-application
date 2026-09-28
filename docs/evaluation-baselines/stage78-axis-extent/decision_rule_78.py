@@ -190,6 +190,7 @@ def assess_case(
     candidate_pass: int, candidate_n: int,
     baseline_pass: int, baseline_n: int,
     candidate_mechanism: int, baseline_mechanism: int,
+    *, required_n: Optional[int] = None,
 ) -> Dict[str, object]:
     """Apply the rule to ONE case. Reports, it does not decide alone."""
     cand_rate = candidate_pass / candidate_n if candidate_n else 0.0
@@ -215,8 +216,16 @@ def assess_case(
         "mechanism_candidate": candidate_mechanism,
         "mechanism_baseline": baseline_mechanism,
         "mechanism_drop": mechanism_drop,
-        "enough_n": (candidate_n >= MIN_EXPLORATORY_CALLS_PER_CASE
-                     and baseline_n >= MIN_EXPLORATORY_CALLS_PER_CASE),
+        #: The floor is on MEASURED calls, and at CONFIRMATION it is 128,
+        #: not 32. The first implementation of this rule hardcoded the
+        #: exploratory minimum here, so a confirmation run that lost half
+        #: its calls to a provider rate limit reported ADOPT on 64 measured
+        #: calls. The rule TEXT always said 128; only the code disagreed.
+        "required_n": required_n or MIN_EXPLORATORY_CALLS_PER_CASE,
+        "enough_n": (candidate_n >= (required_n
+                                     or MIN_EXPLORATORY_CALLS_PER_CASE)
+                     and baseline_n >= (required_n
+                                        or MIN_EXPLORATORY_CALLS_PER_CASE)),
         "improved_enough": improvement >= MIN_ABSOLUTE_IMPROVEMENT,
         "significant": p < SIGNIFICANCE_ALPHA,
         "mechanism_fell_enough": mechanism_drop >= MIN_MECHANISM_REDUCTION,
@@ -256,14 +265,22 @@ def verdict(
             "no case met improvement >= "
             f"{MIN_ABSOLUTE_IMPROVEMENT:.3f} with p < {SIGNIFICANCE_ALPHA} "
             "and the mechanism at least halved")
-    if not all(c["enough_n"] for c in per_case):
-        reasons.append("sample below the pre-registered minimum")
+    thin = [c for c in per_case if not c["enough_n"]]
+    if thin:
+        reasons.append(
+            "sample below the pre-registered minimum: "
+            + ", ".join(f"{c['case']} {c['candidate']} "
+                        f"(needs {c['required_n']} measured)" for c in thin))
 
     if reasons:
-        # A candidate that only fails the freshness requirement is not
-        # rejected -- it is unfinished, and saying so keeps an exploratory
-        # win from being written up as a result.
-        return {"verdict": REJECT, "reasons": reasons,
+        # An under-powered sample is UNFINISHED, not a rejection: the
+        # candidate has not been given the test the rule specifies. Saying
+        # REJECT there would record a candidate as measured-and-failed when
+        # it was never properly measured.
+        only_thin = bool(thin) and all(
+            r.startswith("sample below") for r in reasons)
+        return {"verdict": INCONCLUSIVE if only_thin else REJECT,
+                "reasons": reasons,
                 "carried": [str(c["case"]) for c in carried]}
     if not is_confirmation:
         return {"verdict": INCONCLUSIVE,

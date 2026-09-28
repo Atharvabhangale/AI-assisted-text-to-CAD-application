@@ -35,6 +35,7 @@ import contextlib
 import json
 import pathlib
 import sys
+import time
 from typing import Any, Dict, Iterator, List, Optional
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -140,7 +141,7 @@ def _score_stage78(record: Dict[str, Any]) -> Dict[str, Any]:
         for turn in attempt["turns"]:
             raw = (turn.get("observation") or {}).get("raw_text")
             passed77 = not any(c in G77.FAILURE_CODES for c in turn["codes"])
-            row = E78.score_turn(case, raw, passed77)
+            row = E78.score_turn(case, raw, passed77, label=turn.get("label"))
             row["attempt"] = attempt["attempt"]
             row["turn"] = turn["turn"]
             row["stage77_codes"] = list(turn["codes"])
@@ -191,6 +192,12 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument("--calls", type=int, default=32,
                         help="live calls per case per arm")
     parser.add_argument("--cases", default=",".join(G78.CASES))
+    parser.add_argument("--pace", type=float, default=0.0,
+                        help="seconds to sleep after each arm's batch. The "
+                             "768-call confirmation lost 96-128 calls per "
+                             "arm to provider rate limiting at pace 0; a "
+                             "rate-limited call is UNMEASURED, not a "
+                             "failure, but it still costs the sample.")
     parser.add_argument("--batch", type=int, default=8,
                         help="calls per case per arm per round; arms are "
                              "interleaved round by round")
@@ -295,6 +302,8 @@ def main(argv: Optional[List[str]] = None) -> int:
                 records[arm]["stage78"] = _score_stage78(records[arm])
             records[arm]["rounds"] = index + 1
             records[arm]["interleaved"] = True
+            if args.pace:
+                time.sleep(args.pace)
     for arm in arms:
         _print_summary(records[arm])
 

@@ -40,37 +40,49 @@ def regrade(record: Dict[str, Any]) -> List[Dict[str, Any]]:
         for turn in attempt["turns"]:
             raw = (turn.get("observation") or {}).get("raw_text")
             passed77 = not any(c in G77.FAILURE_CODES for c in turn["codes"])
-            row = E78.score_turn(case, raw, passed77)
+            row = E78.score_turn(case, raw, passed77, label=turn.get("label"))
             row["attempt"] = attempt["attempt"]
             rows.append(row)
     return rows
 
 
 def counts(rows: List[Dict[str, Any]], case: str):
-    subset = [r for r in rows if r["case"] == case]
+    """Measured calls only. A call the provider never answered carries no
+    information about the model and stays out of the denominator."""
+    subset = [r for r in rows if r["case"] == case and r.get("measured", True)]
+    unmeasured = sum(1 for r in rows
+                     if r["case"] == case and not r.get("measured", True))
     passed = sum(1 for r in subset if r["stage78_strict"])
     mechanism = sum(1 for r in subset
                     if any(c in MECHANISM_CODES for c in r["codes"]))
-    return passed, len(subset), mechanism
+    return passed, len(subset), mechanism, unmeasured
 
 
 def main(argv: List[str]) -> int:
     if not argv:
         print(__doc__)
         return 2
-    path = pathlib.Path(argv[0])
+    paths = [pathlib.Path(a) for a in argv if not a.startswith("--")]
     is_confirmation = "--confirmation" in argv
-    payload = json.loads(path.read_text())
-    records = payload["records"]
 
-    graded = {arm: regrade(rec) for arm, rec in records.items()}
+    # POOLING. Several runs of the SAME arms under the same prompt, model
+    # and encoding are one sample. Each run carries its own interleaved
+    # baseline, so pooling does not mix a candidate from one session with a
+    # baseline from another -- the same-session control holds inside every
+    # part and therefore across the pool.
+    graded: Dict[str, List[Dict[str, Any]]] = {}
+    for path in paths:
+        payload = json.loads(path.read_text())
+        for arm, rec in payload["records"].items():
+            graded.setdefault(arm, []).extend(regrade(rec))
     baseline = graded.get("S0-baseline")
     if baseline is None:
         print("no same-session baseline arm in this run; the rule requires "
               "one and refuses to score without it.")
         return 2
 
-    print(f"{path.name}  ({'CONFIRMATION' if is_confirmation else 'exploratory'})")
+    print(f"{', '.join(p.name for p in paths)}  "
+          f"({'CONFIRMATION' if is_confirmation else 'exploratory'})")
     print(f"same-session baseline: S0-baseline, interleaved\n")
     print(f"{'arm':<24} {'case':<7} {'strict':>9} {'rate':>7} "
           f"{'mech':>5} {'improve':>8} {'p':>10}  verdict")
@@ -81,9 +93,11 @@ def main(argv: List[str]) -> int:
             continue
         assessments = []
         for case in G78.CASES:
-            cp, cn, cm = counts(rows, case)
-            bp, bn, bm = counts(baseline, case)
-            a = R.assess_case(case, cp, cn, bp, bn, cm, bm)
+            cp, cn, cm, cu = counts(rows, case)
+            bp, bn, bm, bu = counts(baseline, case)
+            need = (R.MIN_CONFIRMATION_CALLS_PER_CASE if is_confirmation
+                    else R.MIN_EXPLORATORY_CALLS_PER_CASE)
+            a = R.assess_case(case, cp, cn, bp, bn, cm, bm, required_n=need)
             assessments.append(a)
             flags = []
             if a["improved_enough"]:
@@ -94,6 +108,8 @@ def main(argv: List[str]) -> int:
                 flags.append("mechanism halved")
             if a["regressed"]:
                 flags.append("REGRESSED")
+            if cu:
+                flags.append(f"{cu} UNMEASURED")
             print(f"{arm:<24} {case:<7} {cp:>4}/{cn:<4} {cp/cn:>7.3f} "
                   f"{cm:>5} {a['improvement']:>+8.3f} {a['p']:>10.4g}  "
                   f"{', '.join(flags) or '-'}")
@@ -101,9 +117,25 @@ def main(argv: List[str]) -> int:
 
     print(f"\nbaseline, for reference:")
     for case in G78.CASES:
-        bp, bn, bm = counts(baseline, case)
+        bp, bn, bm, bu = counts(baseline, case)
         print(f"{'S0-baseline':<24} {case:<7} {bp:>4}/{bn:<4} {bp/bn:>7.3f} "
-              f"{bm:>5}")
+              f"{bm:>5}" + (f"   {bu} UNMEASURED" if bu else ""))
+
+    # The pre-registered n is a floor on MEASURED calls. A run that lost
+    # half its calls to the provider has not met it, however many were sent.
+    short = []
+    for arm, assessments in per_arm.items():
+        for a in assessments:
+            need = (R.MIN_CONFIRMATION_CALLS_PER_CASE if is_confirmation
+                    else R.MIN_EXPLORATORY_CALLS_PER_CASE)
+            got = int(str(a["candidate"]).split("/")[1])
+            if got < need:
+                short.append(f"{arm}/{a['case']}: {got} measured, "
+                             f"rule requires {need}")
+    if short:
+        print("\nSAMPLE SHORT OF THE PRE-REGISTERED MINIMUM:")
+        for line in short:
+            print(f"  {line}")
 
     print("\nverdict under the pre-registered rule:")
     for arm, assessments in per_arm.items():

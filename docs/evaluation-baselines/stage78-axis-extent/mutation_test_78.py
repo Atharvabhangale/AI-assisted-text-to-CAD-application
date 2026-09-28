@@ -64,6 +64,22 @@ MUTANTS = [
      '            if not overlaps(cylinder, other):\n                continue',
      '            if False:\n                continue'),
 
+    ("provider_error_counts_as_a_failure", EVAL,
+     '    if label == "PROVIDER_ERROR" or (label is None and not raw_text):',
+     '    if False:'),
+    ("unmeasured_calls_stay_in_the_denominator", EVAL,
+     '        if not row.get("measured", True):\n'
+     '            entry["unmeasured"] += 1\n            continue',
+     '        if False:\n'
+     '            entry["unmeasured"] += 1\n            continue'),
+    ("the_floor_is_the_exploratory_one", RULE,
+     '        "enough_n": (candidate_n >= (required_n\n'
+     '                                     or MIN_EXPLORATORY_CALLS_PER_CASE)\n'
+     '                     and baseline_n >= (required_n\n'
+     '                                        or MIN_EXPLORATORY_CALLS_PER_CASE)),',
+     '        "enough_n": (candidate_n >= MIN_EXPLORATORY_CALLS_PER_CASE\n'
+     '                     and baseline_n >= MIN_EXPLORATORY_CALLS_PER_CASE),'),
+
     # --- the axis/extent distinction itself -----------------------------
     ("min_extent_counts_as_the_axis", TRUTH,
      '    if close(observed, axis):\n        return AT_AXIS',
