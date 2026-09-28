@@ -83,6 +83,11 @@ MUTANTS = [
      '        "bore_x_on_axis": seen["bore_x_is"] == G78.AT_AXIS,',
      '        "bore_x_on_axis": True,'),
 
+    ("omitted_axis_is_a_wrong_direction", EVAL,
+     '        "bore_axis": (((bore or {}).get("parameters") or {}).get("axis")\n'
+     '                      or (DEFAULT_AXIS if bore is not None else None)),',
+     '        "bore_axis": ((bore or {}).get("parameters") or {}).get("axis"),'),
+
     # --- the other ED-02 criteria ----------------------------------------
     ("body_may_move_instead", EVAL,
      '        checks["body_did_not_move"] = all(',

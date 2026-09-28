@@ -242,6 +242,34 @@ class Ed02Tests(unittest.TestCase):
                              False)
         self.assertIn(E78.WRONG_TARGET, row["codes"])
 
+    def test_an_omitted_axis_is_the_default_not_a_wrong_direction(self) -> None:
+        """THE THIRD DEFECT THIS STAGE FOUND IN ITS OWN INSTRUMENT.
+
+        `axis` is optional and the prompt states the default: "Omit it when
+        the description does not say; the default is +Z." The first grader
+        read an omitted axis as a wrong direction and scored two PERFECT
+        ED-02 answers -- bored at x=100, y=20, the pin's own axis -- as
+        `X5:wrong_direction`, in the arm it was about to recommend.
+        """
+        operations = [CUBE, pin(),
+                      {"id": "hole_z", "type": "through_hole", "target": "pin",
+                       "parameters": {"diameter": 6.0,
+                                      "position": {"x": 100.0, "y": 20.0,
+                                                   "z": 0.0}}},
+                      *DECLS]
+        row = E78.score_turn("ED-02", plan(operations), True)
+        self.assertIsNone(row["observation"]["bore_axis_written"])
+        self.assertEqual(row["observation"]["bore_axis"], "+Z")
+        self.assertTrue(row["axis_ok"], row["checks"])
+        self.assertNotIn(E78.WRONG_DIRECTION, row["codes"])
+
+    def test_an_explicit_wrong_axis_is_still_named(self) -> None:
+        """The default must not swallow a real wrong direction."""
+        row = E78.score_turn("ED-02", plan([CUBE, pin(), bore(axis="+X"),
+                                            *DECLS]), False)
+        self.assertEqual(row["observation"]["bore_axis_written"], "+X")
+        self.assertIn(E78.WRONG_DIRECTION, row["codes"])
+
     def test_a_bore_along_the_wrong_direction_is_named(self) -> None:
         row = E78.score_turn("ED-02", plan([CUBE, pin(), bore(axis="+X"),
                                             *DECLS]), False)

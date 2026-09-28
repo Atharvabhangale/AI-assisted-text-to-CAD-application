@@ -36,6 +36,10 @@ from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
 import ground_truth78 as G78
 
+#: The language's own default, stated in the prompt's `## through_hole`
+#: and `## cylinder` sections: an omitted `axis` means +Z.
+DEFAULT_AXIS: str = "+Z"
+
 # ------------------------------------------------------------- reading a plan
 
 
@@ -85,7 +89,17 @@ def observe_ed02(raw_text: Optional[str]) -> Dict[str, Any]:
         "case": "ED-02",
         "found_a_bore": bore is not None,
         "bore_target": (bore or {}).get("target"),
-        "bore_axis": ((bore or {}).get("parameters") or {}).get("axis"),
+        #: The `axis` field is OPTIONAL and the prompt states its default:
+        #: "Omit it when the description does not say; the default is +Z."
+        #: An omitted axis is therefore a +Z bore and is CORRECT, not a
+        #: wrong direction. Reading `None` as a failure scored two perfect
+        #: ED-02 answers -- bored at x=100, y=20, the pin's own axis -- as
+        #: `X5:wrong_direction`. That is a defect in this file, not in the
+        #: model. Both the written value and the resolved one are kept, so
+        #: a reader can see which the model actually put on the wire.
+        "bore_axis_written": ((bore or {}).get("parameters") or {}).get("axis"),
+        "bore_axis": (((bore or {}).get("parameters") or {}).get("axis")
+                      or (DEFAULT_AXIS if bore is not None else None)),
         "bore_diameter": ((bore or {}).get("parameters") or {}).get("diameter"),
         #: What the model re-stated the cylinder's own placement as. Recorded
         #: because an arm could in principle "fix" the bore by MOVING THE
