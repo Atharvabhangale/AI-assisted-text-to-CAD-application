@@ -110,13 +110,24 @@ def patched(arm: str) -> Iterator[str]:
     text = V.text_for(arm)
     original_prompt = prompt_module.system_prompt
     original_gen = gen.system_prompt
+    # `arena77.run` re-checks identity itself, and its check refuses ANY
+    # prompt drift -- correct for a baseline corpus, and exactly wrong for
+    # an experiment whose one variable is the prompt. The arm-aware check
+    # is SUBSTITUTED, not removed: model, provider, encoding name and
+    # encoding fingerprint are all still refused if they move, and
+    # `baseline_prompt_is_unmoved` has already asserted that the COMMITTED
+    # prompt is the one Stage 77 measured. Only the arm's own edit is let
+    # through, which is the thing being measured.
+    original_check = A77.check_identity
     prompt_module.system_prompt = lambda: text
     gen.system_prompt = lambda: text
+    A77.check_identity = check_identity_for_arm
     try:
         yield text
     finally:
         prompt_module.system_prompt = original_prompt
         gen.system_prompt = original_gen
+        A77.check_identity = original_check
 
 
 def _score_stage78(record: Dict[str, Any]) -> Dict[str, Any]:
@@ -180,6 +191,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument("--calls", type=int, default=32,
                         help="live calls per case per arm")
     parser.add_argument("--cases", default=",".join(G78.CASES))
+    parser.add_argument("--batch", type=int, default=8,
+                        help="calls per case per arm per round; arms are "
+                             "interleaved round by round")
     parser.add_argument("--out", default=None)
     parser.add_argument("--check", action="store_true",
                         help="offline: print identity and the arms, call "
@@ -254,9 +268,34 @@ def main(argv: Optional[List[str]] = None) -> int:
     print(f"{len(cases)} case(s) x {args.calls} calls x {len(arms)} arm(s) = "
           f"{len(cases) * args.calls * len(arms)} live calls")
 
+    # INTERLEAVED, in rounds, not one arm then the next. Every arm gets a
+    # batch, then every arm gets the next batch, so a drift in the provider
+    # part-way through the session lands on all arms alike instead of on
+    # whichever happened to run last. The fresh baseline for this stage came
+    # back 0.219 below its Stage 77 number on the SAME prompt, which is the
+    # size of swing this ordering exists to keep out of an arm's column.
+    batch = max(1, min(args.batch, args.calls))
+    rounds = [batch] * (args.calls // batch)
+    if args.calls % batch:
+        rounds.append(args.calls % batch)
+
     records: Dict[str, Any] = {}
+    for index, size in enumerate(rounds):
+        for arm in arms:
+            print(f"  round {index + 1}/{len(rounds)}  arm {arm}  "
+                  f"{size} call(s) per case")
+            part = run_arm(arm, cases, size)
+            if arm not in records:
+                records[arm] = part
+            else:
+                offset = len(records[arm]["attempts"])
+                for attempt in part["attempts"]:
+                    attempt["attempt"] += offset
+                records[arm]["attempts"].extend(part["attempts"])
+                records[arm]["stage78"] = _score_stage78(records[arm])
+            records[arm]["rounds"] = index + 1
+            records[arm]["interleaved"] = True
     for arm in arms:
-        records[arm] = run_arm(arm, cases, args.calls)
         _print_summary(records[arm])
 
     out = pathlib.Path(args.out or (HERE / "arena78-run.json"))

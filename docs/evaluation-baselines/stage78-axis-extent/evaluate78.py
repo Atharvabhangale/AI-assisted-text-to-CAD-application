@@ -203,12 +203,14 @@ def observe_cr06(raw_text: Optional[str]) -> Dict[str, Any]:
     #: calls that were correct, and the offline re-grade caught it before any
     #: live call was spent. Sharing a coordinate is not a defect; straddling
     #: a boundary is.
-    interfering = {name for pair in interpenetrating for name in pair}
     on_a_boundary: List[Dict[str, Any]] = []
     for cylinder in cylinders:
-        if cylinder["id"] not in interfering:
-            continue
         for other in (b for b in solids if b["id"] != cylinder["id"]):
+            # The interference precondition, and the ONLY place it is
+            # applied. An earlier draft also pre-filtered the cylinders by
+            # a separate `interfering` set; the mutation sweep showed that
+            # guard was redundant with this one -- no test could tell the
+            # two apart -- so it is gone rather than left as decoration.
             if not overlaps(cylinder, other):
                 continue
             for index, letter in enumerate("xy"):
