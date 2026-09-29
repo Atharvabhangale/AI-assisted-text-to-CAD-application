@@ -1998,13 +1998,14 @@ build path.
 
 ### Where this branch stands, and what is next
 
-Stages 32–77 are complete and pushed. The subsections below are the index,
-in order; they stop at Stage 48, and **Stages 49–77 are documented only in
+Stages 32–78 are complete and pushed. The subsections below are the index,
+in order; they stop at Stage 48, and **Stages 49–78 are documented only in
 `docs/experimental-operation-plan.md`** and in the per-stage subsections
 here — read its `## Stage NN` headings for those. The most recent are:
 
 | Stage | What it settled |
 |---|---|
+| **78** | **The axis-versus-extent prompt experiment: measured, and NOT adopted.** Three arms, one variable each, inserted at one anchor with the rest of the prompt byte-identical. All three took ED-02 from 13/32 to **32/32** exploratorily, mechanism 18 → 0, p = 8.0e-08 — and the ORDER CONTROL, a pure reordering, scored identically, so unlike Stage 70 order is not load-bearing here; prose alone (+487 chars) matched the worked example (+775). Confirmation was **defeated by the provider**: 96–128 calls per arm lost to the workspace usage limit, then a paced top-up returning zero. 64–80 measured against a pre-registered floor of 128, so the rule returns INCONCLUSIVE and **the committed prompt is unchanged**. Five defects were found in the stage's own instrument before any of them could produce a published number — the worst counted 96–128 rate-limited calls per arm as model failures, and the next returned ADOPT on 64 calls because the rule's *code* checked the exploratory floor while its *text* said 128. 591 claimed successes rebuilt bit-identically on CadQuery 2.8.0 and FreeCAD 1.0.0. |
 | **56–57** | Backend parity: FreeCAD 1.0.0 runs headlessly beside CadQuery, and the two agree bit-for-bit on every golden part where both can execute. |
 | **59** | The agentic control loop. |
 | **60** | Hardening that loop on **typed** evidence — E4/E5 decided by `edge_semantics.resolve`'s own `R1`/`R2`/`R3` codes rather than by matching words in a backend's error string. Verified live on `claude-haiku-4-5-20251001`. |
@@ -2223,6 +2224,28 @@ Separate from the historical record, and none of these is a plan.
   Both are arithmetic on a body AWAY FROM THE ORIGIN. **Systematic in
   mechanism, stochastic in rate** — 34 % and 12.5 %. No prompt arm was run;
   designing one is the next milestone.
+  **Stage 78 ran that experiment and did NOT adopt** — see below. It also
+  corrects one detail of this entry: ED-02's eleven failures are *not*
+  byte-identical (six distinct SHA-256 prefixes among the raw texts). The
+  DEFECT is identical — all eleven chose x = 110 — which is the claim that
+  holds.
+- **The axis-versus-extent prompt fix is MEASURED BUT NOT CONFIRMED**
+  (Stage 78). Three arms, 256 exploratory calls, all three took ED-02 from
+  13/32 to **32/32** with the mechanism 18 → 0, p = 8.0e-08. A 768-call
+  confirmation lost 96–128 calls **per arm** to the provider's workspace
+  usage limit, and a paced 576-call top-up returned **zero** measured
+  calls (access returns 2026-10-01). On measured calls the best arm reads
+  ED-02 80/80 and CR-06 71/73 against a baseline of 49/80 and 53/80 — but
+  that is 64–80 measured against a pre-registered floor of **128**, so the
+  rule returns **INCONCLUSIVE and the prompt is UNCHANGED**. Nothing is
+  adopted, and none of those rates may be quoted as an arm's rate.
+- **The provider's own rate is not stable enough to ignore** (Stage 78).
+  The same committed prompt, re-run, put ED-02 at 14/32 where Stage 77
+  recorded 21/32. Neither that nor the later 49/80 is distinguishable from
+  sampling (p = 0.13), so no drift is claimed — but it is the size of swing
+  that could be read as an arm's effect, which is why every Stage 78 arm
+  runs INTERLEAVED with its own baseline and none is compared to a
+  historical number.
 - **Stage 75's R2 rate is a number about that CASE, not about the prompt.**
   Stage 77's RF-02 is the same shape of request on a different fixture with
   a different missing noun and scores **32/32** against R2's 34/48, same

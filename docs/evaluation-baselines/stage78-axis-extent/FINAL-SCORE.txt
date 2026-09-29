@@ -1,0 +1,25 @@
+confirm78.json  (CONFIRMATION)
+same-session baseline: S0-baseline, interleaved
+
+arm                      case       strict    rate  mech  improve          p  verdict
+S1-rule-only             ED-02     80/80     1.000     0   +0.387  2.483e-11  improved, p<0.05, mechanism halved, 48 UNMEASURED
+S1-rule-only             CR-06     71/73     0.973     2   +0.310  5.327e-07  improved, p<0.05, mechanism halved, 55 UNMEASURED
+S2-worked-example        ED-02     64/64     1.000     0   +0.387  6.224e-10  improved, p<0.05, mechanism halved, 64 UNMEASURED
+S2-worked-example        CR-06     55/64     0.859     9   +0.197   0.007083  improved, p<0.05, mechanism halved, 64 UNMEASURED
+
+baseline, for reference:
+S0-baseline              ED-02     49/80     0.613    31   48 UNMEASURED
+S0-baseline              CR-06     53/80     0.662    27   48 UNMEASURED
+
+SAMPLE SHORT OF THE PRE-REGISTERED MINIMUM:
+  S1-rule-only/ED-02: 80 measured, rule requires 128
+  S1-rule-only/CR-06: 73 measured, rule requires 128
+  S2-worked-example/ED-02: 64 measured, rule requires 128
+  S2-worked-example/CR-06: 64 measured, rule requires 128
+
+verdict under the pre-registered rule:
+  S1-rule-only             INCONCLUSIVE   carried: ED-02, CR-06
+      - sample below the pre-registered minimum: ED-02 80/80 (needs 128 measured), CR-06 71/73 (needs 128 measured)
+  S2-worked-example        INCONCLUSIVE   carried: ED-02, CR-06
+      - sample below the pre-registered minimum: ED-02 64/64 (needs 128 measured), CR-06 55/64 (needs 128 measured)
+workspace API limit reached; access returns 2026-10-01 00:00 UTC

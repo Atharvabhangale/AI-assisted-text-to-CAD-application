@@ -194,3 +194,78 @@ semantic content, and the *minimal* form carries all of it.
 All three were scored **INCONCLUSIVE** by the rule, correctly: they
 qualified on exploratory calls, and adoption requires a fresh confirmation
 sample.
+
+## Confirmation — attempted, and NOT completed
+
+768 calls were sent (3 arms × 2 cases × 128). The provider **rate-limited
+hard**: 96 to 128 calls *per arm* came back empty, with no `stop_reason`.
+A paced top-up of a further 576 calls returned **zero** measured calls, and
+a direct probe gave the reason:
+
+> `You have reached your specified workspace API usage limits. You will
+> regain access on 2026-10-01 at 00:00 UTC.`
+
+Scored on **measured calls only** — a rate-limited call is unmeasured, not
+a failure:
+
+| arm | case | strict | rate | mechanism | improvement | p |
+|---|---|---|---|---|---|---|
+| S0-baseline | ED-02 | 49/80 | 0.613 | 31 | — | — |
+| S0-baseline | CR-06 | 53/80 | 0.662 | 27 | — | — |
+| **S1-rule-only** | ED-02 | **80/80** | **1.000** | **0** | +0.387 | 2.5 × 10⁻¹¹ |
+| **S1-rule-only** | CR-06 | **71/73** | **0.973** | 2 | +0.310 | 5.3 × 10⁻⁷ |
+| S2-worked-example | ED-02 | 64/64 | 1.000 | 0 | +0.387 | 6.2 × 10⁻¹⁰ |
+| S2-worked-example | CR-06 | 55/64 | 0.859 | 9 | +0.197 | 7.1 × 10⁻³ |
+
+**Verdict: INCONCLUSIVE. The prompt is UNCHANGED.**
+
+Every arm clears the improvement threshold, clears significance, and at
+least halves the mechanism — on **64 to 80 measured calls against a
+pre-registered floor of 128**. The rule requires the floor and the floor
+was set *before* any arm text existed, precisely so that a large, pleasing
+effect could not talk its way past a thin sample. It did not.
+
+This is the rule working, not the rule failing. What is *not* claimed:
+that S1 is adopted, that the defect is fixed, or that any of these rates
+is the arm's rate.
+
+## Kernel evidence
+
+Every call recorded as a Stage 78 strict success, rebuilt from the model's
+own raw text against the closed forms — **591 successes**:
+
+| engine | matched | mismatched | failed |
+|---|---|---|---|
+| CadQuery 2.8.0 | **591** | 0 | 0 |
+| FreeCAD 1.0.0 | **591** | 0 | 0 |
+
+**Cross-kernel: 591/591 bit-identical, body for body.** Offline; no
+provider calls.
+
+## What the next session must do
+
+1. **Complete the confirmation** after 2026-10-01 00:00 UTC. Needs, in
+   *measured* calls, per arm per case: S1 ED-02 +48, CR-06 +55; S2 ED-02
+   +64, CR-06 +64; baseline +48 each. **Pace it** — `--pace 6` was still
+   too fast once the daily allowance was gone, and the allowance, not the
+   rate, is what ran out.
+2. **Do not pool exploration into confirmation.** The rule forbids it and
+   it would still fall short.
+3. **Run the regression gate** (`regression78.py`, 9 cases × 8 calls × 2
+   arms = 144 calls). It has never been run — no candidate reached the
+   point of needing it.
+4. Only then apply the rule. If it says ADOPT, adopt **S1-rule-only**: it
+   is the smallest change (+487 characters against S2's +775) and it
+   matched or beat S2 on both cases at every sample size.
+
+## The order control, and what it settled
+
+S3 is a pure reordering of S2 — a test asserts it carries exactly S2's
+words and is exactly S2's length — and at n = 32 it scored **identically**:
+32/32 and 28/32. So **order is not load-bearing here**, unlike Stage 70
+where a pure reordering regressed at p = 0.0001.
+
+Taken with S1 (prose alone, no example) matching the worked example, the
+exploratory reading is that **the semantic content is the whole of the
+effect** and the minimal form carries it. That reading rests on 32 calls
+per arm and is not confirmed.

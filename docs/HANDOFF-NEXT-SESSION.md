@@ -1,5 +1,16 @@
 # Handoff — next session
 
+> **SUPERSEDED IN PART BY STAGE 78 (2026-09-28).** This file was written at
+> the Stage 77 checkpoint. Its §6 names the axis-versus-extent experiment as
+> the next task: **that experiment has now been run and did NOT adopt.** See
+> `docs/evaluation-baselines/stage78-axis-extent/README.md` for the result
+> and for the exact remaining work, which is to complete a confirmation the
+> provider's usage limit cut short (access returns 2026-10-01 00:00 UTC).
+> Everything else below still stands, and §2's identity is unchanged: the
+> committed prompt is still `2026-09-25.1` / `f265d7d1e279e95a` / 34036
+> characters, because Stage 78 adopted nothing.
+
+
 Written at a **preservation checkpoint**, not at the end of a stage. Nothing was
 built, measured or changed to produce this file: it records the state the
 workspace was already in.
