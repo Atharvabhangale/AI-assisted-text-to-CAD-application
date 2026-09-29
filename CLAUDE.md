@@ -2239,6 +2239,8 @@ Separate from the historical record, and none of these is a plan.
   that is 64–80 measured against a pre-registered floor of **128**, so the
   rule returns **INCONCLUSIVE and the prompt is UNCHANGED**. Nothing is
   adopted, and none of those rates may be quoted as an arm's rate.
+  **Re-probed 2026-09-29 12:29 UTC: the limit had not reset**, so the
+  confirmation is still outstanding and no number here has moved.
 - **The provider's own rate is not stable enough to ignore** (Stage 78).
   The same committed prompt, re-run, put ED-02 at 14/32 where Stage 77
   recorded 21/32. Neither that nor the later 49/80 is distinguishable from

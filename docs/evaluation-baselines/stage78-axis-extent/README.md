@@ -269,3 +269,40 @@ Taken with S1 (prose alone, no example) matching the worked example, the
 exploratory reading is that **the semantic content is the whole of the
 effect** and the minimal form carries it. That reading rests on 32 calls
 per arm and is not confirmed.
+
+---
+
+## Re-verified 2026-09-29, and still INCONCLUSIVE
+
+A later session resumed here and re-ran the hard start. Nothing about the
+result changed; what follows is the record that it was checked rather than
+assumed.
+
+**The provider limit has not reset.** One minimal probe — four output
+tokens, not a corpus case, not scored — returned the same refusal:
+
+> `400 invalid_request_error: You have reached your specified workspace API
+> usage limits. You will regain access on 2026-10-01 at 00:00 UTC.`
+
+At the time of the probe (2026-09-29 12:29 UTC) that is about 35 hours
+out. **No call was substituted, simulated or reinterpreted as a measured
+call**, and the confirmation deficits in *What the next session must do*
+stand exactly as written.
+
+**The instrument still reproduces itself, offline:**
+
+| check | result |
+|---|---|
+| `regrade78.py` (the gate) | ED-02 **21/32**, CR-06 **28/32** — AGREES with Stage 77 |
+| `score78.py explore78.json` | S1/S2/S3 all ED-02 32/32, p = 8.0 × 10⁻⁸ — INCONCLUSIVE (exploratory) |
+| `score78.py confirm78.json topup78.json --confirmation` | S1 80/80 and 71/73, S2 64/64 and 55/64 — **INCONCLUSIVE**, short of the floor of 128 |
+| `mutation_test_78.py` | **26/26 killed**, every module restored byte-identical |
+| committed prompt identity | `2026-09-25.1` / `f265d7d1…` / **34036** chars — unchanged |
+| files Stage 78 touched | `git diff cad3325..a3e40d0` names **no** file under `apps/api/src/` and **no** Stage 77 artifact |
+
+**One artifact was not actually preserved.** `confirm78.log` and
+`topup78.log` are matched by `.gitignore`'s `*.log`, so the operator-side
+consoles of the two live runs existed only inside an ephemeral container.
+They are copied here as `confirm78-console.txt` and `topup78-console.txt`
+and committed. They are the record that the top-up's 576 calls returned
+**zero** measured answers; the `.log` originals remain ignored.

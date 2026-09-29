@@ -9,6 +9,13 @@
 > Everything else below still stands, and §2's identity is unchanged: the
 > committed prompt is still `2026-09-25.1` / `f265d7d1e279e95a` / 34036
 > characters, because Stage 78 adopted nothing.
+>
+> **Re-checked 2026-09-29 12:29 UTC.** The workspace usage limit had not
+> reset — one minimal probe returned the same refusal — so nothing was
+> measured and nothing was substituted for a measurement. The offline
+> instrument was re-run and reproduces itself exactly (gate, both scores,
+> 26/26 mutants). Stage 78 remains **INCONCLUSIVE** and the prompt remains
+> unchanged.
 
 
 Written at a **preservation checkpoint**, not at the end of a stage. Nothing was
