@@ -2241,6 +2241,11 @@ Separate from the historical record, and none of these is a plan.
   adopted, and none of those rates may be quoted as an arm's rate.
   **Re-probed 2026-09-29 12:29 UTC: the limit had not reset**, so the
   confirmation is still outstanding and no number here has moved.
+  **Re-probed 2026-10-05, after the reset date: the allowance window
+  passed, but the credential now returns `401 authentication_error: API
+  key is invalid.`** That is a different blocker from the September 400,
+  and waiting does not clear it — Stage 78 is blocked on a working
+  Anthropic credential. Still nothing adopted, still nothing measured.
 - **The provider's own rate is not stable enough to ignore** (Stage 78).
   The same committed prompt, re-run, put ED-02 at 14/32 where Stage 77
   recorded 21/32. Neither that nor the later 49/80 is distinguishable from

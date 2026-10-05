@@ -16,6 +16,16 @@
 > instrument was re-run and reproduces itself exactly (gate, both scores,
 > 26/26 mutants). Stage 78 remains **INCONCLUSIVE** and the prompt remains
 > unchanged.
+>
+> **Re-checked 2026-10-05, after the reset date.** The allowance window
+> did pass, but one minimal probe now returns `401 authentication_error:
+> API key is invalid.` — a *different* blocker from September's 400
+> allowance error, and one that waiting does not clear. The value in
+> `CAD_ANTHROPIC_API_KEY` is well formed and reaches Anthropic directly
+> (that host bypasses this container's proxy), so the key itself has been
+> rotated, revoked or deleted. No corpus call was spent and no provider
+> was substituted. Stage 78 is **blocked on a working credential**, not
+> on time; it remains INCONCLUSIVE and the prompt remains unchanged.
 
 
 Written at a **preservation checkpoint**, not at the end of a stage. Nothing was

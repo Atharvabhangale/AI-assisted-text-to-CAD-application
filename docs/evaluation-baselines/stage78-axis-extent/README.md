@@ -306,3 +306,73 @@ consoles of the two live runs existed only inside an ephemeral container.
 They are copied here as `confirm78-console.txt` and `topup78-console.txt`
 and committed. They are the record that the top-up's 576 calls returned
 **zero** measured answers; the `.log` originals remain ignored.
+
+---
+
+## 2026-10-05: the reset arrived, and the credential did not
+
+The allowance was due back at 2026-10-01 00:00 UTC. A later session
+resumed after that date to finish the confirmation. **It could not, and
+for a different reason than before.**
+
+**The probe.** Exactly one real request — `claude-haiku-4-5-20251001`,
+`max_tokens=4`, content `"ok"`, through the configured provider path. Not
+a corpus case, not scored, not recorded as Stage 78 evidence:
+
+> `401 authentication_error: API key is invalid.`
+
+**This is not the old error.** On 2026-09-29 the same variable produced
+`400 invalid_request_error: You have reached your specified workspace API
+usage limits`. A 400 of that kind is an *authenticated* answer — the
+request got past the key check and was refused on allowance. A 401 is the
+key check itself failing. The blocker has changed identity:
+
+| | 2026-09-29 | 2026-10-05 |
+|---|---|---|
+| status | 400 | **401** |
+| type | `invalid_request_error` | **`authentication_error`** |
+| meaning | key good, allowance spent | **key rejected** |
+| remedy | wait for the reset | **supply a working key** |
+
+**It is not a mangled value, and not the proxy.** Checked without reading
+or printing the secret: `CAD_ANTHROPIC_API_KEY` is present, 108
+characters, `sk-ant-` prefixed, no surrounding whitespace, no character
+outside `[A-Za-z0-9_-]`. `ANTHROPIC_API_KEY` is absent, so nothing shadows
+it. And `api.anthropic.com` sits in this container's proxy `noProxy` list,
+so the request went **direct** — the agent proxy neither intercepted nor
+rewrote it. The rejection is Anthropic's own verdict on that key, which
+means it was rotated, revoked or deleted between the two dates.
+
+**Nothing was done about it.** No corpus call was spent, no provider was
+substituted (a `GEMINI_API_KEY` is present in this container and was *not*
+used — the stage's provider and model are part of its identity), no prompt,
+schema, evaluator or sampling parameter was touched, and no call was
+simulated, replayed or reinterpreted.
+
+**The outstanding work is unchanged**, re-derived from the recorded runs
+rather than copied forward — `confirm78.json` + `topup78.json`, with
+`explore78.json` excluded because the rule forbids pooling exploration into
+confirmation:
+
+| arm | case | measured | unmeasured | pass | deficit to 128 |
+|---|---|---|---|---|---|
+| S0-baseline | ED-02 | 80 | 144 | 49 | **48** |
+| S0-baseline | CR-06 | 80 | 144 | 53 | **48** |
+| S1-rule-only | ED-02 | 80 | 144 | 80 | **48** |
+| S1-rule-only | CR-06 | 73 | 151 | 71 | **55** |
+| S2-worked-example | ED-02 | 64 | 160 | 64 | **64** |
+| S2-worked-example | CR-06 | 64 | 160 | 55 | **64** |
+
+Largest single deficit **64**, so one interleaved run of
+`--calls 64 --arm S0-baseline --arm S1-rule-only --arm S2-worked-example`
+covers every arm and case in one session, keeping the required
+same-session control. Overshoot on the smaller deficits is kept, not
+trimmed.
+
+**Integrity re-checked at this commit, all offline:** gate ED-02 21/32 and
+CR-06 28/32 (AGREES), confirmation gate still **INCONCLUSIVE**, mutation
+sweep **26/26 killed** with every module restored byte-identical, prompt
+still `2026-09-25.1` / `f265d7d1…` / 34036 characters.
+
+**Stage 78 remains PAUSED and INCONCLUSIVE. The prompt is unchanged.**
+It is blocked on a working Anthropic credential, not on time.
