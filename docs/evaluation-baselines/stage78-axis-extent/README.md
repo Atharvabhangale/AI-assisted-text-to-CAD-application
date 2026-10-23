@@ -376,3 +376,78 @@ still `2026-09-25.1` / `f265d7d1…` / 34036 characters.
 
 **Stage 78 remains PAUSED and INCONCLUSIVE. The prompt is unchanged.**
 It is blocked on a working Anthropic credential, not on time.
+
+---
+
+## 2026-10-23: confirmation completed — the rule says ADOPT, pending the regression gate
+
+A new key was supplied (fingerprint `13bd5cb24b5a`; the one rejected on
+2026-10-05 was `58b7f8f83534`; only fingerprints were compared). One
+minimal probe succeeded, then the outstanding work was run exactly as
+recorded above: one interleaved session,
+
+    arena78.py --live --arm S0-baseline --arm S1-rule-only \
+        --arm S2-worked-example --calls 64 --pace 6 --out confirm78b.json
+
+Same model, provider, prompt, encoding and evaluator. Environment rebuilt
+from the pushed commit `3d1e46f`: CadQuery 2.8.0 (the recorded backend),
+Anthropic SDK 2.1.0. `arena78.py --check`, the gate, and the 56 Stage 78
+tests all passed before any call was spent.
+
+**384 calls sent, 384 measured. Zero provider errors, zero empty answers.**
+Console: `confirm78b-console.txt`.
+
+**The new session on its own**, against its own interleaved baseline:
+
+| arm | ED-02 | CR-06 |
+|---|---|---|
+| S0-baseline | 47/64 = 0.734 | 46/64 = 0.719 |
+| S1-rule-only | **64/64** (p = 4.5 × 10⁻⁶) | **63/64** (p = 2.2 × 10⁻⁵) |
+| S2-worked-example | **64/64** (p = 4.5 × 10⁻⁶) | 56/64 (p = 0.047) |
+
+**The full confirmation sample** (`confirm78.json` + `topup78.json` +
+`confirm78b.json`; `explore78.json` excluded as the rule requires; every
+part carries its own interleaved baseline). Measured calls only;
+unmeasured calls are the earlier runs' rate-limited ones:
+
+| arm | case | strict | rate | mechanism | improvement | p |
+|---|---|---|---|---|---|---|
+| S0-baseline | ED-02 | 96/144 | 0.667 | 48 | — | — |
+| S0-baseline | CR-06 | 99/144 | 0.688 | 45 | — | — |
+| **S1-rule-only** | ED-02 | **144/144** | **1.000** | **0** | +0.333 | 6.3 × 10⁻¹⁷ |
+| **S1-rule-only** | CR-06 | **134/137** | **0.978** | 3 | +0.291 | 6.0 × 10⁻¹² |
+| S2-worked-example | ED-02 | 128/128 | 1.000 | 0 | +0.333 | 6.9 × 10⁻¹⁶ |
+| S2-worked-example | CR-06 | 111/128 | 0.867 | 17 | +0.180 | 4.7 × 10⁻⁴ |
+
+Every arm and case is now at or above the pre-registered floor of 128
+measured calls. Both candidates clear all three per-case criteria on both
+cases: improvement ≥ +0.125, Fisher two-sided p < 0.05, and the mechanism
+at least halved (S1: 48 → 0 and 45 → 3). No case regressed.
+`score78.py --confirmation` output: `FINAL-SCORE-confirmation.txt`.
+
+**`decision_rule_78.verdict` returns ADOPT for both. That is not yet an
+adoption.** The rule's ADOPT also requires that no `MUST_PRESERVE` dimension
+breaks and nothing in `PERFECT_AND_MUST_STAY_PERFECT` leaves 100 %. That is
+the job of `regression78.py`, which has **never been run**, and `score78.py`
+passes it no regression results. Until it runs, ADOPT here means "passed
+every primary criterion", not "the prompt may change". **The production
+prompt is unchanged** at `2026-09-25.1` / `f265d7d1…` / 34036 characters.
+
+If the regression gate passes, the arm to adopt is **S1-rule-only**, as
+written down before this run: it is the smaller change (+487 characters
+against +775) and it beat S2 on CR-06 in every sample (0.978 against
+0.867 here).
+
+**Integrity at this commit:** gate AGREES (ED-02 21/32, CR-06 28/32);
+mutation sweep 26/26 killed and restored byte-identical; `verify78.py`
+rebuilt all **340** of the new run's claimed successes on CadQuery 2.8.0,
+**340 matched the closed form**, 0 mismatched, 0 failed. FreeCAD is not
+installed in this rebuilt container, so **no cross-kernel claim is made for
+this run**: the 591/591 bit-identical result applies to the earlier runs
+only.
+
+Full suite: **2311 tests, 0 failures, 79 skipped**. The rise from 5
+skips to 79 is the FreeCAD tests skipping in this container. A first run
+showed 2 failures because it ran *concurrently* with the mutation sweep,
+which rewrites Stage 78 modules on disk while it works; run alone, the
+suite is clean. Do not run those two side by side.

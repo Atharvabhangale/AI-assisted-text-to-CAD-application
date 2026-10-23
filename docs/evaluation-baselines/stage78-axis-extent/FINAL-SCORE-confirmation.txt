@@ -1,0 +1,16 @@
+confirm78.json, topup78.json, confirm78b.json  (CONFIRMATION)
+same-session baseline: S0-baseline, interleaved
+
+arm                      case       strict    rate  mech  improve          p  verdict
+S1-rule-only             ED-02    144/144    1.000     0   +0.333  6.327e-17  improved, p<0.05, mechanism halved, 144 UNMEASURED
+S1-rule-only             CR-06    134/137    0.978     3   +0.291  6.018e-12  improved, p<0.05, mechanism halved, 151 UNMEASURED
+S2-worked-example        ED-02    128/128    1.000     0   +0.333  6.909e-16  improved, p<0.05, mechanism halved, 160 UNMEASURED
+S2-worked-example        CR-06    111/128    0.867    17   +0.180  0.0004702  improved, p<0.05, mechanism halved, 160 UNMEASURED
+
+baseline, for reference:
+S0-baseline              ED-02     96/144    0.667    48   144 UNMEASURED
+S0-baseline              CR-06     99/144    0.688    45   144 UNMEASURED
+
+verdict under the pre-registered rule:
+  S1-rule-only             ADOPT   carried: ED-02, CR-06
+  S2-worked-example        ADOPT   carried: ED-02, CR-06

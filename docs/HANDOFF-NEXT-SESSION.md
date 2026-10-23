@@ -26,6 +26,13 @@
 > rotated, revoked or deleted. No corpus call was spent and no provider
 > was substituted. Stage 78 is **blocked on a working credential**, not
 > on time; it remains INCONCLUSIVE and the prompt remains unchanged.
+>
+> **Confirmation completed 2026-10-23** with a new key: 384 calls, all
+> measured. Every arm and case is now at or above the 128 floor, and the
+> rule returns ADOPT for S1 and S2 on all primary criteria (S1: ED-02
+> 144/144, CR-06 134/137; baseline 96/144, 99/144). **Still to do: the
+> regression gate, `regression78.py` (144 calls).** Only if it passes does
+> S1-rule-only go into the production prompt. The prompt is unchanged.
 
 
 Written at a **preservation checkpoint**, not at the end of a stage. Nothing was

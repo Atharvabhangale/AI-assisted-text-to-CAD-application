@@ -2246,6 +2246,13 @@ Separate from the historical record, and none of these is a plan.
   key is invalid.`** That is a different blocker from the September 400,
   and waiting does not clear it — Stage 78 is blocked on a working
   Anthropic credential. Still nothing adopted, still nothing measured.
+  **Completed 2026-10-23 with a new key:** 384 interleaved calls, all
+  measured. On the full confirmation sample (≥128 measured per arm per
+  case) S1-rule-only reads ED-02 **144/144** and CR-06 **134/137** against
+  a baseline of 96/144 and 99/144, and the rule returns **ADOPT for both
+  candidates on every primary criterion**. The regression gate
+  (`regression78.py`) has NOT been run, so nothing is adopted yet and the
+  prompt is unchanged.
 - **The provider's own rate is not stable enough to ignore** (Stage 78).
   The same committed prompt, re-run, put ED-02 at 14/32 where Stage 77
   recorded 21/32. Neither that nor the later 49/80 is distinguishable from
