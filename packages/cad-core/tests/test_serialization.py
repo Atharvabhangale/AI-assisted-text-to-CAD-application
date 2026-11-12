@@ -25,6 +25,7 @@ from cad_core import validate
 from cad_core.errors import ValidationResult
 from cad_core.model import (
     COMMON_FEATURE_FIELDS,
+    FEATURE_INTRODUCED_IN,
     FEATURE_PARAMETERS,
     FEATURE_TYPES,
     Box,
@@ -110,8 +111,47 @@ def section_d_document() -> Dict[str, Any]:
     )
 
 
+def union_document() -> Dict[str, Any]:
+    """An L-bracket: two boxes joined by a ``union``. Declares ``1.1.0``.
+
+    ``union`` exists from schema version 1.1.0, so it cannot appear in a
+    document declaring 1.0.0 (rule S3) -- which is why it has a document of
+    its own instead of being added to :func:`every_feature_document`.
+    """
+    doc = document(
+        [
+            {
+                "id": "base",
+                "type": "box",
+                "size": {"x": 60, "y": 40, "z": 5},
+                "position": {"x": 0, "y": 0, "z": 0},
+            },
+            {
+                "id": "upright",
+                "type": "box",
+                "size": {"x": 5, "y": 40, "z": 45},
+                "position": {"x": 0, "y": 0, "z": 5},
+            },
+            {
+                "id": "join_upright",
+                "type": "union",
+                "target": "base",
+                "tools": ["upright"],
+            },
+        ],
+        name="l-bracket",
+    )
+    doc["schema_version"] = "1.1.0"
+    return doc
+
+
 def every_feature_document() -> Dict[str, Any]:
-    """One document containing all six V1 feature types."""
+    """One document containing all six feature types of schema ``1.0.0``.
+
+    Deliberately left exactly as it was before ``1.1.0`` added ``union``: it
+    declares 1.0.0, and it is hashed and round-tripped throughout this module,
+    so it doubles as evidence that 1.1.0 changed nothing for a 1.0.0 document.
+    """
     return document(
         [
             plate_feature(),
@@ -167,11 +207,29 @@ class SerializationTestCase(unittest.TestCase):
 
 class TestFeatureCoverage(SerializationTestCase):
     def test_every_v1_feature_type_serializes(self) -> None:
+        """All seven types, across the two documents that can carry them.
+
+        Until schema 1.1.0 one document held the whole vocabulary. ``union``
+        cannot join it there -- that document declares 1.0.0 -- so the six
+        1.0.0 types are checked on it exactly as before, and ``union`` on a
+        1.1.0 document; together they must cover ``FEATURE_TYPES``.
+        """
         part = self.part_from(every_feature_document())
         document_out = serialize_part(part)
         kinds = [feature["type"] for feature in document_out["features"]]
-        self.assertEqual(set(kinds), set(FEATURE_TYPES))
-        self.assertEqual(len(kinds), len(FEATURE_TYPES))
+        original = [
+            kind for kind in FEATURE_TYPES if kind not in FEATURE_INTRODUCED_IN
+        ]
+        self.assertEqual(set(kinds), set(original))
+        self.assertEqual(len(kinds), len(original))
+        self.assertEqual(len(original), 6)
+
+        joined = serialize_part(self.part_from(union_document()))
+        later = {feature["type"] for feature in joined["features"]}
+        self.assertEqual(set(FEATURE_INTRODUCED_IN), {"union"})
+        self.assertLessEqual(set(FEATURE_INTRODUCED_IN), later)
+        self.assertEqual(set(kinds) | later, set(FEATURE_TYPES))
+        self.assertEqual(len(FEATURE_TYPES), 7)
 
     def test_every_feature_round_trips(self) -> None:
         part = self.part_from(every_feature_document())
@@ -298,6 +356,7 @@ class TestRoundTrip(SerializationTestCase):
             document([plate_feature()]),
             section_d_document(),
             every_feature_document(),
+            union_document(),
             document([plate_feature()], description="a plate"),
             document(
                 [
@@ -1009,6 +1068,7 @@ class TestHashing(SerializationTestCase):
             ("plate", document([plate_feature()])),
             ("section-d", section_d_document()),
             ("every-feature", every_feature_document()),
+            ("union", union_document()),
             (
                 "described",
                 document([plate_feature()], description="a plate"),

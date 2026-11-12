@@ -135,6 +135,30 @@ class DocumentGeometryTestCase(unittest.TestCase):
                     ]
                 ),
             ),
+            (
+                # 'union' exists from schema 1.1.0, so this one document
+                # declares it; the others stay 1.0.0, as they always were.
+                "union",
+                document(
+                    [
+                        dict(PLATE),
+                        {
+                            "id": "boss",
+                            "type": "cylinder",
+                            "diameter": 20,
+                            "height": 15,
+                            "position": {"x": 50, "y": 30, "z": 10},
+                        },
+                        {
+                            "id": "join",
+                            "type": "union",
+                            "target": "plate",
+                            "tools": ["boss"],
+                        },
+                    ],
+                    schema_version="1.1.0",
+                ),
+            ),
         )
 
 

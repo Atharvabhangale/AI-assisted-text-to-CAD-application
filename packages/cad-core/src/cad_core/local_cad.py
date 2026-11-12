@@ -776,7 +776,9 @@ def _require_added_material(
     The same is true the other way round, when the body lies entirely inside
     the tool: the result is the tool alone.
 
-    The engine refuses rather than guessing, and claims no rule code. The
+    The engine refuses rather than guessing, and claims no rule code -- nor
+    does its message contain one, because :mod:`cad_core.build_job` reads
+    rule codes back out of engine messages and would report it as a rule. The
     kernel accepts both silently and returns the larger operand's exact
     volume, so nothing downstream would notice that a requested boss, rib or
     flange is missing from the part -- which is the silent behaviour this
@@ -808,8 +810,9 @@ def _require_added_material(
             f"{label}: tool {tool_id!r} (tools[{position}]) lies entirely "
             f"inside {owner}, so joining it would add no material and the "
             "result would be unchanged. The specification does not classify "
-            "this case (E3 is the only geometric rule given for 'union'), so "
-            "the engine refuses it rather than accepting a union that means "
+            "this case -- its one geometric requirement for 'union' is a "
+            "single connected solid, which this would satisfy -- so the "
+            "engine refuses it rather than accepting a union that changes "
             f"nothing. Move or resize {tool_id!r} so part of it lies outside "
             f"{target_id!r}"
         )
@@ -818,9 +821,10 @@ def _require_added_material(
             f"{label}: {owner} lies entirely inside tool {tool_id!r} "
             f"(tools[{position}]), so the result would be {tool_id!r} alone "
             f"and {target_id!r} would contribute no material. The "
-            "specification does not classify this case (E3 is the only "
-            "geometric rule given for 'union'), so the engine refuses it "
-            "rather than accepting a union that means nothing. Move or resize "
+            "specification does not classify this case -- its one geometric "
+            "requirement for 'union' is a single connected solid, which this "
+            "would satisfy -- so the engine refuses it rather than accepting "
+            "a union that changes nothing. Move or resize "
             f"{target_id!r} or {tool_id!r} so each has material outside the "
             "other"
         )

@@ -1,8 +1,9 @@
 # Local CAD engine
 
-Status: **Stage 14.1 — the complete V1 feature set (`box`, `cylinder`,
-`through_hole`, `subtract`, `fillet`, `chamfer`), built as real B-rep solids,
-with one edge-coverage rule shared by `fillet` and `chamfer`.**
+Status: **the complete V1 feature set — `box`, `cylinder`, `through_hole`,
+`subtract`, `fillet`, `chamfer` (Stage 14.1) and `union` (schema version
+`1.1.0`) — built as real B-rep solids, with one edge-coverage rule shared by
+`fillet` and `chamfer`.**
 
 ## Why a local backend exists
 
@@ -62,10 +63,11 @@ dependencies at all, and importing `cad_core` does not require CadQuery.
 A part in **millimetres** whose feature history:
 
 1. begins with a **constructive** feature — `box` or `cylinder` — and
-2. uses any of the six V1 feature types.
+2. uses any of the seven V1 feature types (`union` from schema version
+   `1.1.0`).
 
 Several constructive features are allowed, provided the extras are consumed as
-`subtract` tools so that exactly one solid is left. **No V1 feature type is
+`subtract` or `union` tools so that exactly one solid is left. **No V1 feature type is
 rejected as unimplemented any more.** What is still rejected with
 `UnsupportedGeometryError`: a history that does not begin with a constructive
 feature, an empty history, any unit system other than millimetres, and a
@@ -86,12 +88,12 @@ The engine evaluates features in order against an ordered **solid set**, a
 `collections.OrderedDict` keyed by solid id:
 
 - a constructive feature **adds** a solid named by its own `id`;
-- a modifier (`through_hole`, `subtract`, `fillet`, `chamfer`) **replaces its
-  target in place** — the surviving solid keeps the *target's* id and the
+- a modifier (`through_hole`, `subtract`, `fillet`, `chamfer`, `union`)
+  **replaces its target in place** — the surviving solid keeps the *target's* id and the
   target's position in the set, and the modifier's own `id` never names a
   solid;
-- a `subtract` additionally **consumes** each solid named in `tools`, deleting
-  it from the set so no later feature can resolve it;
+- a `subtract` or a `union` additionally **consumes** each solid named in
+  `tools`, deleting it from the set so no later feature can resolve it;
 - after the last feature the set must hold **exactly one** solid (rule S9),
   which becomes the part's geometry.
 
@@ -276,8 +278,9 @@ the numbers.
 ## Subtract semantics (Section C.4)
 
 `subtract` takes a `target` and a non-empty list of `tools`, and removes each
-tool solid from the target **in `tools` order**. Only subtraction exists in V1:
-there is no union, no intersection, and no boolean expression tree. A tool is
+tool solid from the target **in `tools` order**. Joining is a separate
+feature, `union` (below); there is no intersection and no boolean expression
+tree. A tool is
 an ordinary solid already in the set — usually a `cylinder` — not a special
 "cutting tool" concept.
 
@@ -431,6 +434,142 @@ Two measurements support refusing over accepting:
 Overlap is decided by the kernel, not by comparing volumes:
 `Shape.intersect` (`BRepAlgoAPI_Common`) must yield at least one **solid**.
 Touching faces yield none — measured — which is the intended answer.
+
+## Union semantics (Section C.8)
+
+`union` (schema version `1.1.0`) takes a `target` and a non-empty list of
+`tools`, and fuses each tool solid into the target **in `tools` order**
+(`_fuse_in_order`). Like `subtract` it replaces the target in place — the
+joined solid keeps the *target's* id — and consumes every tool, and like
+`subtract` it writes nothing back to the solid set unless the whole feature
+succeeded. It is the only way two solids become one: solids that merely
+overlap or touch are never merged implicitly, and two solids left at the end
+are still rule S9.
+
+### Union API
+
+`cadquery.Shape.fuse` (OpenCascade `BRepAlgoAPI_Fuse`), one tool at a time,
+followed by `ShapeUpgrade_UnifySameDomain` on the result. CadQuery's
+`Workplane.union` is not used: the engine holds solids, not workplanes.
+
+### What the kernel does, measured
+
+Two 10 mm cubes, the second placed at the stated corner (CadQuery 2.8.0,
+OCP 7.9.3):
+
+| Contact | Second cube at | Raw `fuse` result | Engine |
+|---|---|---|---|
+| overlapping volume | `(5, 0, 0)` | 1 valid solid, 1500 mm³ | accepted |
+| a whole shared face | `(10, 0, 0)` | 1 valid solid, 2000 mm³ | accepted |
+| part of a face shared | `(10, 5, 5)` | 1 valid solid, 2000 mm³ | accepted |
+| one shared edge | `(10, 10, 0)` | **valid compound of 2 solids** | rule E3 |
+| part of an edge shared | `(10, 10, 5)` | **valid compound of 2 solids** | rule E3 |
+| one shared corner point | `(10, 10, 10)` | **valid compound of 2 solids** | rule E3 |
+| apart | `(30, 0, 0)` | **valid compound of 2 solids** | rule E3 |
+
+A cylinder touching a cube's face along a single tangent line behaves like
+the edge case: two solids.
+
+The important row is the edge/point one. The kernel does not fail and does
+not build a non-manifold solid; it returns a compound that **passes its own
+validity analysis** and simply holds two solids, at the summed volume.
+`isValid()` is therefore no defence. The engine counts the solids, and
+anything but exactly one is rule E3 — never a multi-body result, never a
+silent no-op, and never one component picked out of the compound.
+
+### Rule E3 — the operands must form one body
+
+Checked once, on what the *feature* leaves, exactly as for `subtract`. An
+intermediate fuse may therefore be disconnected if a later tool bridges it:
+`target` and `tools[0]` may be apart provided `tools[1]` overlaps both. The
+geometry a union accepts is consequently independent of `tools` order.
+
+The message is written to be acted on. It names the union, the target, and
+every tool left detached from the target (by id and by index in `tools`),
+says how many bodies would result, and says what joins solids:
+
+```
+union 'join': tool 'arm' (tools[0]) is not connected to target 'base', so the
+result would be 2 separate bodies instead of one (rule E3). Solids joined by a
+union must overlap or share a face; solids that are apart, or that touch only
+along an edge or at a point, are not joined. Move or resize it so it overlaps
+or shares a face with 'base' (or with another tool that does). No geometry is
+produced.
+```
+
+Which tools are detached is decided by the kernel: a tool belongs with the
+target when it shares volume with the component of the result that contains
+the target.
+
+### The joined body carries no seam
+
+A raw fuse keeps the line where its operands met. Two overlapping boxes come
+back with 14 faces rather than 6, the coplanar ones still split along the
+operands' old edges; the L-bracket of Section D.2 comes back with 11 or 14
+faces (face-sharing or overlapping operands) rather than 8.
+
+Those seam edges are artefacts of how the body was described, and they are
+not harmless: they are straight and axis-parallel, so `axis_parallel` and
+`all` select them, and an edge between two coplanar faces cannot be blended.
+Measured without unification: `fillet` on the bracket's Y-parallel edges
+fails E5 with *"the kernel accepted 6 of the 7 selected edge(s)"*.
+
+The engine therefore unifies the result — `ShapeUpgrade_UnifySameDomain` with
+edges, faces and B-splines unified and internal edges disallowed, the same
+operation as CadQuery's `clean()` — before returning it. Measured: volume
+unchanged, a cylindrical cavity elsewhere on the target untouched (same face,
+edge and vertex counts before and after), and identical results from run to
+run. The specification states the consequence in Section C.8: an edge
+selector applied after a `union` never matches a leftover seam.
+
+### The unclassified case: an operand that adds nothing
+
+The counterpart of a `subtract` tool that removes nothing. A tool lying
+entirely inside the body it is joined to satisfies E3 — one connected solid —
+and leaves the geometry exactly as it was; so does a body lying entirely
+inside its tool, where the result is the tool alone. The kernel accepts both
+silently: same volume, same face count, nothing downstream would notice that
+a requested rib or boss is missing.
+
+Section C.8 gives E3 as the only geometric rule for `union`, so, as for
+`subtract`, **the engine refuses and claims no rule code**
+(`_require_added_material`). Containment is decided by the kernel rather than
+by comparing volumes against a tolerance: `tool.cut(body)` yields no solid
+exactly when the tool adds nothing. The check runs per tool against the body
+as joined so far, so — as with a shadowed `subtract` tool — it is the one
+place where `tools` order is observable.
+
+The refusal's message deliberately contains no rule code at all, because
+`cad_core.build_job` reads codes back out of engine messages; through the
+application service it reports `rule_codes == ()`. This is an open question
+for the specification rather than a settled rule: if the contract should name
+it, it needs a new geometric rule covering both booleans.
+
+### Measured results
+
+| Part | Closed form | Kernel |
+|---|---|---|
+| L-bracket, face-sharing boxes | `60·40·5 + 5·40·45 = 21000` | 21000 (± 4e-12) |
+| L-bracket, overlapping boxes | `12000 + 10000 − 1000 = 21000` | 21000 |
+| two cubes offset `(5,5,5)` | `1000 + 1000 − 125 = 1875` | 1875 |
+| Ø20 boss on a 100×60×10 plate | `60000 + π·10²·15` | equal to 1e-9 |
+| bracket + `fillet` r=2, Y edges | `40·(525 − 4·r²(1 − π/4))` | equal to 1e-11 |
+| bracket + `chamfer` d=1, Y edges | `40·(525 − 4·d²/2) = 20920` | 20920 |
+
+The fillet row includes the bracket's one **concave** edge, where the blend
+adds material instead of removing it — hence `−4` rather than `−6`.
+
+### Limits
+
+- **Kernel coincidence tolerance.** Two cubes separated by `1e-6` mm stay two
+  solids (E3); at `1e-7` mm and below the kernel treats the gap as contact
+  and fuses them, with a volume error of the same order. This is
+  OpenCascade's own precision, measured, not a tolerance the engine adds.
+- **A union can enclose a void.** Capping an open pocket produces one solid
+  with two shells. It is a single connected solid, so it is accepted; the
+  cavity is real and is exported.
+- **No fused-then-split history.** Tools are consumed; there is no way to keep
+  an operand as well as the joined body.
 
 ## Fillet semantics (Section C.5)
 
@@ -805,8 +944,9 @@ corner that the `x+y+z = 2d` face removes — which collapses to
 
 Tested: `box → chamfer`, `box → through_hole → chamfer`,
 `box → cylinder → subtract → chamfer`, two chamfers in sequence, and
-`box → chamfer → fillet`. One document exercising **all six V1 feature types**
-builds to a single solid.
+`box → chamfer → fillet`. One document exercising **all six `1.0.0` feature
+types** builds to a single solid, and one exercising all seven, with `union`,
+does too (`test_union.py`).
 
 One measured ordering asymmetry, recorded rather than explained: on the same
 body, `chamfer X → fillet Y` builds while `fillet Y → chamfer X` fails E5. The
@@ -821,7 +961,7 @@ not accepted and raises `TypeError`; there is no code-execution path and no way
 to pass arbitrary Python or CadQuery source into the engine.
 
 The engine **assumes static validation has already run**. It does not re-check
-rules S1-S20, and it will not fix a malformed part. An invalid specification
+rules S1-S22, and it will not fix a malformed part. An invalid specification
 never produces a `Part`, so it cannot reach the kernel — a test demonstrates
 this end to end with a negative extent (rule S10).
 
@@ -872,10 +1012,9 @@ Explicitly **not** part of this stage:
   features, and the engine has no pattern concept — and nothing beyond V1
   exists: no sketches, lofts, sweeps, threads, assemblies, materials or
   simulation.
-- **Only subtraction.** V1 defines no union and no intersection, and neither is
-  implemented. `Shape.fuse` and `Shape.intersect` exist in CadQuery; the latter
-  is used *internally* to decide overlap, and neither is reachable as a
-  feature.
+- **No intersection.** V1 defines subtraction and, from `1.1.0`, union; it
+  defines no boolean intersection. `Shape.intersect` exists in CadQuery and is
+  used *internally* to decide overlap, but is not reachable as a feature.
 - **No generalized feature graph.** The evaluator is an ordered dictionary of
   solids walked once, which is exactly what Section B.4 describes. It is not a
   dependency graph, a rollback stack, or a re-orderable history.
@@ -892,13 +1031,16 @@ Explicitly **not** part of this stage:
 - **One solid at the end.** Multi-body parts and assemblies are rejected.
   Several primitives may exist *during* evaluation, but rule S9 requires
   exactly one solid after the last feature, so every extra one must be
-  consumed as a `subtract` tool.
+  consumed as a `subtract` or `union` tool.
 - **A modifier always replaces its target, and a tool is always consumed.**
   There is no way to keep both the original and the modified body, or to reuse
-  a tool for a second cut — V1 has no vocabulary for either. A part that needs
-  the same shape removed twice must declare two tools.
-- **Subtraction only, one target at a time.** No union, no intersection, no
+  a tool for a second cut or join — V1 has no vocabulary for either. A part
+  that needs the same shape removed twice must declare two tools.
+- **Subtraction and union only, one target at a time.** No intersection, no
   boolean expression tree, and no multi-target operation.
+- **Two operand-contributes-nothing cases are refused without a rule code**: a
+  `subtract` tool that removes no material and a `union` operand that adds
+  none. The specification classifies neither.
 - The engine trusts the validator. A hand-built `Part` that bypasses validation
   with, say, a zero extent would reach the kernel and fail there rather than
   being caught politely — by design, since re-validating would duplicate
@@ -906,8 +1048,8 @@ Explicitly **not** part of this stage:
   evaluator is the one exception, and exists only because the evaluator cannot
   proceed without a target.
 - **All five geometric rules are now enforced**, each for the features it
-  applies to: E1 for `through_hole`, E2 and E3 for the cutting features, and
-  E3, E4 and E5 for both `fillet` and `chamfer`.
+  applies to: E1 for `through_hole`, E2 and E3 for the cutting features, E3
+  for `union`, and E3, E4 and E5 for both `fillet` and `chamfer`.
 - **Fillet and chamfer limitations.** One constant radius or distance per
   feature; no per-edge value, no variable radius, no angle-driven chamfer, no
   asymmetric chamfer, no face-based blend, and no way to exclude an edge the

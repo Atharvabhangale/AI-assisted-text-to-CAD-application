@@ -257,6 +257,25 @@ no idea which feature produced a cavity. Both cavities remain represented —
 circle lengths give radii 5.0 and 10.0 — and every axis-parallel match is
 straight.
 
+### A joined body — the Section D.2 L-bracket via `union`
+
+Two boxes joined by `union` (schema version `1.1.0`), measured on the solid
+the engine returns:
+
+| Selector | Matches | What they are |
+|---|---|---|
+| `all` | 18 | 18 lines — the edges of an L-profile prism |
+| `axis_parallel X` | 6 | |
+| `axis_parallel Y` | 6 | the six profile corners: five convex, one concave |
+| `axis_parallel Z` | 6 | |
+
+The same rule applies: selection sees the **final B-rep**, not the two boxes
+it was assembled from. That only holds because the engine unifies a union's
+result first. The kernel's raw fuse keeps a seam where the boxes met — an
+extra straight, Y-parallel edge between two coplanar faces, which
+`axis_parallel Y` would match (7, not 6) and no fillet or chamfer could blend.
+See *The joined body carries no seam* in `docs/local-cad-engine.md`.
+
 ## Empty results, and rule E4
 
 A selector that matches nothing returns an **empty tuple**. That is a result,

@@ -40,8 +40,8 @@ Exactly one part shape is supported:
 - with `units` of **`"mm"`**,
 - with a feature `id` matching the specification's id pattern.
 
-Nothing else. A cylinder, a through-hole, a boolean subtraction, a fillet, a
-chamfer, a multi-feature history, an empty history, or any other unit system is
+Nothing else. A cylinder, a through-hole, a boolean subtraction or union, a
+fillet, a chamfer, a multi-feature history, an empty history, or any other unit system is
 **rejected explicitly** with `UnsupportedPartError`. The generator never
 repairs a part, never reinterprets one, and never silently skips a feature it
 cannot express.
@@ -118,7 +118,7 @@ the `UnsupportedPartError` it raises.
   `TypeError`. Unvalidated input cannot reach the generator, because the only
   route to a `Part` is a successful validation.
 - The generator **assumes** the `Part` it receives is statically valid. It does
-  not re-run rules S1-S20 and will not fix a malformed part.
+  not re-run rules S1-S22 and will not fix a malformed part.
 - A part outside the supported subset raises `UnsupportedPartError`. There is no
   partial output: either a complete document is returned, or an exception is
   raised.
@@ -208,8 +208,8 @@ without a test failing.
 
 **Scope limits** (deliberate, enforced by `UnsupportedPartError`):
 
-1. **One box, nothing else.** A cylinder, through-hole, boolean subtraction,
-   fillet, chamfer, multi-feature history or empty history is rejected. The
+1. **One box, nothing else.** A cylinder, through-hole, boolean subtraction or
+   union, fillet, chamfer, multi-feature history or empty history is rejected. The
    Section D example plate in `docs/cad-specification.md` is a *valid* V1 part
    but is rejected here, because it carries four through-holes; a test asserts
    that, so no box-only source can be emitted for it.

@@ -36,7 +36,7 @@ Natural language
       ↓
 CAD specification            (docs/cad-specification.md)
       ↓
-static validation            (cad_core.validator, rules S1-S20)
+static validation            (cad_core.validator, rules S1-S22)
       ↓
 FeatureScript generation     (cad_core.featurescript)
       ↓
@@ -78,7 +78,7 @@ The boundary distinguishes five outcomes:
 | `REMOTE_FAILED` | The remote service was reached and rejected or failed the operation |
 
 **Validation failures are not in this list, deliberately.** A specification that
-breaks rules S1-S20, or a part outside the generator's supported subset, never
+breaks rules S1-S22, or a part outside the generator's supported subset, never
 reaches an adapter: `deliver_part` generates first, so `UnsupportedPartError` or
 `TypeError` is raised before any operation is attempted. An upstream problem can
 therefore never masquerade as a remote one. Tests assert that a rejected part

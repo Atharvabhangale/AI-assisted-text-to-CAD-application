@@ -137,9 +137,10 @@ of a closed tuple. Nothing is repaired and nothing is ignored.
 
 ## Protocol versioning
 
-Four version numbers, four different contracts. They happen to read `1.0.0`
-today; they are independent constants and are never substituted for one
-another.
+Four version numbers, four different contracts. All four read `1.0.0` until
+the CAD specification moved to `1.1.0` (the `union` feature); the IPC protocol
+version did not move with it. They are independent constants and are never
+substituted for one another.
 
 | Constant | Versions |
 |---|---|
@@ -158,7 +159,7 @@ A test asserts the envelope carries `ipc_protocol_version` and **never**
 |---|---|
 | `0` | success |
 | `10` | a controlled **build** failure — the engine, a geometric rule (E1–E5), an exporter, or artifact publication |
-| `11` | a controlled **validation** failure — the document violates S1–S20 |
+| `11` | a controlled **validation** failure — the document violates S1–S22 |
 | `20` | a **protocol or input** failure — the workspace, the request file, the envelope, the version or the operation |
 | `30` | an **unhandled internal error** in the worker harness |
 
@@ -181,7 +182,7 @@ crash:
 | `IsolationOutcome` | When |
 |---|---|
 | `SUCCEEDED` | the child reported success, its exit code agreed, and every artifact it named was verified against the bytes on disk |
-| `VALIDATION_FAILED` | the child reported that the document violates S1–S20 |
+| `VALIDATION_FAILED` | the child reported that the document violates S1–S22 |
 | `BUILD_FAILED` | the child reported a controlled build failure |
 | `WORKER_ERROR` | the child's own harness failed outside the build, and said so |
 | `PROTOCOL_ERROR` | a malformed or wrongly versioned envelope, a status that disagrees with the exit code, or an artifact whose bytes do not match what the child claimed |

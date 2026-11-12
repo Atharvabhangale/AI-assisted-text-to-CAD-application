@@ -209,7 +209,7 @@ Failures are classified, never collapsed into one string:
 
 | `BuildFailure` | Cause |
 |---|---|
-| `DOCUMENT_INVALID` | the document fails static validation (S1–S20) |
+| `DOCUMENT_INVALID` | the document fails static validation (S1–S22) |
 | `UNSUPPORTED_GEOMETRY` | the engine does not build this part |
 | `GEOMETRY_FAILED` | a geometric rule failed (E1–E5), or a kernel operation could not complete |
 | `EXPORT_FAILED` | an exporter or the render builder refused |

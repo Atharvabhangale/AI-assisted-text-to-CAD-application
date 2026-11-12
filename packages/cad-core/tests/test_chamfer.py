@@ -1701,9 +1701,11 @@ class TestInputBoundary(ChamferTestCase):
         self.assertIn("constructive", str(caught.exception))
 
     def test_every_v1_feature_type_is_now_built(self) -> None:
-        """The whole V1 feature set evaluates: nothing is left unimplemented.
+        """The whole 1.0.0 feature set evaluates: nothing is left unimplemented.
 
-        One document exercising all six types, ending in a single solid.
+        One document exercising all six types, ending in a single solid. The
+        seventh, ``union`` (schema 1.1.0), has its own all-types build in
+        ``test_union.py``.
         """
         hole = hole_feature()
         # Somewhere the subtract has not already removed material.

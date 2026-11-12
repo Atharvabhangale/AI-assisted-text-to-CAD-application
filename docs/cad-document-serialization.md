@@ -21,9 +21,16 @@ unchanged afterwards.
 
 ## Relationship to `docs/cad-specification.md`
 
-The canonical CAD document **is** the serialized V1 specification, schema
-version 1.0.0. This document adds no fields, no vocabulary and no version of
-its own; the specification is unchanged by this stage.
+The canonical CAD document **is** the serialized V1 specification, currently
+schema version 1.1.0 (which added the `union` feature type to 1.0.0). This
+document adds no fields, no vocabulary and no version of its own.
+
+A document's `schema_version` is **carried, never rewritten**. A part read from
+a `1.0.0` document serializes with `"schema_version":"1.0.0"`, so every
+`1.0.0` document keeps its canonical bytes and its hash now that `1.1.0`
+exists — the Section D.1 plate's pinned hash is unchanged, and a test asserts
+it. Declaring `1.1.0` is an edit to the document, made by its author; it
+changes the hash, because the version is part of the document.
 
 The canonical field *order* is even taken from the specification's own tables
 rather than restated here: a feature emits `model.COMMON_FEATURE_FIELDS`
@@ -62,7 +69,7 @@ reordered.
 | `Part.features` (tuple) | `features` array, order preserved |
 | `Position`, `Size` | object with `x`, `y`, `z`, floats |
 | `EdgeSelector` | object with `select`, and `axis` only for `axis_parallel` |
-| `Subtract.tools` (tuple) | array of ids, order preserved |
+| `Subtract.tools`, `UnionFeature.tools` (tuple) | array of ids, order preserved |
 | feature class | `type` string from the class's `TYPE` |
 
 ## Canonicalization rules
@@ -80,9 +87,10 @@ one canonical byte string.
    and get byte-identical output; another test asserts the canonical order is
    *not* alphabetical, so `sort_keys` is demonstrably not what is happening.
 2. **Array order is preserved exactly, never sorted.** `features` order is the
-   design (Section B.4) and `subtract.tools` order decides the order of
-   subtraction (Section C.4). Tests assert that reordering either changes the
-   bytes and the hash — that is the point.
+   design (Section B.4), `subtract.tools` order decides the order of
+   subtraction (Section C.4) and `union.tools` the order of fusion
+   (Section C.8). Tests assert that reordering any of them changes the bytes
+   and the hash — that is the point.
 3. **Numbers are JSON numbers, never strings.** Every numeric field of a
    `Part` is a Python `float` (the validator converts on the way in), so a
    length written `100` comes back `100.0`. Formatting is `json`'s own, which
@@ -172,7 +180,7 @@ implementation in this module and no repair of an invalid document.
 |---|---|
 | not well-formed JSON, or not a JSON object | `DocumentParseError` |
 | not valid UTF-8 | `DocumentParseError` |
-| violates any of S1–S20 | `DocumentValidationError` |
+| violates any of S1–S22 | `DocumentValidationError` |
 
 Both derive from `CadDocumentError`, and `DocumentParseError` is **not** a
 subclass of `DocumentValidationError`: a malformed file is never reported as a
@@ -285,8 +293,8 @@ canonical CAD document  ──→ validate ──→ typed Part ──→ local 
 `test_serialization.py` builds no geometry at all. The integration claim —
 that a part recovered from a canonical document is the same part the engine
 accepts — is proved separately in `test_document_geometry.py`, which
-round-trips a box, the Section D plate, a cylinder, a subtract, a fillet and a
-chamfer through JSON and asserts the rebuilt part produces the same solid:
+round-trips a box, the Section D plate, a cylinder, a subtract, a fillet, a
+chamfer and a union through JSON and asserts the rebuilt part produces the same solid:
 same feature id, same solid count, same volume, same face count, same bounds.
 It also asserts that building geometry leaves the document and its hash
 untouched.

@@ -383,7 +383,10 @@ The version numbers that do exist are unrelated to each other and to this:
 | `CACHE_SCHEMA_VERSION` | the cache entry file format |
 | `IPC_PROTOCOL_VERSION` | the worker envelope |
 
-All four read `1.0.0` today by coincidence. Tests assert this module defines no
+All four read `1.0.0` until the CAD specification added `union` and moved to
+`1.1.0`; the other three did not move, which is what "unrelated" means. A
+document's own `schema_version` is whatever it declares — `1.0.0` documents
+remain valid and are not upgraded. Tests assert this module defines no
 constant ending in `_VERSION`, that no payload key other than the CAD
 document's own `schema_version` contains "version", and that the document's
 version travels untouched inside the document.
