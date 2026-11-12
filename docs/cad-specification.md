@@ -1,7 +1,11 @@
 # CAD Specification Contract — V1
 
-Status: **V1 (initial)**
-Schema version described by this document: **`1.0.0`**
+Status: **V1**
+Schema version described by this document: **`1.1.0`**
+
+"V1" names the contract's major version, `1`. Version `1.1.0` adds one feature
+type, `union`, to `1.0.0` and changes nothing else: every `1.0.0` document is
+still valid and still means what it meant (Section F).
 
 ## Purpose
 
@@ -35,6 +39,7 @@ V1 supports exactly these concepts and nothing else:
 | 7 | Boolean subtraction | feature type `subtract` |
 | 8 | Fillet | feature type `fillet` |
 | 9 | Chamfer | feature type `chamfer` |
+| 10 | Boolean union | feature type `union` (from `1.1.0`) |
 
 The following are **explicitly out of scope for V1** and MUST be rejected by a
 V1 validator rather than partially interpreted: assemblies, sketches, splines,
@@ -122,7 +127,7 @@ The root of the document is a single part:
 
 ```json
 {
-  "schema_version": "1.0.0",
+  "schema_version": "1.1.0",
   "units": "mm",
   "name": "example-plate",
   "description": "optional free text",
@@ -173,21 +178,26 @@ by a feature id. Features fall into two categories:
 **Constructive features** (`box`, `cylinder`) add a new solid to the solid set,
 named by the feature's own `id`.
 
-**Modifier features** (`through_hole`, `subtract`, `fillet`, `chamfer`) act on
-an existing solid named by their `target` field. A modifier replaces its target
-**in place**: the resulting solid keeps the **target's** id and its position in
-the solid set. The modifier's own `id` is a label used for traceability and
-error reporting; it never names a solid.
+**Modifier features** (`through_hole`, `subtract`, `fillet`, `chamfer`,
+`union`) act on an existing solid named by their `target` field. A modifier
+replaces its target **in place**: the resulting solid keeps the **target's** id
+and its position in the solid set. The modifier's own `id` is a label used for
+traceability and error reporting; it never names a solid.
 
 Consequently a plate with four holes keeps the id `plate` throughout, and each
 hole's `target` is `plate`.
 
-`subtract` additionally **consumes** its tool solids: each id listed in `tools`
-is removed from the solid set.
+`subtract` and `union` additionally **consume** their tool solids: each id
+listed in `tools` is removed from the solid set. After a `union` the joined
+solid is named by the union's `target`; the tools' ids no longer name anything.
+
+Two solids become one only through an explicit `union`. Solids that merely
+overlap or touch are never merged implicitly.
 
 After the last feature is evaluated, the solid set MUST contain exactly one
 solid (rule **S9**). That solid is the part's geometry. A leftover cylinder that
-was created but never subtracted is therefore an error, not a second body.
+was created but never subtracted or joined is therefore an error, not a second
+body.
 
 ---
 
@@ -220,7 +230,7 @@ axes; there is no rotation in V1.
 ### C.2 `cylinder`
 
 A right circular cylinder of finite height. Constructive. In V1 a cylinder is
-used either as the part's base solid or as a tool for `subtract`.
+used either as the part's base solid or as a tool for `subtract` or `union`.
 
 | Parameter | Type | Required | Default | Unit |
 |-----------|------|----------|---------|------|
@@ -287,8 +297,8 @@ order. The result replaces the target in place (Section B.4) and every tool
 solid is consumed — removed from the solid set and unavailable to later
 features.
 
-Only subtraction is defined in V1. Union and intersection are not part of this
-contract.
+Joining solids is a separate feature, `union` (Section C.8). Boolean
+intersection is not part of this contract.
 
 **Validation.** `tools` MUST be a non-empty array (rule **S14**). Every id in
 `target` and `tools` MUST resolve to a solid in the solid set (rule **S6**).
@@ -367,9 +377,50 @@ filleting the vertical corners of a drilled plate does not touch the hole rims.
 (rule **S18**). The unsigned axis letters here are intentionally different from
 the signed axis values used by `cylinder` and `through_hole`.
 
+### C.8 `union`
+
+Boolean union: joins solids into one body. Modifier. Defined from schema
+version `1.1.0`; in a document that declares an earlier version it is an
+unknown feature type (rule **S3**, Section F).
+
+| Parameter | Type | Required | Default | Unit |
+|-----------|------|----------|---------|------|
+| `id` | string | yes | — | — |
+| `type` | `"union"` | yes | — | — |
+| `target` | ref | yes | — | — |
+| `tools` | array of ref | yes | — | — |
+
+**Behavior.** Each solid listed in `tools` is fused into the target, in list
+order. The result is the one solid occupying every point that lies in the
+target or in any tool; material that operands share is counted once. The result
+replaces the target in place (Section B.4) — it keeps the **target's** id and
+its position in the solid set — and every tool solid is consumed: removed from
+the solid set and unavailable to later features. The union's own `id` never
+names a solid; later features refer to the joined body by the target's id.
+
+`union` moves nothing. Each operand stays where its own `position` put it, so
+whether two solids join is decided entirely by where they already are.
+
+The joined body is a single solid, not its operands side by side: the surfaces
+where operands met disappear, and operand faces that lie on the same surface
+become one face. Its edges are the edges of the joined body, so an edge selector
+(Section C.7) applied after a `union` never matches a seam left over from how
+the body was assembled.
+
+**Validation.** `tools` MUST be a non-empty array (rule **S21**). Every id in
+`target` and `tools` MUST resolve to a solid in the solid set (rule **S6**).
+`target` MUST NOT appear in `tools`, and `tools` MUST NOT contain duplicates
+(rule **S22**). The result MUST be a single connected solid (rule **E3**): the
+target and the tools must form one body by **overlapping or sharing a face**.
+Solids that are apart, or that touch only along an edge or at a point, are not
+joined by a `union` — that is an error, never a multi-body result and never a
+no-op.
+
 ---
 
 ## D. Example specification
+
+### D.1 A plate with four holes
 
 Natural-language request:
 
@@ -440,6 +491,65 @@ Notes on the example:
 - The solid set contains exactly one solid (`plate`) at the end, as required.
 - No fillet or chamfer is requested, so none appears. The specification never
   adds features that the request did not state.
+- The document uses nothing newer than `1.0.0` and declares that version. It
+  is unchanged by `1.1.0` and remains valid (Section F).
+
+### D.2 Two primitives joined: an L-bracket
+
+Natural-language request:
+
+> "An L-bracket: a 60 mm × 40 mm base plate 5 mm thick, with a 50 mm tall
+> upright 5 mm thick along one 40 mm edge."
+
+Interpretation: the base is a box with its minimum corner at the origin. The
+upright stands on the base along the edge at `x = 0`, so it is a second box
+5 mm along X and 40 mm along Y. Its overall height is 50 mm measured from the
+underside of the base, so it starts on the base's top face at `z = 5` and is
+45 mm tall. The two boxes share the 5 mm × 40 mm face at `z = 5`, which is what
+lets `union` join them.
+
+```json
+{
+  "schema_version": "1.1.0",
+  "units": "mm",
+  "name": "l-bracket-60x40x50",
+  "description": "L-bracket: 60 x 40 x 5 mm base with a 5 mm thick upright, 50 mm tall overall",
+  "features": [
+    {
+      "id": "base",
+      "type": "box",
+      "size": { "x": 60, "y": 40, "z": 5 },
+      "position": { "x": 0, "y": 0, "z": 0 }
+    },
+    {
+      "id": "upright",
+      "type": "box",
+      "size": { "x": 5, "y": 40, "z": 45 },
+      "position": { "x": 0, "y": 0, "z": 5 }
+    },
+    {
+      "id": "join_upright",
+      "type": "union",
+      "target": "base",
+      "tools": ["upright"]
+    }
+  ]
+}
+```
+
+Notes on the example:
+
+- Both boxes are constructive, so after the second feature the solid set holds
+  two solids. The `union` leaves one, named `base`: `upright` is consumed, and
+  `join_upright` never names a solid (Section B.4). A later hole or fillet on
+  the bracket would therefore use `"target": "base"`.
+- The upright could equally have been written from `z = 0` with height 50,
+  overlapping the base instead of standing on it. The joined solid is the same:
+  shared material is counted once.
+- Leave the `union` out and the document is invalid (rule **S9**: two solids
+  remain). Move the upright to `x = 70` and it is still statically valid, but
+  the engine rejects it (rule **E3**): the boxes no longer touch.
+- The document uses `union`, so it declares `1.1.0`.
 
 ---
 
@@ -457,10 +567,10 @@ Rules are split into two tiers by what they need in order to be checked.
 |------|-------------|
 | **S1** | The document is a single JSON object with the fields of Section B.1; `schema_version`, `units`, `name` and `features` are present. |
 | **S2** | `features` is an array with at least one element, and every element is an object with a string `id` and a string `type`. |
-| **S3** | No unknown fields anywhere in the document, and `type` is one of `box`, `cylinder`, `through_hole`, `subtract`, `fillet`, `chamfer`. Unknown fields and unknown types are rejected, never ignored. |
+| **S3** | No unknown fields anywhere in the document, and `type` is one of `box`, `cylinder`, `through_hole`, `subtract`, `fillet`, `chamfer`, `union`. `union` is defined from `1.1.0`: in a document whose `schema_version` is earlier, it is an unknown type (Section F). Unknown fields and unknown types are rejected, never ignored. |
 | **S4** | `schema_version` is a valid version string and its major version is supported by the validator (Section F). |
 | **S5** | `units` is `"mm"`. No other value is accepted or converted in V1. |
-| **S6** | Every reference (`target`, each entry of `tools`) names a solid that exists in the solid set at the moment the referencing feature is evaluated — i.e. it was created earlier and has not been consumed by a `subtract`. |
+| **S6** | Every reference (`target`, each entry of `tools`) names a solid that exists in the solid set at the moment the referencing feature is evaluated — i.e. it was created earlier and has not been consumed by a `subtract` or a `union`. |
 | **S7** | Every reference points to a feature that appears strictly earlier in `features`. Forward references and reference cycles are invalid. |
 | **S8** | Feature ids are unique within the part and match `^[A-Za-z_][A-Za-z0-9_-]*$`. |
 | **S9** | The first feature is constructive (`box` or `cylinder`), and after the last feature the solid set contains exactly one solid. No assemblies, no orphan bodies. |
@@ -475,6 +585,13 @@ Rules are split into two tiers by what they need in order to be checked.
 | **S18** | An edge selector has `select` of `"all"` or `"axis_parallel"`; `axis` is present with value `"X"`, `"Y"` or `"Z"` exactly when `select` is `"axis_parallel"`. |
 | **S19** | Every position and size is an object with exactly the keys `x`, `y`, `z`, each a finite JSON number. `NaN`, infinities and array forms are invalid. |
 | **S20** | Every length value is a finite number. Sizes, diameters, radii and chamfer distances are positive per the rules above; position components may be negative or zero. |
+| **S21** | `union.tools` is a non-empty array. |
+| **S22** | `union.target` does not appear in `union.tools`, and `tools` contains no duplicate ids. |
+
+S21 and S22 were added in `1.1.0` with `union`. They state for `union` what S14
+and S15 state for `subtract`, under their own codes so that a reported rule
+always names the feature type it is about. No rule from `1.0.0` was renumbered
+or changed in meaning.
 
 ### E.2 Geometric rules (`E`) — require evaluation by the engine
 
@@ -486,7 +603,7 @@ are named and stable rather than surfacing as kernel crashes.
 |------|-------------|
 | **E1** | A `through_hole` centreline actually intersects its target solid. A hole that misses the material is an error, not a no-op. |
 | **E2** | A `subtract` leaves a non-empty solid. Removing all material is an error. |
-| **E3** | Every modifier leaves a single connected solid. A cut that splits the body into two pieces is an error in V1, which has no multi-body parts. |
+| **E3** | Every modifier leaves a single connected solid. A cut that splits the body into two pieces is an error in V1, which has no multi-body parts. So is a `union` whose target and tools do not form one body: operands that are apart, or that touch only along an edge or at a point, are not joined. |
 | **E4** | An edge selector matches at least one edge of its target. A fillet or chamfer that affects nothing is an error, because it indicates a misread request. |
 | **E5** | A `fillet.radius` / `chamfer.distance` is admissible for every matched edge — it fits within the adjoining faces and does not consume neighbouring geometry. |
 
@@ -501,7 +618,12 @@ produced**: there is no partial or best-effort output.
 ## F. Versioning
 
 The part document carries a required `schema_version` field. This document
-defines version **`1.0.0`**.
+defines version **`1.1.0`**.
+
+| Version | What it added |
+|---------|---------------|
+| `1.0.0` | The initial contract: `box`, `cylinder`, `through_hole`, `subtract`, `fillet`, `chamfer`; rules S1–S20 and E1–E5. |
+| `1.1.0` | The feature type `union` (Section C.8) and its rules S21 and S22. A MINOR change: no field, default, rule or meaning from `1.0.0` was altered. |
 
 - The value is a `MAJOR.MINOR.PATCH` string.
 - **MAJOR** changes when existing documents would no longer mean the same thing:
@@ -521,6 +643,16 @@ Consumer rules:
   if it still rejects every field and feature type it does not recognise
   (rule **S3**) — in practice this means it will reject documents that use the
   newer features, which is the intended outcome.
+- A document is validated against the version it **declares**. A feature type
+  introduced in a later MINOR version is unknown to a document that declares an
+  earlier one, and is rejected under rule **S3** by every consumer — including
+  one that implements the later version. A document declaring `1.0.0` that uses
+  `union` is therefore invalid; the correction is to declare `1.1.0`. This keeps
+  a document's validity a property of the document, not of whichever consumer
+  reads it.
+- A consumer never rewrites `schema_version`. A `1.0.0` document stays a `1.0.0`
+  document: it is not upgraded on read, so its canonical form and its content
+  hash are unchanged by the existence of `1.1.0`.
 - Documents never omit `schema_version` and there is no implied default. A
   missing version is an error, not "assume V1".
 

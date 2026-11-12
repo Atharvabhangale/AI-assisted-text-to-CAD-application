@@ -21,22 +21,23 @@ bounding-box stand-in.
 Supported subset
 ----------------
 A part in millimetres whose feature history begins with a constructive feature
-(``box`` or ``cylinder``) and uses only ``box``, ``cylinder``,
-``through_hole`` and ``subtract``. Several constructive features are allowed,
-provided the extras are consumed as ``subtract`` tools so that exactly one
-solid is left (rule S9). ``fillet`` and ``chamfer`` are **not implemented**:
-they are rejected, never partially built and never silently skipped.
+(``box`` or ``cylinder``) and uses the whole V1 feature set: ``box``,
+``cylinder``, ``through_hole``, ``subtract``, ``fillet``, ``chamfer`` and --
+from schema version ``1.1.0`` -- ``union``. Several constructive features are
+allowed, provided the extras are consumed as ``subtract`` or ``union`` tools
+so that exactly one solid is left (rule S9).
 
 Evaluation model (specification Section B.4)
 --------------------------------------------
 Features are evaluated in order against an ordered **solid set**:
 
 * a constructive feature adds a solid named by its own ``id``;
-* a modifier (``through_hole``, ``subtract``) **replaces its target in place**
-  -- the result keeps the *target's* id and the target's position in the set,
-  and the modifier's own ``id`` never names a solid;
-* a ``subtract`` additionally **consumes** each solid in ``tools``, deleting it
-  from the set so no later feature can use it;
+* a modifier (``through_hole``, ``subtract``, ``fillet``, ``chamfer``,
+  ``union``) **replaces its target in place** -- the result keeps the
+  *target's* id and the target's position in the set, and the modifier's own
+  ``id`` never names a solid;
+* a ``subtract`` or a ``union`` additionally **consumes** each solid in
+  ``tools``, deleting it from the set so no later feature can use it;
 * after the last feature the set must hold exactly one solid, which becomes the
   part's geometry.
 
@@ -46,8 +47,8 @@ So a plate with four holes stays one solid called ``plate`` throughout, and
 Subtract semantics (specification Section C.4)
 ----------------------------------------------
 ``subtract`` removes each solid in ``tools`` from ``target`` **in list order**
-(:func:`_cut_in_order`). Only subtraction exists in V1: there is no union, no
-intersection and no boolean expression tree.
+(:func:`_cut_in_order`). Joining is a separate feature, ``union`` (below).
+There is no intersection and no boolean expression tree.
 
 Order is honoured, and the two things it affects are kept apart deliberately:
 
@@ -61,6 +62,50 @@ Order is honoured, and the two things it affects are kept apart deliberately:
 Tools are consumed only if the whole feature succeeds. Nothing is written back
 to the solid set until every cut has passed its checks, so a failed subtract
 leaves no partial geometry and no half-consumed tools behind.
+
+Union semantics (specification Section C.8)
+-------------------------------------------
+``union`` fuses each solid in ``tools`` into ``target`` **in list order**
+(:func:`_fuse_in_order`), replaces the target in place and consumes the tools,
+exactly as ``subtract`` does. It is the only way two solids become one: solids
+that merely overlap or touch are never merged implicitly.
+
+What the kernel was measured to do (CadQuery 2.8 / OCP 7.9), and what the
+engine does with it:
+
+* **Overlapping volumes, or a shared face area** -- one valid solid, with the
+  exact set-union volume (overlap counted once). Accepted.
+* **Apart, or touching only along an edge, along a tangent line or at a
+  point** -- the kernel does not fail and does not produce a non-manifold
+  solid. It returns a *valid compound holding two solids*. ``isValid()`` is
+  therefore no defence here; the **solid count** is, and anything but exactly
+  one solid is rule E3. The error names the target and every tool left
+  detached from it, and says what would connect them.
+* **The raw fuse keeps the operands' seams**: faces that lie on one plane stay
+  split along the line where the operands met (two overlapping boxes fuse to
+  14 faces, not 6). Left alone, a later ``fillet`` or ``chamfer`` would select
+  those seam edges, which lie between coplanar faces and cannot be blended --
+  so "round the edges of the joined part" would fail on edges the part does
+  not really have. The result is therefore **unified** before it is returned
+  (:func:`_unify_same_domain`, OpenCascade's ``ShapeUpgrade_UnifySameDomain``):
+  faces on the same surface and edges on the same curve are merged, volume
+  unchanged. The solid a union leaves has the edges of the joined body, not of
+  its operands.
+
+E3 is checked once, on what the feature leaves, as it is for ``subtract``. An
+intermediate state may therefore be disconnected if a later tool bridges it:
+``target`` and ``tools[0]`` may be apart provided ``tools[1]`` joins both.
+
+One case has no rule, mirroring ``subtract``: an operand that contributes no
+material -- a tool lying entirely inside the body it is fused into, or a body
+lying entirely inside the tool. The fused geometry would simply equal one of
+the operands. The engine refuses it without claiming a rule code -- see
+:func:`_require_added_material`.
+
+**Measured limit.** The kernel's own coincidence tolerance is about ``1e-7``
+mm: two boxes separated by a gap of ``1e-6`` mm stay two solids (E3), while a
+gap of ``1e-7`` mm or less is treated as contact and fused. The engine adds no
+tolerance of its own on top of that.
 
 Through-hole semantics (specification Section C.3)
 --------------------------------------------------
@@ -122,7 +167,9 @@ All are checked with the kernel, and a failure raises
 
 A fourth case has no rule: a ``subtract`` tool that removes no material.
 Section C.4 lists only E2 and E3 for ``subtract``, so the engine refuses it
-without claiming a rule code -- see :func:`_require_overlap`.
+without claiming a rule code -- see :func:`_require_overlap`. Its counterpart
+for ``union`` is an operand that adds no material
+(:func:`_require_added_material`).
 
 Box semantics (specification Section C.1)
 -----------------------------------------
@@ -185,6 +232,7 @@ from cad_core.model import (
     Size,
     Subtract,
     ThroughHole,
+    UnionFeature,
 )
 
 try:
@@ -197,6 +245,7 @@ except ImportError as exc:  # pragma: no cover - exercised only without the extr
     ) from exc
 
 from OCP.BRepFilletAPI import BRepFilletAPI_MakeChamfer, BRepFilletAPI_MakeFillet
+from OCP.ShapeUpgrade import ShapeUpgrade_UnifySameDomain
 
 from cad_core.edge_selection import select_edges
 
@@ -229,7 +278,8 @@ class GeometryOperationError(Exception):
     engine does not attempt at all. This one reports a part the engine tried
     and could not build: an unresolvable target, a centreline that misses
     (rule E1), a boolean the kernel refused, an empty result, or a result that
-    is not a single connected solid (rule E3).
+    is not a single connected solid (rule E3) -- which includes a union whose
+    operands do not overlap or share a face.
     """
 
 
@@ -353,8 +403,10 @@ def build_part(part: Part) -> LocalCadResult:
         GeometryOperationError: if the geometry itself cannot be built -- an
             unresolvable target or tool, a centreline that misses its target
             (E1), a failed boolean, a cut that removes everything (E2), a cut
-            that splits the body (E3), a subtract tool that removes nothing, or
-            more than one solid left after the last feature (S9).
+            that splits the body (E3), a union whose operands are not joined
+            into one body (E3), a subtract tool that removes nothing, a union
+            operand that adds nothing, or more than one solid left after the
+            last feature (S9).
     """
     _require_supported_part(part)
 
@@ -372,6 +424,10 @@ def build_part(part: Part) -> LocalCadResult:
             solids[feature.target] = _apply_fillet(feature, solids)
         elif isinstance(feature, Chamfer):
             solids[feature.target] = _apply_chamfer(feature, solids)
+        elif isinstance(feature, UnionFeature):
+            # A union replaces its target in place and consumes each tool,
+            # like a subtract: _apply_union mutates ``solids``.
+            _apply_union(feature, solids)
         else:
             # A subtract also replaces its target in place, and additionally
             # consumes each tool: _apply_subtract mutates ``solids``.
@@ -520,6 +576,288 @@ def _apply_subtract(subtract: Subtract, solids: "Dict[str, Any]") -> None:
     solids[subtract.target] = result
     for tool_id in seen:
         del solids[tool_id]
+
+
+def _apply_union(union: UnionFeature, solids: "Dict[str, Any]") -> None:
+    """Apply Section C.8 to ``solids`` in place.
+
+    Fuses each tool solid into the target in ``tools`` order, replaces the
+    target in place (keeping its id and its position in the set), and consumes
+    every tool by deleting it from the set. Nothing is written back unless the
+    whole feature succeeds, so a failure leaves no partial geometry and no
+    half-consumed tools behind.
+    """
+    label = f"union {union.id!r}"
+    target = solids.get(union.target)
+    if target is None:
+        available = ", ".join(repr(name) for name in solids) or "nothing"
+        raise GeometryOperationError(
+            f"{label} targets {union.target!r}, which is not a solid in the "
+            f"solid set (rule S6); available: {available}"
+        )
+
+    if not union.tools:
+        raise GeometryOperationError(
+            f"{label} has an empty tool list (rule S21); a union must join at "
+            "least one solid into its target"
+        )
+
+    # Defensive resolution of the tool list, as for a subtract. The validator
+    # already enforces S6, S21 and S22, so none of these can be reached from a
+    # validated part; they exist so that inconsistent typed input is reported
+    # rather than producing nonsense geometry.
+    steps = []
+    seen = []
+    for position, tool_id in enumerate(union.tools):
+        if tool_id == union.target:
+            raise GeometryOperationError(
+                f"{label} lists its own target {tool_id!r} as tools[{position}] "
+                "(rule S22); a solid cannot be joined to itself"
+            )
+        if tool_id in seen:
+            raise GeometryOperationError(
+                f"{label} lists tool {tool_id!r} twice (rule S22); a tool is "
+                "consumed by its first use and cannot be reused"
+            )
+        tool = solids.get(tool_id)
+        if tool is None:
+            available = ", ".join(repr(name) for name in solids) or "nothing"
+            raise GeometryOperationError(
+                f"{label} uses tool {tool_id!r} at tools[{position}], which is "
+                f"not a solid in the solid set (rule S6); available: {available}"
+            )
+        seen.append(tool_id)
+        steps.append((tool, tool_id, position))
+
+    result = _fuse_in_order(
+        target, tuple(steps), label=label, target_id=union.target
+    )
+
+    # Commit: the target is replaced in place, so assigning to the existing key
+    # keeps both its id and its position in the ordered set (Section B.4).
+    solids[union.target] = result
+    for tool_id in seen:
+        del solids[tool_id]
+
+
+def _fuse_in_order(
+    target: Any,
+    steps: Tuple[Tuple[Any, str, int], ...],
+    *,
+    label: str,
+    target_id: str,
+) -> Any:
+    """Fuse each tool into ``target`` in order and enforce rule E3.
+
+    ``steps`` holds ``(tool solid, tool id, index in tools)``. Returns the
+    single joined solid, unified (:func:`_unify_same_domain`) and unwrapped
+    out of the compound the kernel returns. Raises
+    :class:`GeometryOperationError` on any failure -- never a best-effort
+    shape, never a multi-body result and never one component picked out of it.
+
+    E3 is checked once, on what the feature leaves (Section E.2), so an
+    intermediate fuse may be disconnected if a later tool bridges it.
+    """
+    body = target
+    for tool, tool_id, position in steps:
+        _require_added_material(
+            body,
+            tool,
+            label=label,
+            target_id=target_id,
+            tool_id=tool_id,
+            position=position,
+            is_first=position == steps[0][2],
+        )
+        try:
+            body = body.fuse(tool)
+        except Exception as exc:  # pragma: no cover - kernel refusal is rare
+            raise GeometryOperationError(
+                f"{label}: the boolean union failed while joining tool "
+                f"{tool_id!r} into target {target_id!r}: {exc}"
+            ) from exc
+
+    # E3. Measured: operands that are apart, or that touch only along an edge
+    # or at a point, come back as a *valid* compound of several solids, so the
+    # kernel's validity analysis cannot be the test -- the solid count is.
+    remaining = body.Solids()
+    if len(remaining) != 1:
+        raise GeometryOperationError(
+            _disconnected_union_message(
+                target, steps, remaining, label=label, target_id=target_id
+            )
+        )
+
+    joined = _unify_same_domain(remaining[0], label=label)
+    if not (joined.isValid() and joined.Volume() > 0.0):
+        raise GeometryOperationError(  # pragma: no cover - not observed
+            f"{label}: joining {len(steps)} tool(s) into target {target_id!r} "
+            "produced a solid the kernel's own validity analysis rejects; no "
+            "geometry is produced"
+        )
+    return joined
+
+
+def _disconnected_union_message(
+    target: Any,
+    steps: Tuple[Tuple[Any, str, int], ...],
+    components: Any,
+    *,
+    label: str,
+    target_id: str,
+) -> str:
+    """Build the rule E3 message for a union that did not make one body.
+
+    Names the tools that ended up detached from the target, by id and by
+    position in ``tools``, and says what would connect them -- the message is
+    meant to be acted on, by a person or by a language model correcting its
+    document.
+
+    A tool belongs with the target when it shares volume with the component
+    of the result that contains the target. Each operand is itself one
+    connected solid, so it lies wholly inside exactly one component and the
+    kernel's common operation decides which.
+    """
+    home = next(
+        (part for part in components if _shares_volume(target, part)), None
+    )
+    detached = [
+        f"{tool_id!r} (tools[{position}])"
+        for tool, tool_id, position in steps
+        if home is None or not _shares_volume(tool, home)
+    ]
+    if len(detached) == 1:
+        cause = f"tool {detached[0]} is not connected to target {target_id!r}"
+        fix = "Move or resize it so it overlaps or shares a face"
+    elif detached:
+        cause = (
+            "tools " + ", ".join(detached[:-1]) + f" and {detached[-1]} are "
+            f"not connected to target {target_id!r}"
+        )
+        fix = "Move or resize each of them so it overlaps or shares a face"
+    else:  # pragma: no cover - a detached component always holds some tool
+        cause = f"not every tool is connected to target {target_id!r}"
+        fix = "Move or resize the tools so each overlaps or shares a face"
+    return (
+        f"{label}: {cause}, so the result would be {len(components)} separate "
+        "bodies instead of one (rule E3). Solids joined by a union must "
+        "overlap or share a face; solids that are apart, or that touch only "
+        f"along an edge or at a point, are not joined. {fix} with "
+        f"{target_id!r} (or with another tool that does). No geometry is "
+        "produced."
+    )
+
+
+def _shares_volume(first: Any, second: Any) -> bool:
+    """True if the kernel finds a solid common to both shapes."""
+    try:
+        return bool(first.intersect(second).Solids())
+    except Exception:  # pragma: no cover - kernel refusal is rare
+        return False
+
+
+def _require_added_material(
+    body: Any,
+    tool: Any,
+    *,
+    label: str,
+    target_id: str,
+    tool_id: str,
+    position: int,
+    is_first: bool,
+) -> None:
+    """Refuse a fuse in which one operand contributes no material.
+
+    **This case is not classified by the specification**, exactly as its
+    counterpart for ``subtract`` is not (:func:`_require_overlap`). Section
+    C.8 gives E3 as the only geometric rule for ``union``, and a tool lying
+    entirely inside the body it is joined to leaves one connected solid, so
+    E3 is satisfied -- but the fused geometry is simply the body, unchanged.
+    The same is true the other way round, when the body lies entirely inside
+    the tool: the result is the tool alone.
+
+    The engine refuses rather than guessing, and claims no rule code. The
+    kernel accepts both silently and returns the larger operand's exact
+    volume, so nothing downstream would notice that a requested boss, rib or
+    flange is missing from the part -- which is the silent behaviour this
+    engine exists to prevent.
+
+    Containment is decided by the kernel, not by comparing volumes against a
+    tolerance: ``tool.cut(body)`` yields no solid exactly when the tool adds
+    nothing, and ``body.cut(tool)`` yields no solid exactly when the body adds
+    nothing. A tool that lies inside the body *and* touches its faces from
+    within is measured to be caught too.
+    """
+    # After the first tool, ``body`` is the target plus the tools already
+    # joined, and the message says so rather than blaming the target alone.
+    owner = (
+        f"target {target_id!r}"
+        if is_first
+        else f"target {target_id!r} as already joined with the earlier tools"
+    )
+    try:
+        tool_adds = bool(tool.cut(body).Solids())
+        body_adds = bool(body.cut(tool).Solids())
+    except Exception as exc:  # pragma: no cover - kernel refusal is rare
+        raise GeometryOperationError(
+            f"{label}: could not test what tool {tool_id!r} (tools[{position}]) "
+            f"adds to target {target_id!r}: {exc}"
+        ) from exc
+    if not tool_adds:
+        raise GeometryOperationError(
+            f"{label}: tool {tool_id!r} (tools[{position}]) lies entirely "
+            f"inside {owner}, so joining it would add no material and the "
+            "result would be unchanged. The specification does not classify "
+            "this case (E3 is the only geometric rule given for 'union'), so "
+            "the engine refuses it rather than accepting a union that means "
+            f"nothing. Move or resize {tool_id!r} so part of it lies outside "
+            f"{target_id!r}"
+        )
+    if not body_adds:
+        raise GeometryOperationError(
+            f"{label}: {owner} lies entirely inside tool {tool_id!r} "
+            f"(tools[{position}]), so the result would be {tool_id!r} alone "
+            f"and {target_id!r} would contribute no material. The "
+            "specification does not classify this case (E3 is the only "
+            "geometric rule given for 'union'), so the engine refuses it "
+            "rather than accepting a union that means nothing. Move or resize "
+            f"{target_id!r} or {tool_id!r} so each has material outside the "
+            "other"
+        )
+
+
+def _unify_same_domain(solid: Any, *, label: str) -> Any:
+    """Merge faces on one surface and edges on one curve; return the solid.
+
+    A raw fuse keeps the seam where its operands met: two overlapping boxes
+    come back with 14 faces, the coplanar ones still split along the operands'
+    old edges. Those seam edges are artefacts of *how* the body was described,
+    not edges of the body, and a later ``fillet`` or ``chamfer`` would select
+    them and fail (an edge between coplanar faces has nothing to blend).
+
+    OpenCascade's ``ShapeUpgrade_UnifySameDomain`` removes them -- the same
+    operation as CadQuery's ``Shape.clean()``, driven directly so the result's
+    type is checked rather than assumed. Measured: volume is unchanged to the
+    last bit on the test geometries, an unrelated cavity elsewhere on the
+    target is left untouched, and the result is identical from run to run.
+    """
+    try:
+        upgrader = ShapeUpgrade_UnifySameDomain(solid.wrapped, True, True, True)
+        upgrader.AllowInternalEdges(False)
+        upgrader.Build()
+        unified = _cq.Shape.cast(upgrader.Shape())
+    except Exception as exc:  # pragma: no cover - kernel refusal is rare
+        raise GeometryOperationError(
+            f"{label}: the kernel could not unify the joined solid's faces: "
+            f"{type(exc).__name__}"
+        ) from exc
+    remaining = unified.Solids()
+    if len(remaining) != 1:  # pragma: no cover - not observed
+        raise GeometryOperationError(
+            f"{label}: unifying the joined solid's faces left "
+            f"{len(remaining)} solids; no geometry is produced"
+        )
+    return remaining[0]
 
 
 def _apply_fillet(fillet: Fillet, solids: "Dict[str, Any]") -> Any:
@@ -1017,14 +1355,14 @@ def _require_supported_part(part: Any) -> None:
             "this engine needs at least one feature to build; the history is empty"
         )
 
-    supported = (Box, Cylinder, ThroughHole, Subtract, Fillet, Chamfer)
+    supported = (Box, Cylinder, ThroughHole, Subtract, Fillet, Chamfer, UnionFeature)
     for position, feature in enumerate(part.features):
         if not isinstance(feature, supported):
             raise UnsupportedGeometryError(
                 f"unsupported feature type {feature.TYPE!r} at features[{position}]; "
                 "this engine builds 'box' and 'cylinder' and applies "
-                "'through_hole', 'subtract', 'fillet' and 'chamfer' -- the "
-                "whole V1 feature set"
+                "'through_hole', 'subtract', 'fillet', 'chamfer' and 'union' "
+                "-- the whole V1 feature set"
             )
 
     first = part.features[0]
@@ -1036,5 +1374,5 @@ def _require_supported_part(part: Any) -> None:
 
     # The number of constructive features is deliberately *not* restricted
     # here. Several are legitimate as long as every extra solid is consumed by
-    # a 'subtract' (Section B.4); a leftover solid is caught by the rule S9
+    # a 'subtract' or a 'union' (Section B.4); a leftover solid is caught by the rule S9
     # check after the last feature, which is where the specification puts it.
