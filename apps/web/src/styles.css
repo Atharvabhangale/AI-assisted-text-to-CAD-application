@@ -129,6 +129,7 @@ textarea:focus-visible {
   color: var(--muted);
 }
 
+#status[data-state="generating"],
 #status[data-state="building"] {
   color: var(--busy);
 }
@@ -141,6 +142,7 @@ textarea:focus-visible {
 #status[data-state="build-error"],
 #status[data-state="output-error"],
 #status[data-state="execution-error"],
+#status[data-state="model-error"],
 #status[data-state="network-error"] {
   color: var(--bad);
 }

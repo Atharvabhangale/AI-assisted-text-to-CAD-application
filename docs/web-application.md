@@ -2,7 +2,9 @@
 
 Status: **Stage 25 — the first visible browser application, a CAD-document
 viewer. Stage 30 made natural language the primary input and demoted the raw
-CAD JSON to an advanced section. Still not an editor.**
+CAD JSON to an advanced section. A later change made the interpreter's
+assumptions and its attempts visible, taught the design-intent panel the
+`union` feature, and added example descriptions. Still not an editor.**
 
 ## What it is
 
@@ -27,9 +29,11 @@ Pressing **Generate CAD** does the whole thing; there is no second Build click
 on the natural-language path.
 
 ```
-type a description
-  -> "Generating CAD..."      POST /generate
+type a description           (or click an example, which only fills the box)
+  -> "Generating CAD..."      POST /generate, exactly once
   -> design intent shown      read from the document the backend returned
+  -> assumptions listed       the backend's own strings, verbatim
+  -> attempts reported        only if an answer was rejected along the way
   -> "Building geometry..."   POST /build, with that document unchanged
   -> "Ready."                 the mesh, the measurements, the export buttons
 ```
@@ -44,6 +48,13 @@ document the backend validated, and posts that same document back to be built
 without editing it — a test asserts the object sent to `/build` is deeply
 equal to the one `/generate` returned. It performs no repair, no retry and no
 completion of missing fields.
+
+**One click is exactly one `POST /generate`.** The backend may check its own
+answer and ask the model again inside that one request; the page never does.
+There is no timer, no polling and no automatic resubmission anywhere in it,
+because every `/generate` is a paid model call. `tests/boundary.test.ts`
+asserts the source has a single call site for it and no timer, and
+`tests/interpretation.test.ts` counts the requests for every kind of answer.
 
 **The dependency runs one way.** The browser knows the transport contract and
 nothing below it. It never imports CadQuery or OpenCascade — it cannot: the
@@ -62,6 +73,12 @@ the clarification answer, and the advanced CAD JSON. There is still no field
 that edits geometry directly: no number spinner, no dimension input, no
 feature dropdown. Tests assert all of this (`tests/boundary.test.ts`),
 including that the sources name no vendor and carry no credential.
+
+The example chips under the description box are buttons, not fields. Each one
+copies its own text into the description box and does nothing else — it does
+not generate. The same test asserts that every button on the page is either
+one of the nine named controls or an example chip, that each is a plain
+`type="button"`, and that the page contains no form to submit.
 
 **The browser never sees a credential.** `GEMINI_API_KEY` is read by the
 backend's provider and by nothing else; it is not in the page, not in the
@@ -243,7 +260,7 @@ apps/web/
   src/viewer.ts       the Three.js viewport
   src/example.ts      Section D, as a data literal
   src/main.ts         entry point: collect, wire, start
-  tests/              122 Vitest tests, against the real page and real fixtures
+  tests/              162 Vitest tests, against the real page and real fixtures
   e2e/run.mjs         the end-to-end run: real backend, real browser
 ```
 
@@ -267,15 +284,94 @@ order is semantic. A field the document does not carry is omitted rather than
 guessed — an absent `position` means the specification's default applied, and
 saying so is the backend's job.
 
+A `union` is read the same way as a `subtract` — two rows naming the solids by
+their ids, and nothing computed:
+
+```
+  Subtract — pocketed          Union — bracket
+    From    block                Join    upright
+    Remove  pocket               Onto    base
+```
+
+A feature type the panel does not know is still listed, under its own type
+name, so a generated feature is never silently dropped.
+
+## Assumptions and attempts
+
+`POST /generate` reports two things about *how* it reached its answer, and the
+page shows both rather than letting either be silent.
+
+```ts
+assumptions: string[]          // choices the description did not state
+attempts: {                    // one per model call made for this request
+  number: number               // 1-based
+  accepted: boolean
+  stage: "answer" | "validation" | "geometry" | null
+  rule_codes: string[]
+  issues: string[]
+}[]
+```
+
+Both are optional on the wire. An older backend sends neither, and a missing,
+`null` or malformed field is read as an empty list — the captured fixtures
+carry neither field, and the suite asserts they still build.
+
+**Assumptions** appear in the design-intent panel under the heading
+**Assumptions made**, above the feature list, one list item per string. The
+strings are the backend's and are shown verbatim, as text: the page does not
+parse a dimension out of them or act on them. An empty list shows nothing.
+
+**Attempts** appear in the status panel, and only when there is something to
+tell — a single accepted attempt says nothing.
+
+| Situation | What the page says |
+|---|---|
+| accepted after one rejection | `Accepted on attempt 2 of 2 — attempt 1 was rejected by the geometry check (E5).` |
+| accepted after several | `Accepted on attempt 3 of 3 — 2 earlier answers were rejected.` |
+| a question or refusal after a rejection | `Answered after 2 attempts — attempt 1 was rejected by the document validator (S9).` |
+| nothing accepted | `None of the 3 attempts was accepted.` (or `The one attempt made was not accepted.`) |
+
+Under the note, **What each attempt returned** lists every attempt in order —
+`Attempt 1 — rejected by the geometry check (E5)` followed by that attempt's
+reasons, `Attempt 2 — accepted`. It is collapsed under a part that was built
+and **open under a failure**, where the reasons are the result. The stage
+wording is a mapping of the backend's own `stage` values (`answer` →
+"rejected as an unusable answer", `validation` → "rejected by the document
+validator", `geometry` → "rejected by the geometry check"); a stage the page
+has never heard of is shown as plain "rejected" rather than guessed at. The
+rule codes are the backend's, joined and shown as they came.
+
+One display decision is the page's own: under a failure, a top-level `issues`
+entry that is word-for-word a reason already listed under an attempt is not
+printed a second time. Anywhere the attempt list is collapsed, every top-level
+reason stays in plain view.
+
+## Example descriptions
+
+Under the description box is a row of example chips — an L-bracket, a mug with
+a handle, a gaming mouse, a desk phone stand, a plate with four holes. A click
+puts the chip's text in the description box, replacing what was there, and
+focuses it. **It sends nothing.** Generation stays behind **Generate CAD**,
+and the help line under the chips says so.
+
+The examples are descriptions, not promises: whether a given one is generated,
+questioned or refused is the backend's answer on the day.
+
 ## Testing
 
 ### Unit and DOM tests — `npm test` in `apps/web`
 
-87 tests, in three files:
+162 tests, in five files:
 
 - `tests/app.test.ts` — the build flow: loading, the request shape, success,
   a cache hit, each failure classification, the identity and measurement
   rows, the export buttons, and the forbidden-token sweeps.
+- `tests/generate.test.ts` — the text-to-CAD flow, replayed from captured
+  `/generate` answers: one action, the document built unchanged, the design
+  intent, and the three answers that stop before a build.
+- `tests/interpretation.test.ts` — assumptions, attempts, the `union` intent
+  text and the example chips, including that a click on a chip makes no
+  request and that every kind of answer costs exactly one `/generate`.
 - `tests/render-model.test.ts` — the conversion, the normals, the per-face
   vertices and the camera fit, on the real Section D mesh.
 - `tests/boundary.test.ts` — the source-level assertions above.
@@ -287,9 +383,18 @@ Two things make these tests worth something:
    hand-written copy of the markup. `collectElements` is the same function the
    entry point uses.
 2. **Every fixture came from the real backend over the real HTTP API** — see
-   `tests/fixtures/README.md`. No response body in the suite was written by
-   hand, so the frontend cannot drift away from the transport contract
-   without a test noticing.
+   `tests/fixtures/README.md`. No fixture was written by hand, so the
+   frontend cannot drift away from the transport contract without a test
+   noticing.
+
+**One exception, stated plainly.** No fixture carries `assumptions` or
+`attempts`: every capture predates them. `tests/interpretation.test.ts`
+therefore layers hand-authored values for those two fields over the captured
+answers, written to the contract above while the backend producing them was
+still being built. Those tests show the page handles the shape. They are not
+evidence of what the backend sends, and they should be replaced with captured
+answers once it can be recorded. The end-to-end run does not cover the two
+fields either.
 
 No screenshot is compared, pixel-for-pixel or otherwise.
 
@@ -338,6 +443,19 @@ tolerance, which is the tessellator's chord error plus a margin. Tessellated
 geometry is never compared for exact equality.
 
 ## Limitations, honestly
+
+- **The assumptions and attempts display has only been tested against
+  hand-authored responses**, not against a backend that sends them (see
+  *Testing*). If the backend names a field differently from the contract
+  above, the page shows nothing for it rather than failing, and an unknown
+  `stage` value is worded as plain "rejected" — safe, but it also means a
+  mismatch would be quiet.
+- **Assumptions are shown, not checked.** The page cannot tell whether the
+  list is complete or whether a listed value is the one in the document; both
+  come from the backend and are displayed side by side.
+- **A failed generation leaves the previous part in the viewport.** The
+  result rows, the exports and the design intent are cleared; the viewer has
+  no way to be emptied, so the last mesh stays drawn until the next build.
 
 - **Development configuration only.** The Vite proxy is a dev/preview
   convenience. A deployment would put the API and the page behind one origin

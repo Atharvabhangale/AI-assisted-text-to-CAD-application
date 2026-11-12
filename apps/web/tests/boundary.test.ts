@@ -426,6 +426,21 @@ describe("the stage's exclusions hold", () => {
     for (const forbidden of ["repair", "retry", "fixUp", "correct("]) {
       expect(code, `app.ts: ${forbidden}`).not.toContain(forbidden);
     }
+    // One click is one request. Every `/generate` is a paid model call, so
+    // the page has exactly one call site for it and nothing that could fire
+    // it again unasked: no timer, no polling, no loop around the call.
+    expect(code.match(/client\.generate\(/g)).toHaveLength(1);
+    for (const name of ["app.ts", "api.ts", "main.ts"]) {
+      const source = codeOf(read(name));
+      for (const forbidden of ["setTimeout", "setInterval", "while (", "for (;;"]) {
+        expect(source, `${name}: ${forbidden}`).not.toContain(forbidden);
+      }
+    }
+    // The example chips are wired to fill the box, not to generate.
+    const wiring = /export function wireExamples[\s\S]*?\n}\n/.exec(app);
+    expect(wiring).not.toBeNull();
+    expect(wiring![0]).toContain("descriptionInput.value");
+    expect(wiring![0]).not.toContain("generate");
     // Outcome names come from the backend's taxonomy, not a second one.
     for (const outcome of [
       "generated",
@@ -492,6 +507,22 @@ describe("the stage's exclusions hold", () => {
       "load-example",
       "validate-button",
     ]);
+    // The only other buttons are the example chips. They carry no id because
+    // none is a control of its own: each one fills the description box with
+    // its own text and does nothing else, which a behavioural test asserts.
+    // Nothing on the page can submit: no form, and no button that is not
+    // explicitly a plain one.
+    const tags = [...html.matchAll(/<button\b[^>]*>/g)].map((match) => match[0]);
+    const chips = tags.filter((tag) => tag.includes("data-example"));
+    expect(chips.length).toBeGreaterThan(0);
+    expect(tags).toHaveLength(buttons.length + chips.length);
+    for (const tag of tags) {
+      expect(tag, tag).toContain('type="button"');
+    }
+    for (const chip of chips) {
+      expect(chip, chip).not.toContain("id=");
+    }
+    expect(html).not.toContain("<form");
   });
 
   it("makes text-to-CAD the primary flow and CAD JSON secondary", () => {

@@ -4,8 +4,9 @@
  * The DOM under test is `index.html` itself, read from disk, so a renamed or
  * removed element fails the suite instead of passing against a hand-written
  * copy of the markup. The API responses are captured from the real backend
- * over the real HTTP API (see `tests/fixtures/README.md`) -- no response body
- * in this suite was written by hand.
+ * over the real HTTP API (see `tests/fixtures/README.md`) -- no fixture was
+ * written by hand. The one place the suite authors response fields itself is
+ * declared at the top of `interpretation.test.ts`.
  */
 
 import { readFileSync } from "node:fs";

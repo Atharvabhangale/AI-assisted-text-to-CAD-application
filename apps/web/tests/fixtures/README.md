@@ -46,6 +46,19 @@ The build key is
 document hash
 `2fd162f9eec5fc68abf84533d09c66bf39c514760073bba1e714c05c37cd71bc`.
 
+## What the fixtures do not contain: `assumptions` and `attempts`
+
+`POST /generate` later gained two fields — `assumptions` and `attempts` — and
+**no file here carries either**, because every capture predates them. That is
+useful in itself: the captured answers are what an older backend sends, so the
+suite uses them to assert that a missing field is read as an empty list.
+
+The tests that exercise the two fields (`tests/interpretation.test.ts`) layer
+**hand-authored** values over these captured answers, written to the agreed
+contract while the backend that produces them was still being built. They are
+evidence that the page handles the shape, not that any model ever said those
+things. Capture real ones and replace them once the backend can be recorded.
+
 To regenerate them, re-run the capture described in `docs/web-application.md`.
 Do not edit them by hand: a hand-edited fixture would let the frontend drift
 away from the transport contract without any test noticing.

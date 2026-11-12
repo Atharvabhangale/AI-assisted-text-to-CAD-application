@@ -96,6 +96,17 @@ function wasRejected(attempt: GenerationAttempt): boolean {
 }
 
 /**
+ * Whether the backend produced no usable answer at all -- as opposed to a
+ * part, a question or a refusal, each of which *is* an answer.
+ */
+function producedNothing(response: GenerateResponse): boolean {
+  return (
+    response.outcome !== "generated" &&
+    stateForOutcome(response.outcome) === "model-error"
+  );
+}
+
+/**
  * One attempt in a few words, e.g. `rejected by the geometry check (E5)`.
  *
  * The rule codes are the backend's, joined and shown as they came.
@@ -124,7 +135,7 @@ export function attemptNote(response: GenerateResponse): string | null {
     return null;
   }
   const total = String(attempts.length);
-  if (stateForOutcome(response.outcome) === "model-error") {
+  if (producedNothing(response)) {
     return attempts.length === 1
       ? "The one attempt made was not accepted."
       : `None of the ${total} attempts was accepted.`;
@@ -502,8 +513,7 @@ export function createApp(options: AppOptions): App {
     }
     elements.attemptNote.textContent = note;
     elements.attemptNote.hidden = false;
-    elements.attemptDetails.open =
-      stateForOutcome(response.outcome) === "model-error";
+    elements.attemptDetails.open = producedNothing(response);
     elements.attemptDetails.hidden = false;
     return shown;
   }
@@ -703,8 +713,7 @@ export function createApp(options: AppOptions): App {
         // Under a failure the attempts are listed open, so a reason already
         // given there is not said a second time. Anywhere else the list is
         // collapsed, and every reason stays in plain view.
-        const failed = stateForOutcome(response.outcome) === "model-error";
-        const said = failed ? listed : [];
+        const said = producedNothing(response) ? listed : [];
         showIssues(
           strings(response.issues).filter((issue) => !said.includes(issue)),
         );
