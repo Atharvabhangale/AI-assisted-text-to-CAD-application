@@ -14,6 +14,7 @@ import type {
   DownloadableKind,
   ErrorRecord,
   GenerateResponse,
+  GenerationAttempt,
   ValidateResponse,
 } from "./api";
 import { describeIntent, type IntentFeature } from "./design-intent";
@@ -60,6 +61,93 @@ export function stateForOutcome(outcome: string | undefined): AppState {
 }
 
 /**
+ * How each stage of the backend's own checking is worded.
+ *
+ * A mapping of the backend's `stage` values, so the page can say *where* an
+ * answer was turned down. The page checks nothing itself: the stage, the rule
+ * codes and the reasons are all fields the backend sent.
+ */
+export const ATTEMPT_STAGES: Readonly<Record<string, string>> = {
+  answer: "rejected as an unusable answer",
+  validation: "rejected by the document validator",
+  geometry: "rejected by the geometry check",
+};
+
+/** A list the backend may have omitted, read as empty. Strings only. */
+function strings(value: unknown): readonly string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
+}
+
+/** The attempts the backend reported; none, for a backend that reports none. */
+function attemptsOf(response: GenerateResponse): readonly GenerationAttempt[] {
+  return Array.isArray(response.attempts)
+    ? response.attempts.filter(
+        (item): item is GenerationAttempt =>
+          typeof item === "object" && item !== null,
+      )
+    : [];
+}
+
+/** An attempt the backend turned down, as opposed to a question or a refusal. */
+function wasRejected(attempt: GenerationAttempt): boolean {
+  return !attempt.accepted && (attempt.stage ?? null) !== null;
+}
+
+/**
+ * One attempt in a few words, e.g. `rejected by the geometry check (E5)`.
+ *
+ * The rule codes are the backend's, joined and shown as they came.
+ */
+export function describeAttempt(attempt: GenerationAttempt): string {
+  if (attempt.accepted) {
+    return "accepted";
+  }
+  if (!wasRejected(attempt)) {
+    return "answered without a CAD document";
+  }
+  const stage = ATTEMPT_STAGES[attempt.stage ?? ""] ?? "rejected";
+  const codes = strings(attempt.rule_codes);
+  return codes.length === 0 ? stage : `${stage} (${codes.join(", ")})`;
+}
+
+/**
+ * The one-line account of how many model calls an answer took, or `null`
+ * when there is nothing to say: a single accepted attempt, or a backend that
+ * reports no attempts at all.
+ */
+export function attemptNote(response: GenerateResponse): string | null {
+  const attempts = attemptsOf(response);
+  const rejected = attempts.filter(wasRejected);
+  if (attempts.length < 2 && rejected.length === 0) {
+    return null;
+  }
+  const total = String(attempts.length);
+  if (stateForOutcome(response.outcome) === "model-error") {
+    return attempts.length === 1
+      ? "The one attempt made was not accepted."
+      : `None of the ${total} attempts was accepted.`;
+  }
+  const accepted = attempts.find((attempt) => attempt.accepted);
+  const head =
+    accepted === undefined
+      ? `Answered after ${total} attempts`
+      : `Accepted on attempt ${String(accepted.number)} of ${total}`;
+  if (rejected.length === 0) {
+    return `${head}.`;
+  }
+  if (rejected.length === 1) {
+    const only = rejected[0];
+    return (
+      `${head} \u2014 attempt ${String(only.number)} was ` +
+      `${describeAttempt(only)}.`
+    );
+  }
+  return `${head} \u2014 ${String(rejected.length)} earlier answers were rejected.`;
+}
+
+/**
  * Which state a backend failure classification means.
  *
  * A mapping of the transport contract's own `failure` values, so the page
@@ -84,11 +172,17 @@ export function stateForFailure(failure: string | undefined): AppState {
 export interface Elements {
   readonly descriptionInput: HTMLTextAreaElement;
   readonly generateButton: HTMLButtonElement;
+  readonly examples: HTMLElement;
+  readonly attemptNote: HTMLElement;
+  readonly attemptDetails: HTMLDetailsElement;
+  readonly attemptList: HTMLElement;
   readonly clarify: HTMLElement;
   readonly questions: HTMLElement;
   readonly clarifyInput: HTMLTextAreaElement;
   readonly clarifyButton: HTMLButtonElement;
   readonly intentSummary: HTMLElement;
+  readonly assumptions: HTMLElement;
+  readonly assumptionList: HTMLElement;
   readonly designIntent: HTMLElement;
   readonly documentInput: HTMLTextAreaElement;
   readonly loadExample: HTMLButtonElement;
@@ -111,11 +205,17 @@ export interface Elements {
 export const ELEMENT_IDS = {
   descriptionInput: "description-input",
   generateButton: "generate-button",
+  examples: "examples",
+  attemptNote: "attempt-note",
+  attemptDetails: "attempt-details",
+  attemptList: "attempt-list",
   clarify: "clarify",
   questions: "questions",
   clarifyInput: "clarify-input",
   clarifyButton: "clarify-button",
   intentSummary: "intent-summary",
+  assumptions: "assumptions",
+  assumptionList: "assumption-list",
   designIntent: "design-intent",
   documentInput: "document-input",
   loadExample: "load-example",
@@ -155,6 +255,13 @@ export function collectElements(root: ParentNode): Elements {
       root,
       ELEMENT_IDS.generateButton,
     ),
+    examples: requireElement(root, ELEMENT_IDS.examples),
+    attemptNote: requireElement(root, ELEMENT_IDS.attemptNote),
+    attemptDetails: requireElement<HTMLDetailsElement>(
+      root,
+      ELEMENT_IDS.attemptDetails,
+    ),
+    attemptList: requireElement(root, ELEMENT_IDS.attemptList),
     clarify: requireElement(root, ELEMENT_IDS.clarify),
     questions: requireElement(root, ELEMENT_IDS.questions),
     clarifyInput: requireElement<HTMLTextAreaElement>(
@@ -166,6 +273,8 @@ export function collectElements(root: ParentNode): Elements {
       ELEMENT_IDS.clarifyButton,
     ),
     intentSummary: requireElement(root, ELEMENT_IDS.intentSummary),
+    assumptions: requireElement(root, ELEMENT_IDS.assumptions),
+    assumptionList: requireElement(root, ELEMENT_IDS.assumptionList),
     designIntent: requireElement(root, ELEMENT_IDS.designIntent),
     documentInput: requireElement<HTMLTextAreaElement>(
       root,
@@ -295,6 +404,16 @@ export function createApp(options: AppOptions): App {
     elements.designIntent.textContent = "";
     elements.designIntent.hidden = true;
     elements.intentSummary.textContent = "";
+    elements.assumptionList.textContent = "";
+    elements.assumptions.hidden = true;
+  }
+
+  function clearAttempts(): void {
+    elements.attemptNote.textContent = "";
+    elements.attemptNote.hidden = true;
+    elements.attemptList.textContent = "";
+    elements.attemptDetails.hidden = true;
+    elements.attemptDetails.open = false;
   }
 
   function clearClarify(): void {
@@ -326,6 +445,67 @@ export function createApp(options: AppOptions): App {
       elements.designIntent.append(heading, list);
     }
     elements.designIntent.hidden = false;
+  }
+
+  /**
+   * Show the choices the interpreter made that the description did not state.
+   *
+   * The strings are the backend's and are shown verbatim: the page does not
+   * read a dimension out of them or act on them. They are listed so that a
+   * guessed value is never silent.
+   */
+  function showAssumptions(response: GenerateResponse): void {
+    const assumptions = strings(response.assumptions);
+    for (const assumption of assumptions) {
+      const entry = document.createElement("li");
+      entry.textContent = assumption;
+      elements.assumptionList.append(entry);
+    }
+    elements.assumptions.hidden = assumptions.length === 0;
+  }
+
+  /**
+   * Say how many model calls the backend made for this answer, and what each
+   * one came to.
+   *
+   * Shown only when there is something to tell -- an answer that was turned
+   * down along the way. The list is collapsed under a part that was built and
+   * open under a failure, where the reasons *are* the result. Returns the
+   * reasons it put on the page.
+   */
+  function showAttempts(response: GenerateResponse): readonly string[] {
+    clearAttempts();
+    const note = attemptNote(response);
+    if (note === null) {
+      return [];
+    }
+    const shown: string[] = [];
+    for (const attempt of attemptsOf(response)) {
+      const entry = document.createElement("li");
+      entry.dataset.accepted = String(attempt.accepted);
+      const title = document.createElement("span");
+      title.textContent =
+        `Attempt ${String(attempt.number)} \u2014 ${describeAttempt(attempt)}`;
+      entry.append(title);
+      const issues = strings(attempt.issues);
+      if (issues.length > 0) {
+        const reasons = document.createElement("ul");
+        for (const issue of issues) {
+          const reason = document.createElement("li");
+          reason.textContent = issue;
+          reasons.append(reason);
+          shown.push(issue);
+        }
+        entry.append(reasons);
+      }
+      elements.attemptList.append(entry);
+    }
+    elements.attemptNote.textContent = note;
+    elements.attemptNote.hidden = false;
+    elements.attemptDetails.open =
+      stateForOutcome(response.outcome) === "model-error";
+    elements.attemptDetails.hidden = false;
+    return shown;
   }
 
   /** Show the model's clarification questions, and invite one answer. */
@@ -502,6 +682,7 @@ export function createApp(options: AppOptions): App {
     if (!text.trim()) {
       clearErrors();
       clearIntent();
+      clearAttempts();
       clearClarify();
       setState("idle", "Describe the part you want before generating.");
       return;
@@ -509,6 +690,7 @@ export function createApp(options: AppOptions): App {
     setBusy(true);
     clearErrors();
     clearIntent();
+    clearAttempts();
     clearClarify();
     hideResult();
     generation = null;
@@ -516,15 +698,25 @@ export function createApp(options: AppOptions): App {
     try {
       const response = await client.generate(text);
       generation = response;
+      const listed = showAttempts(response);
       if (response.outcome !== "generated" || response.document === null) {
-        showIssues(response.issues);
+        // Under a failure the attempts are listed open, so a reason already
+        // given there is not said a second time. Anywhere else the list is
+        // collapsed, and every reason stays in plain view.
+        const failed = stateForOutcome(response.outcome) === "model-error";
+        const said = failed ? listed : [];
+        showIssues(
+          strings(response.issues).filter((issue) => !said.includes(issue)),
+        );
         if (response.outcome === "needs_clarification") {
           showQuestions(response.questions);
         }
+        showAssumptions(response);
         setState(stateForOutcome(response.outcome), response.message);
         return;
       }
       showIntent(response);
+      showAssumptions(response);
       // Mirror the generated document into the advanced view, so what was
       // built is inspectable and re-buildable without retyping it.
       elements.documentInput.value = JSON.stringify(response.document, null, 2);
@@ -573,6 +765,7 @@ export function createApp(options: AppOptions): App {
       elements.documentInput.value = SECTION_D_JSON;
       clearErrors();
       clearIntent();
+      clearAttempts();
       clearClarify();
       hideResult();
       setState(
@@ -648,6 +841,30 @@ export function createApp(options: AppOptions): App {
       }
     },
   };
+}
+
+/**
+ * Wire the example chips: a click puts the chip's own text in the description
+ * box, and does nothing else.
+ *
+ * It deliberately does not generate. Every generation is a paid model call,
+ * so it stays behind the one button that says so.
+ */
+export function wireExamples(elements: Elements): void {
+  elements.examples.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) {
+      return;
+    }
+    const chip = target.closest("button[data-example]");
+    if (chip === null) {
+      return;
+    }
+    elements.descriptionInput.value = (chip.textContent ?? "")
+      .replace(/\s+/g, " ")
+      .trim();
+    elements.descriptionInput.focus();
+  });
 }
 
 /**

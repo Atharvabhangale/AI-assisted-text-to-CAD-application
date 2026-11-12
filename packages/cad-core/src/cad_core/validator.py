@@ -1,6 +1,6 @@
 """Deterministic static validator for the V1 CAD specification.
 
-Implements the static rules S1-S20 of ``docs/cad-specification.md``.  The
+Implements the static rules S1-S22 of ``docs/cad-specification.md``.  The
 geometric rules E1-E5 are *not* implemented and are never reported here; see
 :mod:`cad_core.geometry`.
 
@@ -24,6 +24,7 @@ from cad_core.model import (
     CONSTRUCTIVE_TYPES,
     DEFAULT_AXIS,
     EDGE_SELECT_VALUES,
+    FEATURE_INTRODUCED_IN,
     FEATURE_PARAMETERS,
     FEATURE_TYPES,
     ID_PATTERN,
@@ -44,6 +45,8 @@ from cad_core.model import (
     Size,
     Subtract,
     ThroughHole,
+    TOOL_CONSUMING_TYPES,
+    UnionFeature,
 )
 
 _ID_RE = re.compile(ID_PATTERN)
@@ -142,7 +145,7 @@ def validate(document: Any) -> ValidationResult:
         cross-feature violations (id uniqueness, then references and feature
         order).  The same document always yields the same list.
 
-        Only the static rules S1-S20 are checked.  Rules E1-E5 require geometry
+        Only the static rules S1-S22 are checked.  Rules E1-E5 require geometry
         and are never reported.
     """
     errors = _Errors()
@@ -160,7 +163,9 @@ def validate(document: Any) -> ValidationResult:
     name = _validate_name(document, errors)
     description = _validate_description(document, errors)
 
-    records = _validate_features_list(document, errors)
+    records = _validate_features_list(
+        document, errors, declared_version=_declared_version(schema_version)
+    )
     duplicate_ids = _validate_unique_ids(records, errors)
     _validate_order_and_references(records, errors, duplicate_ids=duplicate_ids)
 
@@ -260,7 +265,28 @@ def _validate_description(document: Dict[str, Any], errors: _Errors) -> Optional
 # --- feature list (Section B.2) --------------------------------------------
 
 
-def _validate_features_list(document: Dict[str, Any], errors: _Errors) -> List[_Record]:
+def _declared_version(schema_version: Optional[str]) -> Optional[Tuple[int, int]]:
+    """The ``(major, minor)`` a document declares, or None if it has none.
+
+    ``schema_version`` is the value :func:`_validate_schema_version` returned,
+    so it is either a well-formed version with a supported major or ``None``.
+    ``None`` means the version is missing or was already reported under S1 or
+    S4; nothing is then judged against it, so one bad version never produces a
+    second, derived error on every newer feature.
+    """
+    if schema_version is None:
+        return None
+    match = _VERSION_RE.match(schema_version)
+    assert match is not None  # guaranteed by _validate_schema_version
+    return int(match.group(1)), int(match.group(2))
+
+
+def _validate_features_list(
+    document: Dict[str, Any],
+    errors: _Errors,
+    *,
+    declared_version: Optional[Tuple[int, int]],
+) -> List[_Record]:
     """S2: features is a non-empty array; then validate each entry."""
     if "features" not in document:
         return []
@@ -275,10 +301,18 @@ def _validate_features_list(document: Dict[str, Any], errors: _Errors) -> List[_
     if not raw_features:
         errors.add("S2", "'features' must contain at least one feature", path="features")
         return []
-    return [_validate_feature(index, raw, errors) for index, raw in enumerate(raw_features)]
+    return [
+        _validate_feature(index, raw, errors, declared_version)
+        for index, raw in enumerate(raw_features)
+    ]
 
 
-def _validate_feature(index: int, raw: Any, errors: _Errors) -> _Record:
+def _validate_feature(
+    index: int,
+    raw: Any,
+    errors: _Errors,
+    declared_version: Optional[Tuple[int, int]],
+) -> _Record:
     """Validate one feature: structure, unknown fields, then its parameters."""
     path = f"features[{index}]"
     if not isinstance(raw, dict):
@@ -291,7 +325,9 @@ def _validate_feature(index: int, raw: Any, errors: _Errors) -> _Record:
         return _Record(index, raw, None, None, None, False)
 
     feature_id, id_is_valid = _validate_feature_id(index, raw, errors)
-    feature_type = _validate_feature_type(index, raw, feature_id, errors)
+    feature_type = _validate_feature_type(
+        index, raw, feature_id, errors, declared_version
+    )
     if feature_type is None:
         return _Record(index, raw, feature_id, None, None, id_is_valid)
 
@@ -354,9 +390,20 @@ def _validate_feature_id(index: int, raw: Dict[str, Any], errors: _Errors) -> Tu
 
 
 def _validate_feature_type(
-    index: int, raw: Dict[str, Any], feature_id: Optional[str], errors: _Errors
+    index: int,
+    raw: Dict[str, Any],
+    feature_id: Optional[str],
+    errors: _Errors,
+    declared_version: Optional[Tuple[int, int]],
 ) -> Optional[str]:
-    """S2: 'type' is a required string. S3: it is one of the six V1 types."""
+    """S2: 'type' is a required string. S3: it is a type the document may use.
+
+    A type is known when it is one of :data:`FEATURE_TYPES` *and* the version
+    the document declares already defines it (Section F). ``union`` exists
+    from ``1.1.0``, so in a document declaring ``1.0.0`` it is an unknown
+    type -- the verdict and rule code a ``1.0.0`` consumer gives -- with a
+    message that says how to fix it.
+    """
     path = f"features[{index}].type"
     if "type" not in raw:
         errors.add(
@@ -387,7 +434,36 @@ def _validate_feature_type(
             feature_index=index,
         )
         return None
+    introduced = FEATURE_INTRODUCED_IN.get(value)
+    if (
+        introduced is not None
+        and declared_version is not None
+        and declared_version < introduced
+    ):
+        needed = f"{introduced[0]}.{introduced[1]}.0"
+        declared = _version_family(declared_version)
+        available = ", ".join(
+            kind
+            for kind in FEATURE_TYPES
+            if FEATURE_INTRODUCED_IN.get(kind, (0, 0)) <= declared_version
+        )
+        errors.add(
+            "S3",
+            f"feature type {value!r} is defined from schema version {needed}, "
+            f"but this document declares {declared}, which supports only: "
+            f"{available}. Set 'schema_version' to \"{needed}\" to use "
+            f"{value!r}",
+            path=path,
+            feature_id=feature_id,
+            feature_index=index,
+        )
+        return None
     return value
+
+
+def _version_family(declared_version: Tuple[int, int]) -> str:
+    """Name a declared ``(major, minor)`` for an error message."""
+    return f"{declared_version[0]}.{declared_version[1]}.x"
 
 
 # --- feature parameters (Section C) ----------------------------------------
@@ -413,6 +489,8 @@ def _validate_feature_parameters(
         return _validate_fillet(index, raw, feature_id, errors)
     if feature_type == "chamfer":
         return _validate_chamfer(index, raw, feature_id, errors)
+    if feature_type == "union":
+        return _validate_union(index, raw, feature_id, errors)
     raise AssertionError(f"unhandled feature type {feature_type!r}")  # pragma: no cover
 
 
@@ -470,12 +548,29 @@ def _validate_subtract(
     """Section C.4. Rules S2 (target), S14 (tools array), S15 (tool identity)."""
     context = _Context(index, feature_id, errors)
     target = _validate_reference(raw.get("target"), "target", context) if "target" in raw else None
-    tools = _validate_tools(raw.get("tools"), context) if "tools" in raw else None
+    tools = _validate_tools(raw.get("tools"), "S14", context) if "tools" in raw else None
     if tools is not None:
-        _validate_tool_identity(target, tools, context)
+        _validate_tool_identity(target, tools, "S15", context)
     if target is None or tools is None or feature_id is None:
         return None
     return Subtract(id=feature_id, target=target, tools=tools)
+
+
+def _validate_union(
+    index: int, raw: Dict[str, Any], feature_id: Optional[str], errors: _Errors
+) -> Optional[UnionFeature]:
+    """Section C.8. Rules S2 (target), S21 (tools array), S22 (tool identity).
+
+    The same structural checks as a subtract, under union's own rule codes.
+    """
+    context = _Context(index, feature_id, errors)
+    target = _validate_reference(raw.get("target"), "target", context) if "target" in raw else None
+    tools = _validate_tools(raw.get("tools"), "S21", context) if "tools" in raw else None
+    if tools is not None:
+        _validate_tool_identity(target, tools, "S22", context)
+    if target is None or tools is None or feature_id is None:
+        return None
+    return UnionFeature(id=feature_id, target=target, tools=tools)
 
 
 def _validate_fillet(
@@ -649,14 +744,19 @@ def _validate_reference(value: Any, field: str, context: _Context) -> Optional[s
     return value
 
 
-def _validate_tools(value: Any, context: _Context) -> Optional[Tuple[str, ...]]:
-    """S14: a non-empty array. S2: every entry is a feature id string."""
+def _validate_tools(
+    value: Any, array_rule: str, context: _Context
+) -> Optional[Tuple[str, ...]]:
+    """``array_rule``: a non-empty array. S2: every entry is a feature id string.
+
+    ``array_rule`` is S14 for a subtract and S21 for a union.
+    """
     path = context.path("tools")
     if not isinstance(value, list):
-        context.add("S14", f"'tools' must be a non-empty array, got {_describe(value)}", path)
+        context.add(array_rule, f"'tools' must be a non-empty array, got {_describe(value)}", path)
         return None
     if not value:
-        context.add("S14", "'tools' must be a non-empty array", path)
+        context.add(array_rule, "'tools' must be a non-empty array", path)
         return None
     ok = True
     for position, entry in enumerate(value):
@@ -672,14 +772,19 @@ def _validate_tools(value: Any, context: _Context) -> Optional[Tuple[str, ...]]:
     return tuple(value)
 
 
-def _validate_tool_identity(target: Optional[str], tools: Tuple[str, ...], context: _Context) -> None:
-    """S15: target absent from tools, and no duplicate ids in tools."""
+def _validate_tool_identity(
+    target: Optional[str], tools: Tuple[str, ...], identity_rule: str, context: _Context
+) -> None:
+    """``identity_rule``: target absent from tools, and no duplicate ids in tools.
+
+    ``identity_rule`` is S15 for a subtract and S22 for a union.
+    """
     path = context.path("tools")
     seen: Dict[str, int] = {}
     for position, tool in enumerate(tools):
         if tool in seen:
             context.add(
-                "S15",
+                identity_rule,
                 f"duplicate tool {tool!r} in 'tools' (already listed at index {seen[tool]})",
                 f"{path}[{position}]",
             )
@@ -687,7 +792,7 @@ def _validate_tool_identity(target: Optional[str], tools: Tuple[str, ...], conte
             seen[tool] = position
         if target is not None and tool == target:
             context.add(
-                "S15",
+                identity_rule,
                 f"'target' {target!r} must not appear in 'tools'",
                 f"{path}[{position}]",
             )
@@ -784,7 +889,8 @@ def _validate_order_and_references(
 
     Simulates the solid set of Section B.4: a constructive feature adds a solid
     named by its own id, a modifier replaces its target in place and keeps the
-    target's id, and a subtract additionally consumes its tool solids.
+    target's id, and a subtract or a union additionally consumes its tool
+    solids.
     """
     if not records:
         return
@@ -807,6 +913,9 @@ def _validate_order_and_references(
             declared[record.feature_id] = record.index
 
     live: Dict[str, int] = {}
+    # Which feature consumed each solid that has left the set, so a later
+    # reference to it can be told what happened rather than only that it failed.
+    consumed: Dict[str, _Record] = {}
     # The final solid-set count is only meaningful if every feature was
     # understood.  Where it is not, the count is suppressed rather than
     # reported as a second, misleading failure.
@@ -822,13 +931,20 @@ def _validate_order_and_references(
         raw = record.raw
         target = raw.get("target")
         if isinstance(target, str):
-            if not _resolve_reference(target, "target", record, declared, live, errors):
+            if not _resolve_reference(
+                target, "target", record, records, declared, live, consumed, errors
+            ):
                 reliable = False
         else:
             reliable = False
 
-        if record.feature_type == "subtract":
-            reliable = _consume_tools(raw.get("tools"), record, declared, live, errors) and reliable
+        if record.feature_type in TOOL_CONSUMING_TYPES:
+            reliable = (
+                _consume_tools(
+                    raw.get("tools"), record, records, declared, live, consumed, errors
+                )
+                and reliable
+            )
 
     if reliable and len(live) != 1:
         remaining = ", ".join(repr(solid) for solid in live) or "nothing"
@@ -843,22 +959,30 @@ def _validate_order_and_references(
 def _consume_tools(
     tools: Any,
     record: _Record,
+    records: List[_Record],
     declared: Dict[str, int],
     live: Dict[str, int],
+    consumed: Dict[str, _Record],
     errors: _Errors,
 ) -> bool:
-    """Resolve and consume a subtract's tool solids. Returns True if reliable."""
+    """Resolve and consume the tool solids of a subtract or a union.
+
+    Returns True if the solid set is still reliable afterwards.
+    """
     if not isinstance(tools, list) or not tools or not all(isinstance(tool, str) for tool in tools):
         return False
-    # A tool list that violates S15 has already been reported. Simulating it
+    # A tool list that violates S15 or S22 has already been reported. Simulating it
     # would consume a solid twice, so the solid set is abandoned here rather
     # than used to derive a second, misleading S6 or S9.
     if len(set(tools)) != len(tools) or record.raw.get("target") in tools:
         return False
     reliable = True
     for position, tool in enumerate(tools):
-        if _resolve_reference(tool, f"tools[{position}]", record, declared, live, errors):
+        if _resolve_reference(
+            tool, f"tools[{position}]", record, records, declared, live, consumed, errors
+        ):
             live.pop(tool, None)
+            consumed[tool] = record
         else:
             reliable = False
     return reliable
@@ -868,8 +992,10 @@ def _resolve_reference(
     reference: str,
     field: str,
     record: _Record,
+    records: List[_Record],
     declared: Dict[str, int],
     live: Dict[str, int],
+    consumed: Dict[str, _Record],
     errors: _Errors,
 ) -> bool:
     """S6/S7 for one reference. Returns True when it resolves to a live solid."""
@@ -903,13 +1029,48 @@ def _resolve_reference(
     errors.add(
         "S6",
         f"reference {reference!r} is not a solid in the solid set at this "
-        f"point: features[{declared_at}] is either a modifier, whose id never "
-        f"names a solid, or a solid already consumed by a subtract",
+        f"point: {_why_not_a_solid(reference, records[declared_at], consumed)}",
         path=path,
         feature_id=record.feature_id,
         feature_index=record.index,
     )
     return False
+
+
+def _why_not_a_solid(
+    reference: str, declared_by: _Record, consumed: Dict[str, _Record]
+) -> str:
+    """Say why an earlier feature's id does not name a live solid (rule S6).
+
+    There are exactly two ways for that to happen (Section B.4), and each has a
+    different fix, so the message names the one that applies instead of
+    listing both.
+    """
+    consumer = consumed.get(reference)
+    if consumer is not None:
+        survivor = consumer.raw.get("target")
+        where = f"{consumer.feature_type} {consumer.feature_id!r} (features[{consumer.index}])"
+        if consumer.feature_type == "union":
+            return (
+                f"it was consumed by {where}, which fused it into "
+                f"{survivor!r}; the joined solid keeps the id {survivor!r}, so "
+                f"reference {survivor!r} instead"
+            )
+        return (
+            f"it was consumed by {where}, which removed it from {survivor!r}; "
+            f"a consumed tool no longer exists"
+        )
+    if declared_by.feature_type in CONSTRUCTIVE_TYPES:
+        # A constructive feature that never became a live solid: only possible
+        # when its id duplicates an earlier one, which S8 has already reported.
+        return f"features[{declared_by.index}] did not add a solid under that id"
+    owner = declared_by.raw.get("target") if isinstance(declared_by.raw, dict) else None
+    hint = f"; reference its target {owner!r} instead" if isinstance(owner, str) else ""
+    return (
+        f"features[{declared_by.index}] is a {declared_by.feature_type}, a "
+        f"modifier, and a modifier's id never names a solid -- its result keeps "
+        f"the id of its target{hint}"
+    )
 
 
 # --- typed result -----------------------------------------------------------

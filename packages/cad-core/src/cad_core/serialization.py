@@ -1,7 +1,7 @@
 """Canonical serialization of a V1 CAD document.
 
 The CAD document *is* the serialized V1 specification (``docs/cad-specification.md``,
-schema version 1.0.0). It records engineering intent and feature history, and
+schema version 1.1.0). It records engineering intent and feature history, and
 it is the only authoritative artifact in the system:
 
 ```
@@ -52,8 +52,9 @@ document and exactly one canonical byte string.
    JSON object key order carries no meaning in the contract, so fixing it is
    safe -- and it is fixed explicitly, not left to dictionary insertion order.
 2. **Array order is preserved exactly**, never sorted. ``features`` order is
-   the design (Section B.4) and ``subtract.tools`` order decides the order of
-   subtraction (Section C.4). Sorting either would change the part.
+   the design (Section B.4), ``subtract.tools`` order decides the order of
+   subtraction (Section C.4) and ``union.tools`` order the order of fusion
+   (Section C.8). Sorting any of them would change the document.
 3. **Numbers are JSON numbers**, never strings. Every numeric field of a
    ``Part`` is a Python ``float`` -- the validator converts on the way in --
    so a length written as ``100`` in a source document comes back as ``100.0``.
@@ -112,7 +113,12 @@ and no geometric tolerance enters document equality.
 Versioning
 ----------
 The only version in a CAD document is the specification's own
-``schema_version``. This module adds none: a serialization-format version
+``schema_version``, and it is **carried, never rewritten**: a part read from
+a ``1.0.0`` document serializes with ``"schema_version":"1.0.0"`` even though
+this package now implements ``1.1.0``, so every ``1.0.0`` document keeps its
+canonical bytes and its hash. Upgrading a document's version is an edit to
+the document, made by its author, not something serialization does.
+This module adds no version of its own: a serialization-format version
 would be a second thing to keep in step for no benefit, since the canonical
 form is a pure function of the specification's own field tables. Application,
 geometry-kernel and exporter versions are separate concerns and appear
@@ -142,6 +148,7 @@ from cad_core.model import (
     Size,
     Subtract,
     ThroughHole,
+    UnionFeature,
 )
 from cad_core.validator import validate
 
@@ -307,7 +314,7 @@ def deserialize_part(data: Mapping[str, Any]) -> Part:
 
     Raises:
         DocumentParseError: if ``data`` is not a JSON object (mapping).
-        DocumentValidationError: if the document violates any of S1-S20. The
+        DocumentValidationError: if the document violates any of S1-S22. The
             exception carries the complete
             :class:`~cad_core.errors.ValidationResult`; no part is returned.
     """
@@ -434,7 +441,7 @@ def _serialize_field(feature: Feature, field: str) -> Any:
         return _serialize_vector(value)
     if isinstance(value, EdgeSelector):
         return _serialize_selector(value)
-    if isinstance(value, tuple):  # subtract.tools -- order is significant
+    if isinstance(value, tuple):  # subtract.tools / union.tools -- order is significant
         return list(value)
     if isinstance(value, float):
         return _canonical_number(value)

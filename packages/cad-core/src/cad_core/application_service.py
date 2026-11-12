@@ -23,7 +23,7 @@ The seven questions this layer answers
    and :meth:`~CadApplicationService.build_document` take a canonical CAD
    document as JSON text or as a parsed structure.
 2. *can I validate it?* -- yes, through the **existing** validator. This layer
-   does not implement S1-S20 and has no validation rules of its own.
+   does not implement S1-S22 and has no validation rules of its own.
 3. *can I build it?* -- :meth:`~CadApplicationService.build_document`.
 4. *can I request specific outputs?* -- yes, by name, converted **once** into
    the existing :class:`~cad_core.build_job.BuildOptions`.
@@ -159,7 +159,7 @@ class ServiceFailure(Enum):
     #: The document is not readable JSON, or not a JSON object.
     MALFORMED_DOCUMENT = "malformed_document"
 
-    #: The document is well-formed but violates the V1 static rules (S1-S20).
+    #: The document is well-formed but violates the V1 static rules (S1-S22).
     INVALID_DOCUMENT = "invalid_document"
 
     #: The *request* is unusable: no outputs, or an output name that is not
@@ -234,7 +234,7 @@ class ServiceError:
     #: The output being produced when it failed, for an output failure.
     output: Optional[ArtifactKind] = None
 
-    #: Specification rule codes (S1-S20, E1-E5).
+    #: Specification rule codes (S1-S22, E1-E5).
     rule_codes: Tuple[str, ...] = ()
 
     #: The validator's structured errors, as the plain data

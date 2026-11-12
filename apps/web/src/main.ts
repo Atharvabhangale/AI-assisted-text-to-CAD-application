@@ -12,6 +12,7 @@ import {
   collectElements,
   createApp,
   requireElement,
+  wireExamples,
   wireExports,
   type ViewerPort,
 } from "./app";
@@ -63,6 +64,7 @@ function start(): void {
     (viewer as { resize?: () => void } | null)?.resize?.();
   });
 
+  wireExamples(elements);
   wireExports(elements, client, (url) => {
     globalThis.location.assign(url);
   });

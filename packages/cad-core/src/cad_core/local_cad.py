@@ -338,7 +338,7 @@ def build_part(part: Part) -> LocalCadResult:
         part: A validated :class:`~cad_core.model.Part`, as returned in
             :attr:`~cad_core.errors.ValidationResult.part`. The part is assumed
             to have passed static validation; this function does not re-run
-            rules S1-S20 and will not repair or reinterpret it.
+            rules S1-S22 and will not repair or reinterpret it.
 
     Returns:
         A :class:`LocalCadResult` wrapping the B-rep solid.

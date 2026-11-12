@@ -238,3 +238,80 @@ details#advanced > summary h2 {
 #generate-button {
   font-weight: 600;
 }
+
+/* --- examples, assumptions, attempts ----------------------------------- */
+
+.examples {
+  margin: 0 0 0.7rem;
+}
+
+.examples-label {
+  display: block;
+  font-weight: 600;
+  font-size: 0.85rem;
+  margin-bottom: 0.3rem;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.chip {
+  font-size: 0.8rem;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  color: var(--muted);
+  text-align: left;
+}
+
+.examples .help {
+  margin-bottom: 0;
+}
+
+/* A guessed value is never silent: the list is marked, not tucked away. */
+.assumptions {
+  margin: 0.5rem 0 0.8rem;
+  padding: 0.5rem 0.7rem;
+  border-left: 3px solid var(--busy);
+  background: #fbf7ec;
+}
+
+.assumptions h3 {
+  margin: 0 0 0.2rem;
+}
+
+.assumptions .help {
+  margin: 0 0 0.3rem;
+}
+
+.assumptions ul {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.85rem;
+}
+
+.attempt-note {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+}
+
+.attempts {
+  margin-top: 0.3rem;
+  font-size: 0.85rem;
+}
+
+.attempts > summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.attempts ul {
+  margin: 0.3rem 0 0;
+  padding-left: 1.1rem;
+}
+
+.attempts li[data-accepted="true"] > span {
+  color: var(--ok);
+}

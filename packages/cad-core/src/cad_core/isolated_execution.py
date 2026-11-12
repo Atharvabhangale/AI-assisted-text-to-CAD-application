@@ -245,7 +245,7 @@ class IsolatedFailure:
     #: The output being produced when the build failed, when applicable.
     output: Optional[BuildOutput] = None
 
-    #: Specification rule codes (S1-S20, E1-E5).
+    #: Specification rule codes (S1-S22, E1-E5).
     rule_codes: Tuple[str, ...] = ()
 
     #: The validator's own structured errors, as plain data.

@@ -1,9 +1,9 @@
 """cad-core: the V1 CAD specification contract, typed and statically validated.
 
-This package implements ``docs/cad-specification.md`` schema version 1.0.0:
+This package implements ``docs/cad-specification.md`` schema version 1.1.0:
 
 * :mod:`cad_core.model` -- the typed representation of a specification document.
-* :mod:`cad_core.validator` -- the deterministic static validator (rules S1-S20).
+* :mod:`cad_core.validator` -- the deterministic static validator (rules S1-S22).
 * :mod:`cad_core.errors` -- the structured error and result records.
 * :mod:`cad_core.rules` -- rule codes and their requirement text.
 * :mod:`cad_core.geometry` -- the boundary for the geometric rules E1-E5, which
@@ -45,6 +45,7 @@ from cad_core.model import (
     CONSTRUCTIVE_TYPES,
     DEFAULT_AXIS,
     EDGE_SELECT_VALUES,
+    FEATURE_INTRODUCED_IN,
     FEATURE_TYPES,
     ID_PATTERN,
     MODIFIER_TYPES,
@@ -64,6 +65,8 @@ from cad_core.model import (
     Size,
     Subtract,
     ThroughHole,
+    TOOL_CONSUMING_TYPES,
+    UnionFeature,
 )
 from cad_core.rules import STATIC_RULES
 from cad_core.serialization import (
@@ -103,6 +106,7 @@ __all__ = [
     "EDGE_SELECT_VALUES",
     "EdgeSelector",
     "Feature",
+    "FEATURE_INTRODUCED_IN",
     "FEATURE_TYPES",
     "featurescript_for",
     "Fillet",
@@ -137,7 +141,9 @@ __all__ = [
     "SUPPORTED_SCHEMA_MAJOR",
     "SUPPORTED_UNITS",
     "ThroughHole",
+    "TOOL_CONSUMING_TYPES",
     "UnconfiguredOnshapeAdapter",
+    "UnionFeature",
     "UnsupportedPartError",
     "validate",
     "ValidationError",
