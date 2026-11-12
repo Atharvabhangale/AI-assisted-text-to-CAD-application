@@ -43,6 +43,7 @@ const FEATURE_HEADINGS: Readonly<Record<string, string>> = {
   cylinder: "Cylinder",
   through_hole: "Through hole",
   subtract: "Subtract",
+  union: "Union",
   fillet: "Fillet",
   chamfer: "Chamfer",
 };
@@ -137,6 +138,13 @@ function rowsFor(feature: Json, units: string): IntentRow[] {
   if (type === "subtract") {
     push(rows, "From", scalar(feature["target"]));
     push(rows, "Remove", list(feature["tools"]));
+    return rows;
+  }
+
+  if (type === "union") {
+    // Reads as a sentence: join the tools onto the target, which keeps its id.
+    push(rows, "Join", list(feature["tools"]));
+    push(rows, "Onto", scalar(feature["target"]));
     return rows;
   }
 

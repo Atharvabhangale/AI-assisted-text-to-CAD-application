@@ -8,7 +8,8 @@ solid, and therefore a geometry kernel:
 
 * E1 -- a through_hole centreline actually intersects its target solid.
 * E2 -- a subtract leaves a non-empty solid.
-* E3 -- every modifier leaves a single connected solid.
+* E3 -- every modifier leaves a single connected solid (for a ``union``: the
+  target and every tool must overlap or share a face).
 * E4 -- an edge selector matches at least one edge of its target.
 * E5 -- a fillet radius / chamfer distance is admissible for every matched edge.
 
@@ -18,7 +19,7 @@ but nothing checks them yet.
 
 Consequences that callers must not confuse:
 
-* :func:`cad_core.validator.validate` implements the static rules S1-S20 only.
+* :func:`cad_core.validator.validate` implements the static rules S1-S22 only.
   It never emits an ``E`` code, and a document passing it is *statically*
   valid, not geometrically buildable.
 * A statically valid part may still be impossible to build.  Until the engine
@@ -41,7 +42,8 @@ GEOMETRIC_RULES: Mapping[str, str] = {
     "E2": "A subtract leaves a non-empty solid. Removing all material is an error.",
     "E3": (
         "Every modifier leaves a single connected solid. A cut that splits the "
-        "body into two pieces is an error in V1, which has no multi-body parts."
+        "body into two pieces is an error in V1, which has no multi-body parts; "
+        "so is a union whose operands do not overlap or share a face."
     ),
     "E4": (
         "An edge selector matches at least one edge of its target. A fillet or "
@@ -72,5 +74,5 @@ def check_geometric_rules(part: "Part") -> NoReturn:
     raise NotImplementedError(
         "Geometric rules E1-E5 require an evaluated solid and belong to the "
         "future deterministic CAD engine stage; no geometry is implemented in "
-        "cad-core. Static validation covers rules S1-S20 only."
+        "cad-core. Static validation covers rules S1-S22 only."
     )

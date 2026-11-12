@@ -95,11 +95,36 @@ export const GENERATION_OUTCOMES = [
 export type GenerationOutcome = (typeof GENERATION_OUTCOMES)[number];
 
 /**
+ * One model call the backend made while answering a `POST /generate`.
+ *
+ * The backend checks each answer itself and may ask the model again; this is
+ * its own record of how that went. The page relays it and decides nothing
+ * from it: `stage` says where the backend turned an answer down, and
+ * `rule_codes` and `issues` are the backend's reasons, shown verbatim.
+ */
+export interface GenerationAttempt {
+  /** 1-based, in the order the calls were made. */
+  readonly number: number;
+  /** True only for the attempt whose document the backend accepted. */
+  readonly accepted: boolean;
+  /**
+   * Where a rejected attempt was rejected. `null` when it was accepted, or
+   * when the answer was a clarification or a refusal rather than a document.
+   */
+  readonly stage: "answer" | "validation" | "geometry" | null;
+  readonly rule_codes: readonly string[];
+  readonly issues: readonly string[];
+}
+
+/**
  * `POST /generate`'s answer.
  *
  * `document` is a CAD document the backend's validator **already accepted**.
  * The page never inspects it for validity, never repairs it and never edits
  * it: it shows it, and sends it back for building unchanged.
+ *
+ * `assumptions` and `attempts` are optional because an older backend sends
+ * neither. A missing one means "none reported" and is read as an empty list.
  */
 export interface GenerateResponse {
   readonly outcome: GenerationOutcome;
@@ -111,6 +136,10 @@ export interface GenerateResponse {
   readonly issues: readonly string[];
   readonly rule_codes: readonly string[];
   readonly error_kind: string | null;
+  /** Choices the interpreter made that the description did not state. */
+  readonly assumptions?: readonly string[] | null;
+  /** One entry per model call made for this request, in order. */
+  readonly attempts?: readonly GenerationAttempt[] | null;
 }
 
 /** A request that never reached the API, or an answer that was not JSON. */
@@ -137,7 +166,9 @@ export class ApiClient {
    *
    * The description is sent verbatim. This client does not pre-process it,
    * does not attach history, and makes exactly one request per call -- there
-   * is no retry here and no conversation state anywhere.
+   * is no retry here and no conversation state anywhere. Whatever re-asking
+   * happens is the backend's, inside that one request, and comes back
+   * described in `attempts`.
    */
   async generate(text: string): Promise<GenerateResponse> {
     return this.json<GenerateResponse>("/generate", {

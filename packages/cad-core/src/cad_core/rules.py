@@ -1,9 +1,11 @@
-"""Rule codes defined by ``docs/cad-specification.md`` (schema version 1.0.0).
+"""Rule codes defined by ``docs/cad-specification.md`` (schema version 1.1.0).
 
 The specification splits validation into two tiers:
 
-* ``S1``-``S20`` -- static rules, decidable from the specification document
+* ``S1``-``S22`` -- static rules, decidable from the specification document
   alone.  These are the rules implemented by :mod:`cad_core.validator`.
+  ``S21`` and ``S22`` were added with the ``union`` feature in ``1.1.0``; no
+  earlier rule was renumbered or changed in meaning.
 * ``E1``-``E5`` -- geometric rules, which require an evaluated solid.  They are
   declared in :mod:`cad_core.geometry` and are deliberately not implemented.
 
@@ -27,7 +29,9 @@ STATIC_RULES: Mapping[str, str] = {
     ),
     "S3": (
         "No unknown fields anywhere in the document, and type is one of box, "
-        "cylinder, through_hole, subtract, fillet, chamfer."
+        "cylinder, through_hole, subtract, fillet, chamfer, union. union is "
+        "defined from schema version 1.1.0 and is an unknown type in a "
+        "document that declares an earlier version."
     ),
     "S4": (
         "schema_version is a valid version string and its major version is "
@@ -36,7 +40,8 @@ STATIC_RULES: Mapping[str, str] = {
     "S5": "units is \"mm\". No other value is accepted or converted in V1.",
     "S6": (
         "Every reference names a solid that exists in the solid set at the "
-        "moment the referencing feature is evaluated."
+        "moment the referencing feature is evaluated -- created earlier and "
+        "not consumed by a subtract or a union."
     ),
     "S7": (
         "Every reference points to a feature that appears strictly earlier in "
@@ -74,6 +79,11 @@ STATIC_RULES: Mapping[str, str] = {
         "each a finite JSON number."
     ),
     "S20": "Every length value is a finite number.",
+    "S21": "union.tools is a non-empty array.",
+    "S22": (
+        "union.target does not appear in union.tools, and tools contains no "
+        "duplicate ids."
+    ),
 }
 
 # How this implementation divides responsibility where two static rules could
@@ -92,4 +102,12 @@ STATIC_RULES: Mapping[str, str] = {
 #     specific rule for the parameter (S10, S11, S13, S16, S17).
 #   * A reference field that is not a string is S2 (malformed structure); a
 #     reference that is a string but does not resolve is S6 or S7.
+#   * 'subtract' and 'union' carry the same 'tools' parameter and the same two
+#     structural requirements on it, under separate codes: S14/S15 are stated
+#     for subtract and S21/S22 for union.  The code reported is always the one
+#     for the feature's own type, so S14 and S15 never appear on a union.
+#   * A 'union' in a document whose declared schema_version predates 1.1.0 is
+#     S3 (a feature type unknown to that version), reported once on the
+#     feature's 'type'.  Its parameters are then not examined, exactly as for
+#     any other unknown type.
 STATIC_RULE_CODES = tuple(STATIC_RULES)

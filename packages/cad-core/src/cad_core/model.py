@@ -1,6 +1,6 @@
 """Typed representation of the V1 CAD specification.
 
-Mirrors ``docs/cad-specification.md`` (schema version 1.0.0) one-to-one.  These
+Mirrors ``docs/cad-specification.md`` (schema version 1.1.0) one-to-one.  These
 types describe a specification document; they contain no geometry and no
 geometric behaviour.
 
@@ -19,7 +19,12 @@ from typing import ClassVar, Mapping, Optional, Tuple, Union
 # --- Contract constants (Sections A, B, C, F) -------------------------------
 
 #: Schema version described by docs/cad-specification.md.
-SCHEMA_VERSION = "1.0.0"
+#:
+#: ``1.1.0`` added the ``union`` feature type -- a backward-compatible MINOR
+#: change under Section F. Every ``1.0.0`` document is still valid, means what
+#: it meant, and keeps its canonical bytes and hash: a document's own
+#: ``schema_version`` is data, and nothing rewrites it to this value.
+SCHEMA_VERSION = "1.1.0"
 
 #: Major version this implementation accepts (Section F, rule S4).
 SUPPORTED_SCHEMA_MAJOR = 1
@@ -53,10 +58,28 @@ COMMON_FEATURE_FIELDS: Tuple[str, ...] = ("id", "type")
 CONSTRUCTIVE_TYPES: Tuple[str, ...] = ("box", "cylinder")
 
 #: Modifier features replace their target in place (Section B.4).
-MODIFIER_TYPES: Tuple[str, ...] = ("through_hole", "subtract", "fillet", "chamfer")
+MODIFIER_TYPES: Tuple[str, ...] = (
+    "through_hole",
+    "subtract",
+    "fillet",
+    "chamfer",
+    "union",
+)
 
 #: All V1 feature types (Scope of V1, rule S3).
 FEATURE_TYPES: Tuple[str, ...] = CONSTRUCTIVE_TYPES + MODIFIER_TYPES
+
+#: The schema version that introduced a feature type, as ``(major, minor)``,
+#: for every type that is not part of ``1.0.0`` (Section F, rule S3). A type
+#: absent from this table has existed since ``1.0.0``.
+#:
+#: A document is validated against the version *it declares*: a document that
+#: declares ``1.0.0`` and uses ``union`` is rejected under rule S3, exactly as
+#: a ``1.0.0`` consumer rejects it, so a document's validity never depends on
+#: which consumer happens to read it.
+FEATURE_INTRODUCED_IN: Mapping[str, Tuple[int, int]] = {
+    "union": (1, 1),
+}
 
 #: Per-type parameters from the Section C tables, excluding the common ``id``
 #: and ``type`` fields, as ``(required, optional)``.
@@ -67,6 +90,7 @@ FEATURE_PARAMETERS: Mapping[str, Tuple[Tuple[str, ...], Tuple[str, ...]]] = {
     "subtract": (("target", "tools"), ()),
     "fillet": (("target", "radius", "edges"), ()),
     "chamfer": (("target", "distance", "edges"), ()),
+    "union": (("target", "tools"), ()),
 }
 
 #: Reference-carrying parameters per feature type (Section B.3, rules S6, S7).
@@ -75,7 +99,12 @@ FEATURE_REFERENCE_FIELDS: Mapping[str, Tuple[str, ...]] = {
     "subtract": ("target", "tools"),
     "fillet": ("target",),
     "chamfer": ("target",),
+    "union": ("target", "tools"),
 }
+
+#: Modifiers that consume their ``tools``: each listed solid is removed from
+#: the solid set once the feature has been applied (Section B.4).
+TOOL_CONSUMING_TYPES: Tuple[str, ...] = ("subtract", "union")
 
 
 # --- Value objects (Section A.4) -------------------------------------------
@@ -142,7 +171,7 @@ class Cylinder:
     axis: str = DEFAULT_AXIS
 
 
-# --- Modifier features (Sections C.3 - C.6) --------------------------------
+# --- Modifier features (Sections C.3 - C.6, C.8) ---------------------------
 
 
 @dataclass(frozen=True)
@@ -200,7 +229,25 @@ class Chamfer:
     edges: EdgeSelector
 
 
-Feature = Union[Box, Cylinder, ThroughHole, Subtract, Fillet, Chamfer]
+@dataclass(frozen=True)
+class UnionFeature:
+    """Boolean union: each solid in ``tools`` is fused into ``target``.
+
+    The result keeps the target's id; the tool solids are consumed -- removed
+    from the solid set. Introduced in schema version ``1.1.0`` (Section C.8).
+
+    Named ``UnionFeature`` rather than ``Union`` so it can never shadow
+    :data:`typing.Union`; its specification ``type`` string is ``"union"``.
+    """
+
+    TYPE: ClassVar[str] = "union"
+
+    id: str
+    target: str
+    tools: Tuple[str, ...]
+
+
+Feature = Union[Box, Cylinder, ThroughHole, Subtract, Fillet, Chamfer, UnionFeature]
 
 
 # --- Part (Section B.1) ----------------------------------------------------

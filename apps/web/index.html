@@ -21,9 +21,31 @@
           placeholder="Create a rectangular plate 100 mm long, 60 mm wide and 10 mm thick."
         ></textarea>
         <p id="description-help" class="help">
-          State the dimensions and the units. The model interprets the
-          description; the backend validates and builds the result.
+          Give the dimensions that matter to you. Anything the description
+          leaves out is chosen for you and listed under Assumptions made. The
+          model interprets the description; the backend validates and builds
+          the result.
         </p>
+        <div class="examples">
+          <span id="examples-label" class="examples-label">Examples</span>
+          <div
+            id="examples"
+            class="chips"
+            role="group"
+            aria-labelledby="examples-label"
+            aria-describedby="examples-help"
+          >
+            <button type="button" class="chip" data-example>L-bracket: 60 × 40 mm legs, 5 mm thick, 30 mm wide, with a 6 mm hole in each leg</button>
+            <button type="button" class="chip" data-example>Coffee mug, 80 mm diameter, 95 mm tall, with a handle</button>
+            <button type="button" class="chip" data-example>Gaming mouse</button>
+            <button type="button" class="chip" data-example>Desk phone stand</button>
+            <button type="button" class="chip" data-example>100 × 60 × 10 mm plate with four 8 mm holes near the corners</button>
+          </div>
+          <p id="examples-help" class="help">
+            An example only fills in the box above. Nothing is generated until
+            you press Generate CAD.
+          </p>
+        </div>
         <div class="actions">
           <button id="generate-button" type="button">Generate CAD</button>
         </div>
@@ -34,6 +56,11 @@
         <p id="status" role="status" aria-live="polite" data-state="idle">
           Idle. Describe a part and press Generate CAD.
         </p>
+        <p id="attempt-note" class="attempt-note" hidden></p>
+        <details id="attempt-details" class="attempts" hidden>
+          <summary>What each attempt returned</summary>
+          <ol id="attempt-list"></ol>
+        </details>
         <ul id="errors" class="errors" hidden></ul>
         <div id="clarify" class="clarify" hidden>
           <ul id="questions" class="questions"></ul>
@@ -48,6 +75,14 @@
       <section class="panel" aria-labelledby="intent-heading">
         <h2 id="intent-heading">Design intent</h2>
         <p id="intent-summary" class="summary"></p>
+        <div id="assumptions" class="assumptions" hidden>
+          <h3>Assumptions made</h3>
+          <p class="help">
+            Your description did not state these, so the interpreter chose
+            them. Say otherwise in the description to change them.
+          </p>
+          <ul id="assumption-list"></ul>
+        </div>
         <div id="design-intent" class="intent" hidden></div>
       </section>
 
