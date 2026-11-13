@@ -239,7 +239,7 @@ estimated.
 
 | Suite | Result |
 |---|---|
-| cad-core (`unittest`) | **1605 passed** (Stage 33, Linux, Python 3.13; 1481 at Stage 32 on Windows) |
+| cad-core (`unittest`) | **1617 passed** (schema 1.1.1, Linux, Python 3.13; 1481 at Stage 32 on Windows) |
 | API + AI (`unittest`) | **631 tests, 2 skipped** (Stage 33, Linux; with the `ai-gemini` extra installed — without it, Gemini tests skip) |
 | Frontend (`vitest`) | **162 passed** (5 files) |
 | Frontend typecheck (`tsc --noEmit`) | **clean** |
