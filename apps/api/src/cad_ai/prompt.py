@@ -434,8 +434,10 @@ list of features evaluated in sequence:
 
 * the **first** feature must be constructive -- {" or ".join(CONSTRUCTIVE_TYPES)};
 * later features may be constructive, or one of the modifiers
-  {", ".join(MODIFIER_TYPES)}, which replace their target in place and keep
+  {", ".join(t for t in MODIFIER_TYPES if t in SUPPORTED_FEATURE_TYPES)}, which replace their target in place and keep
   the target's id;
+* `through_hole` appears in the specification text but is **not available to
+  you**: make every hole a cylinder tool and a `subtract`;
 * every `target`, and every id in a `tools` list, names a feature that
   appears **strictly earlier** in the list -- and always a {" or ".join(CONSTRUCTIVE_TYPES)},
   never a modifier: a modifier's id never names a solid;

@@ -83,6 +83,11 @@ DEFAULTED_PARAMETERS: Tuple[str, ...] = tuple(
 PARAMETER_DEFAULTS: Mapping[str, Any] = {
     "position": {"x": ORIGIN.x, "y": ORIGIN.y, "z": ORIGIN.z},
     "axis": DEFAULT_AXIS,
+    # Schema 1.2.0. `top_diameter` has no fixed default -- it is the same
+    # feature's `diameter` -- so it is filled per feature (see `_value`).
+    "top_diameter": None,
+    "sides": ROUND_SIDES,
+    **PATTERN_DEFAULTS,
 }
 
 

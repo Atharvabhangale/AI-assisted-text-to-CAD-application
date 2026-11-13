@@ -143,8 +143,9 @@ PLATE_SIZE = (100.0, 60.0, 10.0)
 #: position rather than being a gap to ask about. The 2026-09-09.1 value was
 #: ``fe62c9759a08d45ca372672479631863b25876cc52aca999da7edb1e8cde979a``.
 #:
-#: Re-pinned for **2026-11-13.6** (engine moved to the template library;
-#: 2026-11-13.5 was af5a5484...). Before that, **2026-11-13.5** (camshafts and timing belt; 2026-11-13.4 was
+#: Re-pinned for **2026-11-13.7** (schema 1.2.0: tapers, polygons, patterns;
+#: through_hole held back; 2026-11-13.6 was e89ad21b...). Before that,
+#: **2026-11-13.6** (engine moved to the template library; 2026-11-13.5 was af5a5484...). Before that, **2026-11-13.5** (camshafts and timing belt; 2026-11-13.4 was
 #: 1bc4a18d...). Before that, **2026-11-13.4** (reference engine as Example 4; 2026-11-13.3
 #: was 5c2f5cdf...). Before that, **2026-11-13.3** (engine internals in a cutaway; 2026-11-13.2
 #: was 28145553...). Before that, **2026-11-13.2** (detail rule and engine recipe; 2026-11-13.1
@@ -159,7 +160,7 @@ PLATE_SIZE = (100.0, 60.0, 10.0)
 #: Updating it is the maintenance step the pinning test itself prescribes, and
 #: it retires every earlier measurement of model behaviour.
 PROMPT_FINGERPRINT = (
-    "e89ad21bd1cc975e402a5c8c45267696e6d71bb48e3609a16abca47560e172cc"
+    "8342e52576362038a54712eec9380701f9c066fe9557d1d3faad5010b2a50c06"
 )
 
 #: Tolerance for a kernel-reported length. Never exact float equality.
@@ -904,12 +905,14 @@ class TestUnsupported(AiTestCase):
             self.assertIn(name, text)
         for name in UNSUPPORTED_FEATURE_TYPES:
             self.assertIn(name, text)
-        # Stage 31: the declared capability is the whole V1 vocabulary, not
-        # just the constructive half. The engine has implemented every one of
-        # these since Stage 14.1, so refusing them was the prompt describing a
-        # limit the system no longer had.
-        self.assertEqual(set(SUPPORTED_FEATURE_TYPES), set(FEATURE_TYPES))
-        self.assertEqual(UNSUPPORTED_FEATURE_TYPES, ())
+        # Stage 31 declared the whole V1 vocabulary. Since prompt
+        # 2026-11-13.7 `through_hole` alone is held back -- the grammar with
+        # the 1.2.0 parameters compiles only without it -- and the prompt
+        # says so, naming it, and says to write a cylinder tool and a
+        # subtract instead.
+        self.assertEqual(set(SUPPORTED_FEATURE_TYPES), set(FEATURE_TYPES) - {"through_hole"})
+        self.assertEqual(UNSUPPORTED_FEATURE_TYPES, ("through_hole",))
+        self.assertIn("is **not available to\n  you**", text)
         self.assertTrue(set(CONSTRUCTIVE_TYPES) <= set(SUPPORTED_FEATURE_TYPES))
         self.assertEqual(
             set(SUPPORTED_FEATURE_TYPES) | set(UNSUPPORTED_FEATURE_TYPES),
@@ -1891,7 +1894,7 @@ class TestPromptAndSchema(unittest.TestCase):
         # update PROMPT_VERSION and this value together, and do not assume any
         # earlier claim about model behaviour still holds.
         self.assertEqual(prompt_fingerprint(), PROMPT_FINGERPRINT)
-        self.assertEqual(PROMPT_VERSION, "2026-11-13.6")
+        self.assertEqual(PROMPT_VERSION, "2026-11-13.7")
 
     def test_the_prompt_states_the_seven_required_things(self) -> None:
         text = system_prompt()
@@ -1905,7 +1908,7 @@ class TestPromptAndSchema(unittest.TestCase):
             "FeatureScript",
             # 4. inexpressible shapes are approximated, and every
             #    simplification is recorded where the user sees it
-            "approximate it with boxes, cylinders",
+            "**A shape the vocabulary cannot express exactly**",
             "Write **every** such choice",
             # 5. feature order is meaning
             "Order is meaning",
@@ -2272,9 +2275,24 @@ class TestAnthropicProvider(unittest.TestCase):
         # constraint.
         messages = FakeMessages(FakeMessage([FakeBlock("text", "{}")]))
         self.model(messages).generate(self.request())
-        sent = json.dumps(messages.calls[0]["output_config"]["format"]["schema"])
-        for keyword in self.unsupported_keywords:
-            self.assertNotIn(keyword, sent, f"{keyword} would be rejected")
+        sent = messages.calls[0]["output_config"]["format"]["schema"]
+        # Keywords, not substrings: a property *named* `pattern_count`
+        # (schema 1.2.0) is data, while a `pattern` keyword is what the API
+        # rejects. So walk the schema and skip the names under `properties`.
+        found = set()
+
+        def walk(node, under_properties=False):
+            if isinstance(node, dict):
+                for key, value in node.items():
+                    if not under_properties and key in self.unsupported_keywords:
+                        found.add(key)
+                    walk(value, under_properties=(key == "properties" and not under_properties))
+            elif isinstance(node, list):
+                for item in node:
+                    walk(item)
+
+        walk(sent)
+        self.assertEqual(found, set(), "these keywords would be rejected")
 
     def test_the_schema_the_rest_of_the_layer_sees_is_left_whole(self) -> None:
         # The sanitiser is a copy, not an edit: the shared schema still
@@ -2793,8 +2811,9 @@ class TestProviderParity(unittest.TestCase):
         # 2026-11-13.3 (engine internals in a cutaway); 51084 for 2026-11-13.4
         # (the reference engine as Example 4); 54693 for 2026-11-13.5
         # (camshafts and timing belt); 39747 for 2026-11-13.6 (the engine
-        # moved to the template library).
-        self.assertEqual(len(system_prompt()), 39747)
+        # moved to the template library); 53091 for 2026-11-13.7 (schema
+        # 1.2.0: tapers, polygons, patterns, holes as subtracted tools).
+        self.assertEqual(len(system_prompt()), 53091)
         self.assertEqual(prompt_fingerprint(), PROMPT_FINGERPRINT)
 
 

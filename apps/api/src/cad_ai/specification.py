@@ -106,7 +106,9 @@ PROMPT_SECTIONS: Tuple[str, ...] = (
     # Stage 31: the modifier sections, added when the prompt stopped refusing
     # modifiers. The model may now emit these features, so it must be given
     # their parameter tables verbatim rather than left to guess field names.
-    "### C.3 `through_hole`",
+    # C.3 `through_hole` is not quoted since prompt 2026-11-13.7: the model
+    # is not offered that type (see SUPPORTED_FEATURE_TYPES), so its table
+    # would describe a field set the response schema cannot produce.
     "### C.4 `subtract`",
     "### C.5 `fillet`",
     "### C.6 `chamfer`",

@@ -64,13 +64,27 @@ def subtract(
 
 
 def drill(
-    id: str, target: str, diameter: float, start: Vec, length: float, axis: str = "+Z", **pattern: Any
+    id: str,
+    target: str,
+    diameter: float,
+    start: Vec,
+    length: float,
+    axis: str = "+Z",
+    *,
+    count: int = 1,
+    pattern_axis: str = "Z",
+    angle: float = 0,
+    step: float = 0,
 ) -> List[Dict[str, Any]]:
     """A through hole as the model writes one: a cylinder tool from ``start``
-    along ``axis`` for ``length`` (reaching 2 mm past both faces), subtracted.
-    ``pattern`` (count/axis/angle/step) repeats it, e.g. a bolt circle."""
+    along ``axis`` (the hole's direction) for ``length`` (reaching 2 mm past
+    both faces), subtracted. ``count``/``pattern_axis``/``angle``/``step``
+    repeat it, e.g. a bolt circle about ``pattern_axis``."""
     tool = f"{id}_tool"
-    return [cyl(tool, diameter, length, start, axis), subtract(id, target, [tool], **pattern)]
+    return [
+        cyl(tool, diameter, length, start, axis),
+        subtract(id, target, [tool], count=count, axis=pattern_axis, angle=angle, step=step),
+    ]
 
 
 def _edges(axis: Optional[str]) -> Dict[str, Any]:

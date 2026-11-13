@@ -1,5 +1,5 @@
 {
- "schema_version": "1.1.1",
+ "schema_version": "1.2.0",
  "units": "mm",
  "name": "inline-four-engine-cutaway",
  "description": "Inline-four engine, front half cut away to show pistons, connecting rods and crankshaft",
@@ -107,22 +107,28 @@
     "crankcase",
     "oil_pan",
     "head"
-   ]
+   ],
+   "pattern_count": 1,
+   "pattern_axis": "Z",
+   "pattern_angle": 0,
+   "pattern_step": 0
   },
   {
-   "id": "bore_1",
+   "id": "bore",
    "type": "cylinder",
    "diameter": 50,
    "height": 190,
    "position": {
-    "x": 40,
+    "x": -20,
     "y": 70,
     "z": 40
    },
-   "axis": "+Z"
+   "axis": "+Z",
+   "top_diameter": 50,
+   "sides": 0
   },
   {
-   "id": "crank_bay_1",
+   "id": "crank_bay",
    "type": "box",
    "size": {
     "x": 48,
@@ -130,85 +136,7 @@
     "z": 70
    },
    "position": {
-    "x": 16,
-    "y": 15,
-    "z": 0
-   }
-  },
-  {
-   "id": "bore_2",
-   "type": "cylinder",
-   "diameter": 50,
-   "height": 190,
-   "position": {
-    "x": 100,
-    "y": 70,
-    "z": 40
-   },
-   "axis": "+Z"
-  },
-  {
-   "id": "crank_bay_2",
-   "type": "box",
-   "size": {
-    "x": 48,
-    "y": 110,
-    "z": 70
-   },
-   "position": {
-    "x": 76,
-    "y": 15,
-    "z": 0
-   }
-  },
-  {
-   "id": "bore_3",
-   "type": "cylinder",
-   "diameter": 50,
-   "height": 190,
-   "position": {
-    "x": 160,
-    "y": 70,
-    "z": 40
-   },
-   "axis": "+Z"
-  },
-  {
-   "id": "crank_bay_3",
-   "type": "box",
-   "size": {
-    "x": 48,
-    "y": 110,
-    "z": 70
-   },
-   "position": {
-    "x": 136,
-    "y": 15,
-    "z": 0
-   }
-  },
-  {
-   "id": "bore_4",
-   "type": "cylinder",
-   "diameter": 50,
-   "height": 190,
-   "position": {
-    "x": 220,
-    "y": 70,
-    "z": 40
-   },
-   "axis": "+Z"
-  },
-  {
-   "id": "crank_bay_4",
-   "type": "box",
-   "size": {
-    "x": 48,
-    "y": 110,
-    "z": 70
-   },
-   "position": {
-    "x": 196,
+    "x": -44,
     "y": 15,
     "z": 0
    }
@@ -218,15 +146,13 @@
    "type": "subtract",
    "target": "block",
    "tools": [
-    "bore_1",
-    "bore_2",
-    "bore_3",
-    "bore_4",
-    "crank_bay_1",
-    "crank_bay_2",
-    "crank_bay_3",
-    "crank_bay_4"
-   ]
+    "bore",
+    "crank_bay"
+   ],
+   "pattern_count": 4,
+   "pattern_axis": "X",
+   "pattern_angle": 0,
+   "pattern_step": 60
   },
   {
    "id": "section",
@@ -248,10 +174,14 @@
    "target": "block",
    "tools": [
     "section"
-   ]
+   ],
+   "pattern_count": 1,
+   "pattern_axis": "Z",
+   "pattern_angle": 0,
+   "pattern_step": 0
   },
   {
-   "id": "intake_port_1",
+   "id": "intake_port",
    "type": "box",
    "size": {
     "x": 24,
@@ -259,493 +189,164 @@
     "z": 20
    },
    "position": {
-    "x": 28,
+    "x": -32,
     "y": 0,
     "z": 248
    }
   },
   {
-   "id": "exhaust_port_1",
+   "id": "exhaust_port",
    "type": "cylinder",
    "diameter": 22,
    "height": 50,
    "position": {
-    "x": 40,
+    "x": -20,
     "y": 140,
     "z": 258
    },
-   "axis": "-Y"
-  },
-  {
-   "id": "intake_port_2",
-   "type": "box",
-   "size": {
-    "x": 24,
-    "y": 50,
-    "z": 20
-   },
-   "position": {
-    "x": 88,
-    "y": 0,
-    "z": 248
-   }
-  },
-  {
-   "id": "exhaust_port_2",
-   "type": "cylinder",
-   "diameter": 22,
-   "height": 50,
-   "position": {
-    "x": 100,
-    "y": 140,
-    "z": 258
-   },
-   "axis": "-Y"
-  },
-  {
-   "id": "intake_port_3",
-   "type": "box",
-   "size": {
-    "x": 24,
-    "y": 50,
-    "z": 20
-   },
-   "position": {
-    "x": 148,
-    "y": 0,
-    "z": 248
-   }
-  },
-  {
-   "id": "exhaust_port_3",
-   "type": "cylinder",
-   "diameter": 22,
-   "height": 50,
-   "position": {
-    "x": 160,
-    "y": 140,
-    "z": 258
-   },
-   "axis": "-Y"
-  },
-  {
-   "id": "intake_port_4",
-   "type": "box",
-   "size": {
-    "x": 24,
-    "y": 50,
-    "z": 20
-   },
-   "position": {
-    "x": 208,
-    "y": 0,
-    "z": 248
-   }
-  },
-  {
-   "id": "exhaust_port_4",
-   "type": "cylinder",
-   "diameter": 22,
-   "height": 50,
-   "position": {
-    "x": 220,
-    "y": 140,
-    "z": 258
-   },
-   "axis": "-Y"
+   "axis": "-Y",
+   "top_diameter": 22,
+   "sides": 0
   },
   {
    "id": "cut_ports",
    "type": "subtract",
    "target": "block",
    "tools": [
-    "intake_port_1",
-    "intake_port_2",
-    "intake_port_3",
-    "intake_port_4",
-    "exhaust_port_1",
-    "exhaust_port_2",
-    "exhaust_port_3",
-    "exhaust_port_4"
-   ]
+    "intake_port",
+    "exhaust_port"
+   ],
+   "pattern_count": 4,
+   "pattern_axis": "X",
+   "pattern_angle": 0,
+   "pattern_step": 60
   },
   {
-   "id": "plug_well_1",
+   "id": "plug_well",
    "type": "cylinder",
    "diameter": 16,
    "height": 30,
    "position": {
-    "x": 40,
+    "x": -20,
     "y": 70,
     "z": 265
    },
-   "axis": "+Z"
-  },
-  {
-   "id": "plug_well_2",
-   "type": "cylinder",
-   "diameter": 16,
-   "height": 30,
-   "position": {
-    "x": 100,
-    "y": 70,
-    "z": 265
-   },
-   "axis": "+Z"
-  },
-  {
-   "id": "plug_well_3",
-   "type": "cylinder",
-   "diameter": 16,
-   "height": 30,
-   "position": {
-    "x": 160,
-    "y": 70,
-    "z": 265
-   },
-   "axis": "+Z"
-  },
-  {
-   "id": "plug_well_4",
-   "type": "cylinder",
-   "diameter": 16,
-   "height": 30,
-   "position": {
-    "x": 220,
-    "y": 70,
-    "z": 265
-   },
-   "axis": "+Z"
+   "axis": "+Z",
+   "top_diameter": 16,
+   "sides": 0
   },
   {
    "id": "cut_plug_wells",
    "type": "subtract",
    "target": "block",
    "tools": [
-    "plug_well_1",
-    "plug_well_2",
-    "plug_well_3",
-    "plug_well_4"
-   ]
+    "plug_well"
+   ],
+   "pattern_count": 4,
+   "pattern_axis": "X",
+   "pattern_angle": 0,
+   "pattern_step": 60
   },
   {
-   "id": "in_spring_1",
+   "id": "in_spring",
    "type": "cylinder",
    "diameter": 22,
    "height": 30,
    "position": {
-    "x": 26,
+    "x": -34,
     "y": 40,
     "z": 288
    },
-   "axis": "+Z"
+   "axis": "+Z",
+   "top_diameter": 22,
+   "sides": 0
   },
   {
-   "id": "in_retainer_1",
+   "id": "in_retainer",
    "type": "cylinder",
    "diameter": 26,
    "height": 5,
    "position": {
-    "x": 26,
+    "x": -34,
     "y": 40,
     "z": 317
    },
-   "axis": "+Z"
+   "axis": "+Z",
+   "top_diameter": 26,
+   "sides": 0
   },
   {
-   "id": "in_stem_1",
+   "id": "in_stem",
    "type": "cylinder",
    "diameter": 8,
    "height": 14,
    "position": {
-    "x": 26,
+    "x": -34,
     "y": 40,
     "z": 321
    },
-   "axis": "+Z"
+   "axis": "+Z",
+   "top_diameter": 8,
+   "sides": 0
   },
   {
-   "id": "ex_spring_1",
+   "id": "ex_spring",
    "type": "cylinder",
    "diameter": 22,
    "height": 30,
    "position": {
-    "x": 54,
+    "x": -6,
     "y": 100,
     "z": 288
    },
-   "axis": "+Z"
+   "axis": "+Z",
+   "top_diameter": 22,
+   "sides": 0
   },
   {
-   "id": "ex_retainer_1",
+   "id": "ex_retainer",
    "type": "cylinder",
    "diameter": 26,
    "height": 5,
    "position": {
-    "x": 54,
+    "x": -6,
     "y": 100,
     "z": 317
    },
-   "axis": "+Z"
+   "axis": "+Z",
+   "top_diameter": 26,
+   "sides": 0
   },
   {
-   "id": "ex_stem_1",
+   "id": "ex_stem",
    "type": "cylinder",
    "diameter": 8,
    "height": 14,
    "position": {
-    "x": 54,
+    "x": -6,
     "y": 100,
     "z": 321
    },
-   "axis": "+Z"
-  },
-  {
-   "id": "in_spring_2",
-   "type": "cylinder",
-   "diameter": 22,
-   "height": 30,
-   "position": {
-    "x": 86,
-    "y": 40,
-    "z": 288
-   },
-   "axis": "+Z"
-  },
-  {
-   "id": "in_retainer_2",
-   "type": "cylinder",
-   "diameter": 26,
-   "height": 5,
-   "position": {
-    "x": 86,
-    "y": 40,
-    "z": 317
-   },
-   "axis": "+Z"
-  },
-  {
-   "id": "in_stem_2",
-   "type": "cylinder",
-   "diameter": 8,
-   "height": 14,
-   "position": {
-    "x": 86,
-    "y": 40,
-    "z": 321
-   },
-   "axis": "+Z"
-  },
-  {
-   "id": "ex_spring_2",
-   "type": "cylinder",
-   "diameter": 22,
-   "height": 30,
-   "position": {
-    "x": 114,
-    "y": 100,
-    "z": 288
-   },
-   "axis": "+Z"
-  },
-  {
-   "id": "ex_retainer_2",
-   "type": "cylinder",
-   "diameter": 26,
-   "height": 5,
-   "position": {
-    "x": 114,
-    "y": 100,
-    "z": 317
-   },
-   "axis": "+Z"
-  },
-  {
-   "id": "ex_stem_2",
-   "type": "cylinder",
-   "diameter": 8,
-   "height": 14,
-   "position": {
-    "x": 114,
-    "y": 100,
-    "z": 321
-   },
-   "axis": "+Z"
-  },
-  {
-   "id": "in_spring_3",
-   "type": "cylinder",
-   "diameter": 22,
-   "height": 30,
-   "position": {
-    "x": 146,
-    "y": 40,
-    "z": 288
-   },
-   "axis": "+Z"
-  },
-  {
-   "id": "in_retainer_3",
-   "type": "cylinder",
-   "diameter": 26,
-   "height": 5,
-   "position": {
-    "x": 146,
-    "y": 40,
-    "z": 317
-   },
-   "axis": "+Z"
-  },
-  {
-   "id": "in_stem_3",
-   "type": "cylinder",
-   "diameter": 8,
-   "height": 14,
-   "position": {
-    "x": 146,
-    "y": 40,
-    "z": 321
-   },
-   "axis": "+Z"
-  },
-  {
-   "id": "ex_spring_3",
-   "type": "cylinder",
-   "diameter": 22,
-   "height": 30,
-   "position": {
-    "x": 174,
-    "y": 100,
-    "z": 288
-   },
-   "axis": "+Z"
-  },
-  {
-   "id": "ex_retainer_3",
-   "type": "cylinder",
-   "diameter": 26,
-   "height": 5,
-   "position": {
-    "x": 174,
-    "y": 100,
-    "z": 317
-   },
-   "axis": "+Z"
-  },
-  {
-   "id": "ex_stem_3",
-   "type": "cylinder",
-   "diameter": 8,
-   "height": 14,
-   "position": {
-    "x": 174,
-    "y": 100,
-    "z": 321
-   },
-   "axis": "+Z"
-  },
-  {
-   "id": "in_spring_4",
-   "type": "cylinder",
-   "diameter": 22,
-   "height": 30,
-   "position": {
-    "x": 206,
-    "y": 40,
-    "z": 288
-   },
-   "axis": "+Z"
-  },
-  {
-   "id": "in_retainer_4",
-   "type": "cylinder",
-   "diameter": 26,
-   "height": 5,
-   "position": {
-    "x": 206,
-    "y": 40,
-    "z": 317
-   },
-   "axis": "+Z"
-  },
-  {
-   "id": "in_stem_4",
-   "type": "cylinder",
-   "diameter": 8,
-   "height": 14,
-   "position": {
-    "x": 206,
-    "y": 40,
-    "z": 321
-   },
-   "axis": "+Z"
-  },
-  {
-   "id": "ex_spring_4",
-   "type": "cylinder",
-   "diameter": 22,
-   "height": 30,
-   "position": {
-    "x": 234,
-    "y": 100,
-    "z": 288
-   },
-   "axis": "+Z"
-  },
-  {
-   "id": "ex_retainer_4",
-   "type": "cylinder",
-   "diameter": 26,
-   "height": 5,
-   "position": {
-    "x": 234,
-    "y": 100,
-    "z": 317
-   },
-   "axis": "+Z"
-  },
-  {
-   "id": "ex_stem_4",
-   "type": "cylinder",
-   "diameter": 8,
-   "height": 14,
-   "position": {
-    "x": 234,
-    "y": 100,
-    "z": 321
-   },
-   "axis": "+Z"
+   "axis": "+Z",
+   "top_diameter": 8,
+   "sides": 0
   },
   {
    "id": "add_valves",
    "type": "union",
    "target": "block",
    "tools": [
-    "in_spring_1",
-    "in_retainer_1",
-    "in_stem_1",
-    "ex_spring_1",
-    "ex_retainer_1",
-    "ex_stem_1",
-    "in_spring_2",
-    "in_retainer_2",
-    "in_stem_2",
-    "ex_spring_2",
-    "ex_retainer_2",
-    "ex_stem_2",
-    "in_spring_3",
-    "in_retainer_3",
-    "in_stem_3",
-    "ex_spring_3",
-    "ex_retainer_3",
-    "ex_stem_3",
-    "in_spring_4",
-    "in_retainer_4",
-    "in_stem_4",
-    "ex_spring_4",
-    "ex_retainer_4",
-    "ex_stem_4"
-   ]
+    "in_spring",
+    "in_retainer",
+    "in_stem",
+    "ex_spring",
+    "ex_retainer",
+    "ex_stem"
+   ],
+   "pattern_count": 4,
+   "pattern_axis": "X",
+   "pattern_angle": 0,
+   "pattern_step": 60
   },
   {
    "id": "journal_1",
@@ -757,7 +358,9 @@
     "y": 70,
     "z": 35
    },
-   "axis": "+X"
+   "axis": "+X",
+   "top_diameter": 36,
+   "sides": 0
   },
   {
    "id": "journal_2",
@@ -769,7 +372,9 @@
     "y": 70,
     "z": 35
    },
-   "axis": "+X"
+   "axis": "+X",
+   "top_diameter": 36,
+   "sides": 0
   },
   {
    "id": "journal_3",
@@ -781,7 +386,9 @@
     "y": 70,
     "z": 35
    },
-   "axis": "+X"
+   "axis": "+X",
+   "top_diameter": 36,
+   "sides": 0
   },
   {
    "id": "journal_4",
@@ -793,7 +400,9 @@
     "y": 70,
     "z": 35
    },
-   "axis": "+X"
+   "axis": "+X",
+   "top_diameter": 36,
+   "sides": 0
   },
   {
    "id": "journal_5",
@@ -805,7 +414,9 @@
     "y": 70,
     "z": 35
    },
-   "axis": "+X"
+   "axis": "+X",
+   "top_diameter": 36,
+   "sides": 0
   },
   {
    "id": "crank_pin_1",
@@ -817,7 +428,9 @@
     "y": 70,
     "z": 55.0
    },
-   "axis": "+X"
+   "axis": "+X",
+   "top_diameter": 24,
+   "sides": 0
   },
   {
    "id": "web_a_1",
@@ -857,7 +470,9 @@
     "y": 70,
     "z": 15.0
    },
-   "axis": "+X"
+   "axis": "+X",
+   "top_diameter": 24,
+   "sides": 0
   },
   {
    "id": "web_a_2",
@@ -897,7 +512,9 @@
     "y": 70,
     "z": 15.0
    },
-   "axis": "+X"
+   "axis": "+X",
+   "top_diameter": 24,
+   "sides": 0
   },
   {
    "id": "web_a_3",
@@ -937,7 +554,9 @@
     "y": 70,
     "z": 55.0
    },
-   "axis": "+X"
+   "axis": "+X",
+   "top_diameter": 24,
+   "sides": 0
   },
   {
    "id": "web_a_4",
@@ -991,7 +610,9 @@
     "y": 70,
     "z": 145.0
    },
-   "axis": "+Z"
+   "axis": "+Z",
+   "top_diameter": 48,
+   "sides": 0
   },
   {
    "id": "rod_2",
@@ -1017,7 +638,9 @@
     "y": 70,
     "z": 105.0
    },
-   "axis": "+Z"
+   "axis": "+Z",
+   "top_diameter": 48,
+   "sides": 0
   },
   {
    "id": "rod_3",
@@ -1043,7 +666,9 @@
     "y": 70,
     "z": 105.0
    },
-   "axis": "+Z"
+   "axis": "+Z",
+   "top_diameter": 48,
+   "sides": 0
   },
   {
    "id": "rod_4",
@@ -1069,7 +694,9 @@
     "y": 70,
     "z": 145.0
    },
-   "axis": "+Z"
+   "axis": "+Z",
+   "top_diameter": 48,
+   "sides": 0
   },
   {
    "id": "add_crank_train",
@@ -1101,7 +728,11 @@
     "piston_3",
     "rod_4",
     "piston_4"
-   ]
+   ],
+   "pattern_count": 1,
+   "pattern_axis": "Z",
+   "pattern_angle": 0,
+   "pattern_step": 0
   },
   {
    "id": "cam_tower_1",
@@ -1183,7 +814,9 @@
     "y": 40,
     "z": 350
    },
-   "axis": "+X"
+   "axis": "+X",
+   "top_diameter": 24,
+   "sides": 0
   },
   {
    "id": "intake_lobe_1",
@@ -1195,7 +828,9 @@
     "y": 40,
     "z": 345
    },
-   "axis": "+X"
+   "axis": "+X",
+   "top_diameter": 32,
+   "sides": 0
   },
   {
    "id": "intake_lobe_2",
@@ -1207,7 +842,9 @@
     "y": 40,
     "z": 345
    },
-   "axis": "+X"
+   "axis": "+X",
+   "top_diameter": 32,
+   "sides": 0
   },
   {
    "id": "intake_lobe_3",
@@ -1219,7 +856,9 @@
     "y": 40,
     "z": 345
    },
-   "axis": "+X"
+   "axis": "+X",
+   "top_diameter": 32,
+   "sides": 0
   },
   {
    "id": "intake_lobe_4",
@@ -1231,7 +870,9 @@
     "y": 40,
     "z": 345
    },
-   "axis": "+X"
+   "axis": "+X",
+   "top_diameter": 32,
+   "sides": 0
   },
   {
    "id": "exhaust_camshaft",
@@ -1243,7 +884,9 @@
     "y": 100,
     "z": 350
    },
-   "axis": "+X"
+   "axis": "+X",
+   "top_diameter": 24,
+   "sides": 0
   },
   {
    "id": "exhaust_lobe_1",
@@ -1255,7 +898,9 @@
     "y": 100,
     "z": 345
    },
-   "axis": "+X"
+   "axis": "+X",
+   "top_diameter": 32,
+   "sides": 0
   },
   {
    "id": "exhaust_lobe_2",
@@ -1267,7 +912,9 @@
     "y": 100,
     "z": 345
    },
-   "axis": "+X"
+   "axis": "+X",
+   "top_diameter": 32,
+   "sides": 0
   },
   {
    "id": "exhaust_lobe_3",
@@ -1279,7 +926,9 @@
     "y": 100,
     "z": 345
    },
-   "axis": "+X"
+   "axis": "+X",
+   "top_diameter": 32,
+   "sides": 0
   },
   {
    "id": "exhaust_lobe_4",
@@ -1291,7 +940,9 @@
     "y": 100,
     "z": 345
    },
-   "axis": "+X"
+   "axis": "+X",
+   "top_diameter": 32,
+   "sides": 0
   },
   {
    "id": "add_camshafts",
@@ -1313,7 +964,11 @@
     "exhaust_lobe_2",
     "exhaust_lobe_3",
     "exhaust_lobe_4"
-   ]
+   ],
+   "pattern_count": 1,
+   "pattern_axis": "Z",
+   "pattern_angle": 0,
+   "pattern_step": 0
   },
   {
    "id": "intake_cam_pulley",
@@ -1325,7 +980,9 @@
     "y": 40,
     "z": 350
    },
-   "axis": "+X"
+   "axis": "+X",
+   "top_diameter": 70,
+   "sides": 0
   },
   {
    "id": "exhaust_cam_pulley",
@@ -1337,7 +994,9 @@
     "y": 100,
     "z": 350
    },
-   "axis": "+X"
+   "axis": "+X",
+   "top_diameter": 70,
+   "sides": 0
   },
   {
    "id": "belt_left_run",
@@ -1391,7 +1050,11 @@
     "belt_left_run",
     "belt_right_run",
     "belt_top_run"
-   ]
+   ],
+   "pattern_count": 1,
+   "pattern_axis": "Z",
+   "pattern_angle": 0,
+   "pattern_step": 0
   },
   {
    "id": "flywheel",
@@ -1403,7 +1066,9 @@
     "y": 70,
     "z": 35
    },
-   "axis": "+X"
+   "axis": "+X",
+   "top_diameter": 220,
+   "sides": 0
   },
   {
    "id": "crank_pulley",
@@ -1415,7 +1080,9 @@
     "y": 70,
     "z": 35
    },
-   "axis": "+X"
+   "axis": "+X",
+   "top_diameter": 90,
+   "sides": 0
   },
   {
    "id": "oil_filter",
@@ -1427,7 +1094,9 @@
     "y": 138,
     "z": 100
    },
-   "axis": "+Y"
+   "axis": "+Y",
+   "top_diameter": 60,
+   "sides": 0
   },
   {
    "id": "alternator",
@@ -1439,7 +1108,9 @@
     "y": 138,
     "z": 140
    },
-   "axis": "+Y"
+   "axis": "+Y",
+   "top_diameter": 80,
+   "sides": 0
   },
   {
    "id": "mount_right",
@@ -1465,19 +1136,37 @@
     "oil_filter",
     "alternator",
     "mount_right"
-   ]
+   ],
+   "pattern_count": 1,
+   "pattern_axis": "Z",
+   "pattern_angle": 0,
+   "pattern_step": 0
   },
   {
-   "id": "mount_bolt_right",
-   "type": "through_hole",
-   "target": "block",
+   "id": "mount_bolt_right_tool",
+   "type": "cylinder",
    "diameter": 10,
+   "height": 44,
    "position": {
     "x": 130,
     "y": 160,
-    "z": 0
+    "z": 88
    },
-   "axis": "+Z"
+   "axis": "+Z",
+   "top_diameter": 10,
+   "sides": 0
+  },
+  {
+   "id": "mount_bolt_right",
+   "type": "subtract",
+   "target": "block",
+   "tools": [
+    "mount_bolt_right_tool"
+   ],
+   "pattern_count": 1,
+   "pattern_axis": "Z",
+   "pattern_angle": 0,
+   "pattern_step": 0
   }
  ]
 }
