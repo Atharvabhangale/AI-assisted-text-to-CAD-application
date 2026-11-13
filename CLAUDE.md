@@ -240,7 +240,7 @@ estimated.
 | Suite | Result |
 |---|---|
 | cad-core (`unittest`) | **1617 passed** (schema 1.1.1, Linux, Python 3.13; 1481 at Stage 32 on Windows) |
-| API + AI (`unittest`) | **633 tests, 2 skipped** (prompt 2026-11-13.2, Linux; with the `ai-gemini` extra installed — without it, Gemini tests skip) |
+| API + AI (`unittest`) | **637 tests, 2 skipped** (prompt 2026-11-13.3, streaming provider, Linux; with the `ai-gemini` extra installed — without it, Gemini tests skip) |
 | Frontend (`vitest`) | **162 passed** (5 files) |
 | Frontend typecheck (`tsc --noEmit`) | **clean** |
 | Launcher (`scripts\Test-DevLauncher.ps1`) | **62 assertions passed** |
@@ -311,6 +311,13 @@ mounts) in 241 s and 2 calls: **the first answer was cut off at the old
 16000-token cap and the retry loop re-asked — its first live save.**
 The Anthropic provider now streams (`messages.stream`, final message collected), so `MAX_OUTPUT_TOKENS` is 32000 and the per-call timeout 360 s. Plain "an
 engine" → 47 features, 99 s, 1 call.
+Prompt `2026-11-13.3` (internals in a cutaway) with the streaming provider:
+"a detailed 4 cylinder engine with pistons, a crankshaft, valves and ports"
+→ 56 features in 112 s, **1 call, 23.7k output tokens** (above the old
+non-streaming 20k cap): front half cut away, four pistons on rods, a crank
+journal with pins, valves and ports. Rougher than the 92-feature hand-built
+fixture: it ran the bores up through the head and used one straight journal
+instead of webs, and said both in `assumptions`.
 Cost policy from the owner: **at most 10 (never more than 20) real requests
 per hour**, and no Opus.
 
