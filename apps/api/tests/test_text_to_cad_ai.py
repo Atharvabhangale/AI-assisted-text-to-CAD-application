@@ -143,7 +143,8 @@ PLATE_SIZE = (100.0, 60.0, 10.0)
 #: position rather than being a gap to ask about. The 2026-09-09.1 value was
 #: ``fe62c9759a08d45ca372672479631863b25876cc52aca999da7edb1e8cde979a``.
 #:
-#: Re-pinned for **2026-11-13.7** (schema 1.2.0: tapers, polygons, patterns;
+#: Re-pinned for **2026-11-13.8** (how to answer through the submit_answer
+#: tool; 2026-11-13.7 was 8342e525...). Before that, **2026-11-13.7** (schema 1.2.0: tapers, polygons, patterns;
 #: through_hole held back; 2026-11-13.6 was e89ad21b...). Before that,
 #: **2026-11-13.6** (engine moved to the template library; 2026-11-13.5 was af5a5484...). Before that, **2026-11-13.5** (camshafts and timing belt; 2026-11-13.4 was
 #: 1bc4a18d...). Before that, **2026-11-13.4** (reference engine as Example 4; 2026-11-13.3
@@ -160,7 +161,7 @@ PLATE_SIZE = (100.0, 60.0, 10.0)
 #: Updating it is the maintenance step the pinning test itself prescribes, and
 #: it retires every earlier measurement of model behaviour.
 PROMPT_FINGERPRINT = (
-    "8342e52576362038a54712eec9380701f9c066fe9557d1d3faad5010b2a50c06"
+    "4843ece0cdd3df9868f3a88e49fd61b861359f658b42b0f1782ca5d0e89682fe"
 )
 
 #: Tolerance for a kernel-reported length. Never exact float equality.
@@ -1894,7 +1895,7 @@ class TestPromptAndSchema(unittest.TestCase):
         # update PROMPT_VERSION and this value together, and do not assume any
         # earlier claim about model behaviour still holds.
         self.assertEqual(prompt_fingerprint(), PROMPT_FINGERPRINT)
-        self.assertEqual(PROMPT_VERSION, "2026-11-13.7")
+        self.assertEqual(PROMPT_VERSION, "2026-11-13.8")
 
     def test_the_prompt_states_the_seven_required_things(self) -> None:
         text = system_prompt()
@@ -2139,7 +2140,10 @@ class TestAnthropicProvider(unittest.TestCase):
         self.config = AiConfig(model="claude-fake", timeout_seconds=5.0)
 
     def model(self, messages: FakeMessages) -> Any:
-        return self.provider_class(FakeClient(messages), self.config)
+        # These tests describe the response-format ("schema") answer mode;
+        # the tool mode, the default since prompt 2026-11-13.8, has its own
+        # tests in test_verified_generation.TestAnthropicToolAnswer.
+        return self.provider_class(FakeClient(messages), self.config, answer_mode="schema")
 
     def request(self, **overrides: Any) -> ModelRequest:
         fields: Dict[str, Any] = {
@@ -2812,8 +2816,9 @@ class TestProviderParity(unittest.TestCase):
         # (the reference engine as Example 4); 54693 for 2026-11-13.5
         # (camshafts and timing belt); 39747 for 2026-11-13.6 (the engine
         # moved to the template library); 53091 for 2026-11-13.7 (schema
-        # 1.2.0: tapers, polygons, patterns, holes as subtracted tools).
-        self.assertEqual(len(system_prompt()), 53091)
+        # 1.2.0: tapers, polygons, patterns, holes as subtracted tools);
+        # 53260 for 2026-11-13.8 (the submit_answer tool).
+        self.assertEqual(len(system_prompt()), 53260)
         self.assertEqual(prompt_fingerprint(), PROMPT_FINGERPRINT)
 
 

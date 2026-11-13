@@ -51,8 +51,9 @@ What the default model needs from a request, and why nothing more is sent:
 
 from __future__ import annotations
 
+import json
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from cad_ai.config import (
     CREDENTIAL_VARIABLES,
@@ -61,6 +62,7 @@ from cad_ai.config import (
     config_from_environment,
     credential_variable,
 )
+from cad_ai.prompt import ANSWER_TOOL_DESCRIPTION, ANSWER_TOOL_NAME
 from cad_ai.provider import (
     ModelRequest,
     ModelResponse,
@@ -161,14 +163,29 @@ def _import_sdk() -> Any:
     return anthropic
 
 
+#: How the answer is requested. ``"schema"``: a grammar-constrained response
+#: format (``output_config.format``). ``"tool"``: one **non-strict** tool,
+#: :data:`~cad_ai.prompt.ANSWER_TOOL_NAME`, whose input is the answer. A
+#: non-strict tool is not compiled into a grammar, so it has no size limit --
+#: the schema-format grammar reached its limit at prompt 2026-11-13.7 -- and
+#: its input still arrives as one JSON object (no prose, no code fence). It is
+#: not *guaranteed* to match the schema; the validator decides, as always.
+ANSWER_MODES: Tuple[str, ...] = ("schema", "tool")
+ANSWER_MODE_VARIABLE = "CAD_AI_ANSWER_MODE"
+DEFAULT_ANSWER_MODE = "tool"
+
+
 class AnthropicTextToCadModel:
     """A :class:`~cad_ai.provider.TextToCadModel` over the Messages API."""
 
     name = PROVIDER_NAME
 
-    def __init__(self, client: Any, config: AiConfig) -> None:
+    def __init__(self, client: Any, config: AiConfig, *, answer_mode: str = DEFAULT_ANSWER_MODE) -> None:
+        if answer_mode not in ANSWER_MODES:
+            raise ValueError(f"answer_mode must be one of {ANSWER_MODES}; got {answer_mode!r}")
         self._client = client
         self._config = config
+        self._answer_mode = answer_mode
         self._sdk = _import_sdk()
 
     @classmethod
@@ -201,7 +218,17 @@ class AnthropicTextToCadModel:
             api_key=os.environ[variable].strip(),
             timeout=settings.timeout_seconds,
         )
-        return cls(client, settings)
+        mode = os.environ.get(ANSWER_MODE_VARIABLE, "").strip().lower() or DEFAULT_ANSWER_MODE
+        if mode not in ANSWER_MODES:
+            raise ProviderNotConfigured(
+                "the interpretation service is not available",
+                detail=f"{ANSWER_MODE_VARIABLE} must be one of {', '.join(ANSWER_MODES)}",
+            )
+        return cls(client, settings, answer_mode=mode)
+
+    @property
+    def answer_mode(self) -> str:
+        return self._answer_mode
 
     @property
     def config(self) -> AiConfig:
@@ -222,8 +249,20 @@ class AnthropicTextToCadModel:
             "messages": [{"role": "user", "content": request.user_text}],
         }
         structured = request.output_schema is not None
+        by_tool = structured and self._answer_mode == "tool"
         output_config: Dict[str, Any] = {}
-        if structured:
+        if by_tool:
+            parameters["tools"] = [
+                {
+                    "name": ANSWER_TOOL_NAME,
+                    "description": ANSWER_TOOL_DESCRIPTION,
+                    "input_schema": schema_for_api(dict(request.output_schema or {})),
+                }
+            ]
+            # `auto`, not a forced tool: a forced tool_choice is refused
+            # while (adaptive) thinking is on. The prompt says to call it.
+            parameters["tool_choice"] = {"type": "auto"}
+        elif structured:
             output_config["format"] = {
                 "type": JSON_SCHEMA_FORMAT,
                 "schema": schema_for_api(dict(request.output_schema or {})),
@@ -250,7 +289,7 @@ class AnthropicTextToCadModel:
                 detail=f"{type(exc).__name__}: {exc}",
                 kind=self._classify(exc),
             ) from exc
-        return self._response(message, structured=structured)
+        return self._response(message, structured=structured and not by_tool)
 
     def _classify(self, exc: BaseException) -> ProviderErrorKind:
         """Map one SDK exception onto the neutral classification.
@@ -295,7 +334,8 @@ class AnthropicTextToCadModel:
                 ),
                 kind=ProviderErrorKind.REFUSED,
             )
-        text = _text_of(message)
+        answer = _tool_answer(message)
+        text = json.dumps(answer) if answer is not None else _text_of(message)
         if not text.strip():
             raise ProviderError(
                 "the interpretation service returned no answer",
@@ -370,6 +410,18 @@ def _text_of(message: Any) -> str:
     return "".join(parts)
 
 
+def _tool_answer(message: Any) -> Optional[Any]:
+    """The input of the first ``submit_answer`` tool call, or ``None``.
+
+    The input is passed on as it came -- re-serialised, never edited. A call
+    to any other name is ignored (no other tool is offered).
+    """
+    for block in getattr(message, "content", None) or []:
+        if getattr(block, "type", None) == "tool_use" and getattr(block, "name", None) == ANSWER_TOOL_NAME:
+            return getattr(block, "input", None)
+    return None
+
+
 def _usage_of(message: Any) -> Dict[str, int]:
     """Token counts, when reported. Never a prompt and never a credential.
 
@@ -390,6 +442,8 @@ def _optional_str(value: Any) -> Optional[str]:
 
 
 __all__ = [
+    "ANSWER_MODES",
+    "ANSWER_MODE_VARIABLE",
     "CACHE_CONTROL",
     "JSON_SCHEMA_FORMAT",
     "REFUSAL_STOP_REASON",

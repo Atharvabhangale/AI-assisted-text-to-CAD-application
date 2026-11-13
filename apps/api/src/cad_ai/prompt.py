@@ -111,10 +111,28 @@ from cad_ai.specification import (
 #: :data:`cad_ai.specification.SUPPORTED_FEATURE_TYPES`). Every example and
 #: template was rewritten to match.
 #:
+#: ``2026-11-13.8`` says how to answer when a ``submit_answer`` tool is
+#: offered (call it once with the answer object). Providers that support it
+#: use that tool instead of a grammar-constrained response format, which had
+#: reached its size limit at 2026-11-13.7.
+#:
 #: What did **not** change: the model emits a data document and never code,
 #: the validator is still the only authority on validity, anchor-point and
 #: axis semantics, and order-is-meaning.
-PROMPT_VERSION = "2026-11-13.7"
+PROMPT_VERSION = "2026-11-13.8"
+
+#: The tool a provider may offer for the answer instead of a response format
+#: (``2026-11-13.8``): the model calls it once with the whole answer as its
+#: input. A tool's input arrives as one JSON object by construction -- no
+#: prose, no code fence -- and a *non-strict* tool is not compiled into a
+#: grammar, so the response schema has no size ceiling there. Defined here,
+#: with the rest of the prompt text, so every provider names it identically.
+ANSWER_TOOL_NAME = "submit_answer"
+ANSWER_TOOL_DESCRIPTION = (
+    "Submit the complete answer to the request: one object with status, "
+    "plan, assumptions, document, summary, questions and issues. Call it "
+    "exactly once."
+)
 
 
 def _doc(name: str, description: str, features: Sequence[Mapping[str, Any]]) -> Dict[str, Any]:
@@ -545,7 +563,9 @@ not match what is asked for, ignore it.
 
 ## Producing the answer
 
-Fill the fields in order:
+The answer is one JSON object with the fields below. When a
+`{ANSWER_TOOL_NAME}` tool is offered, call it exactly once with that object as
+its input, and write nothing else. Fill the fields in order:
 
 * `status`: "document" in nearly every case.
 * `plan`: a few terse lines, written before the document: each solid with its
@@ -592,6 +612,8 @@ def prompt_fingerprint() -> str:
 
 
 __all__ = [
+    "ANSWER_TOOL_DESCRIPTION",
+    "ANSWER_TOOL_NAME",
     "EXAMPLES",
     "INSTRUCTIONS",
     "PROMPT_VERSION",

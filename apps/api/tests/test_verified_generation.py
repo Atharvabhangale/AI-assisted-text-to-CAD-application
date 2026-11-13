@@ -20,6 +20,7 @@ request tests hand the provider a fake client that records its arguments.
 from __future__ import annotations
 
 import json
+import os
 import re
 import tempfile
 import unittest
@@ -30,6 +31,7 @@ from typing import Any, Dict, List, Mapping, Optional, Sequence
 
 from cad_ai import config as ai_config
 from cad_ai.anthropic_provider import (
+    ANSWER_MODE_VARIABLE,
     CACHE_CONTROL,
     AnthropicTextToCadModel,
     schema_for_api,
@@ -56,7 +58,7 @@ from cad_ai.generation import (
     TextToCadService,
     compose_user_text,
 )
-from cad_ai.prompt import EXAMPLES, system_prompt
+from cad_ai.prompt import ANSWER_TOOL_NAME, EXAMPLES, system_prompt
 from cad_ai.templates import TEMPLATE_MODULES, TEMPLATES, select_templates
 from cad_ai.templates.engine import TEMPLATE as ENGINE_TEMPLATE
 from cad_ai.provider import (
@@ -708,11 +710,82 @@ def _message(text: str = '{"status": "unsupported"}', stop_reason: str = "end_tu
     )
 
 
+def _tool_message(answer: Any, *, text: str = "") -> Any:
+    blocks = []
+    if text:
+        blocks.append(SimpleNamespace(type="text", text=text))
+    blocks.append(SimpleNamespace(type="tool_use", name=ANSWER_TOOL_NAME, input=answer, id="toolu_1"))
+    message = _message()
+    message.content = blocks
+    message.stop_reason = "tool_use"
+    return message
+
+
+class TestAnthropicToolAnswer(unittest.TestCase):
+    """The answer through one non-strict tool (default since 2026-11-13.8).
+
+    Measured live: the response-format grammar reached the compiler's size
+    limit at 2026-11-13.7; a non-strict tool is not compiled, and six live
+    requests (drone, nut, steering wheel, flange, table, engine) were all
+    generated, valid and built on the first call in this mode.
+    """
+
+    def provider(self, message: Any) -> Any:
+        messages = _RecordingMessages(message)
+        return AnthropicTextToCadModel(SimpleNamespace(messages=messages), AiConfig()), messages
+
+    def request(self) -> ModelRequest:
+        return ModelRequest(system="SYSTEM", user_text="a plate", output_schema=response_schema())
+
+    def test_tool_mode_is_the_default(self) -> None:
+        provider, _ = self.provider(_tool_message({}))
+        self.assertEqual(provider.answer_mode, "tool")
+
+    def test_one_tool_carries_the_answer_schema_and_no_response_format(self) -> None:
+        provider, messages = self.provider(_tool_message({"status": "unsupported"}))
+        provider.generate(self.request())
+        (call,) = messages.calls
+        (tool,) = call["tools"]
+        self.assertEqual(tool["name"], ANSWER_TOOL_NAME)
+        self.assertEqual(tool["input_schema"], schema_for_api(response_schema()))
+        self.assertNotIn("strict", tool)  # non-strict: not compiled into a grammar
+        self.assertEqual(call["tool_choice"], {"type": "auto"})
+        self.assertNotIn("output_config", call)
+        self.assertNotIn("thinking", call)
+
+    def test_the_answer_is_the_tool_input_passed_on_unedited(self) -> None:
+        answer = {"status": "unsupported", "plan": "", "issues": ["not a part"]}
+        provider, _ = self.provider(_tool_message(answer, text="Here it is."))
+        response = provider.generate(self.request())
+        self.assertEqual(json.loads(response.text), answer)
+        self.assertFalse(response.structured_output)
+        self.assertEqual(response.stop_reason, "tool_use")
+
+    def test_no_tool_call_falls_back_to_the_text(self) -> None:
+        # The generation layer then reports the text unusable and re-asks;
+        # the provider never guesses a document out of prose.
+        provider, _ = self.provider(_message(text="I would build a plate."))
+        self.assertEqual(provider.generate(self.request()).text, "I would build a plate.")
+
+    def test_the_mode_is_chosen_by_the_environment(self) -> None:
+        from cad_ai.provider import ProviderNotConfigured
+
+        env = {"CAD_ANTHROPIC_API_KEY": "sk-test-placeholder"}
+        with mock.patch.dict(os.environ, {**env, ANSWER_MODE_VARIABLE: "schema"}):
+            self.assertEqual(AnthropicTextToCadModel.from_environment(AiConfig()).answer_mode, "schema")
+        with mock.patch.dict(os.environ, {**env, ANSWER_MODE_VARIABLE: "grammar"}):
+            with self.assertRaises(ProviderNotConfigured):
+                AnthropicTextToCadModel.from_environment(AiConfig())
+
+    def test_the_prompt_names_the_tool(self) -> None:
+        self.assertIn(f"`{ANSWER_TOOL_NAME}` tool is offered", system_prompt().replace("\n", " "))
+
+
 class TestAnthropicRequest(unittest.TestCase):
     def provider(self, message: Any, **config: Any):
         messages = _RecordingMessages(message)
         client = SimpleNamespace(messages=messages)
-        return AnthropicTextToCadModel(client, AiConfig(**config)), messages
+        return AnthropicTextToCadModel(client, AiConfig(**config), answer_mode="schema"), messages
 
     def request(self) -> ModelRequest:
         return ModelRequest(
