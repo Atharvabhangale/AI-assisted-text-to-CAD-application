@@ -242,7 +242,7 @@ estimated.
 | Suite | Result |
 |---|---|
 | cad-core (`unittest`) | **1685 passed** (schema 1.2.0, Linux, Python 3.13; 1617 at 1.1.1; 1481 at Stage 32 on Windows) |
-| API + AI (`unittest`) | **648 tests, 2 skipped** (prompt 2026-11-13.6, template library of 10, Linux; with the `ai-gemini` extra installed — without it, Gemini tests skip) |
+| API + AI (`unittest`) | **648 tests, 2 skipped** (prompt 2026-11-13.7, schema 1.2.0, template library of 10, Linux; with the `ai-gemini` extra installed — without it, Gemini tests skip) |
 | Frontend (`vitest`) | **180 passed** (6 files) |
 | Frontend typecheck (`tsc --noEmit`) | **clean** |
 | Launcher (`scripts\Test-DevLauncher.ps1`) | **62 assertions passed** |
