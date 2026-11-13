@@ -203,6 +203,14 @@ itself — an unknown name is a provider error, not a silent fallback.
 
 ### Claude Code: your own subscription, through the official CLI
 
+> **Measured live once, in the Linux container** (CLI 2.1.323, with the
+> API-key opt-in because no subscription login exists there, in a scrubbed
+> environment with a throwaway HOME): "an M10 hex nut" in 9 s and "a
+> hexacopter drone with six arms" in 76 s, both generated, valid and built
+> on the first call, no processes left behind. The hexacopter took 13.9k
+> output tokens against 7.8k through the API provider. A real subscription
+> login and the Windows paths have not been exercised yet.
+
 A third provider, `claude_code` (`cad_ai.claude_code_provider`), runs the
 application on the owner's **Claude subscription** instead of an API key. It
 drives the official `claude` program (Claude Code), already installed and

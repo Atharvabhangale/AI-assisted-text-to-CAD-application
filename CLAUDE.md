@@ -213,6 +213,7 @@ Docs: `docs/http-api.md`, `docs/artifact-delivery.md`,
 | `provider.py` | The provider boundary: `TextToCadModel`, `ModelRequest`, `ModelResponse`, `ProviderError`, `ProviderErrorKind` — **no vendor types** |
 | `anthropic_provider.py` | Anthropic Messages API adapter (`AnthropicTextToCadModel`). Also `schema_for_api` / `UNSUPPORTED_SCHEMA_KEYWORDS`: this API's structured-output compiler **rejects** `exclusiveMinimum`, `minItems`, `minLength` and `pattern`, so the model-facing schema is narrowed to its subset before it is sent. Sending the schema unchanged 400s every request. No information is lost — the appended spec excerpt states all four rules in prose |
 | `gemini_provider.py` | Google `google-genai` adapter (`GeminiTextToCadModel`) |
+| `claude_code_provider.py` / `claude_code_mcp.py` | **Subscription provider** (`ClaudeCodeTextToCadModel`): drives the official `claude` CLI (`-p`, stream-json) with no tools of its own and one stdlib stdio MCP server offering `submit_answer`; the answer is that tool call's input. Selected **only** by `CAD_AI_PROVIDER=claude_code`. Stdlib only |
 | `prompt.py` | The single system prompt, versioned + fingerprinted (`system_prompt`, `prompt_fingerprint`) |
 | `specification.py` | Model-facing view of the spec, **derived** from `docs/cad-specification.md` (`specification_text`, `response_schema`) |
 | `generation.py` | `TextToCadService`: description in, `AiGenerationResult` out, validated by `cad_core` |
@@ -242,7 +243,7 @@ estimated.
 | Suite | Result |
 |---|---|
 | cad-core (`unittest`) | **1685 passed** (schema 1.2.0, Linux, Python 3.13; 1617 at 1.1.1; 1481 at Stage 32 on Windows) |
-| API + AI (`unittest`) | **648 tests, 2 skipped** (prompt 2026-11-13.7, schema 1.2.0, template library of 10, Linux; with the `ai-gemini` extra installed — without it, Gemini tests skip) |
+| API + AI (`unittest`) | **690 tests, 2 skipped** (prompt 2026-11-13.8, tool answer mode, claude_code provider, schema 1.2.0, template library of 10; run the modules one at a time or expect `test_model_output_writes_no_file_anywhere` to see the others writing to /tmp, Linux; with the `ai-gemini` extra installed — without it, Gemini tests skip) |
 | Frontend (`vitest`) | **180 passed** (6 files) |
 | Frontend typecheck (`tsc --noEmit`) | **clean** |
 | Launcher (`scripts\Test-DevLauncher.ps1`) | **62 assertions passed** |
@@ -367,6 +368,49 @@ generated, valid and built on the first call.
 so a model answer of cylinder + subtract there now scores a feature-type
 difference -- one more reason the corpus needs its re-baseline (§10).
 
+**The answer arrives through a tool, not a grammar (prompt `2026-11-13.8`) —
+this lifts the ceiling described above.** The Anthropic provider's default
+`CAD_AI_ANSWER_MODE` is now `tool`: it offers one **non-strict** tool,
+`submit_answer` (`prompt.ANSWER_TOOL_NAME`), whose input is the whole answer,
+instead of `output_config.format`. A non-strict tool is not compiled into a
+grammar, so the response schema has no size limit there; its input still
+arrives as one JSON object (no prose, no fence); it is *not* guaranteed to
+match the schema, which changes nothing because the validator decides and the
+loop re-asks. `tool_choice` is `auto` (a forced tool is refused while
+adaptive thinking is on); an answer with no tool call falls back to its text,
+reported unusable and re-asked. `CAD_AI_ANSWER_MODE=schema` restores the
+grammar mode (and its ceiling). Live, Haiku 5.5, one call each: hexacopter,
+M10 nut, six-spoke steering wheel, 8-hole flange (one 8×45° patterned cut),
+coffee table (tapered legs), the 82-feature engine — **6/6 generated, valid
+and built on the first call**. The schema shape from 2026-11-13.7 (no
+`through_hole` branch, non-nullable `document`) is kept for now, because the
+Gemini provider still sends it as a response format; restoring `through_hole`
+for the tool mode is now possible but would be its own measured change.
+
+**The Claude Code subscription provider (`claude_code`).** For running on the
+owner's Windows machine on their Claude subscription instead of an API key:
+`CAD_AI_PROVIDER=claude_code` (never auto-selected), `claude` installed and
+logged in (`/login`), optional `CAD_CLAUDE_CODE_PATH`. Each call runs
+`claude -p --input-format stream-json --output-format stream-json --verbose
+--model <model> --system-prompt-file <hashed file> --tools "" --strict-mcp-config
+--mcp-config <one server> --allowedTools mcp__cad__submit_answer
+--permission-mode dontAsk --setting-sources "" --disable-slash-commands
+--no-session-persistence --max-turns 1` in an empty folder; API-key variables
+are removed from the child's environment so the CLI uses its own login
+(`CAD_CLAUDE_CODE_USE_API_KEY=1` keeps them — how it was tested here, where
+there is no subscription login). Full detail, error mapping and the Windows
+notes: `docs/text-to-cad-ai.md` → *Claude Code: your own subscription*.
+**Live smoke test in this container** (real CLI 2.1.323, API-key opt-in, a
+scrubbed environment with a throwaway HOME so the session's own login could
+not be used): "an M10 hex nut" 9 s and "a hexacopter drone with six arms"
+76 s — both generated, valid and built on the first call, no leftover
+processes. The CLI route spent ~1.8× the output tokens of the API route on
+the hexacopter (13.9k vs 7.8k) and was slower (76 s vs 47 s). **Never
+exercised:** a real subscription login, the Windows code paths (`.cmd` shim,
+`taskkill /T`), and the CLI's not-logged-in / usage-limit messages. Terms:
+personal use of the owner's own subscription through the official CLI; never
+offer subscription logins to other people's use.
+
 **Template library (prompt `2026-11-13.6`).** `cad_ai/templates/` holds
 reference designs: complete, verified answers built by hand from parameters
 in Python (`_helpers.py`), one module per object, each listed in
@@ -413,9 +457,9 @@ none of which are set. It never sends `tools`, `tool_config` or
 `automatic_function_calling`.
 
 **Prompt architecture.** One prompt, in one place, with one version id:
-`PROMPT_VERSION = "2026-11-13.7"`, fingerprint
-`8342e52576362038a54712eec9380701f9c066fe9557d1d3faad5010b2a50c06`, length
-53091 characters (it changes whenever `docs/cad-specification.md`'s quoted
+`PROMPT_VERSION = "2026-11-13.8"`, fingerprint
+`4843ece0cdd3df9868f3a88e49fd61b861359f658b42b0f1782ca5d0e89682fe`, length
+53260 characters (it changes whenever `docs/cad-specification.md`'s quoted
 sections change). **Four separate tests pin those three values** (two in
 `test_text_to_cad_ai.py`, two in `test_gemini_provider_boundary.py`); when you
 change the prompt on purpose, update all of them together and re-measure —
