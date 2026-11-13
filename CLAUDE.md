@@ -104,8 +104,9 @@ design change, not a refactor.
 
 ## 3. The V1 CAD specification (summary)
 
-Authoritative file: **`docs/cad-specification.md`** (schema version `1.1.0`;
-`1.0.0` documents stay valid, and `union` is an unknown type in them).
+Authoritative file: **`docs/cad-specification.md`** (schema version `1.1.1`;
+`1.0.0` documents stay valid, and `union` is an unknown type in them; `1.1.1`
+made edge selectors match sharp edges only — see Edge selectors below).
 Rule codes live in `cad_core.rules`. Read the spec before changing anything
 that touches document semantics.
 
@@ -141,7 +142,11 @@ that touches document semantics.
   `^[A-Za-z_][A-Za-z0-9_-]*$` (S8).
 - **Edge selectors:** `select` is `"all"` or `"axis_parallel"`; `axis`
   (`"X"`/`"Y"`/`"Z"`) is present exactly when `select` is `"axis_parallel"`
-  (S18).
+  (S18). Since `1.1.1` they match **sharp edges only**: a cylinder's or
+  hole's seam and the tangent boundary of a blend are never selected
+  (`edge_selection.edge_kind`). So cylinders, drilled parts and blended parts
+  can be filleted/chamfered; a fillet spreads along tangent chains, and a
+  selector left with no sharp edge is E4.
 - **Single-solid rule (S9):** the first feature is constructive, and after the
   last feature the solid set holds **exactly one** solid. No assemblies, no
   orphan bodies, no multi-body parts.
@@ -292,6 +297,12 @@ a pencil holder: **5/5 generated, validated and built, all on the first
 attempt**, 6–15 s each. At Haiku 5.5's list price that is about $0.003 for
 the call that writes the ~16.6k-token prompt cache and under $0.001 for a
 call that reads it.
+Then, after the seam fix and prompt `2026-11-13.1`: **"an engine"**, a mug
+with a rounded rim (a fillet on a cylinder) and a chamfered knob — 3/3 on the
+first attempt — and "a 4 cylinder car engine" typed into the page: a block,
+crankcase, head and oil pan fused, four bores, flywheel and pulley, drawn in
+the viewer. Complex products are one solid of overlapping major components,
+and the model says what it fused or left out.
 Cost policy from the owner: **at most 10 (never more than 20) real requests
 per hour**, and no Opus.
 
@@ -313,9 +324,9 @@ none of which are set. It never sends `tools`, `tool_config` or
 `automatic_function_calling`.
 
 **Prompt architecture.** One prompt, in one place, with one version id:
-`PROMPT_VERSION = "2026-11-12.1"`, fingerprint
-`cf2291a5836b32fb117a0ef2a4d443a478d42872ca1fd63212056751b4250808`, length
-33084 characters (it changes whenever `docs/cad-specification.md`'s quoted
+`PROMPT_VERSION = "2026-11-13.1"`, fingerprint
+`90b4cb5054e25cf28ec46d7f1a482bd9994853434a32075e84ac46b2ff38e06d`, length
+35199 characters (it changes whenever `docs/cad-specification.md`'s quoted
 sections change). **Four separate tests pin those three values** (two in
 `test_text_to_cad_ai.py`, two in `test_gemini_provider_boundary.py`); when you
 change the prompt on purpose, update all of them together and re-measure —
@@ -620,8 +631,8 @@ Stage 29, plus the commit that added this file) and the docs. Verify against
 
 **NEXT**
 
-0. **Exclude seam and tangent edges from edge selectors** (spec C.7 + the
-   pinned seam tests) so blends work on real parts; see §11.
+0. ~~**Exclude seam and tangent edges from edge selectors**~~ — **done**
+   (schema `1.1.1`).
 1. **Re-baseline the corpus for the new policy.** Prompt `2026-11-12.1`
    assumes instead of asking and approximates instead of refusing, so the
    D-ambiguity and E-unsupported expectations are stale (§6) and a corpus run
@@ -676,22 +687,17 @@ Each of these is supported by the code, the docs or the measured results.
 - **Provider availability is unreliable**: a 404 on the default Gemini model
   and a ~20-request/day free-tier allowance.
 - **Anthropic has no corpus benchmark**, only the hand-run product flow in §6.
-- **Seam-selection semantics are unresolved** — see `docs/edge-selection.md`
-  for which edges a cylinder's seam contributes and why it matters for
-  `select: "all"`.
 - **No security or authentication** anywhere in the stack.
 - **No production sandboxing** — isolation is crash containment only.
 - **No multi-user storage**: one shared cache, global build keys.
 - **No production job persistence**: the build/job layer is in-memory, with no
   queue, no durable state and no background workers.
-- **Fillet/chamfer selectors match seams.** `select: "all"` and any
-  `axis_parallel` along a cylinder's axis match the straight parameterisation
-  seam of every cylindrical face (and the tangent edges an earlier blend
-  leaves), which the kernel refuses (E5). So a cylinder, anything with a hole,
-  or anything already blended cannot be blended that way. Prompt
-  `2026-11-12.1` works around it (blend once, early, while the body is all
-  planar); excluding seams and tangent edges from selectors is a C.7 contract
-  change and the recommended next step.
+- **Late blends on large joined bodies are fragile.** Since `1.1.1` seams
+  and tangent edges are no longer selected, so blending cylinders, drilled
+  parts and blended parts works. But a final `select: "all"` over a big body
+  of many joined and cut pieces (a mug with cavity and handle, an engine)
+  still fails E5 in the kernel; the prompt tells the model to blend simple
+  pieces before joining them.
 - **The retry loop has not yet been exercised live**: every live answer so far
   was accepted on its first attempt.
 - The V1 vocabulary is small: no sketches, no revolves, no patterns, no

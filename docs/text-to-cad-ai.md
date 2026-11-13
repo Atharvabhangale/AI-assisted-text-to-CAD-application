@@ -460,6 +460,25 @@ and G (semantic) remain unmeasured; and **the retry loop has not been
 exercised live** — every live answer was accepted first time, so its behaviour
 on a real rejection is covered by stub-provider tests only.
 
+
+### Prompt 2026-11-13.1 — blending after the sharp-edge fix
+
+Schema `1.1.1` made edge selectors match sharp edges only (seams and blend
+boundaries are excluded; `docs/cad-specification.md` C.7). The 2026-11-12.1
+rules had forbidden blending cylinders, drilled parts and blended parts
+because those selections always failed; they now build, so rules 4–6 were
+rewritten from new engine measurements: blend simple pieces before joining
+them (a final `all` over a large joined body — a mug with cavity and handle,
+an engine — still fails E5), a blend spreads along tangent edges, and `all` on
+a cylinder means its rims. The prompt also says how to model a complex product
+(an engine, a gearbox) as one solid of overlapping major components.
+
+Live, Claude Haiku 5.5, first attempt each: "an engine" (block, crankcase,
+head, oil pan, four bores, flywheel and pulley), "a coffee mug with a rounded
+rim and a handle" (fillet on a cylinder), "a cylindrical knob with chamfered
+edges and a 6 mm hole through it" (chamfer on a cylinder), and "a 4 cylinder
+car engine" typed into the web page and drawn. Version `2026-11-13.1`,
+fingerprint `90b4cb5054e25cf2…`, 35199 characters.
 ## The output contract
 
 The model answers with one JSON object, constrained by a derived schema. The

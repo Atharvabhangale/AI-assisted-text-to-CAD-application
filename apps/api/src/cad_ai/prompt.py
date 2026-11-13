@@ -62,10 +62,18 @@ from cad_ai.specification import (
 #: 5. **A ``plan`` field comes first**, so the coordinates are worked out in
 #:    text before the document is written.
 #:
+#: ``2026-11-13.1`` follows schema 1.1.1, where edge selectors match sharp
+#: edges only. Rules 4-6 no longer forbid blending cylinders, drilled parts
+#: or blended parts; they now say what was measured instead -- blend simple
+#: pieces before joining them (a late ``all`` on a large joined body failed
+#: on a mug and an engine), a blend spreads along tangent edges, and a
+#: cylinder's ``all`` means its rims. Complex products such as an engine are
+#: modelled as one solid of overlapping major components.
+#:
 #: What did **not** change: the model emits a data document and never code,
 #: the validator is still the only authority on validity, anchor-point and
 #: axis semantics, and order-is-meaning.
-PROMPT_VERSION = "2026-11-12.1"
+PROMPT_VERSION = "2026-11-13.1"
 
 
 def _p(x: float, y: float, z: float) -> Dict[str, float]:
@@ -366,7 +374,16 @@ question or a refusal. Resolve whatever the request leaves open yourself:
   unions, subtractions, fillets and chamfers. Thread: a plain cylinder of the
   nominal diameter. Slope or wedge: a box or a few stepped boxes. Organic
   shell: a box or cylinder with generously rounded edges.
-* **Several separate parts or an assembly**: model the main part as one solid.
+* **Several separate parts or an assembly** (an engine, a gearbox, a pump, a
+  drone): model it as **one solid** that shows its recognisable major
+  components -- each as boxes and cylinders, every one overlapping the main
+  body so they all join -- plus the defining cuts (bores, ports, bolt holes).
+  An engine, for example: a block, a crankcase below it, a cylinder head and
+  oil pan, four cylinder bores, a flywheel and a pulley on the crank axis.
+  Moving parts are not separate: fuse them in place or leave them out, and
+  say which in `assumptions`.
+* **A blend is decoration.** If a fillet or chamfer is not asked for and would
+  be risky (rule 4), leave it out rather than risk the part.
 
 Write **every** such choice as one short entry in `assumptions` ("No unit
 given; assumed millimetres", "Chose 120 x 65 x 38 mm, a typical mouse",
@@ -431,18 +448,19 @@ These were measured on the engine; each one has failed when broken.
 2. **Cutting tools reach past the surface.** Make a `subtract` tool extend 1-2
    mm beyond every face it opens, so the cut is clean.
 3. **A cut must not split the body.** Leave material connecting every piece.
-4. **Round edges early, and once.** Apply at most **one** `fillet` or `chamfer`
-   to a body, and apply it while that body still has only flat faces -- a box,
-   boxes joined or cut by boxes -- **before** any `through_hole`, before any
-   cylinder is unioned into it or subtracted from it, and before any other
-   fillet or chamfer on it. A cylindrical face carries a straight seam edge the
-   engine cannot blend, and a blended edge leaves edges it cannot blend again,
-   so blending after those steps fails.
-5. **Never fillet or chamfer a cylinder**, or a body that already contains a
-   cylindrical face. The only exception: `axis_parallel` on an axis
-   perpendicular to every cylinder and hole axis in that body.
-6. **To round a small sub-part, blend it before joining it.** Fillet a handle
-   box, then `union` it into the body.
+4. **Round each piece before it is joined.** A `fillet` or `chamfer` matches
+   only sharp edges (never a cylinder's seam or the edge of an earlier
+   blend), so cylinders, drilled parts and already-rounded parts can be
+   blended. But blending a large body made of many joined, cut and drilled
+   pieces fails easily. So blend each simple solid -- a box, a cylinder, or a
+   few boxes joined -- right after creating it, **before** it is unioned into
+   a bigger body, and blend a simple body before drilling it when you can.
+5. **A blend spreads along tangent edges.** Rounding one edge of a chain whose
+   edges meet smoothly rounds the whole chain. A later fillet whose selector
+   finds no sharp edge left is an error, so do not stack selectors over edges
+   you have already rounded.
+6. **On a cylinder**, `{{"select": "all"}}` rounds or bevels its two rims.
+   `axis_parallel` along the cylinder's own axis matches nothing.
 7. **Blend size**: keep a radius or chamfer distance below half of the thinnest
    wall or dimension at that edge -- 1-3 mm on small parts, up to about 40% of
    the smallest box dimension for a generously rounded shell. Exactly half
