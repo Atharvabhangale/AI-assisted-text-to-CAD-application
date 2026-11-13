@@ -3,8 +3,9 @@
 Status: **Stage 22 — the first HTTP transport, as a thin adapter over the
 transport-neutral contract. Stage 23 added artifact delivery, Stage 24
 read-only build retrieval, Stage 25 the render endpoint a browser viewer
-needs, Stage 30 the natural-language `POST /generate`. Local development
-only.**
+needs, Stage 30 the natural-language `POST /generate` (later extended to
+verify by building and to re-ask within a bound; see that route). Local
+development only.**
 
 > **HTTP API contains no CAD business logic.**
 
@@ -38,6 +39,8 @@ exactly.
 
 `POST /generate` adds one dependency in the other direction: the transport
 imports `cad_ai` (this application's own AI layer), never a provider SDK. It
+holds no CAD logic: validation and the verification build both happen inside
+`cad_ai` by calling the same `CadApplicationService` the other routes use. It
 names no vendor — a test asserts the strings `anthropic`, `gemini`, `google`,
 `openai`, `claude` and `gpt-` appear nowhere in `cad_api.generation` — and
 asks `cad_ai.factory` which provider is configured. Adding a third provider
@@ -150,8 +153,11 @@ transport contract's own payload for that request, field for field.
 
 ### `POST /generate`
 
-Turn a natural-language description into a **validated candidate CAD
-document**. This is the natural-language entry point, added in Stage 30.
+Turn a natural-language description into a **validated, buildable CAD
+document**. This is the natural-language entry point, added in Stage 30 and
+changed afterwards (prompt `2026-11-12.1`): it now builds as well as
+validates, and asks the model again, a bounded number of times, when an answer
+is rejected.
 
 ```json
 // request
@@ -159,19 +165,36 @@ document**. This is the natural-language entry point, added in Stage 30.
 ```
 
 `GenerateBody` → `TextGenerator.generate` → `cad_ai.TextToCadService` → the
-configured provider → the existing deserializer → the **existing validator**.
+configured provider → the existing deserializer → the **existing validator**
+→ (by default) the **existing build**, `CadApplicationService.build_document`,
+in its isolated child process → on a rejection, the model is asked again.
 
-**It builds nothing.** The response carries a document, and the client posts
-that document to `POST /build` exactly as it would one a human wrote. There is
-one build path, one validator and one CAD contract; the AI adds an interpreter
-in front of them and changes none of them.
+**It validates and builds, but it does not deliver.** Each answer is validated
+(S-rules) and then built (E-rules) through the application service; the
+verification build requests `geometry, step, iges, stl, render`, which is the
+set the web page asks `POST /build` for. The response still carries the
+document, and the client posts it to `POST /build` exactly as it would one a
+human wrote; that second build has the same build key and is answered from the
+cache. There is one build path, one validator and one CAD contract; the AI
+adds an interpreter in front of them and changes none of them. (Before this
+change the route built nothing; that sentence is no longer true.)
+
+**Bounded re-asks.** At most `CAD_AI_MAX_ATTEMPTS` model calls per request
+(default 3; set in the AI configuration, not in the request). A call is
+repeated only when the answer was unusable, the validator rejected the
+document, or the engine reported a geometry failure; the model is then given
+the original description, its rejected document and the reasons with rule
+codes. A provider error is never re-asked, a clarification or refusal is
+final, and an infrastructure build failure (a crashed or timed-out build, not a
+geometry error) ends the request. **No code patches a document**; only the
+model re-authors it, and every call is reported in `attempts`.
 
 Representative 200 response:
 
 ```json
 {"outcome": "generated",
  "message": "a CAD document was generated from the description",
- "document": {"schema_version": "1.0.0", "units": "mm",
+ "document": {"schema_version": "1.1.0", "units": "mm",
               "name": "rectangular-plate",
               "features": [{"id": "plate", "type": "box",
                             "size": {"x": 100.0, "y": 60.0, "z": 10.0},
@@ -179,22 +202,57 @@ Representative 200 response:
  "document_hash": "9e2be624…",
  "summary": "Created a 100 mm x 60 mm x 10 mm rectangular plate using a box feature.",
  "questions": [], "issues": [], "rule_codes": [], "error_kind": null,
- "metadata": {"provider": "gemini", "model": "gemini-3.6-flash",
-              "prompt_version": "2026-09-08.1", "structured_output": true,
-              "stop_reason": "STOP",
-              "usage": {"input_tokens": 4052, "output_tokens": 84},
-              "request_characters": 67}}
+ "assumptions": ["No unit given; assumed millimetres"],
+ "attempts": [{"number": 1, "accepted": true, "stage": null,
+               "rule_codes": [], "issues": []}],
+ "metadata": {"provider": "anthropic", "model": "claude-haiku-5-5",
+              "prompt_version": "2026-11-12.1", "structured_output": true,
+              "stop_reason": "end_turn",
+              "usage": {"input_tokens": 13, "output_tokens": 900,
+                        "cache_read_input_tokens": 16605},
+              "request_characters": 67, "model_calls": 1,
+              "build_verified": true}}
 ```
+
+(Illustrative: the document, assumptions and numbers are example values, not a
+captured response.)
 
 The body is the AI layer's **existing** `AiGenerationResult.to_dict()`. No
 second result model and no second outcome taxonomy were defined, and the AI
 layer's development-only `detail` — which may quote the model's raw answer —
-is excluded from it.
+is excluded from it. The two newer fields:
+
+* **`assumptions`**: a list of strings — the model's own account of each choice
+  the description did not state (an assumed unit, a chosen or converted
+  dimension, a simplified shape). Non-empty only for `generated`, at most 12
+  entries of 300 characters. Explanatory only: nothing reads it for meaning,
+  and the web page shows it.
+* **`attempts`**: one record per model call that returned an answer, in order:
+  `{"number": int (1-based), "accepted": bool, "stage": "answer" |
+  "validation" | "geometry" | null, "rule_codes": [str], "issues": [str]}`.
+  `stage` says where a rejected attempt was rejected and is `null` for the
+  accepted attempt and for a final clarification or refusal. `issues` are the
+  validator's or engine's own messages or fixed sentences, never the model's
+  raw text. A call that raised is not a record. `metadata.model_calls` counts
+  calls including such a failure, `metadata.build_verified` says whether the
+  document was built before being returned, and `metadata.usage` is summed
+  over every call.
 
 `document` is non-null for exactly one outcome, `generated`, and what it
-carries has already passed the V1 validator. **A model answer the validator
-rejects is reported, never repaired**: the response carries the rule codes and
-no document.
+carries has already passed the V1 validator **and the build**. **A model answer
+the validator or engine rejects is never repaired**: when every attempt within
+the limit is rejected the response is `invalid_model_output` with the last
+attempt's issues and rule codes, no document, and the full `attempts` list.
+`needs_clarification` is now only for a description that names nothing
+buildable, and `unsupported` only for a non-physical request, a request for
+code or files, or an instruction override; a missing unit or dimension is
+assumed and listed, not asked about.
+
+**Latency and cost.** A generation is one to `CAD_AI_MAX_ATTEMPTS` model calls
+plus a real build per candidate (120 s per-call timeout by default), so a
+request can take tens of seconds; the five live requests measured on Claude
+Haiku 5.5 took 5.7 s to 15.3 s, each accepted on its first attempt (a sample of
+five, not a distribution; the re-ask path has not been exercised live).
 
 `text` must be a non-blank string of at most 2000 characters. A blank one is
 a 422 and **no model call is made** — spending a request on nothing is not a
@@ -336,10 +394,10 @@ The line a status code draws here is **whose fault** the failure is.
 | export or publication failure | `output_failed` | **500** |
 | execution or cache failure (crash, timeout) | `execution_failed` | **503** |
 | unexpected internal error | `internal_error` | **500** |
-| generation produced a document | `generated` | **200** |
+| generation produced a validated, built document | `generated` | **200** |
 | generation needs a clarification | `needs_clarification` | **200** |
 | generation refused an unsupported request | `unsupported` | **200** |
-| the model's answer was not a valid CAD document | `invalid_model_output` | **502** |
+| no answer within the attempt limit was a valid, buildable CAD document | `invalid_model_output` | **502** |
 | no model could be reached | `model_error` | **503** |
 | build key that is not a build key | `build_key_invalid` | **400** |
 | build not available | `build_not_found` | **404** |

@@ -234,11 +234,17 @@ estimated.
 
 | Suite | Result |
 |---|---|
-| cad-core (`unittest`) | **1481 passed** (Stage 32, on Windows) |
-| API + AI (`unittest`) | **591 tests, 6 skipped** |
-| Frontend (`vitest`) | **122 passed** (4 files) |
+| cad-core (`unittest`) | **1605 passed** (Stage 33, Linux, Python 3.13; 1481 at Stage 32 on Windows) |
+| API + AI (`unittest`) | **631 tests, 2 skipped** (Stage 33, Linux; with the `ai-gemini` extra installed — without it, Gemini tests skip) |
+| Frontend (`vitest`) | **162 passed** (5 files) |
 | Frontend typecheck (`tsc --noEmit`) | **clean** |
 | Launcher (`scripts\Test-DevLauncher.ps1`) | **62 assertions passed** |
+
+**In the Linux cloud container, use `python3.13`**: that is where `pip`
+installs (`cadquery`, `anthropic`, `fastapi`, `google-genai`); the bare
+`python3` there is 3.11 with no packages. The API suite is slow (~8 minutes
+for the Gemini module alone) because generation tests now run real
+verification builds; running the modules in parallel helps.
 
 **Both Python suites were red on Windows until Stage 32, for reasons that had
 nothing to do with CAD.** If a suite fails here, suspect the platform before

@@ -8,6 +8,14 @@ LLM. Not a proof of general CAD competence.**
 > score would mean that model handles *these* prompts; it would say nothing
 > about arbitrary mechanical language, and no such claim is made here.
 
+> **Staleness notice (prompt `2026-11-12.1`).** The product's generation layer
+> now builds and re-asks (`docs/text-to-cad-ai.md`), and its policy changed
+> from *ask or refuse* to *build, and say what was assumed*. This harness
+> deliberately does **not** follow: it measures the model single-shot. And the
+> **corpus is untouched, so it is now stale against the new policy in more
+> places than before** — see *Corpus status after the policy change* below.
+> No corpus run on the current prompt exists.
+
 Two providers are implemented (Anthropic and Gemini). A run measures
 **whichever one it was pointed at** and records which; a result from one is
 never evidence about the other.
@@ -24,7 +32,7 @@ answer per case, and a runner that reports five dimensions separately.
 
 ```
 case prompt
-  │  TextToCadService.generate_cad_from_text     unchanged, one attempt
+  │  TextToCadService.generate_cad_from_text     max_attempts=1, verify_build=False
 candidate document
   │  cad_core deserializer + validator           unchanged, still authoritative
   │  cad_ai.comparison.compare_documents         field-level, labelled
@@ -32,8 +40,14 @@ candidate document
 EvaluationResult -> EvaluationRun -> a JSON file
 ```
 
-**Measurement only.** No repair loop, no retry, no prompt variation, no
-A/B testing. The model is not improved during a run and the corpus is not
+**Measurement only.** The harness constructs its service with
+**`max_attempts=1, verify_build=False`** (`evaluation.py`), so a run is exactly
+one model call and no verification build, whatever `CAD_AI_MAX_ATTEMPTS` says.
+That is intentional: the product's verify-and-retry loop would otherwise
+convert some of the model's failures into successes and a score would measure
+the loop as much as the model. A benchmark of the *whole product* (model plus
+loop) would be a separate instrument and does not exist. No prompt variation,
+no A/B testing. The model is not improved during a run and the corpus is not
 edited after seeing results — the whole point is an honest baseline for the
 next stage to work against.
 
@@ -126,6 +140,34 @@ correct: refusing to write Python is right, and so is answering with the CAD
 the request also described. What is scored there is the **boundary**, not the
 outcome: nothing executed, no code-shaped content in the result, no
 unsupported feature accepted.
+
+### Corpus status after the policy change
+
+The corpus (`cad_ai.corpus`, version `1.0.0`, 35 cases) is a fixed measurement
+instrument and was **not edited** for the new prompt. Its expectations encode
+the Stage 26-29 policy, so a number of cases now contradict what the prompt
+tells the model to do, and **would score a correct new-policy answer as a
+failure**:
+
+* **D-ambiguity** cases that expect `NEEDS_CLARIFICATION` for a missing unit or
+  dimension (for example "plate 100 by 60 by 10"). The prompt now assumes
+  millimetres and builds, listing the assumption;
+* **E-unsupported** cases that expect `UNSUPPORTED` for holes, cuts, fillets,
+  chamfers, joins or shapes the vocabulary approximates. The prompt now builds
+  or approximates these (five of them were already stale after
+  `2026-09-09.1`);
+* cases that score whether a defaulted `position` or `axis` was omitted (the
+  `WRONG_DEFAULT` logic): the prompt now always writes both explicitly. The
+  comparison works on canonical documents, which materialise defaults, so it
+  cannot see omission itself; the evaluator observes the model's raw text
+  separately. How much this matters has not been re-measured.
+
+The fix is a **re-baseline, as its own stage**: re-author the expectations
+deliberately, with the reasoning in each case's `notes`, then run. It is not to
+be done by editing cases after seeing a score, and nothing here suggests it.
+Until then a corpus score on the current prompt is not interpretable, and the
+only evidence for the current prompt is the hand-run product-flow requests in
+`docs/text-to-cad-ai.md`.
 
 ## The five dimensions
 
@@ -316,7 +358,10 @@ asserted from memory:
 ```
 
 Stage 26 measured that the installed SDK's `messages.create` exposes no
-`temperature`, `top_p`, `top_k` or `seed`. The probe runs again on every run,
+`temperature`, `top_p`, `top_k` or `seed`. (The Anthropic request now also carries a cached system block and, only when
+`CAD_AI_EFFORT` is set, `output_config.effort`; none of temperature, top_p,
+top_k or seed is sent. The default model is `claude-haiku-5-5`.) The probe runs
+again on every run,
 so if a future SDK adds one the recorded value changes with it — and it lives
 in `anthropic_provider.decoding_capabilities()`, not in the evaluation layer,
 because the provider owns knowledge of its SDK. That keeps Stage 26's
@@ -326,7 +371,8 @@ and a test still asserts it.
 ## Model identification and prompt integrity
 
 Every run records `provider`, `model`, `prompt_version` and
-`prompt_fingerprint` — the **existing** fingerprint from `cad_ai.prompt`. No
+`prompt_fingerprint` — the **existing** fingerprint from `cad_ai.prompt`
+(currently `2026-11-12.1`, `cf2291a5…`). No
 second prompt hash is computed. The prompt is never modified during a run; a
 test asserts `evaluation.py` defines no prompt, no instructions and no status
 mapping of its own, and that it reaches the model only through
@@ -341,7 +387,8 @@ saves a run with a credential set in the environment and greps the file for
 ## The build cross-check
 
 `--build` builds every validated candidate through the existing application
-service and records success, build key, solid count, volume, bounding-box
+service **after** the single-shot call (the service itself no longer builds
+during a benchmark, because `verify_build=False`) and records success, build key, solid count, volume, bounding-box
 size and triangle count.
 
 **This is not semantic ground truth.** A valid document that builds can still
@@ -499,6 +546,10 @@ Source-level: no evaluation module imports a CAD kernel, `pickle`, `marshal`,
 
 ## Limitations
 
+* **The harness measures the model, not the product.** It pins one attempt and
+  no verification build, so it says nothing about how often the product's
+  re-ask loop rescues a failing answer, and the corpus is stale against the
+  current policy (above).
 * **This is not a proof of general CAD competence.** 35 hand-written prompts,
   one prompt version, one provider and one model **per run**. It measures what
   it measures, for the provider it was pointed at.

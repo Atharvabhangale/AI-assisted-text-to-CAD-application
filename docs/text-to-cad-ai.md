@@ -1,8 +1,11 @@
 # Natural language → CAD specification
 
 Status: **Stage 26 — the first AI interpretation layer. Stage 30 put it
-behind `POST /generate` and wired it to the browser, so the layer is no longer
-service-only. Not production-ready.**
+behind `POST /generate` and wired it to the browser. A later, owner-approved
+design change (prompt `2026-11-12.1`) turned it from "refuse or ask" into
+"build, and say what was assumed", and added a bounded verify-and-retry loop
+(see *Verified generation* below). Sections dated before that change are kept
+as history where marked. Not production-ready.**
 
 > **The LLM does not generate executable CAD code.** It emits a CAD *data*
 > document and nothing else — no Python, no CadQuery, no OpenCascade, no
@@ -19,25 +22,33 @@ natural-language description
   │  cad_ai.provider.TextToCadModel       one call, no tools
 model text (a string; not CAD)
   │  json.loads                           plain parsing, no repair
-candidate response  { status, document, summary, questions, issues }
+candidate response  { status, plan, assumptions, document, summary,
+  │                   questions, issues }
   │  CadApplicationService.validate_document
   │    -> cad_core.serialization.deserialize_part
   │    -> cad_core.validator.validate      S1-S20, unchanged
-AiGenerationResult
-  │  (a separate, deliberate call by the caller)
-CadApplicationService.build_document      the existing build pipeline
+  │  CadApplicationService.build_document  the existing build pipeline, in its
+  │                                        isolated child process: E1-E5
+  │  unusable / rejected / unbuildable --> ask the model again with the
+  │    reasons (compose_retry_text), at most CAD_AI_MAX_ATTEMPTS calls
+AiGenerationResult                        document + assumptions + attempts
 ```
+
+Before the verify-and-retry change the pipeline stopped at the validator and
+building was "a separate, deliberate call by the caller". It no longer is: by
+default a `GENERATED` result has been validated **and** built.
 
 ### The product flow, end to end (Stage 30)
 
 ```
 browser: a sentence in a text box
   │  POST /generate                        cad_api.generation.TextGenerator
-Gemini (or Anthropic)                      the configured provider, backend-side only
-  │  the pipeline above                    parse -> deserialize -> validate
-validated CAD document                     returned to the browser
-  │  POST /build                           the SAME endpoint the JSON flow uses
-build / cache / isolation                  unchanged
+Anthropic (or Gemini)                      the configured provider, backend-side only
+  │  the pipeline above                    parse -> validate -> build -> (re-ask)
+validated, built CAD document              returned to the browser, with its assumptions
+  │  POST /build                           the SAME endpoint the JSON flow uses;
+build / cache / isolation                  a cache hit, same outputs as the
+                                           verification build
 RenderModel  +  STEP / IGES / STL
   │  GET /builds/{key}/render, GET /artifacts/{id}
 browser: an interactive 3D model
@@ -71,8 +82,9 @@ LLM -> arbitrary code -> CAD kernel
 |---|---|
 | **providers** | Anthropic Messages API (default) and Google Gemini. Two named implementations chosen by configuration — no registry, no discovery, no plugin system |
 | **SDK** | `anthropic` **1.4.0**, installed and inspected in this environment |
-| **default model** | `claude-sonnet-5`, overridable with `CAD_AI_MODEL`. A test asserts the default is a name the installed SDK's own `Model` literal lists, so no model identifier was invented |
-| **credential** | `ANTHROPIC_API_KEY` / `GEMINI_API_KEY`, each read by its own provider only |
+| **default model** | `claude-haiku-5-5`, overridable with `CAD_AI_MODEL`. `claude-sonnet-5-5` (`STEP_UP_MODEL`) is the documented step-up for a deployment that measures Haiku falling short; it is never selected automatically and no larger model is offered. (The Stage 26 text that said `claude-sonnet-5` is superseded; Stage 30 ran on `claude-haiku-4-5-20251001`.) |
+| **credential** | `ANTHROPIC_API_KEY` (falling back to `CAD_ANTHROPIC_API_KEY`, because some hosted environments reserve and strip the former) / `GEMINI_API_KEY`, each read by its own provider only |
+| **timeout** | 120 s **per model call** by default (`CAD_AI_TIMEOUT_SECONDS`); the default model reasons before it answers |
 | **dependency** | the optional `ai` (`anthropic>=1.4`) and `ai-gemini` (`google-genai>=2.22`) extras of `cad-api`, each **imported lazily** inside its own provider module |
 
 Nothing else was added: no agent framework, no orchestration library, no
@@ -123,6 +135,18 @@ messages.create parameters:
 * `tools` and `tool_choice` exist and are **never sent**. A test asserts the
   call this provider makes carries exactly
   `max_tokens, messages, model, output_config, system` and nothing else.
+* **the system prompt goes as one text block with
+  `cache_control: {"type": "ephemeral"}`**, so a re-ask within a request, and
+  the next request, read the prompt from the provider's cache. The prompt is
+  byte-identical on every call, which is what makes that valid. Cache usage
+  counters (`cache_read_input_tokens`, `cache_creation_input_tokens`) are
+  carried into `metadata.usage`.
+* **`max_tokens` is 16000** (`MAX_OUTPUT_TOKENS`), because the default model's
+  own reasoning counts against it. No `thinking` parameter is sent. The
+  optional `CAD_AI_EFFORT` (`low`, `medium`, `high`, `xhigh`, `max`) is sent as
+  `output_config.effort` only when set.
+* **a `refusal` stop reason becomes `ProviderErrorKind.REFUSED`**, so it is a
+  `MODEL_ERROR` and is never parsed as an answer or re-asked.
 * **the schema is narrowed to this API's structured-output subset before it is
   sent.** Measured, not assumed: sending `response_schema()` unchanged returns
   **400** `invalid_request_error` — *"output_config.format.schema: For
@@ -189,8 +213,8 @@ because it needs a vendor SDK and `cad_core` has none.
 | `gemini_provider.py` | the second provider. **The only module that imports `google.genai`**, lazily |
 | `specification.py` | the model-facing view of the contract, derived from `docs/cad-specification.md` and `cad_core.model`'s constants |
 | `prompt.py` | the one system prompt and its version |
-| `generation.py` | `TextToCadService.generate_cad_from_text`, `AiGenerationResult`, `GenerationOutcome` |
-| `config.py` | model, timeout, and a boolean "is a credential present" — **no credential field exists** |
+| `generation.py` | `TextToCadService.generate_cad_from_text` (the verify-and-retry loop), `AiGenerationResult`, `GenerationOutcome`, `GenerationAttempt`, `AttemptStage`, `compose_retry_text` |
+| `config.py` | model, timeout, `CAD_AI_MAX_ATTEMPTS`, `CAD_AI_EFFORT`, and a boolean "is a credential present" — **no credential field exists** |
 
 Asserted by tests, in both directions:
 
@@ -204,9 +228,10 @@ Asserted by tests, in both directions:
   `cad_core.model`** — the service boundary and the contract's constants.
   Nothing else, and in particular no geometry module, exporter, cache, build
   layer or isolation layer.
-* **`cad_ai` reimplements no validation.** No rule-code literal appears in it
-  and it defines no `validate`; the only route to validity is
-  `self._service.validate_document(...)`.
+* **`cad_ai` reimplements no validation and no geometry.** No rule-code
+  literal appears in it and it defines no `validate`; the only route to
+  validity is `self._service.validate_document(...)` and the only route to
+  geometric validity is `self._service.build_document(...)`.
 * **`cad_api` (the HTTP transport) does not import `cad_ai` or the SDK.**
 * **importing `cad_ai` does not import the SDK** — proved in a child process.
 
@@ -235,8 +260,12 @@ selectors) are deliberately **excluded**: they are valid V1 but outside this
 stage's subset, and showing a model a feature it must not use invites it to
 use one. It is told instead that they exist and are unsupported.
 
-Assembled size: **14 943 characters** (~3.7k tokens), of which 10 459 are the
-specification excerpt.
+*(Historical, Stage 26.)* Assembled size then: 14 943 characters. The current
+prompt (`2026-11-12.1`) is **33 084 characters** (pinned by a test), because it
+now embeds three worked examples and the measured buildability rules, and
+because the specification excerpt now includes the modifier sections. The
+statement above that C.3-C.7 are excluded and "unsupported" is also historical:
+since `2026-09-09.1` the full vocabulary is offered.
 
 The prompt states, and a test asserts each one:
 
@@ -249,6 +278,8 @@ The prompt states, and a test asserts each one:
 5. feature order follows the request's order;
 6. it uses a default **only** where the specification defines one;
 7. it asks when required geometry information is genuinely missing.
+   *(Superseded by `2026-11-12.1`: it now assumes and lists the assumption. The
+   tests that pinned items 4 and 7 were rewritten with the prompt.)*
 
 It also tells the model it has no tools, that nothing it writes will be
 executed, that a box's `position` is its **minimum corner** and a cylinder's
@@ -258,13 +289,14 @@ and that where the instructions and the specification appear to disagree,
 
 ### Prompt regression
 
-`PROMPT_VERSION = "2026-09-08.1"` and
+`PROMPT_VERSION = "2026-11-12.1"`, length 33 084 characters, and
 
 ```
-prompt_fingerprint() = 2b3e3395ec6efee0fe252cf88207e981dcdecfdb88ea847f075ce20a5ad9ba52
+prompt_fingerprint() = cf2291a5836b32fb117a0ef2a4d443a478d42872ca1fd63212056751b4250808
 ```
 
-are both pinned by a test. The fingerprint covers the instructions **and** the
+are pinned by tests (the Stage 26 values were `2026-09-08.1` /
+`2b3e3395…`; `2026-09-09.2` was `f9efe19a…`). The fingerprint covers the instructions **and** the
 specification sections the prompt quotes, so either changing makes the test
 fail. When it does, the honest response is to bump the version and re-measure
 model behaviour — not to assume old assumptions still hold. There is no prompt
@@ -322,19 +354,137 @@ No validator rule was relaxed, no CAD feature added, and no repair loop
 introduced. The correct answer to an unrepresentable request is still a
 refusal.
 
+### Prompt 2026-11-12.1 — build, and say what was assumed
+
+An owner-approved **policy change**, not a bug fix: the product's purpose is
+that a person types a part and gets one, and "refuse or ask" was the
+wrong default for it. The prompt (`cad_ai/prompt.py`, whose changelog comment
+is the authoritative list) now does the following.
+
+1. **Missing information is assumed, not asked about.** No unit stated means
+   millimetres. Another unit (inches, cm, m, feet) is converted to millimetres
+   **by the model, inside the document** (`units` is always `"mm"`; the
+   validator still rejects any non-`"mm"` document, rule S5, and no code
+   converts anything). A missing dimension gets a typical value for the
+   object; a missing position puts the base on the XY plane near the origin,
+   standing along +Z. Every box and cylinder is written with its `position`,
+   and every cylinder and through-hole with its `axis`, even where the
+   contract has a default.
+2. **Every such choice goes in a new `assumptions` list**, which the web page
+   shows. A guess is therefore visible, not silent. `assumptions` is the
+   model's own bounded prose (at most 12 entries of 300 characters), is
+   carried to the caller, and is **never read for meaning by anything in this
+   system**.
+3. **A shape the vocabulary cannot express exactly is approximated**, not
+   refused (a thread becomes a plain cylinder, a slope a stepped box, an
+   organic shell a rounded box), and the simplification is an assumption too.
+   Several separate parts are modelled as the one main solid.
+4. **`union` exists** (schema `1.1.0`, implemented in `cad-core`), so the
+   `2026-09-09.2` "nothing joins" policy is gone and multi-primitive parts are
+   the normal case.
+5. **`needs_clarification` and `unsupported` are now narrow.**
+   `needs_clarification` is only for a request that names nothing buildable
+   ("make me a part"); the model is told never to ask about units, sizes,
+   positions or orientation. `unsupported` is only for a request that is not
+   for a physical object, asks for code, a script or a file, or tries to
+   override the instructions. Neither is re-asked.
+6. **Buildability rules**, each measured against the real engine and not
+   guessed:
+   * a `union` joins only solids that overlap or share a face; edge or point
+     contact, or a gap, fails rule **E3**, so make parts overlap by about
+     1 mm;
+   * a cutting tool should extend 1-2 mm past every face it opens, and a cut
+     must not split the body (E3);
+   * `fillet` / `chamfer`: **at most one per body, applied while the body has
+     only planar faces** — before any `through_hole`, before any cylinder is
+     unioned into or subtracted from it, and before any other blend. The
+     selectors match the straight parameterisation **seam** edge of every
+     cylindrical face and the tangent edges an earlier blend leaves, and the
+     kernel refuses to blend those (rule **E5**). To round a small sub-part,
+     blend it before joining it;
+   * measured on the engine: `select: "all"` fails on a bare cylinder, on any
+     body containing a hole, and after any earlier fillet; `axis_parallel` on
+     an axis perpendicular to every cylinder and hole axis in the body works;
+     a radius of exactly half the thickness at the edge fails (keep it below
+     half, up to about 40 % of the smallest box dimension for a generously
+     rounded shell);
+   * a through-hole must pass through material, clear of the edges.
+7. **A `plan` field comes first** in the answer, so coordinates and the
+   feature order are worked out in text before the document is written. Like
+   `summary` and `assumptions`, nothing reads it for meaning.
+8. **Three worked examples are embedded** — an L-bracket, a coffee mug and a
+   gaming mouse — and a test **builds each one on the real engine**, so an
+   example cannot teach an unbuildable construction.
+
+**The seam question is still open.** `docs/edge-selection.md` records the
+unresolved cylinder-seam semantics, and this prompt *works around* it by
+ordering and by forbidding the selections the kernel refuses; it does not
+resolve it. The recommended next step is a spec change (C.7) that excludes
+seams and tangent edges from the selectors, after which rules 4-6 above could
+be relaxed.
+
+What did **not** change: the model emits a data document and never code, the
+validator is the only authority on validity, anchor-point and axis semantics,
+and order is meaning. No validator rule was relaxed.
+
+**Findings that shaped the response schema** (live, on the real API):
+
+* The first live call after adding `union` returned Anthropic
+  `400: The compiled grammar is too large` (billed nothing). Seven feature
+  branches plus optional properties exceeded the structured-output grammar
+  limit. Fixed by grouping `subtract` and `union` — identical parameter tables
+  — into **one** branch with `type` as an enum, and by making every document
+  parameter required: **6 branches and 2 optional properties** (the edge
+  selector's `axis`) remain. Grouping loses nothing, because `type` still
+  names exactly one feature and the validator still checks every rule.
+* The measured "`status: "document"` with the `document` field absent" failure
+  is addressed by making **every response field required** (next section).
+  That this removes the failure on the live model is not yet separately
+  measured: the five live generations below all carried a document.
+
+**Live evidence for this prompt, measured on Claude Haiku 5.5 through the real
+service — product-flow evidence, not a benchmark.** Six live requests; the
+first was the grammar 400 above, and the other five were:
+
+| Request | Result |
+|---|---|
+| "a desk phone stand" | generated, accepted on attempt 1, 15.3 s; usage input 13, output 1767, cache_creation 16605 |
+| "a 2 inch cube with a 10 mm hole through the center and rounded edges" | generated, attempt 1, 5.7 s; assumptions included "Converted 2 in to 50.8 mm"; cache_read 16605 |
+| "a pipe flange with four bolt holes" | generated, attempt 1, 10.3 s (two cylinders, a union, a bore, four bolt holes) |
+| "a hex nut for an M10 bolt" | generated, attempt 1, 7.9 s; approximated the hexagon as a cylinder and said so |
+| "a pencil holder with three round slots", in the real browser page (Vite + uvicorn + Chromium) | generated, built and drawn; the page's own build reported "served from cache" |
+
+Five generated parts, **5/5 accepted on the first attempt**. What this does
+*not* show: no corpus run on this prompt exists; categories F (adversarial)
+and G (semantic) remain unmeasured; and **the retry loop has not been
+exercised live** — every live answer was accepted first time, so its behaviour
+on a real rejection is covered by stub-provider tests only.
+
 ## The output contract
 
-The model answers with one JSON object, constrained by a derived schema:
+The model answers with one JSON object, constrained by a derived schema. The
+fields, in **emission order** (`RESPONSE_FIELDS`), are:
 
 ```json
 {
   "status": "document" | "needs_clarification" | "unsupported",
+  "plan": "terse working notes, written before the document",
+  "assumptions": ["each choice the request did not state"],
   "document": { /* a V1 CAD document */ } | null,
   "summary": "one sentence on how the request was read",
   "questions": ["..."],
   "issues": ["..."]
 }
 ```
+
+**Every field is required.** A field that does not apply is `null` or an empty
+array/string rather than absent. That is deliberate: with optional fields the
+model could answer `status: "document"` and never emit `document` — a measured
+failure — and a schema-constrained decoder cannot skip a required field. The
+document schema likewise requires every parameter (`position`, `axis` and
+`description` included), which leaves only the edge selector's `axis` optional.
+The feature schema has 6 branches, `subtract` and `union` sharing one (see the
+grammar-size finding above); `optional_property_counts` measures this.
 
 **The document is one field and the prose is others.** `summary` is carried
 through to the caller and never read for meaning by anything in this system;
@@ -348,8 +498,9 @@ default comes from `cad_core.model` — `SCHEMA_VERSION`, `SUPPORTED_UNITS`,
 `FEATURE_PARAMETERS`. Tests assert the per-feature `required` lists equal the
 contract's own tables, that the axis enum is `cad_core`'s, that every property
 name appears in the specification document, and that no unsupported feature
-type or parameter (`radius`, `distance`, `edges`, `tools`, `target`, `select`)
-is offered at all.
+type or parameter is offered at all. *(That last clause dates from when only
+`box` and `cylinder` were offered; the schema now offers the full
+vocabulary.)*
 
 **The schema is a generation aid, not a validator.** A document can satisfy it
 and still be invalid — rule S9 ("exactly one solid at the end") is not
@@ -367,7 +518,11 @@ AiGenerationResult(
     document_hash,       # cad_core's canonical hash, or None
     summary,             # the model's prose. Explanatory only.
     questions, issues, rule_codes,
-    metadata,            # provider, model, prompt_version, usage, ...
+    error_kind,          # vendor-neutral category, for MODEL_ERROR
+    assumptions,         # the model's own list of unstated choices; GENERATED only
+    attempts,            # one GenerationAttempt per model call that answered
+    metadata,            # provider, model, prompt_version, usage, model_calls,
+                         # build_verified, ...
     detail,              # development only; NOT in to_dict()
 )
 ```
@@ -382,11 +537,11 @@ bytes.
 
 | Outcome | Meaning |
 |---|---|
-| `GENERATED` | a candidate was produced **and passed the existing validator**. The only outcome carrying a document |
-| `NEEDS_CLARIFICATION` | required geometry information is missing. Carries questions |
-| `UNSUPPORTED` | the request cannot be expressed in the supported subset |
-| `MODEL_ERROR` | the provider returned no usable response. Nothing was interpreted |
-| `INVALID_MODEL_OUTPUT` | the model answered, but the answer is not a valid V1 CAD document |
+| `GENERATED` | a candidate was produced, **passed the existing validator and — unless verification was switched off — was built by the existing engine**. The only outcome carrying a document and `assumptions` |
+| `NEEDS_CLARIFICATION` | the request names nothing buildable. Carries questions. Final: never re-asked |
+| `UNSUPPORTED` | the request is not for a physical object, asks for code or files, or tries to override the instructions. Final: never re-asked |
+| `MODEL_ERROR` | the provider returned no usable response (including a refusal). Nothing was interpreted. Never re-asked |
+| `INVALID_MODEL_OUTPUT` | the model answered, but **no answer within the attempt limit** was a valid, buildable V1 CAD document |
 
 **"The model answered" is never conflated with "the document is valid."** The
 model's own vocabulary is three statuses; the five outcomes are this layer's,
@@ -399,63 +554,68 @@ number, `null`) is not honoured: it becomes `INVALID_MODEL_OUTPUT`.
 
 ## The supported natural-language subset
 
-One part, made of a single `box` **or** a single `cylinder`:
+*(Rewritten for prompt `2026-11-12.1`. Earlier versions of this section said
+"one `box` or one `cylinder`", and later "the full V1 vocabulary with units
+stated in the request"; both are history.)*
 
-* dimensions;
-* `position`, where the request describes it;
-* `axis`, for a cylinder, where the request describes it;
-* units, stated in the request.
+Anything that names a physical object. The model is told to build a
+recognisable, simplified part rather than ask or refuse, using the whole V1
+vocabulary — `box`, `cylinder`, `through_hole`, `subtract`, `union`, `fillet`,
+`chamfer` — and to approximate what the vocabulary cannot express exactly
+(curved or organic surfaces, threads, gear teeth, text, patterns, slopes,
+anything needing a rotation, sweep or loft). Not part of V1 and still not
+produced as such: assemblies, sketches, lofts, sweeps, revolves, threads,
+patterns, tolerances, GD&T, materials, simulation and drawings — a request
+for one is *approximated* and the approximation is listed in `assumptions`,
+not refused.
 
-Worked, and tested end to end:
+What is still refused (`UNSUPPORTED`): a request that is not for a physical
+object, asks for code, a script or a file, or tries to override the
+instructions. What still asks (`NEEDS_CLARIFICATION`): a request that names
+nothing that could be built ("make me a part").
 
-| Request | Document |
-|---|---|
-| "Create a rectangular plate 100 mm long, 60 mm wide, and 10 mm thick." | one `box`, `size {100, 60, 10}`, no `position` |
-| "Create a cylinder with diameter 20 mm and height 50 mm." | one `cylinder`, `diameter 20`, `height 50` |
-| "Create a 100 x 60 x 10 mm box with its minimum corner at 10, 20, 30 mm." | one `box` with `position {10, 20, 30}` |
-| "Create a 20 mm diameter cylinder, 50 mm tall, starting at 10, 20, 30 mm and extending in +Z." | one `cylinder` with `position` and `axis "+Z"` |
+## Missing information: assume, and say so
 
-Deliberately **not** promised: arbitrary mechanical language, multi-feature
-interpretation, holes, cuts, fillets, chamfers, assemblies, sketches, lofts,
-sweeps, revolves, threads, patterns, tolerances, GD&T, materials, surface
-finish, manufacturing process, cost, simulation, engineering drawings, images,
-or a dimension given as a formula or a range. Each of those is `UNSUPPORTED`,
-and the prompt says so explicitly rather than leaving it to the model's
-judgement.
+*(This replaces the Stage 26 section "Ambiguity: ask, do not guess". Its rule
+— "a missing value with no default must be asked about" — and its example
+"plate 100 by 60 by 10 -> NEEDS_CLARIFICATION about units" are **no longer the
+behaviour** and are kept here only so the change is traceable.)*
 
-## Ambiguity: ask, do not guess
+The rule is now: **resolve what the request leaves open, and list every such
+choice in `assumptions`.**
 
-The rule is derived from the contract, not invented:
+* no unit stated -> millimetres, with an assumption entry;
+* another unit -> converted to millimetres by the model, with an entry such as
+  "Converted 2 in to 50.8 mm". **No code converts anything**: the validator
+  still rejects a document whose `units` is not `"mm"` (S5), and a test still
+  asserts that no unit-conversion helper exists in this layer;
+* a missing dimension -> a typical value for the object, with an entry;
+* a missing position or orientation -> base on the XY plane near the origin,
+  standing along +Z.
 
-> **A missing value the specification gives a default may be omitted. A
-> missing value with no default must be asked about.**
+The consequence is deliberate and should be read as a trade: a request the old
+policy would have stopped to ask about now produces a part, and whether the
+assumed value is the one the person wanted depends on them reading the
+assumptions list. The mitigation is visibility (the web page shows the list),
+not prevention.
 
-For the supported types the defaulted parameters are `position` and `axis`
-(read out of `FEATURE_PARAMETERS`), so:
-
-* "a 100 × 60 × 10 mm plate" → a valid document with **no `position`**. That
-  is the contract's own default (Section C.1), not an assumption. The
-  existing deserializer materialises `{0, 0, 0}`; the AI layer supplies
-  nothing, and a test asserts exactly that.
-* "a 20 mm × 50 mm cylinder" → a valid document with **no `axis`**; the
-  deserializer applies `+Z` (Section C.2).
-* **"plate 100 by 60 by 10" → `NEEDS_CLARIFICATION`, asking about units.**
-  `units` is required and Section A.3 says the unit system "is never implied
-  by context", so an unstated unit is genuinely unknown. No semantic
-  equivalence with millimetres is assumed anywhere.
-
-A `NEEDS_CLARIFICATION` answer with no question is treated as unusable output
-rather than returned as an empty ask. Empty input asks a question **without
-calling the provider at all** (tested: the fixture records zero requests).
+Empty input still asks a question **without calling the provider at all**
+(tested: the fixture records zero requests). A `NEEDS_CLARIFICATION` answer
+with no question is unusable output (and is re-asked), not an empty ask.
 
 ## Validation flow
 
 Every candidate goes through the existing boundary, and only that one:
 
 ```python
-validation = self._service.validate_document(dict(candidate))
+validation = self._service.validate_document(dict(candidate))   # S1-S20
+built = self._service.build_document(BuildDocumentRequest(...)) # E1-E5, child process
 ```
 
+The second call runs only when the first accepts and `verify_build` is on, and
+requests `VERIFICATION_OUTPUTS` = `geometry, step, iges, stl, render` — exactly
+the set the web page asks `POST /build` for, so the page's build has the same
+build key and is answered from the cache.
 * no rule is checked in `cad_ai`, no document is repaired, and S1–S20 are
   never bypassed;
 * the reported `issues` are the **validator's own messages** and `rule_codes`
@@ -465,19 +625,70 @@ validation = self._service.validate_document(dict(candidate))
   a reference to nothing → **S6**; a non-`mm` unit → **S5**; an unknown field
   (`"material": "6061-T6"`) → **S3**; two solids → **S9**.
 
-**No CAD kernel runs during generation.** With `local_cad.build_part`,
-`render_model.build_render_model`, `export_step`, `export_stl`, `export_iges`
-and `subprocess.Popen` each patched to raise, generation still completes — for
-a valid *and* an invalid candidate. Generation also writes nothing to the
-cache (asserted by a file-level snapshot).
+**The kernel now runs during generation, but not in this process.** Before the
+verify-and-retry change, generation built nothing and a test proved it by
+patching `build_part`, the exporters and `subprocess.Popen` to raise. That
+property no longer holds by design: the verification build goes through
+`CadApplicationService.build_document` and so runs in the existing isolated
+child process, and its result is cached like any other build. `cad_ai` itself
+still imports no geometry module and holds no kernel object. A caller that
+wants the old behaviour constructs the service with `verify_build=False`
+(which is what the evaluation harness does).
 
-## No automatic repair
+## Verified generation: re-ask, never repair
 
-**One generation attempt, then validate, then return.** A rejected candidate
-is not sent back to the model; a test asserts the provider was called exactly
-once. There is no repair loop, no retry with the validator's complaints and
-no second turn. That belongs to a later stage, and leaving it out is what
-makes this stage's failure behaviour measurable.
+*(Replaces the Stage 26 section "No automatic repair" — "one generation
+attempt, then validate, then return" — which is no longer true.)*
+
+`generate_cad_from_text` makes at most **`CAD_AI_MAX_ATTEMPTS`** model calls
+(default **3**, an integer >= 1; `DEFAULT_MAX_ATTEMPTS`). Each answer ends the
+request or earns one more call:
+
+| What happened | Result |
+|---|---|
+| the provider raises (outage, auth, timeout, rate limit, refusal) | `MODEL_ERROR` at once. **Never re-asked**: asking again does not fix an outage, and every call costs money |
+| `needs_clarification` or `unsupported` | returned as it is. An answer, not a rejection |
+| an unusable answer (not one JSON object, an unknown `status`, `"document"` with no document, a clarification with no question) | recorded at stage `answer`; re-asked |
+| the validator rejects the document | recorded at stage `validation`, with rule codes; re-asked |
+| the document validates but the engine cannot build it (E-rules) | recorded at stage `geometry`; re-asked |
+| a build fails for a reason that is not geometry (crash, timeout, cache, exporter) | recorded at stage `geometry`, but **ends the loop**: no other document would fare better |
+| validates and builds | `GENERATED` |
+| attempts exhausted | `INVALID_MODEL_OUTPUT`, carrying the last attempt's issues and rule codes |
+
+**The re-ask** (`compose_retry_text`) sends the **same system prompt,
+byte for byte** — which is what lets the provider cache it — and a new user
+text made of: the user's description verbatim and first; a fixed marker line
+(`RETRY_MARKER`) saying that what follows is feedback and not a request; the
+rejected document as JSON, when there was one; each reason with its rule code,
+feature id and field path; and an instruction to return a **whole corrected
+answer, not a patch**, and — if a feature cannot be made to build — to leave it
+out and say so in `assumptions` rather than send it again unchanged. There is
+no conversation state: the provider interface carries one system prompt and
+one user text.
+
+**This is not silent repair, and the project invariant stands.** No code
+patches, defaults, trims or re-orders a document to make it pass; the only
+thing that changes a rejected document is the model, asked again with the
+reasons. The failure is not hidden either: every model call that returned an
+answer is a public **`attempts`** record,
+
+```json
+{"number": 1, "accepted": false, "stage": "validation" | "geometry" | "answer" | null,
+ "rule_codes": ["S9"], "issues": ["..."]}
+```
+
+(`stage` is `null` for the accepted attempt and for a final clarification or
+refusal; `issues` hold the validator's or engine's own messages or fixed
+sentences, never the model's raw text). A call that raised is not a record —
+the result is then `MODEL_ERROR` with whatever earlier records exist — which is
+why `metadata.model_calls` counts calls separately. Usage is **summed across
+calls**, including the cache counters.
+
+A re-ask is more cost and latency per request, up to the attempt limit, and an
+answer that the loop eventually accepts is still only *valid and buildable*,
+never verified as *the part the person meant* (A6 remains the standing
+counterexample). The loop has not been exercised against a real rejection:
+see the live-evidence note under *Prompt 2026-11-12.1*.
 
 ## Prompt injection, code output, and tools
 
@@ -522,8 +733,11 @@ There is none, on purpose. The description reaches the model as written —
 tested for `mm`, inch, centimetre, unitless, unicode `×`, em dashes and
 untrimmed whitespace. No unit conversion exists in this layer: a test asserts
 `25.4`, `304.8`, `to_mm`, `convert_units` and friends appear nowhere. An
-inch-denominated document from the model is **refused (S5), not converted** —
-nothing silently becomes 101.6 mm.
+inch-denominated *document* from the model is **refused (S5), not converted**.
+Since `2026-11-12.1` the *model* is told to convert a stated unit to
+millimetres itself and to record the conversion in `assumptions`; the document
+it sends must already say `"mm"`. The conversion is the model's arithmetic,
+visible to the user, and nothing in this codebase performs it.
 
 ## Determinism
 
@@ -555,9 +769,14 @@ tested:
 ## Observability
 
 Recorded per generation: `provider`, `model`, `prompt_version`,
-`structured_output`, `stop_reason`, token `usage`, and
-`request_characters` — plus the outcome, which is the generation *and*
-validation verdict in one field.
+`structured_output`, `stop_reason`, token `usage`, `request_characters`,
+**`model_calls`** (how many calls the request made, including one that
+failed) and **`build_verified`** (whether an accepted document was built before
+being returned) — plus the outcome, which is the generation *and* validation
+verdict in one field, and the `attempts` list. `provider`, `model`,
+`structured_output` and `stop_reason` describe the **last** call that
+answered; `usage` and `model_calls` are totals over every call, and `usage`
+includes the provider's cache counters when it reports them.
 
 **Not** recorded: the user's description (only its length, which correlates a
 result with a request without storing it), the system prompt, any credential,
@@ -580,30 +799,18 @@ provider header, raw provider diagnostic, filesystem path or Python traceback
 reaches a caller. The provider translates its own exception types, so no vendor
 exception crosses the boundary.
 
-## HTTP: deliberately deferred
+## HTTP
 
-**No endpoint was added in this stage.** The decision was made on boundaries,
-not convenience:
+*(Replaces the Stage 26 section "HTTP: deliberately deferred", whose reasons —
+the AI layer cannot live in `cad_core`, `create_app` needs only a cache root,
+no credential exists to measure against — were resolved in Stage 30.)*
 
-1. every existing route is a thin adapter over
-   `cad_core.api_contract`, the transport-neutral contract. The AI layer
-   *cannot* go there — that would put a vendor SDK in `cad_core`. So an AI
-   route would be the **first** route bypassing the transport-neutral
-   contract, which is an architectural asymmetry deserving its own
-   deliberation rather than a tacked-on route.
-2. `create_app` takes exactly one of `config` or `service` and needs only
-   `CAD_API_CACHE_ROOT`. Adding AI would mean either a second required
-   variable (breaking every existing startup path) or a conditional route —
-   a shape the application has never had.
-3. **no credential exists in this environment**, so a `POST /generate` could
-   not be measured end to end. Fixing a transport's status codes and error
-   bodies before a single real generation has been observed is the wrong
-   order.
-
-`TextToCadService.generate_cad_from_text` is fully exercisable without HTTP,
-and its result already serializes to plain JSON, so the next stage can add a
-thin route without reshaping anything. `docs/http-api.md` is therefore
-unchanged, and a test asserts `cad_api` imports neither `cad_ai` nor the SDK.
+`POST /generate` exposes this layer (`docs/http-api.md`). `cad_api` still
+imports no provider SDK and names no vendor; it asks `cad_ai.factory` which
+provider is configured and passes `config.max_attempts` to the service. The
+route **validates and builds** by default (see *Verified generation*), and
+returns the document, `assumptions` and `attempts`; the client then posts the
+document to the existing `POST /build`, which is a cache hit.
 
 ## Testing strategy
 
@@ -679,24 +886,32 @@ otherwise.** Beyond the limits `docs/http-api.md` already records:
 
 ## Limitations and hallucination risks
 
-* **Model quality is unmeasured here.** With no credential, the four example
-  prompts were exercised against fixtures. Whether a real model produces those
-  documents — and in particular whether it reliably asks about units instead
-  of assuming millimetres — is **not established by this stage**. The prompt
-  is written to make asking the easy path; that is a design intent, not a
-  measurement.
+* **Model quality is largely unmeasured.** The only evidence for prompt
+  `2026-11-12.1` is five hand-run live requests (5/5 accepted on the first
+  attempt on Claude Haiku 5.5). That is product-flow evidence, not a
+  benchmark: no corpus run exists on this prompt, categories F and G are
+  unmeasured on any provider, and the retry loop has never been exercised live.
+* **The policy trades correctness for completeness.** Because the model
+  assumes rather than asks, a request that was ambiguous yields a plausible
+  part with guessed dimensions. The assumptions list makes that visible; it
+  does not make the guess right.
 * **A plausible wrong document is the dangerous failure mode.** A model that
   reads "100 × 60 × 10" as `{x:60, y:100, z:10}`, or a cylinder's `position`
   as its centroid rather than its base-circle centre, produces a *valid*
   document that is the wrong part. S1–S20 cannot catch that, and this stage
   adds no semantic cross-check. The prompt states both anchor points
   explicitly for exactly this reason.
-* **The subset is very small.** One box or one cylinder. The Section D plate
-  the rest of the system uses as its worked example is `UNSUPPORTED` here,
-  because it needs `through_hole`.
-* **One shot, no repair.** A model that returns a nearly-valid document gets
-  no second chance, so the `INVALID_MODEL_OUTPUT` rate will be higher than it
-  needs to be. Deliberate: measurable now, improvable later.
+* **The vocabulary is still small.** Six feature types plus `union`'s
+  grouping: no sketches, revolves, patterns or assemblies. Shapes beyond it are
+  *approximated* (and say so), so a hex nut is a cylinder.
+* **Blend rules are a workaround.** Fillet/chamfer is limited to one per body,
+  on planar-faced bodies, because of the unresolved cylinder-seam semantics
+  (`docs/edge-selection.md`). Some parts a person expects ("rounded, with a
+  hole") are only expressible in one order, and some cannot be rounded at all.
+* **A bounded retry, not a guarantee.** Up to `CAD_AI_MAX_ATTEMPTS` calls, then
+  `INVALID_MODEL_OUTPUT`. Re-asks cost latency and money, and the model can
+  fail the same way twice. A request can also exhaust the attempt limit and
+  return nothing.
 * **No conversational editing, no image or drawing input, no MCP, no
   Onshape, no RAG, no agent framework, no tool calling** — none of it is
   implemented, and none is implied.
