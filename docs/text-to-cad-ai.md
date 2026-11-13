@@ -80,7 +80,7 @@ LLM -> arbitrary code -> CAD kernel
 
 | | |
 |---|---|
-| **providers** | Anthropic Messages API (default) and Google Gemini. Two named implementations chosen by configuration — no registry, no discovery, no plugin system |
+| **providers** | Anthropic Messages API (default), Google Gemini, and `claude_code` — the owner's Claude subscription through the official `claude` CLI, selected only by `CAD_AI_PROVIDER=claude_code` (see *Claude Code* below). Named implementations chosen by configuration — no registry, no discovery, no plugin system |
 | **SDK** | `anthropic` **1.4.0**, installed and inspected in this environment |
 | **default model** | `claude-haiku-5-5`, overridable with `CAD_AI_MODEL`. `claude-sonnet-5-5` (`STEP_UP_MODEL`) is the documented step-up for a deployment that measures Haiku falling short; it is never selected automatically and no larger model is offered. (The Stage 26 text that said `claude-sonnet-5` is superseded; Stage 30 ran on `claude-haiku-4-5-20251001`.) |
 | **credential** | `ANTHROPIC_API_KEY` (falling back to `CAD_ANTHROPIC_API_KEY`, because some hosted environments reserve and strip the former) / `GEMINI_API_KEY`, each read by its own provider only |
@@ -200,6 +200,132 @@ Anthropic SDK ships a `Model` literal that a test checks its default against;
 the Gemini SDK ships no equivalent, and `models.list()` needs a credential.
 It is overridable with `CAD_AI_MODEL` and is verified at run time by the API
 itself — an unknown name is a provider error, not a silent fallback.
+
+### Claude Code: your own subscription, through the official CLI
+
+A third provider, `claude_code` (`cad_ai.claude_code_provider`), runs the
+application on the owner's **Claude subscription** instead of an API key. It
+drives the official `claude` program (Claude Code), already installed and
+logged in on the machine. It uses only the Python standard library. It adds no
+dependency and no SDK.
+
+**Enabling it (Windows, PowerShell):**
+
+```powershell
+claude --version            # installed?  (claude.exe, or the npm shim claude.cmd)
+claude                      # once, interactively: /login with your subscription
+$env:CAD_AI_PROVIDER = "claude_code"          # the only way it is ever selected
+# optional: $env:CAD_CLAUDE_CODE_PATH = "C:\Users\you\.local\bin\claude.exe"
+# optional: $env:CAD_AI_MODEL = "claude-haiku-5-5"   (the default, as for the API)
+.\start.ps1
+```
+
+`CAD_AI_PROVIDER=claude_code` is required. `resolve_provider` never picks
+this provider by itself: an installed CLI is not a decision to spend a
+subscription on this application. It is listed in `PROVIDER_NAMES` but not in
+`AUTOMATIC_PROVIDER_NAMES`. Without `CAD_CLAUDE_CODE_PATH`, `claude` is looked
+up on `PATH`. When that variable names a file that does not exist, the
+provider is *not configured*. It never falls back to a different `claude`.
+
+**What one call sends.** Each `generate` starts one process in an empty
+folder of its own (`%TEMP%\cad-ai-claude-code\cwd`). It is never the
+repository, so no `CLAUDE.md` is found there. The command line is:
+
+```
+claude -p --input-format stream-json --output-format stream-json --verbose
+       --model claude-haiku-5-5
+       --system-prompt-file %TEMP%\cad-ai-claude-code\prompts\system-<sha256>.txt
+       --tools "" --strict-mcp-config --mcp-config <per-call>\mcp.json
+       --allowedTools mcp__cad__submit_answer --permission-mode dontAsk
+       --setting-sources "" --disable-slash-commands --no-session-persistence
+       --max-turns 1            [--effort <CAD_AI_EFFORT>]
+```
+
+* **The system prompt is in a file** named by its SHA-256 and written once.
+  It never appears on a command line, in a process listing or in a log. The
+  user's description goes to **stdin** as one stream-json user message.
+* **Claude Code has no tools of its own** (`--tools ""`), so it has no shell,
+  no files and no web. It loads none of the user's settings, hooks or plugins
+  (`--setting-sources ""`), no slash commands or skills, and no other MCP
+  server (`--strict-mcp-config`, plus `ENABLE_CLAUDEAI_MCP_SERVERS=false` in
+  its environment).
+* **It has one MCP server, with one tool.** `cad_ai.claude_code_mcp` is a
+  standard-library stdio server (newline-delimited JSON-RPC 2.0: `initialize`,
+  `tools/list`, `tools/call`, `ping`). It offers `submit_answer`, which Claude
+  Code exposes as `mcp__cad__submit_answer`. Its input schema is the response
+  schema, narrowed by `schema_for_api` exactly as the API provider's own
+  `submit_answer` tool is. A call gets back "Answer received." and nothing
+  else. The server validates nothing: the application's validator does. It is
+  started as `python -I <path>\claude_code_mcp.py <tool.json>` with the
+  application's own interpreter. Isolated mode by file path starts in
+  milliseconds and needs no `PYTHONPATH`. `python -m cad_ai.claude_code_mcp`
+  also works, but it imports the whole package first, which takes about 1.4 s.
+* **The answer is the tool call's input.** It is read from the CLI's own
+  stream-json `assistant` event and re-serialised unedited, as the API
+  provider does. When a run ends with no such call, the final result text is
+  returned instead, and the generation layer judges it like any other text
+  (unusable, so it re-asks). No parsing leniency is added. `--max-turns 1`
+  stops the CLI after the turn that called the tool, so the answer is not
+  read back as input for a second turn the application has no use for. Once
+  the answer is in, the provider waits briefly for the `result` event, which
+  carries the token counts, and then ends the process.
+
+**What it never does.** It never reads, prints or passes a credential. The
+subscription login is the CLI's own business. The child inherits the
+environment it needs (`PATH`, `USERPROFILE`, `APPDATA`, `LOCALAPPDATA`,
+`SystemRoot`, `TEMP`, proxy settings, …). It does **not** get
+`ANTHROPIC_API_KEY`, `CAD_ANTHROPIC_API_KEY` or `ANTHROPIC_AUTH_TOKEN`, so the
+CLI uses the subscription login rather than billing a key. With
+`CAD_CLAUDE_CODE_USE_API_KEY=1` it keeps them, which is useful for testing
+without a subscription. `GEMINI_API_KEY` and Claude Code's own nesting markers
+(`CLAUDECODE`, `CLAUDE_CODE_ENTRYPOINT`, `CLAUDE_CODE_SSE_PORT`) are always
+removed. Variables are dropped by name, and no value is read. The provider
+also never executes anything the model returns, never uses `--bare` (which
+ignores the subscription login and demands an API key), and never bypasses
+permissions.
+
+**Errors** map onto the same neutral kinds as the other providers:
+
+| Condition | Kind |
+|---|---|
+| no `claude` found | `ProviderNotConfigured` |
+| not logged in, or the login is rejected | `AUTHENTICATION` |
+| a subscription usage limit, or a rate limit | `RATE_LIMITED` |
+| overloaded or a server error | `CAPACITY` |
+| `CAD_AI_TIMEOUT_SECONDS` exceeded | `TIMEOUT` (`RATE_LIMITED`/`CAPACITY` when the CLI was retrying such an error) |
+| any other non-zero exit | `OTHER` |
+
+The CLI's stderr tail goes only into `detail`, never into the public message.
+On every path the child is ended **with everything it started**. On Windows
+it runs in a new process group with no console window, and it is stopped with
+`taskkill /PID <pid> /T /F`. On POSIX it gets its own session, and the group
+is killed. Every pipe is closed. The MCP server also exits by itself when its
+stdin closes.
+
+**Windows notes.** `claude` may be `claude.exe` (the native installer) or
+`claude.cmd` (npm). Both are started from their resolved path, without
+`shell=True`. Windows still runs a `.cmd` through `cmd.exe`, so the provider
+refuses to pass `cmd.exe` metacharacters (`" & | < > ^ % !`) to a `.cmd`
+shim. Only the model name and the temporary paths could carry them, and
+`claude.exe` is the better choice in any case. All stream-json and MCP traffic
+is UTF-8 bytes, never the locale codepage, and the MCP server writes `\n`, not
+`\r\n`.
+
+**Terms.** This is for one person running the application **for
+themselves**, on their own subscription, through the official CLI. It is not
+a way to offer subscription logins, or this application backed by them, to
+other people. A service for others belongs on an API key.
+
+**Not built yet.** Each call pays a few seconds to start the CLI. A
+long-lived process, or a spare started ahead of the next call, would hide
+that cost. That is a possible later optimisation and is deliberately not part
+of this provider.
+
+**Not verified without a live run:** that the model calls
+`mcp__cad__submit_answer` (the prompt names the tool `submit_answer`), how
+`--max-turns 1` reports after the tool runs, and the exact text the CLI writes
+when it is not logged in or has reached a usage limit. The tests use a fake
+`claude` that speaks stream-json and drives the real MCP server.
 
 ## The AI boundary, exactly
 

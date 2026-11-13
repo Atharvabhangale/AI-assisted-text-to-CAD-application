@@ -1995,8 +1995,11 @@ class TestLiveBenchmark(unittest.TestCase):
                 "not start a live run."
             )
         if not credential_available():
+            # Credential-based providers only: claude_code has no key.
             expected = " or ".join(
-                API_KEY_VARIABLES[name] for name in PROVIDER_NAMES
+                API_KEY_VARIABLES[name]
+                for name in PROVIDER_NAMES
+                if name in API_KEY_VARIABLES
             )
             self.skipTest(
                 f"{expected} is not set: the live benchmark was not run "

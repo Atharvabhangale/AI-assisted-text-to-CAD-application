@@ -1,8 +1,10 @@
 """Which provider a run uses: one dispatch, in one place.
 
-Two named implementations chosen by configuration -- **not** a plugin
-registry. There is no discovery, no entry point and no dynamic loading, and
-adding a third provider means writing a third class and naming it here.
+Named implementations chosen by configuration -- **not** a plugin registry.
+There is no discovery, no entry point and no dynamic loading, and adding a
+provider means writing a class and naming it here. The third,
+``claude_code`` (the owner's subscription through the ``claude`` CLI), is
+reached only when ``CAD_AI_PROVIDER`` names it.
 
 Each provider class is imported **inside its own branch**, so importing this
 module needs neither SDK, and a deployment that installs only one extra still
@@ -17,7 +19,7 @@ is configured?" instead of each keeping their own copy of the mapping.
 
 from __future__ import annotations
 
-from cad_ai.config import GEMINI_PROVIDER_NAME, AiConfig
+from cad_ai.config import CLAUDE_CODE_PROVIDER_NAME, GEMINI_PROVIDER_NAME, AiConfig
 from cad_ai.provider import TextToCadModel
 
 
@@ -29,12 +31,17 @@ def model_from_environment(config: AiConfig) -> TextToCadModel:
     Nothing here reads, stores, compares, logs or returns one.
 
     Raises :class:`~cad_ai.provider.ProviderNotConfigured` when the chosen
-    provider's SDK is absent or its credential is unset.
+    provider's SDK is absent or its credential is unset -- or, for
+    ``claude_code``, when the ``claude`` executable cannot be found.
     """
     if config.provider == GEMINI_PROVIDER_NAME:
         from cad_ai.gemini_provider import GeminiTextToCadModel
 
         return GeminiTextToCadModel.from_environment(config)
+    if config.provider == CLAUDE_CODE_PROVIDER_NAME:
+        from cad_ai.claude_code_provider import ClaudeCodeTextToCadModel
+
+        return ClaudeCodeTextToCadModel.from_environment(config)
     from cad_ai.anthropic_provider import AnthropicTextToCadModel
 
     return AnthropicTextToCadModel.from_environment(config)

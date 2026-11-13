@@ -77,6 +77,7 @@ from cad_ai.comparison import (
 )
 from cad_ai.config import (
     API_KEY_VARIABLES,
+    CLAUDE_CODE_PATH_VARIABLE,
     DEFAULT_MODELS,
     GEMINI_PROVIDER_NAME,
     MODEL_VARIABLE,
@@ -1856,11 +1857,16 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         )
         return 0
     if live and not credential_available(provider=config.provider):
-        expected = API_KEY_VARIABLES[config.provider]
+        # The Claude Code provider has no credential variable: what it
+        # needs is the `claude` executable, found on PATH or named by
+        # CLAUDE_CODE_PATH_VARIABLE.
+        expected = API_KEY_VARIABLES.get(
+            config.provider, CLAUDE_CODE_PATH_VARIABLE
+        )
         others = ", ".join(
             API_KEY_VARIABLES[name]
             for name in PROVIDER_NAMES
-            if name != config.provider
+            if name != config.provider and name in API_KEY_VARIABLES
         )
         print(
             "\n".join(

@@ -22,14 +22,42 @@ from typing import Any, Dict, Mapping, Optional, Tuple
 #: The default provider, and the one Stages 26-28 were written against.
 PROVIDER_NAME = "anthropic"
 
-#: The second provider. Two named implementations, chosen by configuration --
+#: The second provider. Named implementations, chosen by configuration --
 #: **not** a plugin registry: there is no discovery, no entry point and no
-#: dynamic loading, and adding a third would mean writing a third class and
-#: naming it here.
+#: dynamic loading, and adding one means writing a class and naming it here
+#: (as the third, :data:`CLAUDE_CODE_PROVIDER_NAME`, was).
 GEMINI_PROVIDER_NAME = "gemini"
 
+#: The third provider: the owner's **Claude subscription**, reached through
+#: the official ``claude`` CLI (Claude Code) instead of an API key -- see
+#: :mod:`cad_ai.claude_code_provider`. It has no credential variable: the
+#: login is the CLI's own business. It is **never chosen automatically**;
+#: only ``CAD_AI_PROVIDER=claude_code`` selects it, because a CLI merely being
+#: installed is not a decision to spend a subscription on this application.
+CLAUDE_CODE_PROVIDER_NAME = "claude_code"
+
 #: Every provider this application implements, in preference order.
-PROVIDER_NAMES: Tuple[str, ...] = (PROVIDER_NAME, GEMINI_PROVIDER_NAME)
+PROVIDER_NAMES: Tuple[str, ...] = (
+    PROVIDER_NAME,
+    GEMINI_PROVIDER_NAME,
+    CLAUDE_CODE_PROVIDER_NAME,
+)
+
+#: The providers :func:`resolve_provider` may pick by itself, when
+#: ``CAD_AI_PROVIDER`` is unset -- those whose credential is present. The
+#: Claude Code provider is deliberately absent: it is used only when named.
+AUTOMATIC_PROVIDER_NAMES: Tuple[str, ...] = (PROVIDER_NAME, GEMINI_PROVIDER_NAME)
+
+#: Where the ``claude`` executable is, when it is not on ``PATH`` (on Windows
+#: ``claude.exe``, or the npm shim ``claude.cmd``). A path, never a
+#: credential. Unset means ``PATH`` is searched for ``claude``.
+CLAUDE_CODE_PATH_VARIABLE = "CAD_CLAUDE_CODE_PATH"
+
+#: Opt-in, ``1``: let the ``claude`` child keep the Anthropic API-key
+#: variables, so the CLI bills that key instead of the subscription login
+#: (useful for testing without a subscription). Unset, they are removed from
+#: the child's environment. Only the variable's presence is read here.
+CLAUDE_CODE_USE_API_KEY_VARIABLE = "CAD_CLAUDE_CODE_USE_API_KEY"
 
 #: The credential variable, which is the Anthropic SDK's own conventional
 #: name. Read by the provider only, and never by anything else.
@@ -109,6 +137,8 @@ EFFORT_LEVELS: Tuple[str, ...] = ("low", "medium", "high", "xhigh", "max")
 DEFAULT_MODELS: Mapping[str, str] = {
     PROVIDER_NAME: "claude-haiku-5-5",
     GEMINI_PROVIDER_NAME: "gemini-3.6-flash",
+    # The same model through the subscription: only the route differs.
+    CLAUDE_CODE_PROVIDER_NAME: "claude-haiku-5-5",
 }
 
 #: The documented step-up from the default Anthropic model. Never selected
@@ -215,10 +245,11 @@ def resolve_provider(environ: Optional[Dict[str, str]] = None) -> str:
     """Which provider to use.
 
     ``CAD_AI_PROVIDER`` decides when it is set. Otherwise the first provider
-    in :data:`PROVIDER_NAMES` whose credential is present wins, and the
-    default is returned when neither has one -- so an unconfigured
+    in :data:`AUTOMATIC_PROVIDER_NAMES` whose credential is present wins, and
+    the default is returned when neither has one -- so an unconfigured
     application still reports a provider rather than failing here, and the
-    provider itself refuses at construction.
+    provider itself refuses at construction. The Claude Code provider is
+    never the automatic answer: it is chosen only by name.
 
     Presence is all that is read. No credential value is returned, stored or
     compared.
@@ -232,7 +263,7 @@ def resolve_provider(environ: Optional[Dict[str, str]] = None) -> str:
                 f"{', '.join(PROVIDER_NAMES)}; got {chosen!r}"
             )
         return chosen
-    for name in PROVIDER_NAMES:
+    for name in AUTOMATIC_PROVIDER_NAMES:
         if credential_variable(name, source) is not None:
             return name
     return PROVIDER_NAME
@@ -290,12 +321,22 @@ def credential_available(
 
     Returns a boolean and nothing else. Used to decide whether a live
     provider test runs or reports itself skipped. With no ``provider`` it
-    answers for **any** implemented provider, so a live run is possible
-    whenever either credential exists.
+    answers for **any** credential-based provider
+    (:data:`AUTOMATIC_PROVIDER_NAMES`), so a live run is possible whenever
+    either credential exists.
+
+    For the Claude Code provider, which has no credential, it answers whether
+    the ``claude`` executable can be found -- and only when asked by name, so
+    an installed CLI never makes the ordinary suite think a credential is
+    present. Nothing is run to find out.
     """
     source = os.environ if environ is None else environ
+    if provider == CLAUDE_CODE_PROVIDER_NAME:
+        from cad_ai.claude_code_provider import locate_cli  # noqa: PLC0415
+
+        return locate_cli(source) is not None
     names = (
-        PROVIDER_NAMES if provider is None else (provider,)
+        AUTOMATIC_PROVIDER_NAMES if provider is None else (provider,)
     )
     return any(credential_variable(name, source) is not None for name in names)
 
@@ -303,6 +344,10 @@ def credential_available(
 __all__ = [
     "API_KEY_VARIABLE",
     "API_KEY_VARIABLES",
+    "AUTOMATIC_PROVIDER_NAMES",
+    "CLAUDE_CODE_PATH_VARIABLE",
+    "CLAUDE_CODE_PROVIDER_NAME",
+    "CLAUDE_CODE_USE_API_KEY_VARIABLE",
     "CREDENTIAL_VARIABLES",
     "DEFAULT_MAX_ATTEMPTS",
     "DEFAULT_MODEL",
