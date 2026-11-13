@@ -143,7 +143,8 @@ PLATE_SIZE = (100.0, 60.0, 10.0)
 #: position rather than being a gap to ask about. The 2026-09-09.1 value was
 #: ``fe62c9759a08d45ca372672479631863b25876cc52aca999da7edb1e8cde979a``.
 #:
-#: Re-pinned for **2026-11-13.5** (camshafts and timing belt; 2026-11-13.4 was
+#: Re-pinned for **2026-11-13.6** (engine moved to the template library;
+#: 2026-11-13.5 was af5a5484...). Before that, **2026-11-13.5** (camshafts and timing belt; 2026-11-13.4 was
 #: 1bc4a18d...). Before that, **2026-11-13.4** (reference engine as Example 4; 2026-11-13.3
 #: was 5c2f5cdf...). Before that, **2026-11-13.3** (engine internals in a cutaway; 2026-11-13.2
 #: was 28145553...). Before that, **2026-11-13.2** (detail rule and engine recipe; 2026-11-13.1
@@ -158,7 +159,7 @@ PLATE_SIZE = (100.0, 60.0, 10.0)
 #: Updating it is the maintenance step the pinning test itself prescribes, and
 #: it retires every earlier measurement of model behaviour.
 PROMPT_FINGERPRINT = (
-    "af5a5484fcb87150f42d33cfe8fbb40df09b3d3ac37ce681afef71773435d64c"
+    "e89ad21bd1cc975e402a5c8c45267696e6d71bb48e3609a16abca47560e172cc"
 )
 
 #: Tolerance for a kernel-reported length. Never exact float equality.
@@ -1890,7 +1891,7 @@ class TestPromptAndSchema(unittest.TestCase):
         # update PROMPT_VERSION and this value together, and do not assume any
         # earlier claim about model behaviour still holds.
         self.assertEqual(prompt_fingerprint(), PROMPT_FINGERPRINT)
-        self.assertEqual(PROMPT_VERSION, "2026-11-13.5")
+        self.assertEqual(PROMPT_VERSION, "2026-11-13.6")
 
     def test_the_prompt_states_the_seven_required_things(self) -> None:
         text = system_prompt()
@@ -2791,8 +2792,9 @@ class TestProviderParity(unittest.TestCase):
         # 37168 for 2026-11-13.2 (detail rule, engine recipe); 38383 for
         # 2026-11-13.3 (engine internals in a cutaway); 51084 for 2026-11-13.4
         # (the reference engine as Example 4); 54693 for 2026-11-13.5
-        # (camshafts and timing belt).
-        self.assertEqual(len(system_prompt()), 54693)
+        # (camshafts and timing belt); 39747 for 2026-11-13.6 (the engine
+        # moved to the template library).
+        self.assertEqual(len(system_prompt()), 39747)
         self.assertEqual(prompt_fingerprint(), PROMPT_FINGERPRINT)
 
 
@@ -2993,6 +2995,7 @@ class TestMetadata(AiTestCase):
                 "request_characters",
                 "stop_reason",
                 "structured_output",
+                "templates",
                 "usage",
             ],
         )

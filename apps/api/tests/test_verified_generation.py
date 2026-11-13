@@ -47,14 +47,18 @@ from cad_ai.config import (
 )
 from cad_ai.generation import (
     NO_DOCUMENT,
+    REFERENCE_MARKER,
     RETRY_MARKER,
     UNUSABLE_ANSWER,
     VERIFICATION_OUTPUTS,
     AttemptStage,
     GenerationOutcome,
     TextToCadService,
+    compose_user_text,
 )
 from cad_ai.prompt import EXAMPLES, system_prompt
+from cad_ai.templates import TEMPLATES, select_templates
+from cad_ai.templates.engine import TEMPLATE as ENGINE_TEMPLATE
 from cad_ai.provider import (
     ModelRequest,
     ModelResponse,
@@ -437,17 +441,17 @@ class TestEngineRecipe(ServiceTestCase):
         )
         self.assertTrue(built.succeeded, built.error)
 
-    def test_the_engine_example_is_the_reference_fixture(self) -> None:
-        # Example 4 is generated in cad_ai.prompt; the fixture is the same
-        # engine written out. They must not drift apart.
+    def test_the_engine_template_is_the_reference_fixture(self) -> None:
+        # The engine template is generated in cad_ai.templates.engine; the
+        # fixture is the same engine written out. They must not drift apart.
         fixture = json.loads(
             (Path(__file__).parent / "fixtures" / "cutaway_engine.json").read_text(
                 encoding="utf-8"
             )
         )
-        engine = EXAMPLES[-1]["answer"]["document"]
+        engine = ENGINE_TEMPLATE["answer"]["document"]
         self.assertEqual(engine["features"], fixture["features"])
-        self.assertIn("Example 4 below is the complete engine", system_prompt())
+        self.assertIn("## Reference designs", system_prompt())
 
     def test_the_prompt_carries_the_recipe(self) -> None:
         text = system_prompt()
@@ -464,6 +468,63 @@ class TestEngineRecipe(ServiceTestCase):
             "**timing belt** at the end opposite the flywheel",
         ):
             self.assertIn(phrase, text, msg=phrase)
+
+
+class TestTemplateLibrary(ServiceTestCase):
+    def test_every_template_is_a_complete_answer_that_builds(self) -> None:
+        names = set()
+        for template in TEMPLATES:
+            with self.subTest(template=template["name"]):
+                self.assertNotIn(template["name"], names)
+                names.add(template["name"])
+                self.assertTrue(template["keywords"])
+                self.assertTrue(all(k == k.lower() for k in template["keywords"]))
+                answer = template["answer"]
+                self.assertEqual(tuple(answer), RESPONSE_FIELDS)
+                self.assertTrue(answer["assumptions"])
+                validation = self.service.validate_document(answer["document"])
+                self.assertTrue(validation.valid, validation.error)
+                built = self.service.build_document(
+                    BuildDocumentRequest(document=answer["document"], outputs=("geometry",))
+                )
+                self.assertTrue(built.succeeded, built.error)
+
+    def test_every_template_selects_itself_from_its_own_request(self) -> None:
+        for template in TEMPLATES:
+            with self.subTest(template=template["name"]):
+                chosen = [t["name"] for t in select_templates(template["request"])]
+                self.assertEqual(chosen[:1], [template["name"]])
+
+    def test_selection_is_by_whole_words_and_bounded(self) -> None:
+        self.assertEqual([t["name"] for t in select_templates("an engine")], ["engine"])
+        self.assertEqual(select_templates("a 100 x 60 x 10 mm plate"), ())
+        self.assertEqual(select_templates("an engineer's square"), ())
+        self.assertLessEqual(len(select_templates(" ".join(k for t in TEMPLATES for k in t["keywords"]))), 2)
+
+    def test_the_description_comes_first_and_verbatim(self) -> None:
+        self.assertEqual(compose_user_text("a plate", ()), "a plate")
+        text = compose_user_text("An Engine!", select_templates("An Engine!"))
+        self.assertTrue(text.startswith("An Engine!\n"))
+        self.assertIn(REFERENCE_MARKER, text)
+        self.assertIn(json.dumps(ENGINE_TEMPLATE["answer"], separators=(",", ":")), text)
+
+    def test_generation_attaches_and_records_templates_and_keeps_them_on_a_retry(self) -> None:
+        result, model = self.run_script(reply(doc=STATIC_BAD), reply(doc=GOOD), text="an engine")
+        self.assertIs(result.outcome, GenerationOutcome.GENERATED)
+        self.assertEqual(result.metadata.templates, ("engine",))
+        self.assertIn(REFERENCE_MARKER, model.requests[0].user_text)
+        self.assertIn(REFERENCE_MARKER, model.requests[1].user_text)
+        self.assertIn(RETRY_MARKER, model.requests[1].user_text)
+        self.assertEqual(model.requests[0].system, model.requests[1].system)
+
+    def test_no_template_means_the_text_is_unchanged(self) -> None:
+        result, model = self.run_script(reply(doc=GOOD), text="a plate with a hole")
+        self.assertEqual(model.requests[0].user_text, "a plate with a hole")
+        self.assertEqual(result.metadata.templates, ())
+
+    def test_templates_can_be_switched_off(self) -> None:
+        _, model = self.run_script(reply(doc=GOOD), text="an engine", use_templates=False)
+        self.assertEqual(model.requests[0].user_text, "an engine")
 
 
 class TestThePolicy(unittest.TestCase):

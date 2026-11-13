@@ -94,7 +94,8 @@ SYNTHETIC_KEY = "AIzaSy-SYNTHETIC-TEST-KEY-DO-NOT-USE-000"
 #: Stage 26 pinned 2b3e3395ec6efee0...; 2026-09-09.1 moved it to
 #: fe62c9759a08d45c...; this is **2026-09-09.2**, which taught the model that
 #: the vocabulary cannot join solids and that words locating a feature supply
-#: a required position. **2026-11-13.5** (camshafts, timing belt; 2026-11-13.4
+#: a required position. **2026-11-13.6** (template library; 2026-11-13.5 was
+#: af5a5484...). Before it, **2026-11-13.5** (camshafts, timing belt; 2026-11-13.4
 #: was 1bc4a18d...). Before it, **2026-11-13.4** (reference engine example; 2026-11-13.3
 #: was 5c2f5cdf...). Before it, **2026-11-13.3** (engine internals; 2026-11-13.2 was
 #: 28145553...). Before it, **2026-11-13.2** (detail rule, engine recipe; 2026-11-13.1
@@ -103,7 +104,7 @@ SYNTHETIC_KEY = "AIzaSy-SYNTHETIC-TEST-KEY-DO-NOT-USE-000"
 #: replaced refuse-or-ask with build-and-record-assumptions, added `union`, the
 #: measured buildability rules and three worked examples.
 PROMPT_FINGERPRINT = (
-    "af5a5484fcb87150f42d33cfe8fbb40df09b3d3ac37ce681afef71773435d64c"
+    "e89ad21bd1cc975e402a5c8c45267696e6d71bb48e3609a16abca47560e172cc"
 )
 
 
@@ -304,7 +305,7 @@ class TestSdkCallShape(GeminiBoundaryTestCase):
         # wrapper, no reformatting, no addition.
         self.assertEqual(sent, system_prompt())
         self.assertEqual(prompt_fingerprint(), PROMPT_FINGERPRINT)
-        self.assertEqual(PROMPT_VERSION, "2026-11-13.5")
+        self.assertEqual(PROMPT_VERSION, "2026-11-13.6")
 
     def test_the_user_text_is_passed_unchanged(self) -> None:
         for text in (
@@ -972,11 +973,12 @@ class TestAnthropicUnchanged(unittest.TestCase):
 
     def test_the_prompt_and_schema_are_shared_and_unchanged(self) -> None:
         self.assertEqual(prompt_fingerprint(), PROMPT_FINGERPRINT)
-        self.assertEqual(PROMPT_VERSION, "2026-11-13.5")
+        self.assertEqual(PROMPT_VERSION, "2026-11-13.6")
         # 21938 for 2026-09-09.1; 25237 for 2026-09-09.2; 33084 for
         # 2026-11-12.1; 35199 for 2026-11-13.1; 37168 for 2026-11-13.2; 38383
-        # for 2026-11-13.3; 51084 for 2026-11-13.4; 54693 for 2026-11-13.5.
-        self.assertEqual(len(system_prompt()), 54693)
+        # for 2026-11-13.3; 51084 for 2026-11-13.4; 54693 for 2026-11-13.5;
+        # 39747 for 2026-11-13.6.
+        self.assertEqual(len(system_prompt()), 39747)
         schema = response_schema()
         self.assertEqual(sorted(schema["properties"]),
                          ["assumptions", "document", "issues", "plan",

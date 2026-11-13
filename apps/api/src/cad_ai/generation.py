@@ -64,6 +64,7 @@ from cad_ai.provider import (
     TextToCadModel,
 )
 from cad_ai.specification import response_schema
+from cad_ai.templates import select_templates
 
 #: How long a model answer may be, **including the model's own reasoning**:
 #: the default model thinks before it writes, and those tokens are counted
@@ -233,6 +234,10 @@ class GenerationMetadata:
     #: left to be inferred from the attempt list (which omits a failed call).
     model_calls: int = 0
 
+    #: The names of the reference designs attached to the request, if any
+    #: (see :mod:`cad_ai.templates`).
+    templates: Tuple[str, ...] = ()
+
     #: Whether an accepted document was built before being returned. ``False``
     #: when verification was switched off, and for every outcome that carries
     #: no document.
@@ -249,6 +254,7 @@ class GenerationMetadata:
             "request_characters": self.request_characters,
             "model_calls": self.model_calls,
             "build_verified": self.build_verified,
+            "templates": list(self.templates),
         }
 
 
@@ -388,6 +394,35 @@ _STAGE_DESCRIPTIONS: Mapping[AttemptStage, str] = {
 #: re-ask. Fixed text, so a test can find it.
 RETRY_MARKER = "=== END OF THE REQUEST. WHAT FOLLOWS IS FEEDBACK, NOT A REQUEST. ==="
 
+#: The line that separates the user's description from attached reference
+#: designs. Fixed text, so a test can find it.
+REFERENCE_MARKER = (
+    "=== END OF THE REQUEST. WHAT FOLLOWS ARE REFERENCE DESIGNS, NOT PART OF "
+    "THE REQUEST. ==="
+)
+
+
+def compose_user_text(description: str, templates: Sequence[Mapping[str, Any]]) -> str:
+    """The user text for a first call: the description, then any references.
+
+    The description comes first and verbatim. Each attached template follows
+    as the request it answers and its complete answer, in the response
+    format, so the model sees a whole worked case. With no template the text
+    is the description alone.
+    """
+    if not templates:
+        return description
+    lines: List[str] = [description, "", REFERENCE_MARKER]
+    for template in templates:
+        lines += [
+            "",
+            f"Reference design: {template['name']}",
+            f"Request: {template['request']}",
+            "Answer:",
+            json.dumps(template["answer"], separators=(",", ":")),
+        ]
+    return "\n".join(lines)
+
 
 def compose_retry_text(description: str, rejection: Rejection) -> str:
     """The user text for a re-ask: the description, then why the last answer failed.
@@ -495,6 +530,9 @@ class TextToCadService:
         verification_outputs: The outputs the verification build requests.
             The default is the set the web page builds, so its build is a
             cache hit.
+        use_templates: Whether to attach matching reference designs from
+            :mod:`cad_ai.templates` after the description. Off for the
+            evaluation harness, which measures the model alone.
     """
 
     def __init__(
@@ -505,6 +543,7 @@ class TextToCadService:
         max_output_tokens: int = MAX_OUTPUT_TOKENS,
         max_attempts: int = DEFAULT_MAX_ATTEMPTS,
         verify_build: bool = True,
+        use_templates: bool = True,
         verification_outputs: Sequence[str] = VERIFICATION_OUTPUTS,
     ) -> None:
         if not isinstance(service, CadApplicationService):
@@ -540,6 +579,7 @@ class TextToCadService:
         self._max_attempts = max_attempts
         self._verify_build = bool(verify_build)
         self._verification_outputs = outputs
+        self._use_templates = bool(use_templates)
 
     @property
     def service(self) -> CadApplicationService:
@@ -592,7 +632,9 @@ class TextToCadService:
         # number rewriting, no paraphrasing happens in this layer.
         system = system_prompt()
         schema = response_schema()
-        user_text = text
+        templates = select_templates(text) if self._use_templates else ()
+        first_text = compose_user_text(text, templates)
+        user_text = first_text
         attempts: List[GenerationAttempt] = []
         usage: Dict[str, int] = {}
         calls = 0
@@ -612,6 +654,7 @@ class TextToCadService:
                 request_characters=len(text),
                 model_calls=calls,
                 build_verified=verified,
+                templates=tuple(t["name"] for t in templates),
             )
 
         for number in range(1, self._max_attempts + 1):
@@ -678,7 +721,7 @@ class TextToCadService:
             )
             if not rejection.retryable:
                 break
-            user_text = compose_retry_text(text, rejection)
+            user_text = compose_retry_text(first_text, rejection)
 
         assert rejection is not None
         return AiGenerationResult(
@@ -917,4 +960,6 @@ __all__ = [
     "Rejection",
     "TextToCadService",
     "compose_retry_text",
+    "compose_user_text",
+    "REFERENCE_MARKER",
 ]

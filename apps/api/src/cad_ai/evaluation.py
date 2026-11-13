@@ -1045,12 +1045,14 @@ class Evaluator:
         # model is observed. It is pinned to one model call and no
         # verification build: the benchmark measures single-shot model
         # quality and does its own build cross-check, so neither the re-ask
-        # loop nor the product's verification step may leak into a score.
+        # loop nor the product's verification step -- nor its reference
+        # designs -- may leak into a score.
         self._service = TextToCadService(
             self._recorder,
             service.service,
             max_attempts=1,
             verify_build=False,
+            use_templates=False,
         )
         self._build_service = build_service
 
