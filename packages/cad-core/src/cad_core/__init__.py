@@ -3,7 +3,7 @@
 This package implements ``docs/cad-specification.md`` schema version 1.1.0:
 
 * :mod:`cad_core.model` -- the typed representation of a specification document.
-* :mod:`cad_core.validator` -- the deterministic static validator (rules S1-S22).
+* :mod:`cad_core.validator` -- the deterministic static validator (rules S1-S28).
 * :mod:`cad_core.errors` -- the structured error and result records.
 * :mod:`cad_core.rules` -- rule codes and their requirement text.
 * :mod:`cad_core.geometry` -- the boundary for the geometric rules E1-E5, which
@@ -50,6 +50,8 @@ from cad_core.model import (
     ID_PATTERN,
     MODIFIER_TYPES,
     ORIGIN,
+    PARAMETER_INTRODUCED_IN,
+    PATTERN_AXIS_VALUES,
     SCHEMA_VERSION,
     SELECTOR_AXIS_VALUES,
     SUPPORTED_SCHEMA_MAJOR,
@@ -107,6 +109,8 @@ __all__ = [
     "EdgeSelector",
     "Feature",
     "FEATURE_INTRODUCED_IN",
+    "PARAMETER_INTRODUCED_IN",
+    "PATTERN_AXIS_VALUES",
     "FEATURE_TYPES",
     "featurescript_for",
     "Fillet",

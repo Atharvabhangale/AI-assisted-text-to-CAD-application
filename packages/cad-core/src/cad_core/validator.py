@@ -1,6 +1,6 @@
 """Deterministic static validator for the V1 CAD specification.
 
-Implements the static rules S1-S22 of ``docs/cad-specification.md``.  The
+Implements the static rules S1-S28 of ``docs/cad-specification.md``.  The
 geometric rules E1-E5 are *not* implemented and are never reported here; see
 :mod:`cad_core.geometry`.
 
@@ -30,7 +30,16 @@ from cad_core.model import (
     ID_PATTERN,
     OPTIONAL_ROOT_FIELDS,
     ORIGIN,
+    PARAMETER_INTRODUCED_IN,
+    PATTERN_ANGLE_LIMIT_DEG,
+    PATTERN_AXIS_VALUES,
+    PATTERN_COUNT_MAX,
+    PATTERN_COUNT_MIN,
+    PATTERN_DEFAULTS,
+    POLYGON_SIDES_MAX,
+    POLYGON_SIDES_MIN,
     REQUIRED_ROOT_FIELDS,
+    ROUND_SIDES,
     SELECTOR_AXIS_VALUES,
     SUPPORTED_SCHEMA_MAJOR,
     SUPPORTED_UNITS,
@@ -47,6 +56,7 @@ from cad_core.model import (
     ThroughHole,
     TOOL_CONSUMING_TYPES,
     UnionFeature,
+    parameter_available,
 )
 
 _ID_RE = re.compile(ID_PATTERN)
@@ -145,7 +155,7 @@ def validate(document: Any) -> ValidationResult:
         cross-feature violations (id uniqueness, then references and feature
         order).  The same document always yields the same list.
 
-        Only the static rules S1-S22 are checked.  Rules E1-E5 require geometry
+        Only the static rules S1-S28 are checked.  Rules E1-E5 require geometry
         and are never reported.
     """
     errors = _Errors()
@@ -332,11 +342,16 @@ def _validate_feature(
         return _Record(index, raw, feature_id, None, None, id_is_valid)
 
     required, optional = FEATURE_PARAMETERS[feature_type]
-    allowed = set(COMMON_FEATURE_FIELDS) | set(required) | set(optional)
+    known = set(COMMON_FEATURE_FIELDS) | set(required) | set(optional)
+    allowed = {
+        field
+        for field in known
+        if parameter_available(feature_type, field, declared_version)
+    }
     for field in sorted(set(raw) - allowed):
         errors.add(
             "S3",
-            f"unknown field {field!r} on a {feature_type} feature",
+            _unknown_field_message(feature_type, field, known, declared_version),
             path=f"{path}.{field}",
             feature_id=feature_id,
             feature_index=index,
@@ -352,10 +367,40 @@ def _validate_feature(
             feature_index=index,
         )
 
-    feature = _validate_feature_parameters(index, raw, feature_id, feature_type, errors)
+    # Only the parameters the declared version defines are examined: a field
+    # that is unknown to it has been reported under S3 above, and its value
+    # means nothing in that version, so judging it would add a derived error.
+    usable = {field: value for field, value in raw.items() if field in allowed}
+    feature = _validate_feature_parameters(
+        index, usable, feature_id, feature_type, errors
+    )
     if not id_is_valid or missing:
         feature = None
     return _Record(index, raw, feature_id, feature_type, feature, id_is_valid)
+
+
+def _unknown_field_message(
+    feature_type: str,
+    field: str,
+    known: Any,
+    declared_version: Optional[Tuple[int, int]],
+) -> str:
+    """S3 message for a field the declared version does not define.
+
+    A parameter this implementation knows but the document's declared version
+    predates gets the same treatment as ``union`` in a ``1.0.0`` document: the
+    verdict is S3, and the message says which version defines it.
+    """
+    introduced = PARAMETER_INTRODUCED_IN.get((feature_type, field))
+    if field in known and introduced is not None and declared_version is not None:
+        needed = f"{introduced[0]}.{introduced[1]}.0"
+        return (
+            f"parameter {field!r} of a {feature_type} feature is defined from "
+            f"schema version {needed}, but this document declares "
+            f"{_version_family(declared_version)}, where it is an unknown "
+            f"field. Set 'schema_version' to \"{needed}\" to use {field!r}"
+        )
+    return f"unknown field {field!r} on a {feature_type} feature"
 
 
 def _validate_feature_id(index: int, raw: Dict[str, Any], errors: _Errors) -> Tuple[Optional[str], bool]:
@@ -509,18 +554,83 @@ def _validate_box(
 def _validate_cylinder(
     index: int, raw: Dict[str, Any], feature_id: Optional[str], errors: _Errors
 ) -> Optional[Cylinder]:
-    """Section C.2. Rules S20/S11 (diameter, height), S12 (axis), S19 (position)."""
+    """Section C.2. Rules S20/S11 (diameter, height), S12 (axis), S19 (position),
+    S23 (top_diameter) and S24 (sides).
+
+    ``raw`` holds only the parameters the declared version defines, so in a
+    document declaring an earlier version than ``1.2.0`` ``top_diameter`` and
+    ``sides`` are absent here and take their defaults.
+    """
     context = _Context(index, feature_id, errors)
     diameter = _validate_length(raw.get("diameter"), "diameter", "S11", context) if "diameter" in raw else None
     height = _validate_length(raw.get("height"), "height", "S11", context) if "height" in raw else None
     position = _validate_optional_position(raw, context)
     axis = _validate_optional_axis(raw, context)
-    parts = (diameter, height, position, axis)
+    sides = (
+        _validate_integer(
+            raw["sides"],
+            "sides",
+            "S24",
+            context,
+            accepts=lambda n: n == ROUND_SIDES
+            or POLYGON_SIDES_MIN <= n <= POLYGON_SIDES_MAX,
+            requirement=(
+                f"equal to {ROUND_SIDES} (round) or from {POLYGON_SIDES_MIN} "
+                f"to {POLYGON_SIDES_MAX} (a regular polygon)"
+            ),
+        )
+        if "sides" in raw
+        else ROUND_SIDES
+    )
+    top_diameter = (
+        _validate_top_diameter(raw["top_diameter"], sides, context)
+        if "top_diameter" in raw
+        else diameter
+    )
+    parts = (diameter, height, position, axis, top_diameter, sides)
     if any(part is None for part in parts) or feature_id is None:
         return None
     return Cylinder(
-        id=feature_id, diameter=diameter, height=height, position=position, axis=axis
+        id=feature_id,
+        diameter=diameter,
+        height=height,
+        position=position,
+        axis=axis,
+        top_diameter=top_diameter,
+        sides=sides,
     )
+
+
+def _validate_top_diameter(
+    value: Any, sides: Optional[int], context: _Context
+) -> Optional[float]:
+    """S23: a finite number >= 0, and > 0 for a polygon (no pointed pyramid).
+
+    The polygon condition is judged only when ``sides`` itself is valid; an
+    invalid ``sides`` has been reported under S24 and nothing is derived from
+    it.
+    """
+    path = context.path("top_diameter")
+    if not _is_finite_number(value):
+        context.add(
+            "S23",
+            f"'top_diameter' must be a finite number >= 0, got {_describe_number(value)}",
+            path,
+        )
+        return None
+    number = float(value)
+    if not number >= 0:
+        context.add("S23", f"'top_diameter' must be >= 0, got {number!r}", path)
+        return None
+    if number == 0 and sides is not None and sides != ROUND_SIDES:
+        context.add(
+            "S23",
+            f"'top_diameter' must be > 0 when 'sides' is {sides}: a round "
+            "cylinder may come to a point (a cone), a polygon may not",
+            path,
+        )
+        return None
+    return _plain_zero(number)
 
 
 def _validate_through_hole(
@@ -545,15 +655,17 @@ def _validate_through_hole(
 def _validate_subtract(
     index: int, raw: Dict[str, Any], feature_id: Optional[str], errors: _Errors
 ) -> Optional[Subtract]:
-    """Section C.4. Rules S2 (target), S14 (tools array), S15 (tool identity)."""
+    """Section C.4. Rules S2 (target), S14 (tools array), S15 (tool identity),
+    S25-S28 (the pattern)."""
     context = _Context(index, feature_id, errors)
     target = _validate_reference(raw.get("target"), "target", context) if "target" in raw else None
     tools = _validate_tools(raw.get("tools"), "S14", context) if "tools" in raw else None
     if tools is not None:
         _validate_tool_identity(target, tools, "S15", context)
-    if target is None or tools is None or feature_id is None:
+    pattern = _validate_pattern(raw, context)
+    if target is None or tools is None or pattern is None or feature_id is None:
         return None
-    return Subtract(id=feature_id, target=target, tools=tools)
+    return Subtract(id=feature_id, target=target, tools=tools, **pattern)
 
 
 def _validate_union(
@@ -562,15 +674,179 @@ def _validate_union(
     """Section C.8. Rules S2 (target), S21 (tools array), S22 (tool identity).
 
     The same structural checks as a subtract, under union's own rule codes.
+    The pattern parameters are shared with subtract, under the shared codes
+    S25-S28.
     """
     context = _Context(index, feature_id, errors)
     target = _validate_reference(raw.get("target"), "target", context) if "target" in raw else None
     tools = _validate_tools(raw.get("tools"), "S21", context) if "tools" in raw else None
     if tools is not None:
         _validate_tool_identity(target, tools, "S22", context)
-    if target is None or tools is None or feature_id is None:
+    pattern = _validate_pattern(raw, context)
+    if target is None or tools is None or pattern is None or feature_id is None:
         return None
-    return UnionFeature(id=feature_id, target=target, tools=tools)
+    return UnionFeature(id=feature_id, target=target, tools=tools, **pattern)
+
+
+#: Two copies of a pattern coincide when ``j * pattern_angle`` is within this
+#: many turns of a whole number of turns (rule S28). Far below anything a
+#: person means -- one billionth of a turn is 3.6e-7 degrees -- and far above
+#: the rounding error of ``360 / n`` written as a decimal.
+_COINCIDENT_TURN_TOLERANCE = 1e-9
+
+
+def _validate_pattern(raw: Dict[str, Any], context: _Context) -> Optional[Dict[str, Any]]:
+    """S25-S28: the pattern parameters of a subtract or a union.
+
+    Returns the four values, defaults materialised, or None if any is
+    invalid. ``raw`` holds only the parameters the declared version defines,
+    so for a document declaring an earlier version than ``1.2.0`` all four
+    take their defaults.
+    """
+    count = (
+        _validate_integer(
+            raw["pattern_count"],
+            "pattern_count",
+            "S25",
+            context,
+            accepts=lambda n: PATTERN_COUNT_MIN <= n <= PATTERN_COUNT_MAX,
+            requirement=f"from {PATTERN_COUNT_MIN} to {PATTERN_COUNT_MAX}",
+        )
+        if "pattern_count" in raw
+        else PATTERN_DEFAULTS["pattern_count"]
+    )
+
+    axis = PATTERN_DEFAULTS["pattern_axis"]
+    if "pattern_axis" in raw:
+        axis = raw["pattern_axis"]
+        if not isinstance(axis, str) or axis not in PATTERN_AXIS_VALUES:
+            permitted = ", ".join(repr(letter) for letter in PATTERN_AXIS_VALUES)
+            context.add(
+                "S26",
+                f"'pattern_axis' must be one of {permitted} (unsigned: the "
+                f"pattern axis is a line through the origin); got {axis!r}",
+                context.path("pattern_axis"),
+            )
+            axis = None
+
+    angle = PATTERN_DEFAULTS["pattern_angle"]
+    if "pattern_angle" in raw:
+        angle = _validate_pattern_number(raw["pattern_angle"], "pattern_angle", context)
+        if angle is not None and abs(angle) > PATTERN_ANGLE_LIMIT_DEG:
+            context.add(
+                "S27",
+                f"'pattern_angle' must be from -{PATTERN_ANGLE_LIMIT_DEG:g} to "
+                f"{PATTERN_ANGLE_LIMIT_DEG:g} degrees, got {angle!r}",
+                context.path("pattern_angle"),
+            )
+            angle = None
+
+    step = PATTERN_DEFAULTS["pattern_step"]
+    if "pattern_step" in raw:
+        step = _validate_pattern_number(raw["pattern_step"], "pattern_step", context)
+
+    if count is not None and angle is not None and step is not None and count > 1:
+        clash = _first_coincident_copy(count, angle, step)
+        if clash is not None:
+            if angle == 0.0 and step == 0.0:
+                why = (
+                    "'pattern_angle' and 'pattern_step' are both 0, so every "
+                    "copy lies exactly on the tool"
+                )
+            else:
+                why = (
+                    f"'pattern_step' is 0 and {clash} x {angle!r} degrees is a "
+                    f"whole number of turns, so copy {clash + 1} lies exactly on "
+                    "copy 1"
+                )
+            context.add(
+                "S28",
+                f"a pattern of {count} copies whose copies coincide: {why}. "
+                "Give a 'pattern_angle' (e.g. 360/count for a circle of "
+                "copies) or a 'pattern_step' (the spacing of a row), or set "
+                "'pattern_count' to 1",
+                context.path("pattern_count"),
+            )
+            count = None
+
+    if count is None or axis is None or angle is None or step is None:
+        return None
+    return {
+        "pattern_count": count,
+        "pattern_axis": axis,
+        "pattern_angle": angle,
+        "pattern_step": step,
+    }
+
+
+def _first_coincident_copy(count: int, angle: float, step: float) -> Optional[int]:
+    """The smallest ``j`` in ``1 .. count-1`` whose shift makes copies coincide.
+
+    Copy ``k`` and copy ``k + j`` differ by a turn of ``j * angle`` about the
+    pattern axis and a shift of ``j * step`` along it. A shift along the axis
+    never equals a turn about it, so they coincide exactly when the shift is 0
+    and the turn is whole. Returns None when no two copies coincide.
+    """
+    if step != 0.0:
+        return None
+    for j in range(1, count):
+        turns = j * angle / 360.0
+        if abs(turns - round(turns)) <= _COINCIDENT_TURN_TOLERANCE:
+            return j
+    return None
+
+
+def _validate_pattern_number(value: Any, field: str, context: _Context) -> Optional[float]:
+    """S27: a finite number. Negative and zero are allowed."""
+    if not _is_finite_number(value):
+        context.add(
+            "S27",
+            f"{field!r} must be a finite number, got {_describe_number(value)}",
+            context.path(field),
+        )
+        return None
+    return _plain_zero(float(value))
+
+
+def _validate_integer(
+    value: Any,
+    field: str,
+    rule: str,
+    context: _Context,
+    *,
+    accepts: Any,
+    requirement: str,
+) -> Optional[int]:
+    """``rule``: an integer -- a JSON number with no fractional part -- in range.
+
+    ``6`` and ``6.0`` are the same JSON value and both give the int ``6``;
+    ``6.5``, booleans, strings and non-finite numbers are rejected.
+    """
+    path = context.path(field)
+    if not _is_finite_number(value) or float(value) != int(value):
+        context.add(
+            rule,
+            f"{field!r} must be an integer {requirement}, got {_describe_number(value)}",
+            path,
+        )
+        return None
+    number = int(value)
+    if not accepts(number):
+        context.add(rule, f"{field!r} must be {requirement}, got {number}", path)
+        return None
+    return number
+
+
+def _describe_number(value: Any) -> str:
+    """A numeric value as itself, anything else by its JSON type."""
+    if _is_number(value):
+        return repr(value)
+    return _describe(value)
+
+
+def _plain_zero(number: float) -> float:
+    """``-0.0`` becomes ``0.0``: the same value, one spelling."""
+    return 0.0 if number == 0.0 else number
 
 
 def _validate_fillet(

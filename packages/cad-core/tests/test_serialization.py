@@ -33,6 +33,8 @@ from cad_core.model import (
     Part,
     Position,
     Size,
+    feature_parameters,
+    parse_schema_version,
 )
 from cad_core.serialization import (
     CANONICAL_ENCODING,
@@ -236,10 +238,15 @@ class TestFeatureCoverage(SerializationTestCase):
         self.assertTrue(parts_equivalent(part, part_from_json(part_to_json(part))))
 
     def test_each_feature_emits_the_specification_field_order(self) -> None:
-        """Key order follows the Section C tables, not a hand-written list."""
+        """Key order follows the Section C tables, not a hand-written list.
+
+        The tables of the document's *declared* version: this document
+        declares 1.0.0, so the 1.2.0 parameters are not emitted (Section F).
+        """
         part = self.part_from(every_feature_document())
+        declared = parse_schema_version(part.schema_version)
         for feature in serialize_part(part)["features"]:
-            required, optional = FEATURE_PARAMETERS[feature["type"]]
+            required, optional = feature_parameters(feature["type"], declared)
             expected = list(COMMON_FEATURE_FIELDS + required + optional)
             with self.subTest(feature=feature["id"]):
                 self.assertEqual(list(feature.keys()), expected)

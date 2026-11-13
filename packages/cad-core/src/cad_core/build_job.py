@@ -79,7 +79,7 @@ Failures are classified (:class:`BuildFailure`), never collapsed into one
 string:
 
 ============================ ==========================================
-``DOCUMENT_INVALID``         the document fails static validation (S1-S22)
+``DOCUMENT_INVALID``         the document fails static validation (S1-S28)
 ``UNSUPPORTED_GEOMETRY``     the engine does not build this part
 ``GEOMETRY_FAILED``          a geometric rule failed (E1-E5) or a kernel
                              operation could not complete
@@ -432,7 +432,7 @@ def request_for_document(
     """Validate a canonical CAD document and return a build request.
 
     Raises:
-        DocumentValidationError: if the document violates any of S1-S22. Use
+        DocumentValidationError: if the document violates any of S1-S28. Use
             :func:`execute_build_document` instead to receive that as a
             ``FAILED`` job rather than an exception.
     """

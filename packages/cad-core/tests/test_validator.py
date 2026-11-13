@@ -1,4 +1,4 @@
-"""Unit tests for the static CAD specification validator (rules S1-S22).
+"""Unit tests for the static CAD specification validator (rules S1-S28).
 
 The two rules added with ``union`` in schema 1.1.0 -- S21 and S22 -- and the
 version gate on that feature type are tested in ``test_union.py``.

@@ -230,7 +230,7 @@ class ErrorContract:
     #: Which output could not be produced, for an output failure.
     output: Optional[str] = None
 
-    #: Specification rule codes (S1-S22 for a document, E1-E5 for geometry).
+    #: Specification rule codes (S1-S28 for a document, E1-E5 for geometry).
     rule_codes: Tuple[str, ...] = ()
 
     #: The validator's structured errors, for an invalid document.

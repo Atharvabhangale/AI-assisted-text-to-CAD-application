@@ -33,6 +33,8 @@ from cad_core.model import (
     FEATURE_PARAMETERS,
     FEATURE_REFERENCE_FIELDS,
     ORIGIN,
+    PATTERN_DEFAULTS,
+    ROUND_SIDES,
 )
 
 #: Vector component order, as the canonical serialization writes it.
@@ -45,7 +47,24 @@ COMPONENTS: Tuple[str, str, str] = ("x", "y", "z")
 LABEL_ROOT_FIELDS: Tuple[str, ...] = ("name", "description")
 
 #: Scalar parameters that are lengths, per the Section C tables.
-LENGTH_PARAMETERS: Tuple[str, ...] = ("diameter", "height", "radius", "distance")
+LENGTH_PARAMETERS: Tuple[str, ...] = (
+    "diameter",
+    "height",
+    "radius",
+    "distance",
+    "top_diameter",
+    "pattern_step",
+)
+
+#: Schema 1.2.0 parameters whose difference is a shape or count difference.
+SHAPE_PARAMETERS: Tuple[str, ...] = ("sides", "pattern_count", "pattern_angle")
+
+#: Schema 1.2.0 parameters and the value an **absent** one means. A document
+#: declaring an earlier version cannot carry them (rule S3) and means exactly
+#: these defaults, so a 1.0.0 expected document and a 1.2.0 candidate that
+#: writes the defaults out are the same part. ``top_diameter`` defaults to the
+#: same feature's ``diameter`` and is filled per feature.
+ABSENT_MEANS: Mapping[str, Any] = {"sides": ROUND_SIDES, **PATTERN_DEFAULTS}
 
 #: The parameters the specification gives a default, read from the contract's
 #: own tables rather than restated.
@@ -361,10 +380,12 @@ def _compare_parameter(
         collector.compare(
             path, expected, actual, SemanticErrorCategory.WRONG_AXIS, default=default
         )
-    elif name in LENGTH_PARAMETERS:
+    elif name in LENGTH_PARAMETERS or name in SHAPE_PARAMETERS:
         collector.compare(
             path, expected, actual, SemanticErrorCategory.WRONG_DIMENSION
         )
+    elif name == "pattern_axis":
+        collector.compare(path, expected, actual, SemanticErrorCategory.WRONG_AXIS)
     elif name == "edges":
         _compare_selector(collector, path, expected, actual)
     elif name in FEATURE_REFERENCE_FIELDS.get(feature_type, ()):
@@ -410,9 +431,18 @@ def _compare_feature(
             f"{path}.{name}",
             name,
             str(expected_type),
-            expected.get(name),
-            actual.get(name),
+            _value(expected, name),
+            _value(actual, name),
         )
+
+
+def _value(feature: Mapping[str, Any], name: str) -> Any:
+    """A parameter's value, with an absent 1.2.0 parameter read as its default."""
+    if name in feature:
+        return feature[name]
+    if name == "top_diameter":
+        return feature.get("diameter")
+    return ABSENT_MEANS.get(name)
 
 
 def compare_documents(

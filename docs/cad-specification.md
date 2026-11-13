@@ -1,13 +1,16 @@
 # CAD Specification Contract — V1
 
 Status: **V1**
-Schema version described by this document: **`1.1.1`**
+Schema version described by this document: **`1.2.0`**
 
 "V1" names the contract's major version, `1`. Version `1.1.0` adds one feature
 type, `union`, to `1.0.0` and changes nothing else: every `1.0.0` document is
 still valid and still means what it meant (Section F). Version `1.1.1` narrows
 the edge selectors to sharp edges (Section C.7), which only turns blends that
-used to fail into blends that build.
+used to fail into blends that build. Version `1.2.0` adds optional parameters
+and nothing else: a taper and a polygon cross-section on `cylinder` (Section
+C.2), and a pattern that copies, turns and shifts the tools of a `subtract` or
+a `union` (Sections C.4, C.8). Every default means what `1.1.1` meant.
 
 ## Purpose
 
@@ -42,12 +45,20 @@ V1 supports exactly these concepts and nothing else:
 | 8 | Fillet | feature type `fillet` |
 | 9 | Chamfer | feature type `chamfer` |
 | 10 | Boolean union | feature type `union` (from `1.1.0`) |
+| 11 | Taper and regular polygon | `top_diameter` and `sides` on `cylinder` (from `1.2.0`) |
+| 12 | Tool pattern: copies of a tool, turned and shifted | `pattern_count`, `pattern_axis`, `pattern_angle`, `pattern_step` on `subtract` and `union` (from `1.2.0`) |
 
 The following are **explicitly out of scope for V1** and MUST be rejected by a
 V1 validator rather than partially interpreted: assemblies, sketches, splines,
-lofts, sweeps, revolves, threads, patterns, GD&T, tolerances, materials,
-simulation, manufacturing rules, scripting or expressions of any kind, and any
-constraint not defined in this document.
+lofts, sweeps, revolves, threads, arbitrary patterns of features, GD&T,
+tolerances, materials, simulation, manufacturing rules, scripting or
+expressions of any kind, and any constraint not defined in this document.
+
+The one pattern V1 has is the **tool pattern** of `1.2.0` (Sections C.4 and
+C.8): a `subtract` or a `union` may replace each of its tool solids by copies
+of it, turned about and shifted along a principal axis through the origin.
+Nothing else is patterned: there is no pattern of a feature, of a hole, of a
+fillet or of a whole part, and no pattern along a curve.
 
 Any unknown field or unknown feature type is an error (see rule **S3**). V1 is
 deliberately strict: silent tolerance of unknown input is what makes a contract
@@ -74,9 +85,13 @@ Right-handedness fixes the cross products: `X × Y = Z`, `Y × Z = X`,
 ### A.2 Origin
 
 The origin of the PCS is the point `(0, 0, 0)`. There is exactly one coordinate
-system per part. V1 has **no local coordinate systems, no datums, no
-transforms, and no rotations** — every position in the document is an absolute
-position in the PCS.
+system per part. V1 has **no local coordinate systems and no datums** — every
+position in the document is an absolute position in the PCS.
+
+The only movement of a solid is the **tool pattern** of a `subtract` or a
+`union` (from `1.2.0`, Sections C.4 and C.8): its copies of a tool are turned
+about a principal axis **through the origin** and shifted along it. No feature
+has a rotation of its own, and nothing else is ever moved.
 
 ### A.3 Units
 
@@ -88,8 +103,9 @@ context, file name, or consumer default.
   reserved for a later schema version; a V1 validator MUST reject any other
   value rather than convert it (rule **S5**).
 - Every length in the document — sizes, diameters, positions, radii, chamfer
-  distances — is a number expressed in the declared unit.
-- V1 contains no angular parameters, so no angular unit is defined.
+  distances, pattern steps — is a number expressed in the declared unit.
+- The one angular parameter, `pattern_angle` (from `1.2.0`), is in
+  **degrees**, whatever the declared unit. No other parameter is an angle.
 
 Millimetres are the default and the example unit throughout this document.
 
@@ -117,7 +133,9 @@ and MUST be positive:
 
 An **axis** parameter is one of the six signed principal directions, as a
 string: `"+X"`, `"-X"`, `"+Y"`, `"-Y"`, `"+Z"`, `"-Z"`. Arbitrary direction
-vectors are not supported in V1.
+vectors are not supported in V1. Two parameters name an axis **without** a
+sign, as the letter `"X"`, `"Y"` or `"Z"`: the `axis_parallel` edge selector
+(Section C.7) and `pattern_axis` (Sections C.4, C.8).
 
 ---
 
@@ -223,8 +241,10 @@ An axis-aligned rectangular solid. Constructive.
 **Behavior.** `position` is the box's **minimum corner** — the corner with the
 smallest `x`, `y` and `z`. The box occupies
 `[position.x, position.x + size.x] × [position.y, position.y + size.y] ×
-[position.z, position.z + size.z]`. Box edges are always parallel to the PCS
-axes; there is no rotation in V1.
+[position.z, position.z + size.z]`. A box is built axis-aligned: its edges are
+parallel to the PCS axes. It is turned only as a tool, by a pattern (Sections
+C.4, C.8) — for example a `pattern_count` of 1 with a `pattern_angle` of 30
+fuses one copy of the box turned 30° about the axis through the origin.
 
 **Validation.** `size.x`, `size.y`, `size.z` MUST each be `> 0` (rule **S10**).
 `position` components are unconstrained.
@@ -233,6 +253,8 @@ axes; there is no rotation in V1.
 
 A right circular cylinder of finite height. Constructive. In V1 a cylinder is
 used either as the part's base solid or as a tool for `subtract` or `union`.
+From `1.2.0` the same feature also makes a cone frustum, a pointed cone, a
+regular polygon prism and a regular pyramid frustum.
 
 | Parameter | Type | Required | Default | Unit |
 |-----------|------|----------|---------|------|
@@ -242,13 +264,51 @@ used either as the part's base solid or as a tool for `subtract` or `union`.
 | `height` | length | yes | — | length |
 | `position` | position | no | `{"x":0,"y":0,"z":0}` | length |
 | `axis` | axis | no | `"+Z"` | — |
+| `top_diameter` | length | no | equal to `diameter` | length |
+| `sides` | integer | no | `0` | — |
 
-**Behavior.** `position` is the **centre of the base circle**. The cylinder
-extends `height` from that circle in the direction given by `axis`. Its radius
-is `diameter / 2`.
+`top_diameter` and `sides` are defined from schema version `1.2.0`; in a
+document that declares an earlier version they are unknown fields (rule
+**S3**, Section F).
+
+**Behavior.** `position` is the **centre of the base**. The solid extends
+`height` from the base in the direction given by `axis`. The base is the circle
+of `diameter`; the far end, `height` along `axis` from `position`, is the circle
+of `top_diameter`, centred on the same line.
+
+- `top_diameter` equal to `diameter` (the default) is a right circular
+  cylinder of radius `diameter / 2` — exactly the `1.1.1` cylinder.
+- `top_diameter` different from `diameter` is a **taper**: a cone frustum whose
+  side is straight from the base circle to the far circle. It may widen or
+  narrow.
+- `top_diameter` of `0` is a **pointed cone**, its apex `height` along `axis`
+  from `position`.
+
+`sides` chooses the cross-section. `0` (the default) is round. `3` to `12` is
+a **regular polygon** of that many sides whose **corners** lie on the circle
+of `diameter` at the base and on the circle of `top_diameter` at the far end:
+a polygon prism when the two are equal, a pyramid frustum when they differ.
+The flats are therefore nearer the axis than the corners: a hexagon of
+`diameter` `d` measures `d` across its corners and `d · √3/2` across its flats.
+
+A polygon's orientation is fixed: **one corner points along the first
+perpendicular of the axis** —
+
+| `axis` | first corner points toward |
+|--------|----------------------------|
+| `"+Z"`, `"-Z"` | `+X` |
+| `"+X"`, `"-X"` | `+Y` |
+| `"+Y"`, `"-Y"` | `+Z` |
+
+So a hexagon on `+Z` has corners at `±X` and flats facing `±Y`. To turn a
+polygon to another orientation, use it as a tool with a pattern of one copy
+(`pattern_count` 1 and a `pattern_angle`, Sections C.4 and C.8).
 
 **Validation.** `diameter > 0` and `height > 0` (rule **S11**). `axis` MUST be
-one of the six signed principal directions (rule **S12**).
+one of the six signed principal directions (rule **S12**). `top_diameter` is a
+finite number `>= 0`, and `> 0` when `sides` is not `0` — a cone may come to a
+point, a pyramid may not (rule **S23**). `sides` is an integer, `0` or `3` to
+`12` (rule **S24**).
 
 ### C.3 `through_hole`
 
@@ -293,11 +353,55 @@ General boolean subtraction. Modifier.
 | `type` | `"subtract"` | yes | — | — |
 | `target` | ref | yes | — | — |
 | `tools` | array of ref | yes | — | — |
+| `pattern_count` | integer | no | `1` | — |
+| `pattern_axis` | `"X"` \| `"Y"` \| `"Z"` | no | `"Z"` | — |
+| `pattern_angle` | number | no | `0` | degrees |
+| `pattern_step` | length | no | `0` | length |
+
+The four `pattern_*` parameters are defined from schema version `1.2.0`; in a
+document that declares an earlier version they are unknown fields (rule
+**S3**, Section F).
 
 **Behavior.** Each solid listed in `tools` is removed from the target, in list
 order. The result replaces the target in place (Section B.4) and every tool
 solid is consumed — removed from the solid set and unavailable to later
 features.
+
+**Pattern.** Every tool `T` in `tools` is replaced by its copies `T_k`, for
+`k = 1 … pattern_count`:
+
+```
+T_k = shift( turn(T, k · pattern_angle degrees about the line through the
+                  origin (0,0,0) parallel to pattern_axis),
+             k · pattern_step along +pattern_axis )
+```
+
+and the copies are removed from the target as if they had been listed in
+`tools` individually: tool by tool in list order, and for each tool in `k`
+order. A positive angle turns by the right-hand rule — counter-clockwise when
+viewed from the positive end of the axis looking toward the origin (about `Z`,
+`+X` turns toward `+Y`). With the defaults (`1`, `"Z"`, `0`, `0`) the one copy
+`T_1` is `T` itself, so a subtract without pattern parameters means exactly
+what it meant in `1.1.1`.
+
+- **A circle of `n` copies** — a bolt circle: `pattern_count` `n`,
+  `pattern_angle` `360 / n`. The copies sit at `360/n`, `2 · 360/n`, …,
+  `n · 360/n = 360` degrees, so the last copy is the tool's own place and the
+  tool's own position is one of the `n`. Put the tool at one of the places,
+  e.g. the hole on `+X` at the bolt-circle radius.
+- **A single turn** — "turn this cut by 30°": `pattern_count` `1`,
+  `pattern_angle` `30`. The turn is about the axis line **through the origin**,
+  not about the tool's own centre, so build the tool where it should be before
+  turning — a tool centred on that axis turns in place.
+- **A row of `n` copies** — slots at a spacing: `pattern_count` `n`,
+  `pattern_step` `d` along a `pattern_axis`. The copies sit at `d`, `2d`, …,
+  `nd` from the tool, so place the tool **one step before** the first copy
+  wanted. A negative `pattern_step` runs the row toward the negative end.
+- Turn and step together make a helix-like stair of copies.
+
+The pattern copies tools only; it never copies the target or other features.
+Each copy is treated exactly as a tool listed in `tools` would be, and the
+result MUST be a single non-empty connected solid (rules **E2**, **E3**).
 
 Joining solids is a separate feature, `union` (Section C.8). Boolean
 intersection is not part of this contract.
@@ -305,8 +409,11 @@ intersection is not part of this contract.
 **Validation.** `tools` MUST be a non-empty array (rule **S14**). Every id in
 `target` and `tools` MUST resolve to a solid in the solid set (rule **S6**).
 `target` MUST NOT appear in `tools`, and `tools` MUST NOT contain duplicates
-(rule **S15**). The result MUST be a single non-empty connected solid (rules
-**E2**, **E3**).
+(rule **S15**). `pattern_count` is an integer from `1` to `64` (rule **S25**),
+`pattern_axis` is `"X"`, `"Y"` or `"Z"` (rule **S26**), `pattern_angle` and
+`pattern_step` are finite and `|pattern_angle| <= 360` (rule **S27**), and no
+two copies coincide (rule **S28**). The result MUST be a single non-empty
+connected solid (rules **E2**, **E3**).
 
 ### C.5 `fillet`
 
@@ -344,7 +451,7 @@ Bevels selected edges of the target with a symmetric setback. Modifier.
 **Behavior.** Every edge matched by `edges` on the target solid is replaced by a
 flat bevel that sets back `distance` on **both** adjoining faces (an equal-
 distance chamfer). Asymmetric and angle-driven chamfers are not in V1, which is
-why no angle parameter and no unit for angles exist.
+why `chamfer` has no angle parameter.
 
 **Validation.** `distance > 0` (rule **S17**). The selector MUST match at least
 one edge (rule **E4**). The distance MUST be geometrically admissible for every
@@ -409,6 +516,14 @@ unknown feature type (rule **S3**, Section F).
 | `type` | `"union"` | yes | — | — |
 | `target` | ref | yes | — | — |
 | `tools` | array of ref | yes | — | — |
+| `pattern_count` | integer | no | `1` | — |
+| `pattern_axis` | `"X"` \| `"Y"` \| `"Z"` | no | `"Z"` | — |
+| `pattern_angle` | number | no | `0` | degrees |
+| `pattern_step` | length | no | `0` | length |
+
+The four `pattern_*` parameters are defined from schema version `1.2.0`, as for
+`subtract`; in a document that declares an earlier version they are unknown
+fields (rule **S3**).
 
 **Behavior.** Each solid listed in `tools` is fused into the target, in list
 order. The result is the one solid occupying every point that lies in the
@@ -418,8 +533,18 @@ its position in the solid set — and every tool solid is consumed: removed from
 the solid set and unavailable to later features. The union's own `id` never
 names a solid; later features refer to the joined body by the target's id.
 
-`union` moves nothing. Each operand stays where its own `position` put it, so
-whether two solids join is decided entirely by where they already are.
+**Pattern.** Exactly as for `subtract` (Section C.4): every tool `T` is
+replaced by its copies `T_k`, `k = 1 … pattern_count`, turned by
+`k · pattern_angle` degrees about the line through the origin parallel to
+`pattern_axis` and shifted `k · pattern_step` along it, and the copies are
+fused into the target tool by tool, in `k` order. With the defaults the one
+copy is the tool itself. Six arms around a hub on the `Z` axis are one arm
+solid on `+X` that overlaps the hub, with `pattern_count` `6` and
+`pattern_angle` `60`; a rib turned by 30° is `pattern_count` `1` and `pattern_angle` `30`.
+
+Apart from a pattern, `union` moves nothing. Each operand — and each pattern
+copy — stays where its `position` and the pattern put it, so whether two solids
+join is decided entirely by where they already are.
 
 The joined body is a single solid, not its operands side by side: the surfaces
 where operands met disappear, and operand faces that lie on the same surface
@@ -430,8 +555,10 @@ the body was assembled.
 **Validation.** `tools` MUST be a non-empty array (rule **S21**). Every id in
 `target` and `tools` MUST resolve to a solid in the solid set (rule **S6**).
 `target` MUST NOT appear in `tools`, and `tools` MUST NOT contain duplicates
-(rule **S22**). The result MUST be a single connected solid (rule **E3**): the
-target and the tools must form one body by **overlapping or sharing a face**.
+(rule **S22**). The pattern parameters follow rules **S25**–**S28**, as for
+`subtract`. The result MUST be a single connected solid (rule **E3**): the
+target and the tools — every pattern copy included — must form one body by
+**overlapping or sharing a face**.
 Solids that are apart, or that touch only along an edge or at a point, are not
 joined by a `union` — that is an error, never a multi-body result and never a
 no-op.
@@ -587,7 +714,7 @@ Rules are split into two tiers by what they need in order to be checked.
 |------|-------------|
 | **S1** | The document is a single JSON object with the fields of Section B.1; `schema_version`, `units`, `name` and `features` are present. |
 | **S2** | `features` is an array with at least one element, and every element is an object with a string `id` and a string `type`. |
-| **S3** | No unknown fields anywhere in the document, and `type` is one of `box`, `cylinder`, `through_hole`, `subtract`, `fillet`, `chamfer`, `union`. `union` is defined from `1.1.0`: in a document whose `schema_version` is earlier, it is an unknown type (Section F). Unknown fields and unknown types are rejected, never ignored. |
+| **S3** | No unknown fields anywhere in the document, and `type` is one of `box`, `cylinder`, `through_hole`, `subtract`, `fillet`, `chamfer`, `union`. `union` is defined from `1.1.0`: in a document whose `schema_version` is earlier, it is an unknown type (Section F). `cylinder.top_diameter`, `cylinder.sides` and the `pattern_count`, `pattern_axis`, `pattern_angle` and `pattern_step` of `subtract` and `union` are defined from `1.2.0`: in a document whose `schema_version` is earlier, each is an unknown field. Unknown fields and unknown types are rejected, never ignored. |
 | **S4** | `schema_version` is a valid version string and its major version is supported by the validator (Section F). |
 | **S5** | `units` is `"mm"`. No other value is accepted or converted in V1. |
 | **S6** | Every reference (`target`, each entry of `tools`) names a solid that exists in the solid set at the moment the referencing feature is evaluated — i.e. it was created earlier and has not been consumed by a `subtract` or a `union`. |
@@ -604,14 +731,28 @@ Rules are split into two tiers by what they need in order to be checked.
 | **S17** | `chamfer.distance > 0`. |
 | **S18** | An edge selector has `select` of `"all"` or `"axis_parallel"`; `axis` is present with value `"X"`, `"Y"` or `"Z"` exactly when `select` is `"axis_parallel"`. |
 | **S19** | Every position and size is an object with exactly the keys `x`, `y`, `z`, each a finite JSON number. `NaN`, infinities and array forms are invalid. |
-| **S20** | Every length value is a finite number. Sizes, diameters, radii and chamfer distances are positive per the rules above; position components may be negative or zero. |
+| **S20** | Every length value is a finite number. Sizes, diameters, radii and chamfer distances are positive per the rules above; position components may be negative or zero. `top_diameter` may be zero (**S23**) and `pattern_step` negative or zero (**S27**). |
 | **S21** | `union.tools` is a non-empty array. |
 | **S22** | `union.target` does not appear in `union.tools`, and `tools` contains no duplicate ids. |
+| **S23** | `cylinder.top_diameter` is a finite number `>= 0`; when `cylinder.sides` is not `0` it is `> 0` (no pointed pyramid). |
+| **S24** | `cylinder.sides` is an integer equal to `0` or from `3` to `12`. |
+| **S25** | `pattern_count` (on `subtract` or `union`) is an integer from `1` to `64`. |
+| **S26** | `pattern_axis` is one of `"X"`, `"Y"`, `"Z"`. |
+| **S27** | `pattern_angle` and `pattern_step` are finite numbers, and `pattern_angle` is from `-360` to `360` inclusive. |
+| **S28** | When `pattern_count > 1`, no two copies coincide: `pattern_angle` and `pattern_step` are not both `0`, and when `pattern_step` is `0`, no multiple `j · pattern_angle` with `1 <= j < pattern_count` is a whole number of turns (a multiple of `360`). Coinciding copies are a misread request, never a silent no-op. |
 
 S21 and S22 were added in `1.1.0` with `union`. They state for `union` what S14
 and S15 state for `subtract`, under their own codes so that a reported rule
 always names the feature type it is about. No rule from `1.0.0` was renumbered
 or changed in meaning.
+
+S23–S28 were added in `1.2.0` with the taper, polygon and pattern parameters.
+The pattern rules S25–S28 are shared by `subtract` and `union`, because the
+pattern means the same thing on both. An **integer** is a JSON number with no
+fractional part: `6` and `6.0` are the same integer, `6.5` is not one. Each of
+S23–S27 covers its parameter's type and finiteness as well as its range, so
+S20 is not reported for `top_diameter` or `pattern_step`. No earlier rule was
+renumbered or changed in meaning.
 
 ### E.2 Geometric rules (`E`) — require evaluation by the engine
 
@@ -638,13 +779,14 @@ produced**: there is no partial or best-effort output.
 ## F. Versioning
 
 The part document carries a required `schema_version` field. This document
-defines version **`1.1.1`**.
+defines version **`1.2.0`**.
 
 | Version | What it added |
 |---------|---------------|
 | `1.0.0` | The initial contract: `box`, `cylinder`, `through_hole`, `subtract`, `fillet`, `chamfer`; rules S1–S20 and E1–E5. |
 | `1.1.0` | The feature type `union` (Section C.8) and its rules S21 and S22. A MINOR change: no field, default, rule or meaning from `1.0.0` was altered. |
 | `1.1.1` | Edge selectors match **sharp** edges only (Section C.7): seams and smooth (tangent) edges are excluded. A PATCH: every selection that included a seam or a smooth edge failed under rule E5, because the engine refuses to blend them and never skips a selected edge, so no document that built before builds differently. Documents that failed for that reason now build. |
+| `1.2.0` | `cylinder` `top_diameter` and `sides` (Section C.2); the `subtract`/`union` pattern parameters `pattern_count`, `pattern_axis`, `pattern_angle`, `pattern_step` (Sections C.4, C.8); rules S23–S28. A MINOR change: every new parameter is optional, and every default preserves the `1.1.1` meaning. |
 
 - The value is a `MAJOR.MINOR.PATCH` string.
 - **MAJOR** changes when existing documents would no longer mean the same thing:
@@ -665,15 +807,18 @@ Consumer rules:
   (rule **S3**) — in practice this means it will reject documents that use the
   newer features, which is the intended outcome.
 - A document is validated against the version it **declares**. A feature type
-  introduced in a later MINOR version is unknown to a document that declares an
-  earlier one, and is rejected under rule **S3** by every consumer — including
-  one that implements the later version. A document declaring `1.0.0` that uses
-  `union` is therefore invalid; the correction is to declare `1.1.0`. This keeps
-  a document's validity a property of the document, not of whichever consumer
-  reads it.
+  or a parameter introduced in a later MINOR version is unknown to a document
+  that declares an earlier one, and is rejected under rule **S3** by every
+  consumer — including one that implements the later version. A document
+  declaring `1.0.0` that uses `union` is therefore invalid; the correction is
+  to declare `1.1.0`. Likewise a `1.1.1` document with `"sides": 6` is invalid;
+  the correction is to declare `1.2.0`. This keeps a document's validity a
+  property of the document, not of whichever consumer reads it.
 - A consumer never rewrites `schema_version`. A `1.0.0` document stays a `1.0.0`
   document: it is not upgraded on read, so its canonical form and its content
-  hash are unchanged by the existence of `1.1.0`.
+  hash are unchanged by the existence of `1.1.0` or `1.2.0`. In particular the
+  defaults of parameters a document's version does not define are never written
+  into it.
 - Documents never omit `schema_version` and there is no implied default. A
   missing version is an error, not "assume V1".
 

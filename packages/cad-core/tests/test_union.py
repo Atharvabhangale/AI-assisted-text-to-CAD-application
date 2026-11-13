@@ -258,9 +258,10 @@ class UnionTestCase(unittest.TestCase):
 class TestContractConstants(unittest.TestCase):
     """What changed in the vocabulary, and what deliberately did not."""
 
-    def test_the_schema_version_is_1_1_1(self) -> None:
-        """1.1.0 added ``union``; 1.1.1 narrowed edge selectors to sharp edges."""
-        self.assertEqual(SCHEMA_VERSION, "1.1.1")
+    def test_the_schema_version_is_1_2_0(self) -> None:
+        """1.1.0 added ``union``; 1.1.1 narrowed edge selectors to sharp edges;
+        1.2.0 added the taper, polygon and pattern parameters."""
+        self.assertEqual(SCHEMA_VERSION, "1.2.0")
         # A MINOR change (Section F): the major version did not move.
         self.assertEqual(SUPPORTED_SCHEMA_MAJOR, 1)
 
@@ -283,7 +284,14 @@ class TestContractConstants(unittest.TestCase):
         self.assertEqual(FEATURE_INTRODUCED_IN, {"union": (1, 1)})
 
     def test_union_has_exactly_the_parameters_of_subtract(self) -> None:
-        self.assertEqual(FEATURE_PARAMETERS["union"], (("target", "tools"), ()))
+        # 1.2.0 gave both the same four optional pattern parameters.
+        self.assertEqual(
+            FEATURE_PARAMETERS["union"],
+            (
+                ("target", "tools"),
+                ("pattern_count", "pattern_axis", "pattern_angle", "pattern_step"),
+            ),
+        )
         self.assertEqual(FEATURE_PARAMETERS["union"], FEATURE_PARAMETERS["subtract"])
         self.assertEqual(FEATURE_REFERENCE_FIELDS["union"], ("target", "tools"))
         self.assertEqual(TOOL_CONSUMING_TYPES, ("subtract", "union"))
@@ -298,8 +306,9 @@ class TestContractConstants(unittest.TestCase):
         self.assertFalse(isinstance(model.Union, type))
 
     def test_two_static_rules_were_added_and_none_renumbered(self) -> None:
+        # S23-S28 followed in 1.2.0, appended after S22 for the same reason.
         self.assertEqual(
-            STATIC_RULE_CODES, tuple(f"S{number}" for number in range(1, 23))
+            STATIC_RULE_CODES, tuple(f"S{number}" for number in range(1, 29))
         )
         self.assertIn("union.tools", STATIC_RULES["S21"])
         self.assertIn("non-empty", STATIC_RULES["S21"])
@@ -319,7 +328,7 @@ class TestContractConstants(unittest.TestCase):
     def test_the_specification_document_defines_union(self) -> None:
         text = SPECIFICATION_PATH.read_text(encoding="utf-8")
         for required in (
-            "Schema version described by this document: **`1.1.1`**",
+            "Schema version described by this document: **`1.2.0`**",
             "### C.8 `union`",
             "| **S21** | `union.tools` is a non-empty array. |",
             "| **S22** |",

@@ -23,9 +23,10 @@ Supported subset
 A part in millimetres whose feature history begins with a constructive feature
 (``box`` or ``cylinder``) and uses the whole V1 feature set: ``box``,
 ``cylinder``, ``through_hole``, ``subtract``, ``fillet``, ``chamfer`` and --
-from schema version ``1.1.0`` -- ``union``. Several constructive features are
-allowed, provided the extras are consumed as ``subtract`` or ``union`` tools
-so that exactly one solid is left (rule S9).
+from schema version ``1.1.0`` -- ``union``; from ``1.2.0`` tapered and
+polygonal cylinders and patterned ``subtract``/``union`` tools. Several
+constructive features are allowed, provided the extras are consumed as
+``subtract`` or ``union`` tools so that exactly one solid is left (rule S9).
 
 Evaluation model (specification Section B.4)
 --------------------------------------------
@@ -171,6 +172,49 @@ without claiming a rule code -- see :func:`_require_overlap`. Its counterpart
 for ``union`` is an operand that adds no material
 (:func:`_require_added_material`).
 
+Pattern semantics (specification Sections C.4 and C.8, schema 1.2.0)
+--------------------------------------------------------------------
+A ``subtract`` or ``union`` replaces every tool ``T`` by its copies ``T_k``,
+``k = 1 .. pattern_count``: ``T`` turned by ``k * pattern_angle`` degrees about
+the line through the origin parallel to ``pattern_axis`` (right-hand rule),
+then shifted ``k * pattern_step`` along ``+pattern_axis``
+(:func:`_pattern_copies`). The copies are cut or fused tool by tool, and for
+each tool in ``k`` order, through the same :func:`_cut_in_order` and
+:func:`_fuse_in_order` as unpatterned tools, so E2, E3 and the no-material
+refusals apply to every copy unchanged.
+
+With the defaults (one copy, no turn, no shift) the copy **is** the tool --
+no transform is applied at all -- so a ``1.1.x`` subtract or union builds the
+same shape, bit for bit, as before ``1.2.0``.
+
+Each copy is a real kernel copy (``BRepBuilderAPI_Transform`` with
+``copy=True``), not a shared placement of the tool's geometry. The rotation
+matrix is written out directly from the turn, reduced to ``[0, 360)``
+degrees, with **exact** values for whole quarter turns (``cos 90 = 0``, not
+``6e-17``), so a box turned by 90 degrees has edges exactly parallel to the
+axes and the last copy of a full circle (``k * angle = 360``) is the tool's own
+geometry, not a copy turned by a rounding error. A residual turn within
+:data:`PATTERN_TURN_SNAP_DEG` of a whole number of turns is treated as none.
+
+Taper and polygon (specification Section C.2, schema 1.2.0)
+-----------------------------------------------------------
+A round cylinder whose ``top_diameter`` differs from ``diameter`` is
+``cadquery.Solid.makeCone`` (``BRepPrim_Cone``) on the same base centre and
+axis: a frustum, or a pointed cone when ``top_diameter`` is 0 -- measured to
+have a base circle and one seam and **no** edge at the apex, so no selector
+can ever pick the apex.
+
+A polygon (``sides`` 3-12) is built from planar faces: the base and top
+regular polygons (corners on the circles of ``diameter`` and
+``top_diameter``) and one planar quadrilateral side per edge, sewn into a
+shell and closed into a solid (:func:`_build_polygon_solid`). Every face is a
+plane, whether or not it tapers -- a ruled loft between the two polygons was
+measured to give B-spline side faces, which nothing downstream should have to
+reason about. The solid is made along ``+Z`` with a corner on ``+X`` and moved
+by an exact rotation (entries 0 and +/-1 only) whose columns are the axis's
+first perpendicular, second perpendicular and the axis itself, then shifted
+to ``position``.
+
 Box semantics (specification Section C.1)
 -----------------------------------------
 ``position`` is the box's **minimum corner** and the box occupies
@@ -222,6 +266,7 @@ from typing import Any, Dict, Mapping, Tuple
 
 from cad_core.model import (
     AXIS_VALUES,
+    ROUND_SIDES,
     Box,
     Chamfer,
     Cylinder,
@@ -244,7 +289,11 @@ except ImportError as exc:  # pragma: no cover - exercised only without the extr
         "`pip install cadquery`."
     ) from exc
 
+import math
+
+from OCP.BRepBuilderAPI import BRepBuilderAPI_Transform
 from OCP.BRepFilletAPI import BRepFilletAPI_MakeChamfer, BRepFilletAPI_MakeFillet
+from OCP.gp import gp_Trsf
 from OCP.ShapeUpgrade import ShapeUpgrade_UnifySameDomain
 
 from cad_core.edge_selection import select_edges
@@ -266,6 +315,22 @@ AXIS_DIRECTIONS: Mapping[str, Tuple[float, float, float]] = {
     "+Z": (0.0, 0.0, 1.0),
     "-Z": (0.0, 0.0, -1.0),
 }
+
+#: The first perpendicular of each axis (Section C.2): where a polygon's
+#: first corner points. The second perpendicular is ``axis x first``, so the
+#: frame is right-handed and the move from the +Z build frame is a rotation.
+POLYGON_CORNER_DIRECTIONS: Mapping[str, Tuple[float, float, float]] = {
+    "+Z": (1.0, 0.0, 0.0),
+    "-Z": (1.0, 0.0, 0.0),
+    "+X": (0.0, 1.0, 0.0),
+    "-X": (0.0, 1.0, 0.0),
+    "+Y": (0.0, 0.0, 1.0),
+    "-Y": (0.0, 0.0, 1.0),
+}
+
+#: A residual pattern turn this close to a whole number of turns, in degrees,
+#: is no turn at all (see *Pattern semantics*).
+PATTERN_TURN_SNAP_DEG = 1e-9
 
 #: Unit systems this engine accepts (specification Section A.3).
 SUPPORTED_UNITS: Tuple[str, ...] = ("mm",)
@@ -388,7 +453,7 @@ def build_part(part: Part) -> LocalCadResult:
         part: A validated :class:`~cad_core.model.Part`, as returned in
             :attr:`~cad_core.errors.ValidationResult.part`. The part is assumed
             to have passed static validation; this function does not re-run
-            rules S1-S22 and will not repair or reinterpret it.
+            rules S1-S28 and will not repair or reinterpret it.
 
     Returns:
         A :class:`LocalCadResult` wrapping the B-rep solid.
@@ -557,12 +622,13 @@ def _apply_subtract(subtract: Subtract, solids: "Dict[str, Any]") -> None:
                 f"not a solid in the solid set (rule S6); available: {available}"
             )
         seen.append(tool_id)
-        steps.append(
-            (
-                tool,
-                f"subtracting tool {tool_id!r} from target {subtract.target!r}",
+        for copy, name in _pattern_copies(subtract, tool, tool_id):
+            steps.append(
+                (
+                    copy,
+                    f"subtracting tool {name} from target {subtract.target!r}",
+                )
             )
-        )
 
     result = _cut_in_order(
         target,
@@ -627,7 +693,8 @@ def _apply_union(union: UnionFeature, solids: "Dict[str, Any]") -> None:
                 f"not a solid in the solid set (rule S6); available: {available}"
             )
         seen.append(tool_id)
-        steps.append((tool, tool_id, position))
+        for copy, name in _pattern_copies(union, tool, tool_id):
+            steps.append((copy, name, position))
 
     result = _fuse_in_order(
         target, tuple(steps), label=label, target_id=union.target
@@ -649,7 +716,9 @@ def _fuse_in_order(
 ) -> Any:
     """Fuse each tool into ``target`` in order and enforce rule E3.
 
-    ``steps`` holds ``(tool solid, tool id, index in tools)``. Returns the
+    ``steps`` holds ``(tool solid, tool name, index in tools)``, where the
+    name is the quoted tool id -- ``'boss'`` -- or, for a copy made by a
+    pattern, ``'arm' (copy 2 of 6)``. Returns the
     single joined solid, unified (:func:`_unify_same_domain`) and unwrapped
     out of the compound the kernel returns. Raises
     :class:`GeometryOperationError` on any failure -- never a best-effort
@@ -659,22 +728,22 @@ def _fuse_in_order(
     intermediate fuse may be disconnected if a later tool bridges it.
     """
     body = target
-    for tool, tool_id, position in steps:
+    for index, (tool, name, position) in enumerate(steps):
         _require_added_material(
             body,
             tool,
             label=label,
             target_id=target_id,
-            tool_id=tool_id,
+            tool_name=name,
             position=position,
-            is_first=position == steps[0][2],
+            is_first=index == 0,
         )
         try:
             body = body.fuse(tool)
         except Exception as exc:  # pragma: no cover - kernel refusal is rare
             raise GeometryOperationError(
                 f"{label}: the boolean union failed while joining tool "
-                f"{tool_id!r} into target {target_id!r}: {exc}"
+                f"{name} into target {target_id!r}: {exc}"
             ) from exc
 
     # E3. Measured: operands that are apart, or that touch only along an edge
@@ -722,8 +791,8 @@ def _disconnected_union_message(
         (part for part in components if _shares_volume(target, part)), None
     )
     detached = [
-        f"{tool_id!r} (tools[{position}])"
-        for tool, tool_id, position in steps
+        f"{name} (tools[{position}])"
+        for tool, name, position in steps
         if home is None or not _shares_volume(tool, home)
     ]
     if len(detached) == 1:
@@ -762,7 +831,7 @@ def _require_added_material(
     *,
     label: str,
     target_id: str,
-    tool_id: str,
+    tool_name: str,
     position: int,
     is_first: bool,
 ) -> None:
@@ -802,30 +871,30 @@ def _require_added_material(
         body_adds = bool(body.cut(tool).Solids())
     except Exception as exc:  # pragma: no cover - kernel refusal is rare
         raise GeometryOperationError(
-            f"{label}: could not test what tool {tool_id!r} (tools[{position}]) "
+            f"{label}: could not test what tool {tool_name} (tools[{position}]) "
             f"adds to target {target_id!r}: {exc}"
         ) from exc
     if not tool_adds:
         raise GeometryOperationError(
-            f"{label}: tool {tool_id!r} (tools[{position}]) lies entirely "
+            f"{label}: tool {tool_name} (tools[{position}]) lies entirely "
             f"inside {owner}, so joining it would add no material and the "
             "result would be unchanged. The specification does not classify "
             "this case -- its one geometric requirement for 'union' is a "
             "single connected solid, which this would satisfy -- so the "
             "engine refuses it rather than accepting a union that changes "
-            f"nothing. Move or resize {tool_id!r} so part of it lies outside "
+            f"nothing. Move or resize {tool_name} so part of it lies outside "
             f"{target_id!r}"
         )
     if not body_adds:
         raise GeometryOperationError(
-            f"{label}: {owner} lies entirely inside tool {tool_id!r} "
-            f"(tools[{position}]), so the result would be {tool_id!r} alone "
+            f"{label}: {owner} lies entirely inside tool {tool_name} "
+            f"(tools[{position}]), so the result would be {tool_name} alone "
             f"and {target_id!r} would contribute no material. The "
             "specification does not classify this case -- its one geometric "
             "requirement for 'union' is a single connected solid, which this "
             "would satisfy -- so the engine refuses it rather than accepting "
             "a union that changes nothing. Move or resize "
-            f"{target_id!r} or {tool_id!r} so each has material outside the "
+            f"{target_id!r} or {tool_name} so each has material outside the "
             "other"
         )
 
@@ -1315,10 +1384,14 @@ def _build_box(box: Box) -> Any:
 
 
 def _build_cylinder(cylinder: Cylinder) -> Any:
-    """Section C.2: ``position`` is the base circle centre.
+    """Section C.2: ``position`` is the base centre.
 
-    The radius is ``diameter / 2`` and the solid extends ``height`` along the
-    signed principal direction named by ``axis``.
+    The base radius is ``diameter / 2``, the far-end radius
+    ``top_diameter / 2``, and the solid extends ``height`` along the signed
+    principal direction named by ``axis``. Round and untapered is the
+    ``1.1.1`` cylinder, built exactly as before; round and tapered is a cone
+    frustum (or a cone, when ``top_diameter`` is 0); ``sides`` 3-12 is a
+    regular polygon prism or pyramid frustum.
     """
     try:
         direction = AXIS_DIRECTIONS[cylinder.axis]
@@ -1328,14 +1401,186 @@ def _build_cylinder(cylinder: Cylinder) -> Any:
             f"unsupported axis {cylinder.axis!r}; the specification permits "
             f"only {permitted}"
         ) from None
-    return _cq.Solid.makeCylinder(
+    base = _cq.Vector(cylinder.position.x, cylinder.position.y, cylinder.position.z)
+    top_diameter = (
+        cylinder.diameter if cylinder.top_diameter is None else cylinder.top_diameter
+    )
+    if cylinder.sides != ROUND_SIDES:
+        return _build_polygon_solid(cylinder, top_diameter)
+    if top_diameter == cylinder.diameter:
+        return _cq.Solid.makeCylinder(
+            cylinder.diameter / 2.0,
+            cylinder.height,
+            pnt=base,
+            dir=_cq.Vector(*direction),
+        )
+    return _cq.Solid.makeCone(
         cylinder.diameter / 2.0,
+        top_diameter / 2.0,
         cylinder.height,
-        pnt=_cq.Vector(
-            cylinder.position.x, cylinder.position.y, cylinder.position.z
-        ),
+        pnt=base,
         dir=_cq.Vector(*direction),
     )
+
+
+def _build_polygon_solid(cylinder: Cylinder, top_diameter: float) -> Any:
+    """A regular ``sides``-gon prism or pyramid frustum, from planar faces.
+
+    Built along ``+Z`` from the origin with the first corner on ``+X``, then
+    moved by an exact rotation onto ``axis`` -- first corner on the axis's
+    first perpendicular (:data:`POLYGON_CORNER_DIRECTIONS`) -- and shifted to
+    ``position``. A regular polygon with a corner on a line is symmetric
+    about that line, so the second perpendicular's sign cannot matter.
+    """
+    sides = cylinder.sides
+    if not 3 <= sides <= 12:
+        raise UnsupportedGeometryError(
+            f"cylinder {cylinder.id!r} has sides={sides!r}; the specification "
+            "permits 0 (round) or 3 to 12 (rule S24)"
+        )
+    if not top_diameter > 0.0:
+        raise UnsupportedGeometryError(
+            f"cylinder {cylinder.id!r}: a polygon needs top_diameter > 0 "
+            "(rule S23); there is no pointed pyramid"
+        )
+
+    def ring(radius: float, z: float) -> list:
+        corners = []
+        for index in range(sides):
+            theta = 2.0 * math.pi * index / sides
+            corners.append(
+                _cq.Vector(radius * math.cos(theta), radius * math.sin(theta), z)
+            )
+        return corners
+
+    bottom = ring(cylinder.diameter / 2.0, 0.0)
+    top = ring(top_diameter / 2.0, cylinder.height)
+    faces = [
+        _cq.Face.makeFromWires(_cq.Wire.makePolygon(bottom, close=True)),
+        _cq.Face.makeFromWires(_cq.Wire.makePolygon(top, close=True)),
+    ]
+    for index in range(sides):
+        following = (index + 1) % sides
+        faces.append(
+            _cq.Face.makeFromWires(
+                _cq.Wire.makePolygon(
+                    [bottom[index], bottom[following], top[following], top[index]],
+                    close=True,
+                )
+            )
+        )
+    try:
+        local = _cq.Solid.makeSolid(_cq.Shell.makeShell(faces))
+    except Exception as exc:  # pragma: no cover - not observed
+        raise GeometryOperationError(
+            f"cylinder {cylinder.id!r}: the kernel could not close the "
+            f"{sides}-sided polygon solid: {type(exc).__name__}"
+        ) from exc
+
+    w = AXIS_DIRECTIONS[cylinder.axis]
+    u = POLYGON_CORNER_DIRECTIONS[cylinder.axis]
+    v = (  # w x u: a right-handed frame, so the move is a pure rotation
+        w[1] * u[2] - w[2] * u[1],
+        w[2] * u[0] - w[0] * u[2],
+        w[0] * u[1] - w[1] * u[0],
+    )
+    p = cylinder.position
+    trsf = gp_Trsf()
+    trsf.SetValues(
+        u[0], v[0], w[0], p.x,
+        u[1], v[1], w[1], p.y,
+        u[2], v[2], w[2], p.z,
+    )
+    solid = _transformed_copy(local, trsf)
+    if not (solid.isValid() and solid.Volume() > 0.0):  # pragma: no cover
+        raise GeometryOperationError(
+            f"cylinder {cylinder.id!r}: the {sides}-sided polygon solid is not "
+            "a valid solid; no geometry is produced"
+        )
+    return solid
+
+
+def _transformed_copy(shape: Any, trsf: Any) -> Any:
+    """A real copy of ``shape`` moved by ``trsf`` (geometry copied, not shared)."""
+    return _cq.Shape.cast(
+        BRepBuilderAPI_Transform(shape.wrapped, trsf, True).Shape()
+    )
+
+
+def _pattern_copies(
+    feature: Any, tool: Any, tool_id: str
+) -> Tuple[Tuple[Any, str], ...]:
+    """The copies ``T_1 .. T_n`` of one tool, with a display name for each.
+
+    Section C.4/C.8: ``T_k`` is ``tool`` turned by ``k * pattern_angle``
+    degrees about the line through the origin parallel to ``pattern_axis``,
+    then shifted ``k * pattern_step`` along ``+pattern_axis``. With the
+    defaults the only copy is ``tool`` itself, untransformed, and is named as
+    the tool always was, so every pre-1.2.0 message is unchanged.
+    """
+    count = feature.pattern_count
+    angle = feature.pattern_angle
+    step = feature.pattern_step
+    axis = feature.pattern_axis
+    if count == 1 and angle == 0.0 and step == 0.0:
+        return ((tool, repr(tool_id)),)
+    if axis not in ("X", "Y", "Z"):
+        raise UnsupportedGeometryError(
+            f"{feature.TYPE} {feature.id!r} has pattern_axis {axis!r}; the "
+            "specification permits 'X', 'Y' or 'Z' (rule S26)"
+        )
+    copies = []
+    for k in range(1, count + 1):
+        trsf = _pattern_transform(axis, k * angle, k * step)
+        copy = tool if trsf is None else _transformed_copy(tool, trsf)
+        if count == 1:
+            name = (
+                f"{tool_id!r} (turned {angle:g} degrees about {axis} and "
+                f"shifted {step:g} along +{axis} by the pattern)"
+            )
+        else:
+            name = f"{tool_id!r} (copy {k} of {count})"
+        copies.append((copy, name))
+    return tuple(copies)
+
+
+def _pattern_transform(axis: str, degrees: float, shift: float) -> Any:
+    """The turn-then-shift of one pattern copy, or None for the identity.
+
+    The turn is reduced to ``[0, 360)`` and whole quarter turns use exact
+    cosines and sines, so 90, 180 and 270 degrees introduce no rounding and
+    a whole turn is no turn (see *Pattern semantics*). The shift is along the
+    pattern axis, which a turn about that axis leaves where it is, so the
+    order of the two does not matter.
+    """
+    turn = math.fmod(degrees, 360.0)
+    if turn < 0.0:
+        turn += 360.0
+    if turn < PATTERN_TURN_SNAP_DEG or 360.0 - turn < PATTERN_TURN_SNAP_DEG:
+        turn = 0.0
+    quarter_turns = {
+        0.0: (1.0, 0.0),
+        90.0: (0.0, 1.0),
+        180.0: (-1.0, 0.0),
+        270.0: (0.0, -1.0),
+    }
+    if turn in quarter_turns:
+        c, s = quarter_turns[turn]
+    else:
+        c, s = math.cos(math.radians(turn)), math.sin(math.radians(turn))
+    if turn == 0.0 and shift == 0.0:
+        return None
+    # Right-hand rule: positive turns are counter-clockwise seen from the
+    # positive end of the axis -- x->y about Z, y->z about X, z->x about Y.
+    if axis == "Z":
+        rows = ((c, -s, 0.0, 0.0), (s, c, 0.0, 0.0), (0.0, 0.0, 1.0, shift))
+    elif axis == "X":
+        rows = ((1.0, 0.0, 0.0, shift), (0.0, c, -s, 0.0), (0.0, s, c, 0.0))
+    else:
+        rows = ((c, 0.0, s, 0.0), (0.0, 1.0, 0.0, shift), (-s, 0.0, c, 0.0))
+    trsf = gp_Trsf()
+    trsf.SetValues(*rows[0], *rows[1], *rows[2])
+    return trsf
 
 
 def _require_supported_part(part: Any) -> None:

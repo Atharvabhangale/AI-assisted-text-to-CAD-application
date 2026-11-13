@@ -64,7 +64,7 @@ class OperationStatus(Enum):
     """Outcome of one boundary operation.
 
     These describe the *boundary*, never the specification. A specification
-    that fails validation (rules S1-S22) or falls outside the generator's
+    that fails validation (rules S1-S28) or falls outside the generator's
     supported subset never reaches an adapter and therefore never produces one
     of these values -- see :func:`deliver_part`.
     """

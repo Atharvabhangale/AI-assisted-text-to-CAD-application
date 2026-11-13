@@ -19,7 +19,7 @@ but nothing checks them yet.
 
 Consequences that callers must not confuse:
 
-* :func:`cad_core.validator.validate` implements the static rules S1-S22 only.
+* :func:`cad_core.validator.validate` implements the static rules S1-S28 only.
   It never emits an ``E`` code, and a document passing it is *statically*
   valid, not geometrically buildable.
 * A statically valid part may still be impossible to build.  Until the engine
@@ -74,5 +74,5 @@ def check_geometric_rules(part: "Part") -> NoReturn:
     raise NotImplementedError(
         "Geometric rules E1-E5 require an evaluated solid and belong to the "
         "future deterministic CAD engine stage; no geometry is implemented in "
-        "cad-core. Static validation covers rules S1-S22 only."
+        "cad-core. Static validation covers rules S1-S28 only."
     )

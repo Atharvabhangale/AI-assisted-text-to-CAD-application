@@ -1,7 +1,7 @@
 """Canonical serialization of a V1 CAD document.
 
 The CAD document *is* the serialized V1 specification (``docs/cad-specification.md``,
-schema version 1.1.0). It records engineering intent and feature history, and
+schema version 1.2.0). It records engineering intent and feature history, and
 it is the only authoritative artifact in the system:
 
 ```
@@ -47,7 +47,8 @@ document and exactly one canonical byte string.
    has one), then ``features``; a feature emits
    :data:`~cad_core.model.COMMON_FEATURE_FIELDS` followed by its required and
    then optional parameters from
-   :data:`~cad_core.model.FEATURE_PARAMETERS`; a position or size emits
+   :data:`~cad_core.model.FEATURE_PARAMETERS` -- only those the document's
+   declared ``schema_version`` defines (see *Versioning*); a position or size emits
    ``x``, ``y``, ``z``; an edge selector emits ``select`` then ``axis``.
    JSON object key order carries no meaning in the contract, so fixing it is
    safe -- and it is fixed explicitly, not left to dictionary insertion order.
@@ -58,6 +59,9 @@ document and exactly one canonical byte string.
 3. **Numbers are JSON numbers**, never strings. Every numeric field of a
    ``Part`` is a Python ``float`` -- the validator converts on the way in --
    so a length written as ``100`` in a source document comes back as ``100.0``.
+   The two integer parameters of ``1.2.0``, ``cylinder.sides`` and
+   ``pattern_count``, are the exception: they are Python ``int`` and are
+   emitted as ``6``, never ``6.0`` (an input ``6.0`` is the same integer).
    Formatting is ``json``'s own, which uses ``repr`` and is therefore the
    shortest representation that round-trips exactly.
 4. **Negative zero is normalised to ``0.0``.** ``-0.0 == 0.0`` in Python, so a
@@ -75,8 +79,9 @@ document and exactly one canonical byte string.
 
 Defaults: always materialised
 -----------------------------
-Section C makes ``box.position``, ``cylinder.position``, ``cylinder.axis`` and
-``through_hole.axis`` optional, and :mod:`cad_core.model` materialises those
+Section C makes ``box.position``, ``cylinder.position``, ``cylinder.axis``,
+``through_hole.axis`` and -- from ``1.2.0`` -- ``cylinder.top_diameter``,
+``cylinder.sides`` and the four ``pattern_*`` parameters optional, and :mod:`cad_core.model` materialises those
 defaults when a ``Part`` is built. A typed ``Part`` therefore cannot tell an
 omitted ``position`` from one written ``{"x":0,"y":0,"z":0}`` -- the
 information is already gone before this module sees it.
@@ -115,8 +120,20 @@ Versioning
 The only version in a CAD document is the specification's own
 ``schema_version``, and it is **carried, never rewritten**: a part read from
 a ``1.0.0`` document serializes with ``"schema_version":"1.0.0"`` even though
-this package now implements ``1.1.0``, so every ``1.0.0`` document keeps its
-canonical bytes and its hash. Upgrading a document's version is an edit to
+this package now implements ``1.2.0``, so every ``1.0.0`` document keeps its
+canonical bytes and its hash.
+
+The materialised defaults follow the declared version too. ``1.2.0`` added
+optional parameters, and "emit every default" would otherwise write
+``"sides":0`` and ``"pattern_count":1`` into every ``1.1.x`` document --
+changing its bytes and hash, and producing a document its own declared
+version rejects under S3. So a parameter is emitted only when the declared
+version defines it (:func:`cad_core.model.feature_parameters`): a ``1.0.0`` or
+``1.1.x`` document serializes byte-for-byte as it did before ``1.2.0``
+existed, and a ``1.2.0`` document carries all of its parameters. A typed
+``Part`` built by hand that declares an earlier version but holds a
+non-default value for a newer parameter cannot be written in its own version,
+so it is refused (``ValueError``) rather than silently losing that value. Upgrading a document's version is an edit to
 the document, made by its author, not something serialization does.
 This module adds no version of its own: a serialization-format version
 would be a second thing to keep in step for no benefit, since the canonical
@@ -131,12 +148,16 @@ import hashlib
 import json
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Tuple, Union
+from typing import Any, Dict, List, Mapping, Optional, Tuple, Union
 
 from cad_core.errors import ValidationResult
 from cad_core.model import (
     COMMON_FEATURE_FIELDS,
     FEATURE_PARAMETERS,
+    PATTERN_DEFAULTS,
+    ROUND_SIDES,
+    feature_parameters,
+    parse_schema_version,
     Box,
     Chamfer,
     Cylinder,
@@ -244,11 +265,12 @@ def serialize_part(part: Part) -> Dict[str, Any]:
             f"{type(part).__name__}"
         )
 
+    declared = parse_schema_version(part.schema_version)
     document: Dict[str, Any] = {}
     for field in ROOT_FIELD_ORDER:
         if field == "features":
             document["features"] = [
-                _serialize_feature(feature) for feature in part.features
+                _serialize_feature(feature, declared) for feature in part.features
             ]
         elif field == "description":
             # An optional field with no default: omitted when absent, because
@@ -314,7 +336,7 @@ def deserialize_part(data: Mapping[str, Any]) -> Part:
 
     Raises:
         DocumentParseError: if ``data`` is not a JSON object (mapping).
-        DocumentValidationError: if the document violates any of S1-S22. The
+        DocumentValidationError: if the document violates any of S1-S28. The
             exception carries the complete
             :class:`~cad_core.errors.ValidationResult`; no part is returned.
     """
@@ -416,21 +438,46 @@ def load_part(path: PathLike) -> Part:
 # --- internals --------------------------------------------------------------
 
 
-def _serialize_feature(feature: Feature) -> Dict[str, Any]:
+def _serialize_feature(
+    feature: Feature, declared: "Optional[Tuple[int, int]]"
+) -> Dict[str, Any]:
     """Serialize one feature in the specification's own field order.
 
     The order comes from :data:`~cad_core.model.COMMON_FEATURE_FIELDS` plus the
     required and optional columns of
     :data:`~cad_core.model.FEATURE_PARAMETERS`, so the canonical key order
     follows the Section C tables instead of a second hand-written list that
-    could drift from them.
+    could drift from them. Parameters the declared version predates are left
+    out (see *Versioning* above), and must then hold their defaults.
     """
     kind = feature.TYPE
-    required, optional = FEATURE_PARAMETERS[kind]
+    required, optional = feature_parameters(kind, declared)
     serialized: Dict[str, Any] = {}
     for field in COMMON_FEATURE_FIELDS + required + optional:
         serialized[field] = _serialize_field(feature, field)
+    _require_defaults_for_omitted(feature, required + optional)
     return serialized
+
+
+def _require_defaults_for_omitted(feature: Feature, emitted: Tuple[str, ...]) -> None:
+    """Refuse a newer parameter that holds a value its document cannot carry."""
+    _, every_optional = FEATURE_PARAMETERS[feature.TYPE]
+    for field in every_optional:
+        if field in emitted:
+            continue
+        value = getattr(feature, field)
+        if field == "top_diameter":
+            default: Any = feature.diameter  # type: ignore[union-attr]
+        elif field == "sides":
+            default = ROUND_SIDES
+        else:
+            default = PATTERN_DEFAULTS[field]
+        if value != default:
+            raise ValueError(
+                f"{feature.TYPE} {feature.id!r} holds {field}={value!r}, but "
+                "its part declares a schema_version that does not define "
+                f"{field!r}; declare a version that does rather than lose it"
+            )
 
 
 def _serialize_field(feature: Feature, field: str) -> Any:
@@ -445,6 +492,9 @@ def _serialize_field(feature: Feature, field: str) -> Any:
         return list(value)
     if isinstance(value, float):
         return _canonical_number(value)
+    if isinstance(value, int) and not isinstance(value, bool):
+        # sides / pattern_count: integers, emitted as integers.
+        return int(value)
     return value
 
 

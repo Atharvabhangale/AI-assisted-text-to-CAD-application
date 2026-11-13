@@ -23,16 +23,11 @@ from typing import Any, Mapping, Sequence, Tuple
 #: means adding a module here; there is no discovery.
 TEMPLATE_MODULES: Tuple[str, ...] = (
     "engine",
-    "electric_motor",
     "rocket",
-    "drone",
     "toy_car",
-    "wheel",
-    "shaft_coupling",
     "pillow_block",
-    "enclosure",
     "table",
-)
+)  # TEMPORARY during the 1.2.0 rewrite; the other five are re-added after it
 
 #: How many templates one request may carry.
 MAX_TEMPLATES = 2

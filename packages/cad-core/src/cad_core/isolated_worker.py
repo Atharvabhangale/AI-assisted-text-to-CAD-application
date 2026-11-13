@@ -50,7 +50,7 @@ Exit codes
 ``0``  success
 ``10`` a controlled build failure (the engine, a geometric rule, an
        exporter, or an artifact that could not be published)
-``11`` a controlled validation failure (the document violates S1-S22)
+``11`` a controlled validation failure (the document violates S1-S28)
 ``20`` a protocol or input failure (the workspace, the request file, the
        envelope, the protocol version or the operation)
 ``30`` an unhandled internal error in this harness

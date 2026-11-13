@@ -1,11 +1,12 @@
-"""Rule codes defined by ``docs/cad-specification.md`` (schema version 1.1.0).
+"""Rule codes defined by ``docs/cad-specification.md`` (schema version 1.2.0).
 
 The specification splits validation into two tiers:
 
-* ``S1``-``S22`` -- static rules, decidable from the specification document
+* ``S1``-``S28`` -- static rules, decidable from the specification document
   alone.  These are the rules implemented by :mod:`cad_core.validator`.
-  ``S21`` and ``S22`` were added with the ``union`` feature in ``1.1.0``; no
-  earlier rule was renumbered or changed in meaning.
+  ``S21`` and ``S22`` were added with the ``union`` feature in ``1.1.0``, and
+  ``S23``-``S28`` with the taper, polygon and pattern parameters in ``1.2.0``;
+  no earlier rule was renumbered or changed in meaning.
 * ``E1``-``E5`` -- geometric rules, which require an evaluated solid.  They are
   declared in :mod:`cad_core.geometry` and are deliberately not implemented.
 
@@ -31,7 +32,10 @@ STATIC_RULES: Mapping[str, str] = {
         "No unknown fields anywhere in the document, and type is one of box, "
         "cylinder, through_hole, subtract, fillet, chamfer, union. union is "
         "defined from schema version 1.1.0 and is an unknown type in a "
-        "document that declares an earlier version."
+        "document that declares an earlier version; cylinder.top_diameter, "
+        "cylinder.sides and the pattern_* parameters of subtract and union "
+        "are defined from 1.2.0 and are unknown fields in a document that "
+        "declares an earlier version."
     ),
     "S4": (
         "schema_version is a valid version string and its major version is "
@@ -78,11 +82,34 @@ STATIC_RULES: Mapping[str, str] = {
         "Every position and size is an object with exactly the keys x, y, z, "
         "each a finite JSON number."
     ),
-    "S20": "Every length value is a finite number.",
+    "S20": (
+        "Every length value is a finite number. top_diameter may be 0 (S23) "
+        "and pattern_step may be negative or 0 (S27)."
+    ),
     "S21": "union.tools is a non-empty array.",
     "S22": (
         "union.target does not appear in union.tools, and tools contains no "
         "duplicate ids."
+    ),
+    "S23": (
+        "cylinder.top_diameter is a finite number >= 0; when cylinder.sides "
+        "is not 0 it is > 0."
+    ),
+    "S24": (
+        "cylinder.sides is an integer equal to 0 or from 3 to 12. A number "
+        "with no fractional part is an integer: 6 and 6.0 are the same value."
+    ),
+    "S25": "pattern_count is an integer from 1 to 64.",
+    "S26": "pattern_axis is one of \"X\", \"Y\", \"Z\".",
+    "S27": (
+        "pattern_angle and pattern_step are finite numbers, and "
+        "|pattern_angle| <= 360."
+    ),
+    "S28": (
+        "When pattern_count > 1 no two copies coincide: pattern_angle and "
+        "pattern_step are not both 0, and when pattern_step is 0 no multiple "
+        "j * pattern_angle with 1 <= j < pattern_count is a whole number of "
+        "turns (a multiple of 360)."
     ),
 }
 
@@ -110,4 +137,20 @@ STATIC_RULES: Mapping[str, str] = {
 #     S3 (a feature type unknown to that version), reported once on the
 #     feature's 'type'.  Its parameters are then not examined, exactly as for
 #     any other unknown type.
+#   * A 1.2.0 parameter (top_diameter, sides, pattern_*) in a document whose
+#     declared schema_version predates 1.2.0 is S3 (a field unknown to that
+#     version), reported once on the parameter.  Its value is then not
+#     examined, exactly as for any other unknown field.
+#   * Each 1.2.0 parameter is owned entirely by its own rule -- type,
+#     finiteness, integrality and range: top_diameter by S23, sides by S24,
+#     pattern_count by S25, pattern_axis by S26, pattern_angle and
+#     pattern_step by S27.  S20 is never reported for them, although
+#     top_diameter and pattern_step are lengths, because S23 and S27 state
+#     their type themselves.  S28 relates three valid values to each other and
+#     is reported only when pattern_count, pattern_angle and pattern_step are
+#     each valid, on 'pattern_count'.
+#   * An integer parameter (sides, pattern_count) accepts a JSON number with
+#     no fractional part, so 6 and 6.0 are the same value -- JSON itself does
+#     not distinguish them, and neither does JSON Schema's "integer" -- and the
+#     typed value is a Python int.  6.5, booleans and strings are rejected.
 STATIC_RULE_CODES = tuple(STATIC_RULES)
