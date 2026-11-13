@@ -1,11 +1,13 @@
 # CAD Specification Contract — V1
 
 Status: **V1**
-Schema version described by this document: **`1.1.0`**
+Schema version described by this document: **`1.1.1`**
 
 "V1" names the contract's major version, `1`. Version `1.1.0` adds one feature
 type, `union`, to `1.0.0` and changes nothing else: every `1.0.0` document is
-still valid and still means what it meant (Section F).
+still valid and still means what it meant (Section F). Version `1.1.1` narrows
+the edge selectors to sharp edges (Section C.7), which only turns blends that
+used to fail into blends that build.
 
 ## Purpose
 
@@ -358,15 +360,33 @@ later version.
 { "select": "all" }
 ```
 
-Matches every edge of the target solid.
+Matches every **sharp** edge of the target solid.
 
 ```json
 { "select": "axis_parallel", "axis": "Z" }
 ```
 
-Matches every **straight** edge of the target solid that is parallel to the
-given axis. Circular and non-linear edges never match this selector, so
+Matches every **sharp, straight** edge of the target solid that is parallel
+to the given axis. Circular and non-linear edges never match this selector, so
 filleting the vertical corners of a drilled plate does not touch the hole rims.
+
+**Only sharp edges are selected** (since `1.1.1`). An edge is *sharp* when two
+different faces of the solid meet along it at an angle — a crease that can be
+rounded or bevelled. Two kinds of edge are not sharp, and no selector matches
+them:
+
+- a **seam**, where a closed surface meets itself: the straight line running
+  down the side of every cylinder and every hole. The same face lies on both
+  sides of it;
+- a **smooth edge**, where two faces meet tangentially, such as the boundary
+  of a fillet. The surface turns through no angle there.
+
+Neither can be blended, and neither is an edge a person would point at. So
+`{"select": "all"}` on a cylinder matches its two rims, on a drilled plate its
+twelve outer edges and the hole rims, and on an already-filleted body only the
+creases that remain. A fillet propagates along edges that meet tangentially,
+so rounding one edge of a tangent chain rounds the whole chain; a later
+selector that finds no sharp edge left matches nothing, which is rule **E4**.
 
 | Parameter | Type | Required | Notes |
 |-----------|------|----------|-------|
@@ -618,12 +638,13 @@ produced**: there is no partial or best-effort output.
 ## F. Versioning
 
 The part document carries a required `schema_version` field. This document
-defines version **`1.1.0`**.
+defines version **`1.1.1`**.
 
 | Version | What it added |
 |---------|---------------|
 | `1.0.0` | The initial contract: `box`, `cylinder`, `through_hole`, `subtract`, `fillet`, `chamfer`; rules S1–S20 and E1–E5. |
 | `1.1.0` | The feature type `union` (Section C.8) and its rules S21 and S22. A MINOR change: no field, default, rule or meaning from `1.0.0` was altered. |
+| `1.1.1` | Edge selectors match **sharp** edges only (Section C.7): seams and smooth (tangent) edges are excluded. A PATCH: every selection that included a seam or a smooth edge failed under rule E5, because the engine refuses to blend them and never skips a selected edge, so no document that built before builds differently. Documents that failed for that reason now build. |
 
 - The value is a `MAJOR.MINOR.PATCH` string.
 - **MAJOR** changes when existing documents would no longer mean the same thing:

@@ -24,7 +24,7 @@ from typing import ClassVar, Mapping, Optional, Tuple, Union
 #: change under Section F. Every ``1.0.0`` document is still valid, means what
 #: it meant, and keeps its canonical bytes and hash: a document's own
 #: ``schema_version`` is data, and nothing rewrites it to this value.
-SCHEMA_VERSION = "1.1.0"
+SCHEMA_VERSION = "1.1.1"
 
 #: Major version this implementation accepts (Section F, rule S4).
 SUPPORTED_SCHEMA_MAJOR = 1

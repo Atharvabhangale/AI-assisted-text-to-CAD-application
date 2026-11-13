@@ -27,10 +27,34 @@ Supported selectors
 -------------------
 Exactly the two the specification defines, and no others:
 
-* ``{"select": "all"}`` -- every edge of the shape;
+* ``{"select": "all"}`` -- every **sharp** edge of the shape;
 * ``{"select": "axis_parallel", "axis": "X" | "Y" | "Z"}`` -- every
-  **straight** edge whose direction is parallel to that axis, where the axis is
-  **unsigned**: a ``+X`` edge and a ``-X`` edge both match ``"X"``.
+  **sharp, straight** edge whose direction is parallel to that axis, where the
+  axis is **unsigned**: a ``+X`` edge and a ``-X`` edge both match ``"X"``.
+
+Sharp edges only (schema 1.1.1)
+-------------------------------
+An edge is **sharp** when two *different* faces meet along it at an angle --
+a crease a person could see and round. Two kinds of kernel edge are not, and
+no selector matches them:
+
+* a **seam**: the line where a closed surface meets itself, such as the
+  straight line down the side of every cylinder and every hole. Only one face
+  lies on both sides of it;
+* a **smooth edge**: where two faces meet tangentially, such as the boundary
+  of a fillet. The surface turns through no angle there.
+
+Until 1.1.1 both were matched, and the kernel refuses to blend either, so any
+fillet or chamfer whose selection included one failed with rule E5 -- which
+made every cylinder, every part with a hole and every part already blended
+impossible to round with ``all``. No document that built before builds
+differently now: a selection containing a seam or a smooth edge never built.
+
+Classification is read from the kernel: the faces adjoining an edge come from
+``TopExp.MapShapesAndAncestors``, and tangency is the angle between the two
+faces' outward normals, evaluated on each face's own parametric curve of the
+edge at three points along it. :data:`SMOOTH_ANGLE_TOLERANCE_RAD` decides
+"tangent"; see its comment for why it is safe.
 
 The input is the typed :class:`~cad_core.model.EdgeSelector`, not a dictionary.
 A raw selector dictionary is refused, the same way the local engine refuses a
@@ -95,7 +119,7 @@ questions that can be asked are the two the specification defines.
 
 from __future__ import annotations
 
-from typing import Any, Tuple
+from typing import Any, List, Tuple
 
 from cad_core.model import (
     EDGE_SELECT_VALUES,
@@ -112,14 +136,38 @@ except ImportError as exc:  # pragma: no cover - exercised only without the extr
         "`pip install cadquery`."
     ) from exc
 
-from OCP.BRepAdaptor import BRepAdaptor_Curve
+from OCP.BRep import BRep_Tool
+from OCP.BRepAdaptor import BRepAdaptor_Curve, BRepAdaptor_Surface
 from OCP.GeomAbs import GeomAbs_CurveType
-from OCP.gp import gp_Dir
+from OCP.gp import gp_Dir, gp_Pnt, gp_Vec
 from OCP.Precision import Precision
+from OCP.TopAbs import TopAbs_EDGE, TopAbs_FACE, TopAbs_REVERSED
+from OCP.TopExp import TopExp
+from OCP.TopoDS import TopoDS
+from OCP.TopTools import TopTools_IndexedDataMapOfShapeListOfShape
 
 #: OpenCascade's own angular confusion, in radians (``Precision::Angular()``).
 #: Read from the kernel rather than chosen here.
 ANGULAR_TOLERANCE_RAD: float = Precision.Angular_s()
+
+#: Two faces whose outward normals differ by less than this along an edge
+#: meet **tangentially**, so the edge is smooth rather than sharp. Chosen, not
+#: read from the kernel, and measured from both sides: every blend boundary
+#: measured (fillets on boxes, on joined boxes, on Z-then-X blends) has an
+#: angle of exactly 0.0, while the smallest crease V1 geometry produces is the
+#: 45 degrees of a chamfer. One micro-radian sits between them by many orders
+#: of magnitude on each side.
+SMOOTH_ANGLE_TOLERANCE_RAD: float = 1e-6
+
+#: Where along an edge tangency is tested, as fractions of its parameter range.
+#: An edge counts as smooth only if it is tangent at every one of them.
+_TANGENCY_SAMPLES: Tuple[float, ...] = (0.25, 0.5, 0.75)
+
+#: What an edge is, for selection. Only ``SHARP`` edges are ever selected.
+SHARP = "sharp"
+SEAM = "seam"
+SMOOTH = "smooth"
+DEGENERATE = "degenerate"
 
 #: The unsigned selector axes of Section C.7, as kernel directions. Unsigned is
 #: not enforced by this table but by ``gp_Dir.IsParallel``, which treats
@@ -156,9 +204,10 @@ def select_edges(shape: Any, selector: EdgeSelector) -> Tuple[Any, ...]:
             dictionary is not accepted.
 
     Returns:
-        A tuple of the shape's own ``cadquery.Edge`` objects, in
-        ``shape.Edges()`` order. Empty if nothing matches; that is a result,
-        not an error.
+        A tuple of the shape's own **sharp** ``cadquery.Edge`` objects, in
+        ``shape.Edges()`` order. Seams and smooth edges are never returned
+        (see the module docstring). Empty if nothing matches; that is a
+        result, not an error.
 
     Raises:
         TypeError: if ``shape`` is not a kernel shape, or ``selector`` is not
@@ -167,16 +216,96 @@ def select_edges(shape: Any, selector: EdgeSelector) -> Tuple[Any, ...]:
             not one the specification defines, or if ``axis`` is present or
             absent when it should not be (rule S18). Never guessed at.
     """
-    edges = _require_shape(shape).Edges()
     kind, axis = _require_selector(selector)
+    edges = sharp_edges(shape)
 
     if kind == "all":
-        return tuple(edges)
+        return edges
 
     direction = _AXIS_DIRECTIONS[axis]
     return tuple(
         edge for edge in edges if _is_parallel_line(edge, direction)
     )
+
+
+def sharp_edges(shape: Any) -> Tuple[Any, ...]:
+    """Every sharp edge of ``shape``, in ``shape.Edges()`` order."""
+    adjacency = _face_adjacency(_require_shape(shape))
+    return tuple(
+        edge
+        for edge in shape.Edges()
+        if _classify(edge, adjacency) == SHARP
+    )
+
+
+def edge_kind(shape: Any, edge: Any) -> str:
+    """Classify one edge of ``shape``: :data:`SHARP`, :data:`SEAM`,
+    :data:`SMOOTH` or :data:`DEGENERATE`.
+
+    Exposed so a caller or a test can check the same fact the selectors
+    decide on.
+    """
+    adjacency = _face_adjacency(_require_shape(shape))
+    return _classify(_require_edge(edge), adjacency)
+
+
+def _face_adjacency(shape: Any) -> TopTools_IndexedDataMapOfShapeListOfShape:
+    adjacency = TopTools_IndexedDataMapOfShapeListOfShape()
+    TopExp.MapShapesAndAncestors_s(
+        shape.wrapped, TopAbs_EDGE, TopAbs_FACE, adjacency
+    )
+    return adjacency
+
+
+def _classify(edge: Any, adjacency: TopTools_IndexedDataMapOfShapeListOfShape) -> str:
+    kernel_edge = TopoDS.Edge_s(edge.wrapped)
+    if BRep_Tool.Degenerated_s(kernel_edge):
+        return DEGENERATE
+    faces: List[Any] = []
+    if adjacency.Contains(kernel_edge):
+        for face in adjacency.FindFromKey(kernel_edge):
+            if not any(face.IsSame(known) for known in faces):
+                faces.append(face)
+    if len(faces) == 1:
+        # The same face on both sides: a closed surface's seam.
+        return SEAM
+    if len(faces) == 2 and _is_tangent(
+        kernel_edge, TopoDS.Face_s(faces[0]), TopoDS.Face_s(faces[1])
+    ):
+        return SMOOTH
+    # Two faces at an angle. An edge with no face (a bare wire, never part of
+    # a V1 solid) has no surface to be a seam of or tangent across, so it is
+    # not excluded either.
+    return SHARP
+
+
+def _is_tangent(edge: Any, first: Any, second: Any) -> bool:
+    curve = BRepAdaptor_Curve(edge)
+    start, end = curve.FirstParameter(), curve.LastParameter()
+    for fraction in _TANGENCY_SAMPLES:
+        parameter = start + fraction * (end - start)
+        angle = _outward_normal(edge, first, parameter).Angle(
+            _outward_normal(edge, second, parameter)
+        )
+        if angle >= SMOOTH_ANGLE_TOLERANCE_RAD:
+            return False
+    return True
+
+
+def _outward_normal(edge: Any, face: Any, parameter: float) -> Any:
+    """The face's outward unit normal at ``parameter`` along ``edge``.
+
+    Read on the face's own parametric curve of the edge, so the point is
+    exactly on both the edge and that face's surface.
+    """
+    pcurve = BRep_Tool.CurveOnSurface_s(edge, face, 0.0, 0.0)
+    uv = pcurve.Value(parameter)
+    point, du, dv = gp_Pnt(), gp_Vec(), gp_Vec()
+    BRepAdaptor_Surface(face).D1(uv.X(), uv.Y(), point, du, dv)
+    normal = du.Crossed(dv)
+    if face.Orientation() == TopAbs_REVERSED:
+        normal.Reverse()
+    return normal
 
 
 def edge_curve_type(edge: Any) -> str:
