@@ -709,6 +709,36 @@ never verified as *the part the person meant* (A6 remains the standing
 counterexample). The loop has not been exercised against a real rejection:
 see the live-evidence note under *Prompt 2026-11-12.1*.
 
+## Schema 1.2.0: tapers, polygons, patterns (prompt 2026-11-13.7)
+
+The model can write a cone or taper (`top_diameter` on a cylinder), a regular
+polygon prism (`sides` 3-12) and a pattern on `subtract`/`union`
+(`pattern_count`, `pattern_axis`, `pattern_angle`, `pattern_step`): copy k of
+each tool is turned k x angle about the axis line through the origin and moved
+k x step along it. n around a circle is `count` n with `angle` 360/n; a single
+turn is `count` 1; a row is a `step`. The prompt gives that arithmetic and a
+worked flange with a 6-hole bolt circle and a hex nut.
+
+**The response schema could not simply grow.** Measured live, the six-branch
+schema plus any new branch -- or plus as few as four extra scalar fields --
+is refused with `400: The compiled grammar is too large`, on Haiku 5.5 and
+Sonnet 5.5 alike: it is the structured-output compiler's limit, not a model's.
+So the new capabilities are parameters on existing features, and two things
+were removed from what the *model* is offered to make room:
+
+* **`through_hole`.** The model cuts every hole as a cylinder tool and a
+  `subtract` (which a pattern turns into a bolt circle). `through_hole`
+  remains valid V1 CAD: the specification, validator and engine accept it,
+  and the prompt says it is not available rather than leaving it unexplained.
+* **The nullable `document`.** It is always an object; when the status is not
+  "document" the model writes a placeholder, which is never read.
+
+Live, one call each and no retries: a hexacopter with six evenly spaced arms
+(one arm patterned 6 x 60 degrees), an M10 nut as a true hexagon (19.6 mm
+corner diameter for 17 mm across flats) and a six-spoke steering wheel with
+no template (one tapered spoke patterned about Y) -- all generated, valid and
+built on the first call.
+
 ## Reference designs (template library)
 
 Since prompt `2026-11-13.6`, `cad_ai.templates` holds complete, verified

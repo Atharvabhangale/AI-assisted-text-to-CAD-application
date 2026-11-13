@@ -580,14 +580,22 @@ class TestResponseSchema(unittest.TestCase):
     def test_the_api_schema_stays_inside_the_measured_limits(self) -> None:
         # Measured against the structured-output compiler: at most 24
         # optional properties in a schema and about 14 in one object, and a
-        # grammar-size limit that the seventh feature branch crossed.
+        # grammar-size limit. With the schema 1.2.0 parameters, six branches
+        # (or a nullable document) were refused live; five branches and a
+        # non-nullable document compile (prompt 2026-11-13.7). There is
+        # essentially no headroom: re-probe live before growing this schema.
         total, largest = optional_property_counts(schema_for_api(response_schema()))
         self.assertLessEqual(total, 4)
         self.assertLessEqual(largest, 2)
-        branches = response_schema()["properties"]["document"]["anyOf"][0][
-            "properties"
-        ]["features"]["items"]["anyOf"]
-        self.assertLessEqual(len(branches), 6)
+        document = response_schema()["properties"]["document"]
+        self.assertNotIn("anyOf", document, "a nullable document no longer fits")
+        branches = document["properties"]["features"]["items"]["anyOf"]
+        self.assertLessEqual(len(branches), 5)
+        titles = {branch["title"] for branch in branches}
+        self.assertNotIn("through_hole", titles)
+        cylinder = next(b for b in branches if b["title"] == "cylinder")
+        self.assertIn("top_diameter", cylinder["required"])
+        self.assertIn("sides", cylinder["required"])
 
     def test_subtract_and_union_share_a_branch(self) -> None:
         self.assertIn(("subtract", "union"), feature_groups())

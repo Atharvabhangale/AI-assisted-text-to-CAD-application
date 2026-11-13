@@ -81,7 +81,7 @@ design change, not a refactor.
 - **The validator is authoritative for document validity.** No other layer
   decides whether a document is valid, and no layer is allowed to accept a
   document the validator rejects.
-- **The CAD engine is authoritative for geometry.** Static rules (S1–S20) are
+- **The CAD engine is authoritative for geometry.** Static rules (S1–S28) are
   decidable from the document; geometric rules (E1–E5) require the kernel.
 - **Derived artifacts are not authoritative.** A STEP file is an output, never
   an input to a decision.
@@ -104,22 +104,23 @@ design change, not a refactor.
 
 ## 3. The V1 CAD specification (summary)
 
-Authoritative file: **`docs/cad-specification.md`** (schema version `1.1.1`;
+Authoritative file: **`docs/cad-specification.md`** (schema version `1.2.0`;
 `1.0.0` documents stay valid, and `union` is an unknown type in them; `1.1.1`
 made edge selectors match sharp edges only — see Edge selectors below).
 Rule codes live in `cad_core.rules`. Read the spec before changing anything
 that touches document semantics.
 
-**Feature vocabulary — seven types** (`union` added in Stage 33):
+**Feature vocabulary — seven types** (`union` added in Stage 33; schema `1.2.0` added parameters, not types — see below):
 
 | Type | Kind | Key parameters |
 |---|---|---|
 | `box` | constructive | `size {x,y,z}` (all > 0), optional `position` |
-| `cylinder` | constructive | `diameter`, `height` (both > 0), optional `position`, optional `axis` |
+| `cylinder` | constructive | `diameter`, `height` (both > 0), optional `position`, optional `axis`; **1.2.0:** optional `top_diameter` (taper; 0 = pointed cone, round only, S23) and `sides` (0 round, 3–12 polygon prism, corners on the `diameter` circle, S24) |
 | `through_hole` | modifier | `target`, `diameter`, `position`, `axis` |
 | `subtract` | modifier | `target`, `tools[]` |
 | `fillet` | modifier | `target`, `radius`, edge selector |
 | `chamfer` | modifier | `target`, `distance`, edge selector |
+| `subtract` / `union` pattern | modifier | **1.2.0:** optional `pattern_count` (1–64), `pattern_axis` (X/Y/Z), `pattern_angle` (deg), `pattern_step` (mm): copy k = 1..count of each tool is turned k·angle about the axis line **through the origin** and moved k·step along it. Defaults = the tool itself. n around a circle = count n, angle 360/n; a single turn = count 1. Rules S25–S28 (S28: coincident copies are an error) |
 | `union` | modifier | `target`, `tools[]` — fuses the tools into the target, which keeps its id; tools are consumed. Operands must overlap or share a face (edge/point contact is E3). Static rules S21 (non-empty tools), S22 (target not in tools, no duplicates) |
 
 **Semantics that matter:**
@@ -170,9 +171,9 @@ simulation, and expressions/scripting of any kind.
 | Module | Purpose | Notable API | Limitations | Docs |
 |---|---|---|---|---|
 | `model.py` | Typed V1 document | `Part`, `Box`, `Cylinder`, `ThroughHole`, `Subtract`, `Fillet`, `Chamfer`, `Position`, `Size`, `EdgeSelector` | Types only; validity is the validator's job | `docs/cad-specification.md` |
-| `validator.py` | **Authoritative** static validator | `validate(document) -> ValidationResult` | Static rules S1–S20 only; E-rules need the engine | spec §E |
+| `validator.py` | **Authoritative** static validator | `validate(document) -> ValidationResult` | Static rules S1–S28 only; E-rules need the engine | spec §E |
 | `errors.py` | Structured validation errors | `ValidationError`, `ValidationResult` | — | — |
-| `rules.py` | Rule-code constants | S1–S20, E1–E5 | — | spec §E |
+| `rules.py` | Rule-code constants | S1–S28, E1–E5 | — | spec §E |
 | `geometry.py` | Geometric rule boundary | `check_geometric_rules` | Requires a built shape | spec §E.2 |
 | `serialization.py` | Canonical JSON + hashing | `serialize_part`, `part_hash`, `deserialize_part`, `parts_equivalent`, `save_part`, `load_part` | Canonical form is the hash input; don't hand-roll JSON | `docs/cad-document-serialization.md` |
 | `local_cad.py` | **The CAD engine** (CadQuery/OpenCascade) | `build_part`, `shape_volume`, `shape_bounding_box`, `shape_solid_count` | Requires `cadquery`; returns kernel objects — never serialize them | `docs/local-cad-engine.md` |
@@ -240,9 +241,9 @@ estimated.
 
 | Suite | Result |
 |---|---|
-| cad-core (`unittest`) | **1617 passed** (schema 1.1.1, Linux, Python 3.13; 1481 at Stage 32 on Windows) |
+| cad-core (`unittest`) | **1685 passed** (schema 1.2.0, Linux, Python 3.13; 1617 at 1.1.1; 1481 at Stage 32 on Windows) |
 | API + AI (`unittest`) | **648 tests, 2 skipped** (prompt 2026-11-13.6, template library of 10, Linux; with the `ai-gemini` extra installed — without it, Gemini tests skip) |
-| Frontend (`vitest`) | **162 passed** (5 files) |
+| Frontend (`vitest`) | **180 passed** (6 files) |
 | Frontend typecheck (`tsc --noEmit`) | **clean** |
 | Launcher (`scripts\Test-DevLauncher.ps1`) | **62 assertions passed** |
 
@@ -336,10 +337,40 @@ attempt. A plain "an engine" now always gets the full reference engine.
 Cost policy from the owner: **at most 10 (never more than 20) real requests
 per hour**, and no Opus.
 
+**Schema 1.2.0 and prompt `2026-11-13.7` — read before touching the
+response schema.** Tapers, polygon prisms and patterns (§3) were added as
+**parameters on existing features, not new feature types**, because the
+structured-output compiler is at its limit: measured live (16 probes), the
+six-branch schema plus *any* new branch or even four extra scalar fields
+fails with `400: The compiled grammar is too large` — on Haiku 5.5 **and**
+Sonnet 5.5 alike (it is the API's grammar compiler, not the model). Moving
+`type` first, dropping the optional `edges.axis`, or flattening fields did
+not help. What compiles: **`through_hole` is no longer offered to the model**
+(`specification.SUPPORTED_FEATURE_TYPES`; it stays valid CAD, and the prompt
+says to cut every hole as a cylinder tool + `subtract`, which a pattern turns
+into a whole bolt circle) and **`document` is no longer nullable** (a
+placeholder when the status is not "document"; `generation.py` already ignored
+it then). Any future addition to the response schema must be re-probed live:
+there is essentially no headroom. Templates and examples are written with
+`cad_ai.features` (`box`, `cyl(top=, sides=)`, `union`/`subtract(count=,
+axis=, angle=, step=)`, `drill(..., pattern_axis=)`). A single rotation is a
+`count=1` pattern, which only exists on a union/subtract — so a lone piece is
+turned by uniting it into something (the drone template uses a hidden root
+disc). Live (Haiku 5.5, one call each, no retries): "a hexacopter drone with
+six arms" → six arms by one 6×60° pattern, tapered motor bells and legs, a hex
+prop nut, 55 s; "an M10 hex nut" → a `sides` 6 prism of 19.6 mm corner
+diameter (17 across flats, correct), 7 s; "a steering wheel with six spokes"
+(no template) → one tapered spoke patterned 6×60° about Y, 26 s. 3/3
+generated, valid and built on the first call.
+`cad_ai.comparison` reads an absent 1.2.0 parameter as its default, so the
+1.0.0 corpus still compares; but the corpus expects `through_hole` in places,
+so a model answer of cylinder + subtract there now scores a feature-type
+difference -- one more reason the corpus needs its re-baseline (§10).
+
 **Template library (prompt `2026-11-13.6`).** `cad_ai/templates/` holds
 reference designs: complete, verified answers built by hand from parameters
 in Python (`_helpers.py`), one module per object, each listed in
-`TEMPLATE_MODULES`. Ten today: engine (114 features), electric motor, rocket,
+`TEMPLATE_MODULES`. Ten today: engine (82 features since 1.2.0, the same solid as the 114-feature 1.1.1 one), electric motor, rocket,
 drone, toy car, wheel, shaft coupling, pillow block, electronics enclosure,
 table. `select_templates` picks **at most two** by whole-word keyword match,
 deterministically, with no model involved; a template's optional `excludes`
@@ -382,9 +413,9 @@ none of which are set. It never sends `tools`, `tool_config` or
 `automatic_function_calling`.
 
 **Prompt architecture.** One prompt, in one place, with one version id:
-`PROMPT_VERSION = "2026-11-13.6"`, fingerprint
-`e89ad21bd1cc975e402a5c8c45267696e6d71bb48e3609a16abca47560e172cc`, length
-39747 characters (it changes whenever `docs/cad-specification.md`'s quoted
+`PROMPT_VERSION = "2026-11-13.7"`, fingerprint
+`8342e52576362038a54712eec9380701f9c066fe9557d1d3faad5010b2a50c06`, length
+53091 characters (it changes whenever `docs/cad-specification.md`'s quoted
 sections change). **Four separate tests pin those three values** (two in
 `test_text_to_cad_ai.py`, two in `test_gemini_provider_boundary.py`); when you
 change the prompt on purpose, update all of them together and re-measure —
@@ -691,6 +722,8 @@ Stage 29, plus the commit that added this file) and the docs. Verify against
 
 0. ~~**Exclude seam and tangent edges from edge selectors**~~ — **done**
    (schema `1.1.1`).
+0. ~~**Tapers, polygons, patterns and rotation**~~ — **done** (schema
+   `1.2.0`, prompt `2026-11-13.7`; see §6 for the grammar limit it hit).
 1. **Re-baseline the corpus for the new policy.** Prompt `2026-11-12.1`
    assumes instead of asking and approximates instead of refusing, so the
    D-ambiguity and E-unsupported expectations are stale (§6) and a corpus run
@@ -770,7 +803,7 @@ Each of these is supported by the code, the docs or the measured results.
 Treat these as invariants. If a change requires violating one, that is a
 design decision to raise explicitly, not a detail to slip into a diff.
 
-- **Do not weaken rules S1–S20 or E1–E5**, and do not make the validator
+- **Do not weaken rules S1–S28 or E1–E5**, and do not make the validator
   lenient to let a model's output through.
 - **Do not bypass validation.** Every document reaching the engine has passed
   the validator.
