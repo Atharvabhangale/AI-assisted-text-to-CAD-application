@@ -433,6 +433,18 @@ class TestEngineRecipe(ServiceTestCase):
         )
         self.assertTrue(built.succeeded, built.error)
 
+    def test_the_engine_example_is_the_reference_fixture(self) -> None:
+        # Example 4 is generated in cad_ai.prompt; the fixture is the same
+        # engine written out. They must not drift apart.
+        fixture = json.loads(
+            (Path(__file__).parent / "fixtures" / "cutaway_engine.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        engine = EXAMPLES[-1]["answer"]["document"]
+        self.assertEqual(engine["features"], fixture["features"])
+        self.assertIn("Example 4 below is the complete engine", system_prompt())
+
     def test_the_prompt_carries_the_recipe(self) -> None:
         text = system_prompt()
         for phrase in (

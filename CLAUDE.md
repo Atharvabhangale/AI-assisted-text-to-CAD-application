@@ -286,8 +286,9 @@ issues`, all required (the `plan` comes first so the arithmetic is written
 before the document). The document schema requires every parameter and groups
 `subtract`/`union` in one branch: the first live call after `union` was added
 failed with `400: The compiled grammar is too large`. The prompt carries
-engine-measured buildability rules and three worked examples (L-bracket, mug,
-gaming mouse) that a test builds.
+engine-measured buildability rules and four worked examples (L-bracket, mug,
+gaming mouse and, since 2026-11-13.4, the 92-feature cutaway engine) that a
+test builds.
 
 **Live evidence, Stage 33, Claude Haiku 5.5** (product flow, not a benchmark):
 desk phone stand, 2-inch cube with a hole and rounded edges (converted to
@@ -339,9 +340,9 @@ none of which are set. It never sends `tools`, `tool_config` or
 `automatic_function_calling`.
 
 **Prompt architecture.** One prompt, in one place, with one version id:
-`PROMPT_VERSION = "2026-11-13.3"`, fingerprint
-`5c2f5cdfcd71aa25bb6fd9eefc9f1a736a7af36a09f80c083e4e612fb04b746e`, length
-38383 characters (it changes whenever `docs/cad-specification.md`'s quoted
+`PROMPT_VERSION = "2026-11-13.4"`, fingerprint
+`1bc4a18d2b689063491bb1d58c60a1cdca77ab6b72761b2dbe016314f8ae7725`, length
+51084 characters (it changes whenever `docs/cad-specification.md`'s quoted
 sections change). **Four separate tests pin those three values** (two in
 `test_text_to_cad_ai.py`, two in `test_gemini_provider_boundary.py`); when you
 change the prompt on purpose, update all of them together and re-measure —

@@ -143,7 +143,8 @@ PLATE_SIZE = (100.0, 60.0, 10.0)
 #: position rather than being a gap to ask about. The 2026-09-09.1 value was
 #: ``fe62c9759a08d45ca372672479631863b25876cc52aca999da7edb1e8cde979a``.
 #:
-#: Re-pinned for **2026-11-13.3** (engine internals in a cutaway; 2026-11-13.2
+#: Re-pinned for **2026-11-13.4** (reference engine as Example 4; 2026-11-13.3
+#: was 5c2f5cdf...). Before that, **2026-11-13.3** (engine internals in a cutaway; 2026-11-13.2
 #: was 28145553...). Before that, **2026-11-13.2** (detail rule and engine recipe; 2026-11-13.1
 #: was 90b4cb50...). Before that, **2026-11-13.1** (schema 1.1.1: blends match sharp edges
 #: only, so the blending rules were rewritten; 2026-11-12.1 was cf2291a5...).
@@ -156,7 +157,7 @@ PLATE_SIZE = (100.0, 60.0, 10.0)
 #: Updating it is the maintenance step the pinning test itself prescribes, and
 #: it retires every earlier measurement of model behaviour.
 PROMPT_FINGERPRINT = (
-    "5c2f5cdfcd71aa25bb6fd9eefc9f1a736a7af36a09f80c083e4e612fb04b746e"
+    "1bc4a18d2b689063491bb1d58c60a1cdca77ab6b72761b2dbe016314f8ae7725"
 )
 
 #: Tolerance for a kernel-reported length. Never exact float equality.
@@ -1888,7 +1889,7 @@ class TestPromptAndSchema(unittest.TestCase):
         # update PROMPT_VERSION and this value together, and do not assume any
         # earlier claim about model behaviour still holds.
         self.assertEqual(prompt_fingerprint(), PROMPT_FINGERPRINT)
-        self.assertEqual(PROMPT_VERSION, "2026-11-13.3")
+        self.assertEqual(PROMPT_VERSION, "2026-11-13.4")
 
     def test_the_prompt_states_the_seven_required_things(self) -> None:
         text = system_prompt()
@@ -2787,8 +2788,9 @@ class TestProviderParity(unittest.TestCase):
         # 2026-11-12.1 (assumption policy, buildability rules, examples);
         # 35199 for 2026-11-13.1 (sharp-edge blending rules, complex products);
         # 37168 for 2026-11-13.2 (detail rule, engine recipe); 38383 for
-        # 2026-11-13.3 (engine internals in a cutaway).
-        self.assertEqual(len(system_prompt()), 38383)
+        # 2026-11-13.3 (engine internals in a cutaway); 51084 for 2026-11-13.4
+        # (the reference engine as Example 4).
+        self.assertEqual(len(system_prompt()), 51084)
         self.assertEqual(prompt_fingerprint(), PROMPT_FINGERPRINT)
 
 
