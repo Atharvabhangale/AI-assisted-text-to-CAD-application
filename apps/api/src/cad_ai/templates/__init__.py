@@ -23,6 +23,15 @@ from typing import Any, Mapping, Sequence, Tuple
 #: means adding a module here; there is no discovery.
 TEMPLATE_MODULES: Tuple[str, ...] = (
     "engine",
+    "electric_motor",
+    "rocket",
+    "drone",
+    "toy_car",
+    "wheel",
+    "shaft_coupling",
+    "pillow_block",
+    "enclosure",
+    "table",
 )
 
 #: How many templates one request may carry.
@@ -41,12 +50,20 @@ def _load() -> Tuple[Mapping[str, Any], ...]:
 TEMPLATES: Tuple[Mapping[str, Any], ...] = _load()
 
 
+def _mentions(text: str, word: str) -> bool:
+    return re.search(r"(?<![a-z0-9])" + re.escape(word) + r"(?![a-z0-9])", text) is not None
+
+
 def _score(template: Mapping[str, Any], text: str) -> int:
-    return sum(
-        1
-        for keyword in template["keywords"]
-        if re.search(r"(?<![a-z0-9])" + re.escape(keyword) + r"(?![a-z0-9])", text)
-    )
+    """How many keywords the text names; 0 if it names an exclusion.
+
+    ``excludes`` (optional) lists words that mean the request is about
+    something else that merely shares a keyword -- "a rocket engine" is not
+    the car engine, "a motor mount bracket" is not a motor.
+    """
+    if any(_mentions(text, word) for word in template.get("excludes", ())):
+        return 0
+    return sum(1 for keyword in template["keywords"] if _mentions(text, keyword))
 
 
 def select_templates(description: str, limit: int = MAX_TEMPLATES) -> Sequence[Mapping[str, Any]]:

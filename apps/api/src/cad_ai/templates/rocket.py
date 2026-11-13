@@ -41,7 +41,7 @@ def _build() -> Mapping[str, Any]:
     f += [union("add_tail", "body", ["nozzle_throat", "nozzle_bell"] + fins + ["lug"])]
     f += [subtract("cut_details", "body", ["bell_cavity", "lug_bore"])]
     return {
-        "request": "a model rocket with a nose cone, four fins, an engine nozzle and a launch lug",
+        "request": "a model rocket with a nose cone, four fins, an exhaust nozzle and a launch lug",
         "answer": answer(
             plan=(
                 "Axis Z, centre (0,0). Body tube d60 z60-460, coupler band d64 z300-310. "

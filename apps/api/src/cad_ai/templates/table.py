@@ -69,5 +69,6 @@ def _build() -> Mapping[str, Any]:
 TEMPLATE: Mapping[str, Any] = {
     "name": "table",
     "keywords": ("table", "desk", "dining table", "coffee table", "side table", "workbench"),
+    "excludes": ("lamp", "table saw", "timetable", "turntable"),
     **_build(),
 }

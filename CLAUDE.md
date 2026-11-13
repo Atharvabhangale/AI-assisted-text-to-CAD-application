@@ -220,6 +220,7 @@ Docs: `docs/http-api.md`, `docs/artifact-delivery.md`,
 | `comparison.py` | Field-level document comparison + semantic error taxonomy |
 | `evaluation.py` | The benchmark harness and its CLI |
 | `factory.py` | `model_from_environment` — the one provider dispatch, shared by the app and the benchmark |
+| `templates/` | The reference-design library: one module per object, `select_templates` (keyword, max 2), attached to the user text by `generation.compose_user_text` |
 
 Docs: `docs/text-to-cad-ai.md`, `docs/ai-evaluation.md`,
 `docs/ai-provider-comparison.md`.
@@ -240,7 +241,7 @@ estimated.
 | Suite | Result |
 |---|---|
 | cad-core (`unittest`) | **1617 passed** (schema 1.1.1, Linux, Python 3.13; 1481 at Stage 32 on Windows) |
-| API + AI (`unittest`) | **638 tests, 2 skipped** (prompt 2026-11-13.4, streaming provider, Linux; with the `ai-gemini` extra installed — without it, Gemini tests skip) |
+| API + AI (`unittest`) | **648 tests, 2 skipped** (prompt 2026-11-13.6, template library of 10, Linux; with the `ai-gemini` extra installed — without it, Gemini tests skip) |
 | Frontend (`vitest`) | **162 passed** (5 files) |
 | Frontend typecheck (`tsc --noEmit`) | **clean** |
 | Launcher (`scripts\Test-DevLauncher.ps1`) | **62 assertions passed** |
@@ -286,10 +287,9 @@ issues`, all required (the `plan` comes first so the arithmetic is written
 before the document). The document schema requires every parameter and groups
 `subtract`/`union` in one branch: the first live call after `union` was added
 failed with `400: The compiled grammar is too large`. The prompt carries
-engine-measured buildability rules and four worked examples (L-bracket, mug,
-gaming mouse and, since 2026-11-13.4, the cutaway engine -- 114 features since
-2026-11-13.5, with camshafts and a timing belt) that a
-test builds.
+engine-measured buildability rules and three worked examples (L-bracket, mug,
+gaming mouse) that a test builds. Since `2026-11-13.6` the engine is no longer
+in the prompt: it is one entry in the **template library** below.
 
 **Live evidence, Stage 33, Claude Haiku 5.5** (product flow, not a benchmark):
 desk phone stand, 2-inch cube with a hole and rounded edges (converted to
@@ -336,6 +336,34 @@ attempt. A plain "an engine" now always gets the full reference engine.
 Cost policy from the owner: **at most 10 (never more than 20) real requests
 per hour**, and no Opus.
 
+**Template library (prompt `2026-11-13.6`).** `cad_ai/templates/` holds
+reference designs: complete, verified answers built by hand from parameters
+in Python (`_helpers.py`), one module per object, each listed in
+`TEMPLATE_MODULES`. Ten today: engine (114 features), electric motor, rocket,
+drone, toy car, wheel, shaft coupling, pillow block, electronics enclosure,
+table. `select_templates` picks **at most two** by whole-word keyword match,
+deterministically, with no model involved; a template's optional `excludes`
+words drop it ("a rocket engine" is not the car engine, "a motor mount
+bracket" is not a motor). The chosen answers are appended to the **user
+text** after the verbatim description (`compose_user_text`,
+`REFERENCE_MARKER`), so the system prompt stays identical and cached for every
+request; retries keep them. `metadata.templates` records which were sent.
+The prompt's *Reference designs* section tells the model to follow a matching
+reference and change only what was asked. The evaluation harness passes
+`use_templates=False`, so benchmark scores measure the prompt alone.
+Adding a template: write the module, run it through
+`TestTemplateLibrary` (it must validate, build as one solid and select
+itself from its own `request`), add it to `TEMPLATE_MODULES`. **Live
+(2026-11-13.6, Haiku 5.5, one call each, no retries allowed):** "a hexacopter
+drone with six arms" → 40 features, six arms and pods (it noted that six arms
+on axis-aligned boxes cannot sit at 60°); "a model rocket with three fins" →
+29 features, three fins, kept the reference's nozzle and launch lug; "a
+stepper motor" → 11 features, a NEMA 17 body rather than a copy of the
+induction-motor reference. 3/3 generated, valid and built on the first call,
+17-43 s. The other seven templates are verified to build and select but are
+not yet exercised live. Each template costs about 3-7k
+characters of uncached input when it is attached; the engine about 15k.
+
 **Provider-neutral interface.** `cad_ai.provider.TextToCadModel` is a tiny
 interface with no vendor types in its signatures. Both providers implement it;
 each imports its SDK **lazily**, inside its own module, so `cad-core` and the
@@ -354,9 +382,9 @@ none of which are set. It never sends `tools`, `tool_config` or
 `automatic_function_calling`.
 
 **Prompt architecture.** One prompt, in one place, with one version id:
-`PROMPT_VERSION = "2026-11-13.5"`, fingerprint
-`af5a5484fcb87150f42d33cfe8fbb40df09b3d3ac37ce681afef71773435d64c`, length
-54693 characters (it changes whenever `docs/cad-specification.md`'s quoted
+`PROMPT_VERSION = "2026-11-13.6"`, fingerprint
+`e89ad21bd1cc975e402a5c8c45267696e6d71bb48e3609a16abca47560e172cc`, length
+39747 characters (it changes whenever `docs/cad-specification.md`'s quoted
 sections change). **Four separate tests pin those three values** (two in
 `test_text_to_cad_ai.py`, two in `test_gemini_provider_boundary.py`); when you
 change the prompt on purpose, update all of them together and re-measure —

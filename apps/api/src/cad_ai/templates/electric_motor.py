@@ -96,5 +96,6 @@ def _build() -> Mapping[str, Any]:
 TEMPLATE: Mapping[str, Any] = {
     "name": "electric_motor",
     "keywords": ("electric motor", "motor", "dc motor", "ac motor", "induction motor", "servo motor", "servo", "stepper", "stepper motor", "bldc"),
+    "excludes": ("mount", "bracket", "motor mount"),
     **_build(),
 }

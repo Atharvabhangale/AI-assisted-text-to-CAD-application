@@ -709,6 +709,37 @@ never verified as *the part the person meant* (A6 remains the standing
 counterexample). The loop has not been exercised against a real rejection:
 see the live-evidence note under *Prompt 2026-11-12.1*.
 
+## Reference designs (template library)
+
+Since prompt `2026-11-13.6`, `cad_ai.templates` holds complete, verified
+answers for common objects -- engine, electric motor, rocket, drone, toy car,
+wheel, shaft coupling, pillow block, electronics enclosure, table. Each is
+built by hand from parameters, validates, and builds as one solid; a test
+holds all of that.
+
+- **Selection is code, not the model.** `select_templates(description)`
+  counts whole-word keyword matches, drops any template whose `excludes`
+  words appear, and returns at most two, best first, ties in
+  `TEMPLATE_MODULES` order. A request that names none gets none, and its
+  user text is exactly the description.
+- **The references ride in the user text**, after the description and a
+  fixed marker, never in the system prompt -- so the system prompt, and its
+  prompt cache, are the same for every request. A retry keeps them.
+- **The model is told to follow a matching reference** and change only what
+  the request asks for, and to list what it kept in `assumptions`. What it
+  returns is validated and built like any other answer; a template is
+  guidance, never a shortcut past the validator.
+- **The benchmark switches them off** (`use_templates=False`) so a corpus
+  score measures the prompt, not the library.
+
+Live on Haiku 5.5, one call each: the engine (as Example 4 under prompt
+`2026-11-13.5`), and under `2026-11-13.6` a six-arm hexacopter from the
+four-arm drone, a three-fin rocket from the four-fin one, and a stepper motor
+that took a smaller NEMA 17 form instead of copying the induction motor -- all
+generated, valid and built on the first call. The remaining templates
+(toy car, wheel, coupling, pillow block, enclosure, table) are verified on the
+engine and in selection tests only.
+
 ## Prompt injection, code output, and tools
 
 **The model gets no tools.** Not shell, Python, filesystem, HTTP, the CAD

@@ -154,5 +154,6 @@ def _build() -> Mapping[str, Any]:
 TEMPLATE: Mapping[str, Any] = {
     "name": "engine",
     "keywords": ("engine", "piston", "pistons", "crankshaft", "camshaft", "camshafts", "cylinder head", "timing belt", "inline-four", "inline four", "v8", "v6"),
+    "excludes": ("rocket", "jet", "jet engine", "steam engine", "engine mount", "fire engine"),
     **_build(),
 }

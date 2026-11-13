@@ -57,7 +57,7 @@ from cad_ai.generation import (
     compose_user_text,
 )
 from cad_ai.prompt import EXAMPLES, system_prompt
-from cad_ai.templates import TEMPLATES, select_templates
+from cad_ai.templates import TEMPLATE_MODULES, TEMPLATES, select_templates
 from cad_ai.templates.engine import TEMPLATE as ENGINE_TEMPLATE
 from cad_ai.provider import (
     ModelRequest,
@@ -500,6 +500,34 @@ class TestTemplateLibrary(ServiceTestCase):
         self.assertEqual(select_templates("a 100 x 60 x 10 mm plate"), ())
         self.assertEqual(select_templates("an engineer's square"), ())
         self.assertLessEqual(len(select_templates(" ".join(k for t in TEMPLATES for k in t["keywords"]))), 2)
+
+    def test_an_exclusion_word_drops_a_template(self) -> None:
+        # The rocket is not the car engine; a motor bracket is not a motor.
+        def names(text: str) -> list:
+            return [t["name"] for t in select_templates(text)]
+
+        self.assertEqual(names("a rocket engine"), ["rocket"])
+        self.assertEqual(names("a car engine"), ["engine"])
+        self.assertEqual(names("a motor mount bracket"), [])
+        self.assertEqual(names("a dc motor"), ["electric_motor"])
+        self.assertEqual(names("a table lamp"), [])
+        self.assertEqual(names("a coffee table"), ["table"])
+
+    def test_no_template_is_attached_to_the_parts_the_prompt_already_teaches(self) -> None:
+        for text in (
+            "an L-bracket",
+            "a mug with a rounded rim",
+            "a gaming mouse",
+            "a pipe flange with four bolt holes",
+            "an M10 hex nut",
+            "a pencil holder",
+        ):
+            with self.subTest(text=text):
+                self.assertEqual(select_templates(text), ())
+
+    def test_the_library_covers_more_than_engines(self) -> None:
+        self.assertGreaterEqual(len(TEMPLATES), 10)
+        self.assertEqual(len(TEMPLATE_MODULES), len(TEMPLATES))
 
     def test_the_description_comes_first_and_verbatim(self) -> None:
         self.assertEqual(compose_user_text("a plate", ()), "a plate")

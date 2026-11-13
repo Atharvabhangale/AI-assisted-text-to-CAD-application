@@ -57,6 +57,6 @@ def _build() -> Mapping[str, Any]:
 
 TEMPLATE = {
     "name": "wheel",
-    "keywords": ("wheel", "spoked wheel", "tyre", "tire", "rim"),
+    "keywords": ("wheel", "spoked wheel", "tyre", "tire"),
     **_build(),
 }
