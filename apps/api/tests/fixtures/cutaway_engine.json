@@ -1104,6 +1104,296 @@
    ]
   },
   {
+   "id": "cam_tower_1",
+   "type": "box",
+   "size": {
+    "x": 8,
+    "y": 84,
+    "z": 64
+   },
+   "position": {
+    "x": 6,
+    "y": 28,
+    "z": 288
+   }
+  },
+  {
+   "id": "cam_tower_2",
+   "type": "box",
+   "size": {
+    "x": 8,
+    "y": 84,
+    "z": 64
+   },
+   "position": {
+    "x": 66,
+    "y": 28,
+    "z": 288
+   }
+  },
+  {
+   "id": "cam_tower_3",
+   "type": "box",
+   "size": {
+    "x": 8,
+    "y": 84,
+    "z": 64
+   },
+   "position": {
+    "x": 126,
+    "y": 28,
+    "z": 288
+   }
+  },
+  {
+   "id": "cam_tower_4",
+   "type": "box",
+   "size": {
+    "x": 8,
+    "y": 84,
+    "z": 64
+   },
+   "position": {
+    "x": 186,
+    "y": 28,
+    "z": 288
+   }
+  },
+  {
+   "id": "cam_tower_5",
+   "type": "box",
+   "size": {
+    "x": 8,
+    "y": 84,
+    "z": 64
+   },
+   "position": {
+    "x": 246,
+    "y": 28,
+    "z": 288
+   }
+  },
+  {
+   "id": "intake_camshaft",
+   "type": "cylinder",
+   "diameter": 24,
+   "height": 304,
+   "position": {
+    "x": -4,
+    "y": 40,
+    "z": 350
+   },
+   "axis": "+X"
+  },
+  {
+   "id": "intake_lobe_1",
+   "type": "cylinder",
+   "diameter": 32,
+   "height": 12,
+   "position": {
+    "x": 20,
+    "y": 40,
+    "z": 345
+   },
+   "axis": "+X"
+  },
+  {
+   "id": "intake_lobe_2",
+   "type": "cylinder",
+   "diameter": 32,
+   "height": 12,
+   "position": {
+    "x": 80,
+    "y": 40,
+    "z": 345
+   },
+   "axis": "+X"
+  },
+  {
+   "id": "intake_lobe_3",
+   "type": "cylinder",
+   "diameter": 32,
+   "height": 12,
+   "position": {
+    "x": 140,
+    "y": 40,
+    "z": 345
+   },
+   "axis": "+X"
+  },
+  {
+   "id": "intake_lobe_4",
+   "type": "cylinder",
+   "diameter": 32,
+   "height": 12,
+   "position": {
+    "x": 200,
+    "y": 40,
+    "z": 345
+   },
+   "axis": "+X"
+  },
+  {
+   "id": "exhaust_camshaft",
+   "type": "cylinder",
+   "diameter": 24,
+   "height": 304,
+   "position": {
+    "x": -4,
+    "y": 100,
+    "z": 350
+   },
+   "axis": "+X"
+  },
+  {
+   "id": "exhaust_lobe_1",
+   "type": "cylinder",
+   "diameter": 32,
+   "height": 12,
+   "position": {
+    "x": 48,
+    "y": 100,
+    "z": 345
+   },
+   "axis": "+X"
+  },
+  {
+   "id": "exhaust_lobe_2",
+   "type": "cylinder",
+   "diameter": 32,
+   "height": 12,
+   "position": {
+    "x": 108,
+    "y": 100,
+    "z": 345
+   },
+   "axis": "+X"
+  },
+  {
+   "id": "exhaust_lobe_3",
+   "type": "cylinder",
+   "diameter": 32,
+   "height": 12,
+   "position": {
+    "x": 168,
+    "y": 100,
+    "z": 345
+   },
+   "axis": "+X"
+  },
+  {
+   "id": "exhaust_lobe_4",
+   "type": "cylinder",
+   "diameter": 32,
+   "height": 12,
+   "position": {
+    "x": 228,
+    "y": 100,
+    "z": 345
+   },
+   "axis": "+X"
+  },
+  {
+   "id": "add_camshafts",
+   "type": "union",
+   "target": "block",
+   "tools": [
+    "cam_tower_1",
+    "cam_tower_2",
+    "cam_tower_3",
+    "cam_tower_4",
+    "cam_tower_5",
+    "intake_camshaft",
+    "intake_lobe_1",
+    "intake_lobe_2",
+    "intake_lobe_3",
+    "intake_lobe_4",
+    "exhaust_camshaft",
+    "exhaust_lobe_1",
+    "exhaust_lobe_2",
+    "exhaust_lobe_3",
+    "exhaust_lobe_4"
+   ]
+  },
+  {
+   "id": "intake_cam_pulley",
+   "type": "cylinder",
+   "diameter": 70,
+   "height": 20,
+   "position": {
+    "x": 290,
+    "y": 40,
+    "z": 350
+   },
+   "axis": "+X"
+  },
+  {
+   "id": "exhaust_cam_pulley",
+   "type": "cylinder",
+   "diameter": 70,
+   "height": 20,
+   "position": {
+    "x": 290,
+    "y": 100,
+    "z": 350
+   },
+   "axis": "+X"
+  },
+  {
+   "id": "belt_left_run",
+   "type": "box",
+   "size": {
+    "x": 18,
+    "y": 4,
+    "z": 315
+   },
+   "position": {
+    "x": 291,
+    "y": 23,
+    "z": 35
+   }
+  },
+  {
+   "id": "belt_right_run",
+   "type": "box",
+   "size": {
+    "x": 18,
+    "y": 4,
+    "z": 315
+   },
+   "position": {
+    "x": 291,
+    "y": 113,
+    "z": 35
+   }
+  },
+  {
+   "id": "belt_top_run",
+   "type": "box",
+   "size": {
+    "x": 18,
+    "y": 60,
+    "z": 4
+   },
+   "position": {
+    "x": 291,
+    "y": 40,
+    "z": 383
+   }
+  },
+  {
+   "id": "add_timing_drive",
+   "type": "union",
+   "target": "block",
+   "tools": [
+    "intake_cam_pulley",
+    "exhaust_cam_pulley",
+    "belt_left_run",
+    "belt_right_run",
+    "belt_top_run"
+   ]
+  },
+  {
    "id": "flywheel",
    "type": "cylinder",
    "diameter": 220,
@@ -1143,13 +1433,13 @@
    "id": "alternator",
    "type": "cylinder",
    "diameter": 80,
-   "height": 70,
+   "height": 60,
    "position": {
-    "x": 258,
-    "y": 100,
-    "z": 190
+    "x": 60,
+    "y": 138,
+    "z": 140
    },
-   "axis": "+X"
+   "axis": "+Y"
   },
   {
    "id": "mount_right",

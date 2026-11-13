@@ -91,10 +91,15 @@ from cad_ai.specification import (
 #: straight journal instead of using webs, and dropped the plug wells and
 #: valve retainers.
 #:
+#: ``2026-11-13.5`` extends the reference engine (Example 4 and the recipe)
+#: with overhead camshafts on bearing towers, a lobe per valve, and a timing
+#: belt -- cam pulleys, crank pulley and straight belt runs -- built and
+#: checked by hand first (114 features, one solid).
+#:
 #: What did **not** change: the model emits a data document and never code,
 #: the validator is still the only authority on validity, anchor-point and
 #: axis semantics, and order-is-meaning.
-PROMPT_VERSION = "2026-11-13.4"
+PROMPT_VERSION = "2026-11-13.5"
 
 
 def _p(x: float, y: float, z: float) -> Dict[str, float]:
@@ -351,7 +356,7 @@ EXAMPLES: Tuple[Mapping[str, Any], ...] = (
 def _engine_example() -> Mapping[str, Any]:
     """The reference cutaway engine, as a worked example.
 
-    Built from parameters rather than written out, so its 92 features stay
+    Built from parameters rather than written out, so its 114 features stay
     consistent with one another; ``tests/fixtures/cutaway_engine.json`` holds
     the same features and a test checks the two agree and that this builds.
     """
@@ -414,15 +419,30 @@ def _engine_example() -> Mapping[str, Any]:
         pz = zc + (stroke / 2 if up[n - 1] else -stroke / 2)
         train += [box(f"rod_{n}", (12, 16, rod), (x - 6, yc - 8, pz)), cyl(f"piston_{n}", 48, 40, (x, yc, pz + rod - 10))]
     f += train + [op("add_crank_train", "union", "block", [t["id"] for t in train])]
+    cam: list = [box(f"cam_tower_{k}", (8, 84, 64), (tx, 28, 288)) for k, tx in enumerate((6, 66, 126, 186, 246), 1)]
+    for side, y in (("intake", 40), ("exhaust", 100)):
+        cam.append(cyl(f"{side}_camshaft", 24, 304, (-4, y, 350), "+X"))
+        for n, x in enumerate(xs, 1):
+            vx = x - 14 if side == "intake" else x + 14
+            cam.append(cyl(f"{side}_lobe_{n}", 32, 12, (vx - 6, y, 345), "+X"))
+    f += cam + [op("add_camshafts", "union", "block", [c["id"] for c in cam])]
+    belt = [
+        cyl("intake_cam_pulley", 70, 20, (290, 40, 350), "+X"),
+        cyl("exhaust_cam_pulley", 70, 20, (290, 100, 350), "+X"),
+        box("belt_left_run", (18, 4, 315), (291, 23, 35)),
+        box("belt_right_run", (18, 4, 315), (291, 113, 35)),
+        box("belt_top_run", (18, 60, 4), (291, 40, 383)),
+    ]
+    f += belt + [op("add_timing_drive", "union", "block", [b["id"] for b in belt])]
     f += [
         cyl("flywheel", 220, 25, (-58, yc, zc), "+X"), cyl("crank_pulley", 90, 20, (290, yc, zc), "+X"),
-        cyl("oil_filter", 60, 50, (200, 138, 100), "+Y"), cyl("alternator", 80, 70, (258, 100, 190), "+X"),
+        cyl("oil_filter", 60, 50, (200, 138, 100), "+Y"), cyl("alternator", 80, 60, (60, 138, 140), "+Y"),
         box("mount_right", (40, 30, 40), (110, 138, 90)),
         op("add_accessories", "union", "block", ["flywheel", "crank_pulley", "oil_filter", "alternator", "mount_right"]),
         {"id": "mount_bolt_right", "type": "through_hole", "target": "block", "diameter": 10, "position": _p(130, 160, 0), "axis": "+Z"},
     ]
     return {
-        "request": "a detailed 4 cylinder engine with pistons, a crankshaft, valves and ports",
+        "request": "a detailed 4 cylinder engine with pistons, a crankshaft, camshafts, a timing belt, valves and ports",
         "answer": {
             "status": "document",
             "plan": (
@@ -437,14 +457,20 @@ def _engine_example() -> Mapping[str, Any]:
                 "321-335. Crank: journal segments through every bulkhead and end "
                 "wall, pins at z=55 (cyl 1,4) and z=15 (cyl 2,3), webs either side "
                 "of each pin. Rods 100 tall on the pins, pistons d48 h40 on the "
-                "rods inside the bores. Flywheel and pulley on the crank axis; "
-                "filter, alternator and mount 2 mm into the back and end faces."
+                "rods inside the bores. Camshafts d24 along x at y=40 and y=100, "
+                "z=350, on five towers standing on the deck between the valves; a "
+                "lobe per valve dropping onto its stem. Timing drive at x=290: "
+                "cam pulleys d70 on the camshaft ends, the crank pulley on the "
+                "crank, and three belt runs overlapping the pulleys' rims. "
+                "Flywheel on the crank at the other end; filter, alternator and "
+                "mount 2 mm into the back face."
             ),
             "assumptions": [
                 "No unit given; assumed millimetres",
                 "Chose 50 mm bore, 40 mm stroke, 60 mm pitch, 100 mm rods",
                 "Front half cut away below the head so the pistons, rods and crankshaft show",
-                "Valve cover and camshaft left off so the valves show",
+                "Valve cover and timing cover left off so the camshafts, valves and belt show",
+                "Timing belt approximated as three straight runs around the pulleys",
                 "Moving parts fused in place: crankshaft held by its journals, cylinders 1 and 4 at top",
             ],
             "document": {
@@ -454,7 +480,7 @@ def _engine_example() -> Mapping[str, Any]:
                 "description": "Inline-four engine, front half cut away to show pistons, connecting rods and crankshaft",
                 "features": f,
             },
-            "summary": "A cutaway inline-four engine with pistons, rods, crankshaft, valves and ports.",
+            "summary": "A cutaway inline-four engine with pistons, crankshaft, camshafts, timing belt, valves and ports.",
             "questions": [],
             "issues": [],
         },
@@ -569,7 +595,15 @@ show them in a **cutaway**, and keep them joined to the one solid:
   piston (cylinder 2 mm smaller than the bore) on top of the rod, inside the
   bore, the rod reaching 10 mm into the piston;
 * `union` the whole crank train into the body in one feature, after the
-  cutaway.
+  cutaway;
+* **camshafts** (overhead, one per valve row): a cylinder along `+X` above
+  each row, carried by bearing towers (boxes) standing on the head deck
+  between the valves, with a lobe (short wider cylinder, offset down) over
+  each valve, reaching 6 mm into its stem;
+* **timing belt** at the end opposite the flywheel: a pulley on each
+  camshaft end and the crank pulley on the crank, joined by belt runs --
+  thin boxes that overlap each pulley's rim, since a curved belt cannot be
+  expressed. Leave the timing cover off so it shows.
 
 **Example 4 below is the complete engine.** For any engine request, follow
 it: keep every one of its parts -- including the plug wells, the valve

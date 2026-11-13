@@ -424,7 +424,11 @@ class TestEngineRecipe(ServiceTestCase):
             )
         )
         ids = {feature["id"] for feature in document["features"]}
-        for name in ("piston_1", "rod_1", "crank_pin_1", "journal_1", "cutaway"):
+        for name in (
+            "piston_1", "rod_1", "crank_pin_1", "journal_1", "cutaway",
+            "intake_camshaft", "exhaust_lobe_4", "cam_tower_1",
+            "intake_cam_pulley", "belt_top_run",
+        ):
             self.assertIn(name, ids)
         validation = self.service.validate_document(document)
         self.assertTrue(validation.valid, validation.error)
@@ -456,6 +460,8 @@ class TestEngineRecipe(ServiceTestCase):
             "starts 2 mm inside the face it attaches to",
             "**Internals (pistons, crankshaft, connecting rods)**",
             "adding any internal part, so the internals stay whole",
+            "**camshafts** (overhead, one per valve row)",
+            "**timing belt** at the end opposite the flywheel",
         ):
             self.assertIn(phrase, text, msg=phrase)
 
