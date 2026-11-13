@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
 from cad_core import validate
-from cad_core.edge_selection import select_edges
+from cad_core.edge_selection import SEAM, edge_kind, select_edges
 from cad_core.iges_export import export_iges, read_iges
 from cad_core.local_cad import (
     GeometryOperationError,
@@ -38,6 +38,12 @@ from cad_core.model import (
 from cad_core.render_model import build_render_model
 from cad_core.step_export import export_step, read_step
 from cad_core.stl_export import binary_stl_facts, export_stl, read_stl
+
+from unfiltered_selection import (
+    engine_selects_unfiltered,
+    seam_edges,
+    unfiltered_edges,
+)
 
 # --- explicit tolerances ---------------------------------------------------
 
@@ -787,49 +793,54 @@ class TestMixedEdges(ChamferTestCase):
 
 
 class TestCylinderSeam(ChamferTestCase):
-    """The Stage 12 seam finding, carried into a chamfer.
+    """The Stage 12 seam finding, and what schema 1.1.1 did about it.
 
-    Measured outcome: the kernel will not bevel a parameterisation seam at
-    all. ``Add`` accepts the edge and then quietly builds no contour for it,
-    so the coverage check is what catches it -- and it is reported as E5,
-    because no distance makes that edge bevellable.
+    The kernel will not bevel a parameterisation seam at all: ``Add`` accepts
+    the edge and then quietly builds no contour for it. Selectors used to
+    match the seam, so the coverage check refused ``all`` on a cylinder with
+    E5; they now exclude it and the cylinder bevels. The kernel measurements
+    are kept, taken on the seam as the shape reports it.
     """
 
     def pin(self) -> LocalCadResult:
         return self.build_document(document([cylinder_feature()], "pin"))
 
-    def test_the_selector_still_matches_only_the_seam(self) -> None:
-        from cad_core.edge_selection import edge_curve_type
-
-        selected = select_edges(
-            self.pin().shape, EdgeSelector(select="axis_parallel", axis="Z")
+    def test_the_selector_excludes_the_seam(self) -> None:
+        shape = self.pin().shape
+        (seam,) = seam_edges(shape)
+        self.assertEqual(edge_kind(shape, seam), SEAM)
+        self.assertEqual(
+            select_edges(shape, EdgeSelector(select="axis_parallel", axis="Z")), ()
         )
-        self.assertEqual(len(selected), 1)
-        self.assertEqual(edge_curve_type(selected[0]), "GeomAbs_Line")
+        for selected in select_edges(shape, EdgeSelector(select="all")):
+            self.assertFalse(seam.wrapped.IsSame(selected.wrapped))
 
     def test_the_kernel_builds_no_contour_for_the_seam(self) -> None:
-        """The measurement behind the rule, taken first-hand."""
+        """The measurement behind the exclusion, taken first-hand."""
         from OCP.BRepFilletAPI import BRepFilletAPI_MakeChamfer
 
         shape = self.pin().shape
-        seam = select_edges(shape, EdgeSelector(select="axis_parallel", axis="Z"))
+        (seam,) = seam_edges(shape)
         builder = BRepFilletAPI_MakeChamfer(shape.wrapped)
-        builder.Add(1.0, seam[0].wrapped)
+        builder.Add(1.0, seam.wrapped)
         self.assertEqual(builder.NbContours(), 0)
 
     def test_the_kernel_message_names_the_reason(self) -> None:
         from OCP.BRepFilletAPI import BRepFilletAPI_MakeChamfer
 
         shape = self.pin().shape
-        seam = select_edges(shape, EdgeSelector(select="axis_parallel", axis="Z"))
+        (seam,) = seam_edges(shape)
         builder = BRepFilletAPI_MakeChamfer(shape.wrapped)
-        builder.Add(1.0, seam[0].wrapped)
+        builder.Add(1.0, seam.wrapped)
         with self.assertRaises(Exception) as caught:
             builder.Build()
         self.assertEqual(type(caught.exception).__name__, "Standard_Failure")
         self.assertIn("no suitable edges", str(caught.exception))
 
-    def test_chamfering_the_seam_is_refused(self) -> None:
+    def test_chamfering_the_seam_alone_is_an_empty_selection_not_a_kernel_refusal(
+        self,
+    ) -> None:
+        """``axis_parallel Z`` on a bare cylinder matches nothing: E4."""
         for distance in (0.5, 2.0):
             with self.subTest(distance=distance):
                 with self.assertRaises(GeometryOperationError) as caught:
@@ -845,39 +856,47 @@ class TestCylinderSeam(ChamferTestCase):
                         )
                     )
                 message = str(caught.exception)
-                self.assertIn("E5", message)
-                self.assertIn("unsuitable", message)
+                self.assertIn("E4", message)
+                self.assertIn("matched no edge", message)
 
-    def test_select_all_on_a_cylinder_is_also_refused(self) -> None:
-        """Because the seam is in that selection and would be dropped.
-
-        The kernel alone would succeed here -- it bevels the two rims into
-        conical faces and ignores the seam. The engine refuses because
-        ignoring a matched edge is exactly what it must not do silently. This
-        is a deliberate consequence of that rule, recorded rather than
-        smoothed over.
+    def test_select_all_on_a_cylinder_now_bevels_both_rims(self) -> None:
+        """Refused with E5 until 1.1.1, because the seam was in the selection
+        and would have been dropped. Now only the two rims are selected.
         """
-        with self.assertRaises(GeometryOperationError) as caught:
-            self.build_document(
-                document(
-                    [
-                        cylinder_feature(),
-                        chamfer_feature(distance=1.0, select="all", target="pin"),
-                    ],
-                    "rounded-pin",
-                )
+        distance = 1.0
+        result = self.build_document(
+            document(
+                [
+                    cylinder_feature(),
+                    chamfer_feature(distance=distance, select="all", target="pin"),
+                ],
+                "chamfered-pin",
             )
-        message = str(caught.exception)
-        self.assertIn("E5", message)
-        self.assertIn("1 of the 3", message)
+        )
+        self.assertTrue(result.is_solid())
+        self.assertEqual(result.solid_count(), 1)
+        self.assertTrue(result.shape.isValid())
+        self.assertEqual(
+            self.surface_census(result.shape),
+            {"GeomAbs_Cylinder": 1, "GeomAbs_Cone": 2, "GeomAbs_Plane": 2},
+        )
+        outer = 10.0
+        rim_loss = 2.0 * math.pi * (outer - distance / 3.0) * (distance**2 / 2.0)
+        self.assertAlmostEqual(
+            result.volume(),
+            math.pi * outer**2 * 50.0 - 2.0 * rim_loss,
+            delta=VOLUME_TOLERANCE_MM3,
+        )
 
-    def test_the_kernel_would_have_succeeded_on_its_own(self) -> None:
-        """Recorded so the cost of the strict rule is visible, not hidden."""
+    def test_the_kernel_ignores_a_seam_added_to_a_selection(self) -> None:
+        """Recorded so the behaviour the coverage check guards against stays
+        visible: handed the seam as well, the builder bevels the two rims and
+        ignores it."""
         import cadquery as cq
         from OCP.BRepFilletAPI import BRepFilletAPI_MakeChamfer
 
         shape = self.pin().shape
-        edges = select_edges(shape, EdgeSelector(select="all"))
+        edges = unfiltered_edges(shape, EdgeSelector(select="all"))
         self.assertEqual(len(edges), 3)
         builder = BRepFilletAPI_MakeChamfer(shape.wrapped)
         for edge in edges:
@@ -894,6 +913,31 @@ class TestCylinderSeam(ChamferTestCase):
             "GeomAbs_Plane": 2,
         })
 
+    def test_the_coverage_check_still_refuses_a_seam_the_selector_did_not_exclude(
+        self,
+    ) -> None:
+        """Defence in depth: the engine's E5 check, provoked directly."""
+        for fragment, feature in (
+            (
+                "will not bevel 1 of the 3",
+                chamfer_feature(distance=1.0, select="all", target="pin"),
+            ),
+            (
+                "will not bevel 1 of the 1",
+                chamfer_feature(distance=1.0, axis="Z", target="pin"),
+            ),
+        ):
+            with self.subTest(feature=feature["edges"]):
+                with engine_selects_unfiltered():
+                    with self.assertRaises(GeometryOperationError) as caught:
+                        self.build_document(
+                            document([cylinder_feature(), feature], "seam")
+                        )
+                message = str(caught.exception)
+                self.assertIn("E5", message)
+                self.assertIn(fragment, message)
+                self.assertIn("unsuitable", message)
+
 
 # --- 8: the drilled plate --------------------------------------------------
 
@@ -901,28 +945,28 @@ class TestCylinderSeam(ChamferTestCase):
 class TestDrilledPlate(ChamferTestCase):
     """100x60x10 plate with one Ø20 through-hole.
 
-    The cavity's parameterisation seam is matched by ``axis_parallel Z`` and
-    by ``all``, and the kernel will not bevel it -- so both of those
-    selections are refused, while ``axis_parallel X`` and ``Y`` work. The
-    selector output is never filtered by hand.
+    The cavity's parameterisation seam is a straight Z edge the kernel will
+    not bevel. Since 1.1.1 no selector matches it, so ``axis_parallel Z`` and
+    ``all`` build, alongside ``axis_parallel X`` and ``Y``.
     """
 
-    def test_the_selector_matches_four_corners_and_the_cavity_seam(self) -> None:
-        self.assertEqual(
-            len(
-                select_edges(
-                    self.drilled().shape,
-                    EdgeSelector(select="axis_parallel", axis="Z"),
-                )
-            ),
-            5,
+    def test_the_selector_matches_four_corners_and_not_the_cavity_seam(self) -> None:
+        shape = self.drilled().shape
+        selected = select_edges(
+            shape, EdgeSelector(select="axis_parallel", axis="Z")
         )
+        self.assertEqual(len(selected), 4)
+        (seam,) = seam_edges(shape)
+        self.assertFalse(any(seam.wrapped.IsSame(e.wrapped) for e in selected))
 
     def test_the_seam_is_the_edge_the_kernel_will_not_bevel(self) -> None:
         from OCP.BRepFilletAPI import BRepFilletAPI_MakeChamfer
 
         shape = self.drilled().shape
-        edges = select_edges(shape, EdgeSelector(select="axis_parallel", axis="Z"))
+        edges = unfiltered_edges(
+            shape, EdgeSelector(select="axis_parallel", axis="Z")
+        )
+        self.assertEqual(len(edges), 5)
         builder = BRepFilletAPI_MakeChamfer(shape.wrapped)
         for edge in edges:
             builder.Add(2.0, edge.wrapped)
@@ -938,6 +982,7 @@ class TestDrilledPlate(ChamferTestCase):
             if not any(edge.wrapped.IsSame(other) for other in taken)
         ]
         self.assertEqual(len(dropped), 1)
+        self.assertEqual(edge_kind(shape, dropped[0]), SEAM)
         # ... and it is the one on the hole wall.
         self.assertAlmostEqual(
             math.hypot(
@@ -948,33 +993,49 @@ class TestDrilledPlate(ChamferTestCase):
             delta=TOLERANCE_MM,
         )
 
-    def test_the_vertical_selection_is_refused(self) -> None:
-        with self.assertRaises(GeometryOperationError) as caught:
-            self.build_document(
-                document(
-                    [plate_feature(), hole_feature(), chamfer_feature()],
-                    "drilled-bevel",
-                )
+    def test_the_vertical_selection_now_builds(self) -> None:
+        """Refused with E5 until 1.1.1: the four corners bevel and the hole's
+        seam is left alone."""
+        result = self.build_document(
+            document(
+                [plate_feature(), hole_feature(), chamfer_feature()],
+                "drilled-bevel",
             )
-        message = str(caught.exception)
-        self.assertIn("E5", message)
-        self.assertIn("1 of the 5", message)
+        )
+        self.assertTrue(result.is_solid())
+        self.assertEqual(result.solid_count(), 1)
+        self.assertAlmostEqual(
+            result.volume(),
+            EXPECTED_Z_VOLUME - math.pi * (HOLE_DIAMETER / 2.0) ** 2 * PLATE_SIZE[2],
+            delta=VOLUME_TOLERANCE_MM3,
+        )
 
-    def test_select_all_is_refused_for_the_same_reason(self) -> None:
-        with self.assertRaises(GeometryOperationError) as caught:
-            self.build_document(
-                document(
-                    [
-                        plate_feature(),
-                        hole_feature(),
-                        chamfer_feature(distance=1.0, select="all"),
-                    ],
-                    "drilled-all",
-                )
+    def test_select_all_now_builds_with_the_rims_bevelled(self) -> None:
+        """Twelve outer edges and the two rims, in one chamfer."""
+        distance = 1.0
+        result = self.build_document(
+            document(
+                [
+                    plate_feature(),
+                    hole_feature(),
+                    chamfer_feature(distance=distance, select="all"),
+                ],
+                "drilled-all",
             )
-        message = str(caught.exception)
-        self.assertIn("E5", message)
-        self.assertIn("1 of the 15", message)
+        )
+        self.assertTrue(result.is_solid())
+        self.assertEqual(result.solid_count(), 1)
+        self.assertTrue(result.shape.isValid())
+        hole = HOLE_DIAMETER / 2.0
+        rim_loss = 2.0 * math.pi * (hole + distance / 3.0) * (distance**2 / 2.0)
+        expected = (
+            chamfered_box_volume(PLATE_SIZE, distance)
+            - math.pi * hole**2 * PLATE_SIZE[2]
+            - 2.0 * rim_loss
+        )
+        self.assertAlmostEqual(
+            result.volume(), expected, delta=VOLUME_TOLERANCE_MM3
+        )
 
     def test_the_horizontal_selections_succeed(self) -> None:
         """No seam is parallel to X or Y, so coverage is complete."""
@@ -1023,8 +1084,8 @@ class TestDrilledPlate(ChamferTestCase):
         """The engine passes exactly what the selector returned."""
         shape = self.drilled().shape
         for selector, expected in (
-            (EdgeSelector(select="axis_parallel", axis="Z"), 5),
-            (EdgeSelector(select="all"), 15),
+            (EdgeSelector(select="axis_parallel", axis="Z"), 4),
+            (EdgeSelector(select="all"), 14),
             (EdgeSelector(select="axis_parallel", axis="X"), 4),
         ):
             with self.subTest(selector=selector):
@@ -1217,9 +1278,9 @@ class TestFailureAtomicity(ChamferTestCase):
 
         shape = self.build_document(document([cylinder_feature()], "pin")).shape
         before = self.fingerprint(shape)
-        seam = select_edges(shape, EdgeSelector(select="axis_parallel", axis="Z"))
+        (seam,) = seam_edges(shape)
         builder = BRepFilletAPI_MakeChamfer(shape.wrapped)
-        builder.Add(1.0, seam[0].wrapped)
+        builder.Add(1.0, seam.wrapped)
         with self.assertRaises(Exception):
             builder.Build()
         self.assertEqual(before, self.fingerprint(shape))

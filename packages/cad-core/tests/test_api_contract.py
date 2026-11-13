@@ -1145,11 +1145,12 @@ class TestVersioning(ContractTestCase):
         ):
             self.assertEqual(value, "1.0.0")
         # All four were "1.0.0" until the CAD specification gained 'union' and
-        # moved to 1.1.0 -- by coincidence, as this test always said. The other
-        # three did not move with it, which is the separation being asserted:
-        # a new feature type is not a new render format, cache layout or IPC
-        # protocol.
-        self.assertEqual(SCHEMA_VERSION, "1.1.0")
+        # moved to 1.1.0 -- by coincidence, as this test always said -- and then
+        # to 1.1.1 when edge selectors began matching sharp edges only. The
+        # other three did not move with it, which is the separation being
+        # asserted: a new feature type or a selector change is not a new render
+        # format, cache layout or IPC protocol.
+        self.assertEqual(SCHEMA_VERSION, "1.1.1")
         # ... and none of them is this contract's: this contract has no
         # version number at all
         import cad_core.api_contract as contract

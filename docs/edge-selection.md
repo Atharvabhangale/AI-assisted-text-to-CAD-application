@@ -4,6 +4,11 @@ Status: **Stage 12 — deterministic edge selection. No geometry is modified.**
 Consumed by `fillet` and `chamfer` (`docs/local-cad-engine.md`), both of which
 require complete coverage of what this layer returns.
 
+**Schema 1.1.1 changed what is selected: sharp edges only.** Seams and smooth
+(tangent) edges are never returned. Sections written before that change keep
+their original measurements as history and say so; the current behaviour is in
+*1.1.1: sharp edges only* at the end of this document.
+
 ## What this layer is for
 
 `fillet` and `chamfer` need to name edges, and Section C.7 of the
@@ -70,7 +75,8 @@ edges.
 
 ## `{"select": "all"}`
 
-Every edge of the shape, in `shape.Edges()` order.
+Every **sharp** edge of the shape, in `shape.Edges()` order (before 1.1.1:
+every edge).
 
 `Edges()` contains each topological edge exactly **once** — measured against
 the kernel's own map: for the two-hole plate `Edges()` returns 18 and a
@@ -79,8 +85,8 @@ deduplication of the kernel's answer is needed or done.
 
 ## `{"select": "axis_parallel", "axis": "X" | "Y" | "Z"}`
 
-Every **straight** edge whose direction is parallel to that axis, with the
-axis treated as **unsigned**.
+Every **sharp, straight** edge whose direction is parallel to that axis, with
+the axis treated as **unsigned** (before 1.1.1: every straight edge).
 
 ### Straightness is a kernel fact
 
@@ -174,6 +180,12 @@ kernel's `IsSame`.
 
 Every count below was measured first and is recorded as a **backend
 observation**, not as part of the neutral specification.
+
+**These counts are the pre-1.1.1 selection, kept as history.** They are the
+shape's raw kernel edges. Seams are included in the cylinder, drilled-plate,
+two-hole and multi-tool rows; since 1.1.1 those are not selected, and the
+current counts are tabulated in *1.1.1: sharp edges only* below. The box and
+joined-body rows are unchanged, because those shapes have no seam.
 
 ### Box — 100 × 60 × 10
 
@@ -337,6 +349,9 @@ layer knows they exist.
 
 ## The seam findings, and what Stage 13 measured
 
+*History: this section and the next describe the 1.1.0 selectors, which
+matched seams. Schema 1.1.1 excluded them; see the last section.*
+
 Stage 12 recorded two open questions about selected seams. Stage 13 answered
 both by measurement, without changing this layer:
 
@@ -396,3 +411,78 @@ not one for this layer; the full measurement table is in
 
 **None of this changed the selector.** It returns exactly the edges it returned
 in Stage 12, in the same order, for every geometry tested.
+
+## 1.1.1: sharp edges only
+
+Owner-approved contract change (Section C.7 and Section F of
+`docs/cad-specification.md`). `{"select": "all"}` and `axis_parallel` return
+**sharp edges only**. Everything above this heading that says a seam is
+selected describes the 1.1.0 behaviour.
+
+### Why
+
+The kernel refuses to blend a seam or a smooth edge, and since Stage 14.1 the
+engine fails a whole fillet or chamfer with E5 rather than skip a selected edge.
+Every selection that contained one therefore failed: every cylinder, every part
+with a hole and every part already blended was impossible to round with `all`.
+No document that built before builds differently now — a selection containing a
+seam or a smooth edge never built.
+
+### Classification
+
+`cad_core.edge_selection.edge_kind(shape, edge)` returns one of four values:
+
+| Kind | Meaning | Selected |
+|---|---|---|
+| `SHARP` | two different faces meet at an angle — a crease a person could see and round. A bare edge with no faces is also `SHARP` | yes |
+| `SEAM` | exactly **one** distinct face lies on both sides: the straight line down every cylinder and hole | no |
+| `SMOOTH` | two faces meet tangentially, such as a fillet boundary | no |
+| `DEGENERATE` | a degenerated (zero-length) edge | no |
+
+Adjacent faces come from `TopExp.MapShapesAndAncestors` (edge → faces).
+Tangency is the angle between the two faces' outward normals, evaluated on each
+face's own parametric curve of the edge at three points (25%, 50%, 75%) and
+required to be below `SMOOTH_ANGLE_TOLERANCE_RAD` (1e-6) at all three. The
+threshold is chosen, not read from the kernel, and sits many orders of magnitude
+from both populations measured: every fillet boundary came back at exactly 0.0,
+and the smallest crease V1 produces is a chamfer's 45 degrees. `sharp_edges(shape)`
+returns the `SHARP` edges in `shape.Edges()` order; `select_edges` filters that
+list, so ordering is still the kernel's own and nothing is re-sorted.
+
+### Selector counts, 1.1.1
+
+| Shape | `all` | `axis_parallel X / Y / Z` | Kernel edges not selected |
+|---|---|---|---|
+| box 100 × 60 × 10 | 12 | 4 / 4 / 4 | — |
+| cylinder Ø20 × 50 | **2** (the rims) | 0 / 0 / **0** | 1 seam |
+| drilled plate | **14** (12 outer + 2 rims) | 4 / 4 / **4** | 1 seam |
+| two-hole plate | **16** | 4 / 4 / **4** | 2 seams |
+| multi-tool subtract | same as two-hole | 4 / 4 / **4** | 2 seams |
+| box after `axis_parallel Z` fillet | sharp edges only | — | the fillet boundaries (`SMOOTH`) |
+
+`axis_parallel Z` on a bare cylinder now matches **nothing**, so a fillet or
+chamfer with that selector fails with **E4** (selector matched nothing) instead
+of the former E5.
+
+### What builds now, measured with the real engine
+
+| Part | Operation | Result |
+|---|---|---|
+| cylinder | fillet `all` r = 3 | builds |
+| cylinder | chamfer `all` d = 2 | builds |
+| drilled plate | fillet / chamfer `all` after the holes | builds |
+| box | fillet `axis_parallel Z`, then `all` | builds |
+| pipe flange (two unioned cylinders) | chamfer `all` | builds |
+| stepped shaft | chamfer `all` | builds |
+| box | fillet Z, then X, then Y | the Y fillet fails with **E4**: the X fillet propagated along the tangent chain and rounded the Y edges, so no sharp Y edge remains |
+
+### The coverage invariant is still there
+
+The E5 coverage check in `local_cad` is unchanged. A seam can no longer reach it
+through a selector, so it is defence in depth. The test suite provokes it
+directly by substituting the pre-1.1.1, unfiltered selection (the shape's raw
+`Edges()` filtered by line direction) for `select_edges` inside the engine, and
+asserts E5 and failure atomicity as before. The kernel measurements of the
+seam — `Build()` raising `Standard_Failure`, no contour built, the drilled
+plate's 4-of-5 — are unchanged and are still taken on the seam as the kernel
+reports it.

@@ -17,12 +17,19 @@ from typing import Any, Dict, List, Tuple
 from cad_core import validate
 from cad_core.edge_selection import (
     ANGULAR_TOLERANCE_RAD,
+    DEGENERATE,
+    SEAM,
+    SHARP,
+    SMOOTH,
+    SMOOTH_ANGLE_TOLERANCE_RAD,
     EdgeSelectionError,
     UnsupportedSelectorError,
     edge_curve_type,
+    edge_kind,
     is_straight_edge,
     line_direction,
     select_edges,
+    sharp_edges,
 )
 from cad_core.local_cad import build_part
 from cad_core.model import EdgeSelector, Part
@@ -258,9 +265,13 @@ class TestCylinder(EdgeSelectionTestCase):
 
     Measured kernel topology for a full cylinder is three edges -- two circles
     (the caps) and one straight seam along the axis. The seam is a genuine
-    ``GeomAbs_Line``, so the specification's "every straight edge parallel to
-    the axis" does match it. That is recorded rather than special-cased.
+    ``GeomAbs_Line`` but is classified :data:`SEAM`, so since schema 1.1.1 no
+    selector matches it: only the two rims are selectable, and only by
+    ``all``.
     """
+
+    def seams(self, shape: Any) -> List[Any]:
+        return [edge for edge in shape.Edges() if edge_kind(shape, edge) == SEAM]
 
     def test_the_kernel_reports_two_circles_and_one_line(self) -> None:
         self.assertEqual(
@@ -268,10 +279,17 @@ class TestCylinder(EdgeSelectionTestCase):
             {"GeomAbs_Circle": 2, "GeomAbs_Line": 1},
         )
 
-    def test_select_all_returns_all_three_edges(self) -> None:
+    def test_select_all_returns_the_two_rims_and_not_the_seam(self) -> None:
         shape = self.cylinder()
-        self.assertEqual(len(select_edges(shape, ALL)), 3)
-        self.assertEqual(len(select_edges(shape, ALL)), len(shape.Edges()))
+        selected = select_edges(shape, ALL)
+        self.assertEqual(len(shape.Edges()), 3)
+        self.assertEqual(len(selected), 2)
+        self.assertEqual(
+            [edge_curve_type(edge) for edge in selected],
+            ["GeomAbs_Circle", "GeomAbs_Circle"],
+        )
+        (seam,) = self.seams(shape)
+        self.assertFalse(any(seam.wrapped.IsSame(e.wrapped) for e in selected))
 
     def test_no_circular_edge_is_ever_axis_parallel(self) -> None:
         shape = self.cylinder()
@@ -287,15 +305,16 @@ class TestCylinder(EdgeSelectionTestCase):
                         any(circle.wrapped.IsSame(e.wrapped) for e in selected)
                     )
 
-    def test_the_axis_selectors_find_only_the_seam(self) -> None:
-        """A +Z cylinder: X and Y match nothing, Z matches the seam."""
+    def test_the_axis_selectors_match_nothing_on_a_bare_cylinder(self) -> None:
+        """The only straight edge is the seam, which no selector matches."""
         self.assertEqual(
-            self.selector_counts(self.cylinder()), {"X": 0, "Y": 0, "Z": 1}
+            self.selector_counts(self.cylinder()), {"X": 0, "Y": 0, "Z": 0}
         )
 
-    def test_the_seam_runs_along_the_cylinder_axis(self) -> None:
+    def test_the_seam_runs_along_the_cylinder_axis_but_is_not_selectable(self) -> None:
         shape = self.cylinder()
-        (seam,) = select_edges(shape, AXIS["Z"])
+        (seam,) = self.seams(shape)
+        self.assertEqual(select_edges(shape, AXIS["Z"]), ())
         self.assertTrue(is_straight_edge(seam))
         self.assertAlmostEqual(seam.Length(), 50.0, delta=TOLERANCE_MM)
         self.assertTripleParallelToZ(line_direction(seam))
@@ -305,25 +324,20 @@ class TestCylinder(EdgeSelectionTestCase):
         self.assertAlmostEqual(direction[0], 0.0, delta=DIRECTION_TOLERANCE)
         self.assertAlmostEqual(direction[1], 0.0, delta=DIRECTION_TOLERANCE)
 
-    def test_the_seam_follows_whichever_axis_the_cylinder_uses(self) -> None:
-        expectations = {
-            "+X": {"X": 1, "Y": 0, "Z": 0},
-            "-X": {"X": 1, "Y": 0, "Z": 0},
-            "+Y": {"X": 0, "Y": 1, "Z": 0},
-            "-Y": {"X": 0, "Y": 1, "Z": 0},
-            "+Z": {"X": 0, "Y": 0, "Z": 1},
-            "-Z": {"X": 0, "Y": 0, "Z": 1},
-        }
-        for axis, expected in expectations.items():
+    def test_no_cylinder_axis_makes_the_seam_selectable(self) -> None:
+        for axis in ("+X", "-X", "+Y", "-Y", "+Z", "-Z"):
+            shape = self.cylinder(axis=axis)
             with self.subTest(axis=axis):
                 self.assertEqual(
-                    self.selector_counts(self.cylinder(axis=axis)), expected
+                    self.selector_counts(shape), {"X": 0, "Y": 0, "Z": 0}
                 )
+                self.assertEqual(len(self.seams(shape)), 1)
+                self.assertEqual(len(select_edges(shape, ALL)), 2)
 
     def test_the_signed_cylinder_axis_does_not_leak_into_the_selector(self) -> None:
-        """A -Z cylinder is selected by "Z", not by any signed form."""
+        """A -Z cylinder has no signed selector form to match it by."""
         shape = self.cylinder(axis="-Z")
-        self.assertEqual(len(select_edges(shape, AXIS["Z"])), 1)
+        self.assertEqual(len(select_edges(shape, AXIS["Z"])), 0)
         with self.assertRaises(UnsupportedSelectorError):
             select_edges(shape, EdgeSelector(select="axis_parallel", axis="-Z"))
 
@@ -340,16 +354,17 @@ class TestDrilledPlate(EdgeSelectionTestCase):
             {"GeomAbs_Line": 13, "GeomAbs_Circle": 2},
         )
 
-    def test_select_all_returns_all_fifteen_edges(self) -> None:
+    def test_select_all_returns_fourteen_of_the_fifteen_edges(self) -> None:
+        """Twelve outer edges and the two rims; the cavity seam is left out."""
         shape = self.drilled()
-        self.assertEqual(len(select_edges(shape, ALL)), 15)
-        self.assertEqual(len(select_edges(shape, ALL)), len(shape.Edges()))
+        self.assertEqual(len(shape.Edges()), 15)
+        self.assertEqual(len(select_edges(shape, ALL)), 14)
 
     def test_axis_selector_counts(self) -> None:
-        """X and Y are the four outer edges each; Z is four corners plus the
-        cavity's seam, which is a straight edge the specification does match.
+        """X, Y and Z are the four outer edges each; the cavity's seam is a
+        straight Z edge the selector no longer matches.
         """
-        self.assertEqual(self.selector_counts(self.drilled()), {"X": 4, "Y": 4, "Z": 5})
+        self.assertEqual(self.selector_counts(self.drilled()), {"X": 4, "Y": 4, "Z": 4})
 
     def test_the_hole_rims_are_never_selected(self) -> None:
         """Exactly the specification's example: filleting the vertical corners
@@ -391,20 +406,19 @@ class TestDrilledPlate(EdgeSelectionTestCase):
                         edge.Length(), expected_length, delta=TOLERANCE_MM
                     )
 
-    def test_the_extra_z_edge_is_the_cavity_seam(self) -> None:
-        """Measured, and documented as a finding for the fillet stage.
-
-        The fifth Z edge is 10 mm long and sits on the hole wall at radius 10
-        from the hole axis -- it is the cylindrical face's parameterisation
-        seam, not an outer corner.
+    def test_the_cavity_seam_exists_but_is_excluded(self) -> None:
+        """The kernel's fifth straight Z edge is 10 mm long and sits on the
+        hole wall at radius 10 from the hole axis -- the cylindrical face's
+        parameterisation seam. It is classified SEAM and never selected.
         """
         shape = self.drilled()
         selected = select_edges(shape, AXIS["Z"])
-        self.assertEqual(len(selected), 5)
+        self.assertEqual(len(selected), 4)
         on_wall = [
             edge
-            for edge in selected
-            if abs(
+            for edge in shape.Edges()
+            if is_straight_edge(edge)
+            and abs(
                 math.hypot(
                     edge.startPoint().x - 20.0, edge.startPoint().y - 20.0
                 )
@@ -415,6 +429,10 @@ class TestDrilledPlate(EdgeSelectionTestCase):
         self.assertEqual(len(on_wall), 1)
         self.assertAlmostEqual(on_wall[0].Length(), PLATE_SIZE[2], delta=TOLERANCE_MM)
         self.assertTrue(is_straight_edge(on_wall[0]))
+        self.assertEqual(edge_kind(shape, on_wall[0]), SEAM)
+        self.assertFalse(
+            any(on_wall[0].wrapped.IsSame(e.wrapped) for e in selected)
+        )
 
 
 # --- 7: several holes ------------------------------------------------------
@@ -427,15 +445,15 @@ class TestMultipleCavities(EdgeSelectionTestCase):
             {"GeomAbs_Line": 14, "GeomAbs_Circle": 4},
         )
 
-    def test_select_all_covers_both_cavities(self) -> None:
+    def test_select_all_covers_both_cavities_rims_but_not_their_seams(self) -> None:
         shape = self.two_hole()
-        self.assertEqual(len(select_edges(shape, ALL)), 18)
-        self.assertEqual(len(select_edges(shape, ALL)), len(shape.Edges()))
+        self.assertEqual(len(shape.Edges()), 18)
+        self.assertEqual(len(select_edges(shape, ALL)), 16)
 
     def test_axis_selector_counts(self) -> None:
-        """Z gains one seam per cavity: four corners plus two seams."""
+        """The cavities' seams add nothing: four corners per axis."""
         self.assertEqual(
-            self.selector_counts(self.two_hole()), {"X": 4, "Y": 4, "Z": 6}
+            self.selector_counts(self.two_hole()), {"X": 4, "Y": 4, "Z": 4}
         )
 
     def test_all_four_rims_are_excluded(self) -> None:
@@ -453,12 +471,13 @@ class TestMultipleCavities(EdgeSelectionTestCase):
                     any(rim.wrapped.IsSame(e.wrapped) for e in selected)
                 )
 
-    def test_both_cavity_seams_are_present_and_distinct(self) -> None:
+    def test_both_cavity_seams_are_distinct_and_excluded(self) -> None:
         shape = self.two_hole()
         seams = [
             edge
-            for edge in select_edges(shape, AXIS["Z"])
-            if min(
+            for edge in shape.Edges()
+            if is_straight_edge(edge)
+            and min(
                 math.hypot(edge.startPoint().x - cx, edge.startPoint().y - cy)
                 for cx, cy in ((20.0, 20.0), (80.0, 40.0))
             )
@@ -466,6 +485,10 @@ class TestMultipleCavities(EdgeSelectionTestCase):
         ]
         self.assertEqual(len(seams), 2)
         self.assertFalse(seams[0].wrapped.IsSame(seams[1].wrapped))
+        selected = select_edges(shape, ALL)
+        for seam in seams:
+            self.assertEqual(edge_kind(shape, seam), SEAM)
+            self.assertFalse(any(seam.wrapped.IsSame(e.wrapped) for e in selected))
 
     def test_the_outer_edges_are_still_correctly_classified(self) -> None:
         shape = self.two_hole()
@@ -504,7 +527,7 @@ class TestMultiToolSubtract(EdgeSelectionTestCase):
 
     def test_axis_selector_counts(self) -> None:
         self.assertEqual(
-            self.selector_counts(self.two_tool_subtract()), {"X": 4, "Y": 4, "Z": 6}
+            self.selector_counts(self.two_tool_subtract()), {"X": 4, "Y": 4, "Z": 4}
         )
 
     def test_both_cavities_remain_represented(self) -> None:
@@ -632,7 +655,8 @@ class TestCurvedEdgesAndEmptyResults(EdgeSelectionTestCase):
 
     def test_an_empty_match_still_exposes_a_count_for_a_future_e4_check(self) -> None:
         self.assertEqual(len(select_edges(self.cylinder(), AXIS["X"])), 0)
-        self.assertEqual(len(select_edges(self.cylinder(), AXIS["Z"])), 1)
+        self.assertEqual(len(select_edges(self.cylinder(), AXIS["Z"])), 0)
+        self.assertEqual(len(select_edges(self.cylinder(), ALL)), 2)
 
     def test_select_all_is_never_empty_for_a_solid(self) -> None:
         for name, shape in (
@@ -643,6 +667,108 @@ class TestCurvedEdgesAndEmptyResults(EdgeSelectionTestCase):
         ):
             with self.subTest(shape=name):
                 self.assertGreater(len(select_edges(shape, ALL)), 0)
+
+
+# --- sharp edges only (schema 1.1.1) ---------------------------------------
+
+
+class TestEdgeClassification(EdgeSelectionTestCase):
+    """Which kind of edge each kernel edge is, and what ``all`` therefore means."""
+
+    def kinds(self, shape: Any) -> Dict[str, int]:
+        counts: Dict[str, int] = {}
+        for edge in shape.Edges():
+            kind = edge_kind(shape, edge)
+            counts[kind] = counts.get(kind, 0) + 1
+        return counts
+
+    def z_filleted_box(self) -> Any:
+        return self.shape_for(
+            [
+                plate_feature(),
+                {
+                    "id": "round",
+                    "type": "fillet",
+                    "target": "plate",
+                    "radius": 2.0,
+                    "edges": {"select": "axis_parallel", "axis": "Z"},
+                },
+            ],
+            "rounded",
+        )
+
+    def test_the_smooth_tolerance_is_far_below_the_smallest_crease(self) -> None:
+        self.assertLess(SMOOTH_ANGLE_TOLERANCE_RAD, math.radians(45.0) * 1e-3)
+
+    def test_a_box_has_twelve_sharp_edges(self) -> None:
+        self.assertEqual(self.kinds(self.box()), {SHARP: 12})
+        self.assertEqual(len(sharp_edges(self.box())), 12)
+
+    def test_a_cylinder_has_two_sharp_edges_and_one_seam(self) -> None:
+        shape = self.cylinder()
+        self.assertEqual(self.kinds(shape), {SHARP: 2, SEAM: 1})
+        for edge in shape.Edges():
+            expected = SEAM if is_straight_edge(edge) else SHARP
+            self.assertEqual(edge_kind(shape, edge), expected)
+
+    def test_a_drilled_plate_seam_is_a_seam_and_its_rims_are_sharp(self) -> None:
+        shape = self.drilled()
+        self.assertEqual(self.kinds(shape), {SHARP: 14, SEAM: 1})
+        for edge in shape.Edges():
+            if edge_curve_type(edge) == "GeomAbs_Circle":
+                self.assertEqual(edge_kind(shape, edge), SHARP)
+
+    def test_every_hole_adds_exactly_one_seam(self) -> None:
+        self.assertEqual(self.kinds(self.two_hole()), {SHARP: 16, SEAM: 2})
+
+    def test_fillet_boundaries_are_smooth_and_all_excludes_them(self) -> None:
+        shape = self.z_filleted_box()
+        kinds = self.kinds(shape)
+        self.assertGreater(kinds.get(SMOOTH, 0), 0)
+        self.assertEqual(kinds.get(DEGENERATE, 0), 0)
+        selected = select_edges(shape, ALL)
+        self.assertEqual(len(selected), kinds[SHARP])
+        for edge in shape.Edges():
+            chosen = any(edge.wrapped.IsSame(e.wrapped) for e in selected)
+            self.assertEqual(chosen, edge_kind(shape, edge) == SHARP)
+
+    def test_axis_selectors_skip_smooth_edges_too(self) -> None:
+        shape = self.z_filleted_box()
+        smooth = [e for e in shape.Edges() if edge_kind(shape, e) == SMOOTH]
+        self.assertTrue(any(is_straight_edge(e) for e in smooth))
+        for axis in "XYZ":
+            selected = select_edges(shape, AXIS[axis])
+            for edge in smooth:
+                with self.subTest(axis=axis):
+                    self.assertFalse(
+                        any(edge.wrapped.IsSame(e.wrapped) for e in selected)
+                    )
+
+    def test_a_bare_edge_with_no_faces_is_sharp(self) -> None:
+        import cadquery as cq
+
+        line = cq.Edge.makeLine(cq.Vector(0, 0, 0), cq.Vector(0, 0, 5))
+        self.assertEqual(edge_kind(line, line), SHARP)
+        self.assertEqual(len(sharp_edges(line)), 1)
+
+    def test_the_selection_is_a_filter_of_the_shapes_edge_order(self) -> None:
+        for name, shape in (("cylinder", self.cylinder()), ("drilled", self.drilled())):
+            expected = [
+                edge for edge in shape.Edges() if edge_kind(shape, edge) == SHARP
+            ]
+            selected = select_edges(shape, ALL)
+            with self.subTest(shape=name):
+                self.assertEqual(len(selected), len(expected))
+                self.assertTrue(
+                    all(
+                        a.wrapped.IsSame(b.wrapped)
+                        for a, b in zip(selected, expected)
+                    )
+                )
+
+    def test_a_non_edge_is_refused_by_edge_kind(self) -> None:
+        with self.assertRaises(TypeError):
+            edge_kind(self.box(), "edge")
 
 
 # --- 11 & 15: invalid input ------------------------------------------------
@@ -793,19 +919,14 @@ class TestDeterminism(EdgeSelectionTestCase):
     def test_selection_order_follows_the_shapes_own_edge_order(self) -> None:
         """No re-sorting: the result is a filtered view of ``Edges()``.
 
-        Asserted by topological identity, position by position.
+        Asserted by topological identity: each selection's positions in
+        ``Edges()`` are strictly increasing.
         """
         for name, shape in self.geometries():
             edges = shape.Edges()
             with self.subTest(shape=name):
-                self.assertTrue(
-                    all(
-                        selected.wrapped.IsSame(original.wrapped)
-                        for selected, original in zip(select_edges(shape, ALL), edges)
-                    )
-                )
-                for axis in "XYZ":
-                    selected = select_edges(shape, AXIS[axis])
+                for selector in (ALL, AXIS["X"], AXIS["Y"], AXIS["Z"]):
+                    selected = select_edges(shape, selector)
                     positions = [
                         next(
                             index
@@ -814,7 +935,8 @@ class TestDeterminism(EdgeSelectionTestCase):
                         )
                         for edge in selected
                     ]
-                    self.assertEqual(positions, sorted(positions))
+                    self.assertEqual(positions, sorted(set(positions)))
+                    self.assertEqual(len(positions), len(selected))
 
     def test_the_selection_is_json_serializable_as_a_measurement(self) -> None:
         """A stable fingerprint, so a reordering regression is visible."""
@@ -830,7 +952,7 @@ class TestDeterminism(EdgeSelectionTestCase):
             ]
         )
         self.assertEqual(payload, json.dumps(json.loads(payload)))
-        self.assertEqual(len(json.loads(payload)), 6)
+        self.assertEqual(len(json.loads(payload)), 4)
 
 
 # --- 13 & 14: safety and identity ------------------------------------------

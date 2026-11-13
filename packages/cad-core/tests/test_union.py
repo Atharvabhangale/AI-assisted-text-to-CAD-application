@@ -258,8 +258,9 @@ class UnionTestCase(unittest.TestCase):
 class TestContractConstants(unittest.TestCase):
     """What changed in the vocabulary, and what deliberately did not."""
 
-    def test_the_schema_version_is_1_1_0(self) -> None:
-        self.assertEqual(SCHEMA_VERSION, "1.1.0")
+    def test_the_schema_version_is_1_1_1(self) -> None:
+        """1.1.0 added ``union``; 1.1.1 narrowed edge selectors to sharp edges."""
+        self.assertEqual(SCHEMA_VERSION, "1.1.1")
         # A MINOR change (Section F): the major version did not move.
         self.assertEqual(SUPPORTED_SCHEMA_MAJOR, 1)
 
@@ -318,7 +319,7 @@ class TestContractConstants(unittest.TestCase):
     def test_the_specification_document_defines_union(self) -> None:
         text = SPECIFICATION_PATH.read_text(encoding="utf-8")
         for required in (
-            "Schema version described by this document: **`1.1.0`**",
+            "Schema version described by this document: **`1.1.1`**",
             "### C.8 `union`",
             "| **S21** | `union.tools` is a non-empty array. |",
             "| **S22** |",

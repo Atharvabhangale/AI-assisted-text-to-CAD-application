@@ -586,10 +586,12 @@ blend and no face blend. One radius, one selection, one operation.
 Edge selection is delegated entirely to the Stage 12 layer
 (`docs/edge-selection.md`): `select_edges(target, fillet.edges)`. No selector
 logic is duplicated here, and the sequence passed to the kernel is exactly the
-sequence the selector returned — nothing is filtered, reordered or dropped.
-That includes edges a human might not have meant, such as a cylindrical
-face's parameterisation seam. Excluding them would be a change to the selector
-contract, and this stage did not make one.
+sequence the selector returned — nothing is filtered, reordered or dropped
+here. Until schema 1.1.1 that included edges a human might not have meant,
+such as a cylindrical face's parameterisation seam. Since 1.1.1 the selector
+itself returns **sharp edges only**, so seams and smooth edges never reach the
+modifiers (`docs/edge-selection.md`, *1.1.1: sharp edges only*); the engine
+still passes the selector's output through untouched.
 
 ### Fillet API
 
@@ -695,19 +697,19 @@ Other measured cases:
 | box, `all`, r = 5 | `IsDone()` false → E5 |
 | box, `all`, r ≥ 5.01 | done but invalid → E5 |
 | 100 × 60 × 3 plate, `all`, r = 2 | E5 — a genuine mixed selection: `axis_parallel Z` alone succeeds at r = 2, `axis_parallel X` and `Y` alone each fail |
-| drilled plate, `axis_parallel Z`, r = 2 | **refused since Stage 14.1** (E5): the selection includes the cavity seam, which the kernel accepts and then builds no contour for. Stage 13 accepted this and produced the drilled volume minus exactly the four corner blends, with faces going 7 → 11 — the seam had contributed nothing because it was ignored, not because it blended smoothly |
-| drilled plate, `all`, r = 1 | **refused since Stage 14.1** (E5, 14 of 15 accepted). Stage 13 produced 29 faces = 6 planes + 13 cylinders + 8 spheres + 2 tori, ignoring the seam |
-| cylinder, `axis_parallel Z`, r = 0.5 or 2 | E5 — 0 of 1 accepted. (If built anyway, `Build()` raises `Standard_Failure`; the coverage check reports it first, with counts) |
-| cylinder, `all`, r = 1 | **refused since Stage 14.1** (E5, 2 of 3 accepted). Left to itself the kernel blends both rims into tori and ignores the seam — a valid 5-face solid, just not the one the selector asked for; a test records that |
+| drilled plate, `axis_parallel Z`, r = 2 | **builds since 1.1.1**: the selector matches the four corners only; volume is the drilled volume minus exactly the four corner blends. (Stage 13 accepted the five-edge selection and ignored the seam; Stage 14.1 refused it with E5, 4 of 5 accepted) |
+| drilled plate, `all`, r = 1 | **builds since 1.1.1**: twelve outer edges plus the two rims; volume matches the rounded-box closed form less the hole and the two rim blends. (Refused with E5, 14 of 15 accepted, from Stage 14.1 to 1.1.0) |
+| cylinder, `axis_parallel Z`, r = 0.5 or 2 | **E4 since 1.1.1** — the selector matches nothing, because the only straight edge is the seam. (Until 1.1.0: E5, 0 of 1 accepted; if built anyway `Build()` raises `Standard_Failure`) |
+| cylinder, `all`, r = 1 | **builds since 1.1.1**: both rims become tori, a valid 5-face solid. (Refused with E5, 2 of 3 accepted, from Stage 14.1 to 1.1.0; handed the seam anyway, the kernel blends the rims and ignores it, which a test still records) |
 
 ### Supported histories
 
 Tested and supported: `box → fillet`, `box → through_hole → fillet`,
 `box → cylinder → subtract → fillet` and two fillets in sequence (the second
 sees the first, because each replaces the target in place). The two
-cavity-bearing histories are tested on `axis_parallel X`, where coverage is
-complete; `axis_parallel Z` on those bodies is refused, per the coverage rule
-below. These all fall out of the existing ordered evaluator — no second
+cavity-bearing histories are tested on `axis_parallel X`; since 1.1.1
+`axis_parallel Z` and `all` on those bodies select sharp edges only and build
+too. These all fall out of the existing ordered evaluator — no second
 mechanism was introduced — but only the combinations above are tested, and
 nothing broader is claimed.
 
@@ -721,12 +723,22 @@ an edge the kernel considers unsuitable — a parameterisation seam, or a smooth
 tangent edge with no dihedral angle — build **no contour** for it, and then
 report success for the rest.
 
-**Both modifiers now require complete coverage**: the set of edges the selector
+**Both modifiers require complete coverage**: the set of edges the selector
 returned must equal the set the builder took into a contour. If any selected
 edge was not accepted, the whole feature fails with **E5**, no geometry is
 produced and the target is not modified. Chamfer has had this invariant since
 Stage 14; Stage 14.1 gave it to fillet, so the two behave identically on
 identical input.
+
+Since schema 1.1.1 the selector returns sharp edges only, so a seam or a
+smooth edge can no longer reach this check through a document: it is now
+**defence in depth**, and the tests provoke it by substituting the old
+unfiltered selection for `select_edges` inside the engine. The table below is
+the **raw, pre-1.1.1 selection** (every straight axis-parallel edge, or every
+kernel edge for `all`), kept because it is still what the kernel would be
+handed if the filter were ever bypassed. With the real selector the "selected"
+column for the drilled plate becomes 4 (`Z`) and 14 (`all`), the cylinder's
+becomes 2 (`all`) and 0 (`Z`), and every one is fully accepted.
 
 Measured coverage, comparing the selected edges against the builder's own
 contour tables by topological identity. The numbers are the same for both
@@ -737,17 +749,17 @@ builders:
 | box, `all` | 12 | 12 | builds |
 | box, `axis_parallel Z` | 4 | 4 | builds |
 | drilled plate, `axis_parallel X` / `Y` | 4 | 4 | builds |
-| drilled plate, `axis_parallel Z` | 5 | **4** | **E5** — the cavity seam |
-| drilled plate, `all` | 15 | **14** | **E5** |
-| cylinder, `all` | 3 | **2** | **E5** — the seam |
-| cylinder, `axis_parallel Z` | 1 | **0** | **E5** |
-| Z-filleted box, `all` | 24 | **16** | **E5** — the tangency edges |
+| drilled plate, `axis_parallel Z` | 5 | **4** | **E5** if unfiltered — the cavity seam |
+| drilled plate, `all` | 15 | **14** | **E5** if unfiltered |
+| cylinder, `all` | 3 | **2** | **E5** if unfiltered — the seam |
+| cylinder, `axis_parallel Z` | 1 | **0** | **E5** if unfiltered |
+| Z-filleted box, `all` | 24 | **16** | **E5** if unfiltered — the tangency edges |
 
 Two things this deliberately does *not* do:
 
 - **It does not reject an operation merely because the shape contains a seam.**
-  Only a selection that *includes* an unaccepted edge fails: a drilled plate's
-  `axis_parallel X` fillet builds normally, seam and all.
+  Only a selection that *includes* an unaccepted edge fails; since 1.1.1 the
+  selector never includes the seam.
 - **It does not treat the reverse case as an error.** Contour propagation
   follows tangency, so a contour may contain *more* edges than were selected,
   and the kernel then modifies those neighbours too. Measured on a Z-filleted
@@ -784,21 +796,18 @@ persists it, the same edge can appear at a different position under a different
 selector, and **no persistent named topology is introduced**. No object
 identity or memory address appears, and a test asserts that.
 
-#### The consequence, stated plainly
+#### The consequence, as it stood until 1.1.0 (history)
 
-With the two V1 selectors, **a drilled plate's vertical corners cannot be
-filleted or chamfered**, because `axis_parallel Z` also matches the cavity's
-parameterisation seam. Neither can a bare cylinder be filleted or chamfered on
-any axis selector. Both were previously possible for fillet, by silently
-ignoring the seam.
+With the 1.1.0 selectors, **a drilled plate's vertical corners could not be
+filleted or chamfered**, because `axis_parallel Z` also matched the cavity's
+parameterisation seam, and neither could a bare cylinder on any selector.
+That was the correct trade at the time — silently changing what the user asked
+for is worse than refusing it — but it left Section C.7 with a gap: it said
+nothing about an edge a selector matches and the kernel will not modify.
 
-That is the correct trade: silently changing what the user asked for is worse
-than refusing it, and refusing is visible. But it does mean Section C.7 has a
-gap — it says nothing about an edge a selector matches and the kernel will not
-modify. Closing that gap (a selector that skips seams, an explicit rule, or a
-per-edge exclusion) is a specification decision, not an engine one, so
-`docs/cad-specification.md` was **not** changed. It is a gap, not a
-contradiction.
+**Schema 1.1.1 closed the gap in the specification**: selectors match sharp
+edges only (`docs/edge-selection.md`, *1.1.1: sharp edges only*). Those parts
+now build, and the engine's coverage check is unchanged.
 
 ## Chamfer semantics (Section C.6)
 
@@ -869,7 +878,7 @@ fillet's, which is why they were measured rather than assumed:
 
 | Kernel outcome | Example | Detection |
 |---|---|---|
-| an edge is taken into no contour | the cavity seam of a drilled plate | the coverage check (before `Build()`) — shared with `fillet` since Stage 14.1 |
+| an edge is taken into no contour | a seam handed to the builder (no selector returns one since 1.1.1; provoked directly in tests) | the coverage check (before `Build()`) — shared with `fillet` since Stage 14.1 |
 | `IsDone()` is false | distance 30 on the plate's vertical edges; distance ≥ 5 on all twelve | `IsDone()`, with `NbContours()` in the message |
 | `Build()` raises `Standard_Failure` | a selection made only of unsuitable edges — the kernel's message is *"There are no suitable edges for chamfer or fillet"* | the exception |
 
@@ -929,10 +938,10 @@ Other measured cases:
 | box, `all` volume | matches the derived closed form `abc − 2d²(a+b+c) + (16/3)d³` at d = 0.5, 1, 2, 3 and 4, worst Δ 7.3e-12 |
 | box, `axis_parallel Z`, d = 29 | succeeds. d = 30 fails. A measured bracket for this geometry, **not** a rule |
 | 100 × 60 × 3 plate, `all`, d = 2 | E5 — a genuine mixed selection: `axis_parallel Z` alone succeeds at d = 2, `X` and `Y` alone each fail. d = 1 succeeds for `all` |
-| drilled plate, `axis_parallel Z` or `all` | **E5** — the cavity seam is matched and the kernel will not bevel it |
+| drilled plate, `axis_parallel Z` or `all` | **builds since 1.1.1** (selector excludes the cavity seam; `all` is 12 outer edges plus the 2 rims). Until 1.1.0: E5, the seam was matched and the kernel will not bevel it |
 | drilled plate, `axis_parallel X` / `Y`, d = 2 | succeed; volume is the drilled volume minus `4(d²/2)·100` (or ·60) exactly, and the Ø20 hole survives |
-| cylinder, `axis_parallel Z` (the seam) | **E5** at every distance — the kernel builds no contour for it |
-| cylinder, `all`, d = 1 | **E5** by the coverage check. The kernel alone *would* have succeeded, bevelling both rims into conical faces (5 faces: 1 cylinder, 2 cones, 2 planes) and ignoring the seam. Refusing is the cost of the no-silent-skip rule, and it is recorded, not hidden |
+| cylinder, `axis_parallel Z` | **E4 since 1.1.1** — the selector matches nothing (the only straight edge is the seam, which the kernel builds no contour for). Until 1.1.0: E5 at every distance |
+| cylinder, `all`, d = 1 | **builds since 1.1.1**: both rims bevelled into conical faces (5 faces: 1 cylinder, 2 cones, 2 planes). Until 1.1.0 the coverage check refused it with E5 because the seam was in the selection; handed the seam anyway the kernel bevels the rims and ignores it, which a test still records |
 
 The derivation of the `all` closed form: twelve wedges of triangular section
 `d²/2` (`2d²(a+b+c)`), less three pairwise overlaps of `d³/3` per corner, plus
@@ -1055,13 +1064,13 @@ Explicitly **not** part of this stage:
   asymmetric chamfer, no face-based blend, and no way to exclude an edge the
   selector matched. The two V1 selectors are the only vocabulary, so "round
   these three corners but not that one" is not expressible.
-- **Neither a fillet nor a chamfer can be applied to any selection containing
-  a parameterisation seam.** That rules out `axis_parallel Z` and `all` on a
-  drilled plate, and any axis selector on a bare cylinder. It follows from
-  refusing to skip a matched edge, and it is the strongest argument that
-  Section C.7 needs a sentence about matched-but-unsuitable edges. Until then,
-  reach those corners with `axis_parallel X` or `Y`, which do not match a
-  seam.
+- **A selector never matches a seam or a smooth edge** (since 1.1.1), so a
+  fillet or chamfer cannot round either. `axis_parallel Z` on a bare cylinder
+  matches nothing and fails with E4, and a second blend whose edges the first
+  blend's tangent chain already rounded fails with E4 as well (a box filleted
+  on Z, then X, then Y: the X fillet propagates along the tangent chain and
+  rounds the Y edges, leaving no sharp Y edge). Until 1.1.0 the same selections
+  failed with E5 because the seam was matched.
 - **An admissible radius or distance is not predicted, only tested.** The
   engine asks the kernel and reports E5 when it objects; it computes no
   maximum, and the measured brackets in this document are observations about

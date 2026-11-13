@@ -421,7 +421,7 @@ unresolved cylinder-seam semantics, and this prompt *works around* it by
 ordering and by forbidding the selections the kernel refuses; it does not
 resolve it. The recommended next step is a spec change (C.7) that excludes
 seams and tangent edges from the selectors, after which rules 4-6 above could
-be relaxed.
+be relaxed. (Done in schema `1.1.1`; see *Prompt 2026-11-13.1* below.)
 
 What did **not** change: the model emits a data document and never code, the
 validator is the only authority on validity, anchor-point and axis semantics,
@@ -923,9 +923,10 @@ otherwise.** Beyond the limits `docs/http-api.md` already records:
 * **The vocabulary is still small.** Six feature types plus `union`'s
   grouping: no sketches, revolves, patterns or assemblies. Shapes beyond it are
   *approximated* (and say so), so a hex nut is a cylinder.
-* **Blend rules are a workaround.** Fillet/chamfer is limited to one per body,
-  on planar-faced bodies, because of the unresolved cylinder-seam semantics
-  (`docs/edge-selection.md`). Some parts a person expects ("rounded, with a
+* **Blend rules are a workaround.** As of prompt 2026-11-12.1, fillet/chamfer
+  was limited to one per body, on planar-faced bodies, because of the then
+  unresolved cylinder-seam semantics (`docs/edge-selection.md`; resolved by
+  schema `1.1.1`). Some parts a person expects ("rounded, with a
   hole") are only expressible in one order, and some cannot be rounded at all.
 * **A bounded retry, not a guarantee.** Up to `CAD_AI_MAX_ATTEMPTS` calls, then
   `INVALID_MODEL_OUTPUT`. Re-asks cost latency and money, and the model can
