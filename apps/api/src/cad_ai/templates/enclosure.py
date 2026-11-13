@@ -1,71 +1,93 @@
 """Template: an electronics enclosure.
 
-A rounded hollow box with a wall, open on top, with four corner screw posts,
-four PCB standoffs with pilot holes, a row of ventilation slots in the back
-wall, a cable gland on one end wall and four mounting ears with holes.
-Everything attached starts inside the face it joins; all cuts are made after
-the pieces are fused.
+A rounded hollow box centred on the origin, open on top, with four corner
+screw posts, four PCB standoffs, four mounting ears, a row of rounded
+ventilation slots in the back wall and a cable gland (hex body and tapered cap)
+on one end wall. The box is symmetric about the Z axis, so posts, standoffs,
+ears, their pilot holes and the ear holes are each written for one half and
+placed by a pattern of 2 turned 180 degrees about Z; the vent slot is written
+once and repeated by a linear pattern along X. Everything attached starts
+inside the face it joins; all cuts are made after the pieces are fused.
 """
 
 from __future__ import annotations
 
 from typing import Any, Mapping
 
-from cad_ai.templates._helpers import answer, box, cyl, fillet, hole, subtract, union
+from cad_ai.features import answer, box, cyl, drill, fillet, subtract, union
 
 
 def _build() -> Mapping[str, Any]:
     L, W, H, t = 120, 80, 40, 3
+    hx, hy = L / 2, W / 2  # 60, 40
     f = [
-        box("shell", (L, W, H), (0, 0, 0)), fillet("round_shell", "shell", 6, "Z"),
-        box("cavity", (L - 2 * t, W - 2 * t, H), (t, t, t)), fillet("round_cavity", "cavity", 3, "Z"),
+        box("shell", (L, W, H), (-hx, -hy, 0)), fillet("round_shell", "shell", 6, "Z"),
+        box("cavity", (L - 2 * t, W - 2 * t, H), (-hx + t, -hy + t, t)), fillet("round_cavity", "cavity", 3, "Z"),
         subtract("hollow", "shell", ["cavity"]),
     ]
-    adds = []
-    for x, y in ((6, 6), (L - 6, 6), (6, W - 6), (L - 6, W - 6)):
-        adds.append(cyl(f"post_{int(x)}_{int(y)}", 8, 37, (x, y, 1)))
-    for x, y in ((20, 15), (100, 15), (20, 65), (100, 65)):
-        adds.append(cyl(f"standoff_{x}_{y}", 7, 10, (x, y, 1)))
-    adds.append(cyl("gland", 28, 12, (L - 2, W / 2, 22), "+X"))
-    ears = []
-    for side, x in (("l", -18), ("r", L - 2)):
-        for y in (10, 50):
-            e = f"ear_{side}_{y}"
-            ears += [box(e, (20, 20, 4), (x, y, 0)), fillet(f"round_{e}", e, 1.5, "Z")]
-    adds_ids = [a["id"] for a in adds] + [e["id"] for e in ears if e["type"] == "box"]
-    f += adds + ears + [union("join_parts", "shell", adds_ids)]
-    vents = [box(f"vent_{k}", (4, 8, 18), (30 + 12 * k, W - 5, 14)) for k in range(6)]
-    pilots = [cyl(f"pilot_{a['id']}", 3 if a["id"].startswith("post") else 2.5, 16, (a["position"]["x"], a["position"]["y"], 24 if a["id"].startswith("post") else 5))
-              for a in adds if a["id"].startswith(("post", "standoff"))]
-    f += vents + [subtract("cut_vents", "shell", [v["id"] for v in vents])]
-    f += [cyl("cable_tool", 16, 24, (L - 8, W / 2, 22), "+X"), subtract("cut_cable", "shell", ["cable_tool"])]
-    f += pilots + [subtract("cut_pilots", "shell", [x["id"] for x in pilots])]
-    for e in [e for e in ears if e["type"] == "box"]:
-        pos = e["position"]
-        f.append(hole(f"hole_{e['id']}", "shell", 5, (pos["x"] + 10, pos["y"] + 10, 0)))
+    # One half of the symmetric parts: the +X posts, standoffs and ears.
+    half = [
+        cyl("post_a", 8, 37, (54, 34, 1)), cyl("post_b", 8, 37, (54, -34, 1)),
+        cyl("standoff_a", 7, 10, (40, 25, 1)), cyl("standoff_b", 7, 10, (40, -25, 1)),
+        box("ear_a", (20, 20, 4), (hx - 2, 10, 0)), fillet("round_ear_a", "ear_a", 1.5, "Z"),
+        box("ear_b", (20, 20, 4), (hx - 2, -30, 0)), fillet("round_ear_b", "ear_b", 1.5, "Z"),
+    ]
+    half_ids = [h["id"] for h in half if h["type"] != "fillet"]
+    f += half + [union("join_halves", "shell", half_ids, count=2, axis="Z", angle=180)]
+    # Cable gland on the +X end wall: a hex body and a tapered cap.
+    f += [
+        cyl("gland_hex", 26, 8, (hx - 1, 0, 22), "+X", sides=6),
+        cyl("gland_cap", 22, 10, (hx + 6, 0, 22), "+X", top=16),
+        union("join_gland", "shell", ["gland_hex", "gland_cap"]),
+        *drill("cut_cable", "shell", 10, (hx - 6, 0, 22), 26, "+X"),
+    ]
+    # Vent slot: a 4 x 14 box with round ends, one step (10 mm) before the first slot at x=-35.
+    x0, step, n = -45, 10, 8
+    f += [
+        box("vent_mid", (4, 9, 14), (x0 - 2, hy - 6, 16)),
+        cyl("vent_low", 4, 9, (x0, hy - 6, 16), "+Y"),
+        cyl("vent_high", 4, 9, (x0, hy - 6, 30), "+Y"),
+        subtract("cut_vents", "shell", ["vent_mid", "vent_low", "vent_high"], count=n, axis="X", step=step),
+    ]
+    # Pilot holes: one post and one standoff per half, turned 180 degrees for the other half.
+    f += [
+        cyl("pilot_post_a", 3, 16, (54, 34, 24)), cyl("pilot_post_b", 3, 16, (54, -34, 24)),
+        cyl("pilot_so_a", 2.5, 8, (40, 25, 5)), cyl("pilot_so_b", 2.5, 8, (40, -25, 5)),
+        subtract("cut_pilots", "shell", ["pilot_post_a", "pilot_post_b", "pilot_so_a", "pilot_so_b"], count=2, axis="Z", angle=180),
+        *drill("ear_hole_a", "shell", 5, (hx + 8, 20, -2), 8, count=2, angle=180),
+        *drill("ear_hole_b", "shell", 5, (hx + 8, -20, -2), 8, count=2, angle=180),
+    ]
     plan = (
-        "Shell 120x80x40, vertical edges r6; cavity 114x74 from z 3 up through the open top, r3 corners, "
-        "walls 3 and floor 3. Corner posts d8 at (6,6),(114,6),(6,74),(114,74) z 1-38 with d3 pilots from z 24. "
-        "PCB standoffs d7 at (20,15),(100,15),(20,65),(100,65) z 1-11 with d2.5 pilots from z 5. Cable gland d28 "
-        "on the x=120 end wall at y=40 z=22, x 118-130, bore d16 through the wall. Six vent slots 4x8x18 at "
-        "x 30+12k in the back wall y 77-80, z 14-32. Four ears 20x20x4 at x -18..2 and 118..138, y 10-30 and 50-70, "
-        "each with a d5 hole through its centre."
+        "Centre the box on the Z axis so its symmetry is a turn about Z. Shell 120x80x40 at x -60..60, "
+        "y -40..40, z 0-40, vertical edges r6; cavity 114x74 from z 3 up through the open top, r3 corners: "
+        "walls 3, floor 3. Corner posts d8 at (54,+-34) z 1-38, PCB standoffs d7 at (40,+-25) z 1-11, ears "
+        "20x20x4 at x 58-78, y 10-30 and -30..-10 (2 mm into the end wall), Z edges r1.5: written for the +X "
+        "half only and fused with count 2, axis Z, angle 180 -> copies at 180 degrees (the -X half) and 360 "
+        "(their own places): 4 posts, 4 standoffs, 4 ears. Cable gland on the x=60 end wall at y=0 z=22: hex "
+        "body d26 (corners on d26, 22.5 across flats) x 59-67, cap d22 tapering to d16 x 66-76; a d10 cable "
+        "bore from x 54 to 80 along +X through wall, hex and cap. Vent slots in the back wall y 37-40: a 4x14 "
+        "box z 16-30 with d4 round ends along +Y from y 34 to 43, placed at x=-45, one step before the first "
+        "slot, and cut with count 8, axis X, step 10 -> slots at x -35, -25, ... 35. Pilots d3 in the posts "
+        "from z 24 and d2.5 in the standoffs from z 5, written for (54,+-34) and (40,+-25), cut with count 2, "
+        "angle 180. Ear holes d5 at (68,+-20) from z -2, length 8, each drilled with count 2, angle 180 -> "
+        "the -X ears get theirs at (-68,-+20)."
     )
     return {
-        "request": "an electronics enclosure with a wall thickness, PCB standoffs inside, ventilation slots, a cable gland hole and mounting ears with holes",
+        "request": "an electronics enclosure with a wall thickness, PCB standoffs inside, ventilation slots, a cable gland and mounting ears with holes",
         "answer": answer(
             plan=plan,
             assumptions=[
                 "No unit given; assumed millimetres",
                 "Chose 120 x 80 x 40 mm outside with 3 mm walls",
                 "Open on top; the lid is left off so the standoffs and posts show",
-                "Cable gland is a plain collar with a round bore, no thread or nut",
+                "Cable gland is a hex body and a tapered cap with a round cable bore; no thread or seal",
                 "Standoffs hold a roughly 80 x 50 mm PCB; pilot holes stand in for threads",
+                "Eight round-ended vent slots, 10 mm apart, in the back wall only",
             ],
             name="electronics-enclosure",
-            description="Electronics enclosure with PCB standoffs, vents, cable gland and mounting ears",
+            description="Electronics enclosure with PCB standoffs, vent slots, cable gland and mounting ears",
             features=f,
-            summary="A 120 x 80 x 40 mm open-top enclosure, 3 mm walls, with corner posts, four PCB standoffs, six vent slots, a cable gland and four mounting ears.",
+            summary="A 120 x 80 x 40 mm open-top enclosure, 3 mm walls, with corner posts, four PCB standoffs and four ears (a 2 x 180 degree pattern), eight vent slots (a linear pattern) and a hex cable gland.",
         ),
     }
 
