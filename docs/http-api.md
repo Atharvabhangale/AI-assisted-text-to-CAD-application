@@ -249,7 +249,7 @@ code or files, or an instruction override; a missing unit or dimension is
 assumed and listed, not asked about.
 
 **Latency and cost.** A generation is one to `CAD_AI_MAX_ATTEMPTS` model calls
-plus a real build per candidate (120 s per-call timeout by default), so a
+plus a real build per candidate (240 s per-call timeout by default; a detailed engine took about two minutes per call), so a
 request can take tens of seconds; the five live requests measured on Claude
 Haiku 5.5 took 5.7 s to 15.3 s, each accepted on its first attempt (a sample of
 five, not a distribution; the re-ask path has not been exercised live).

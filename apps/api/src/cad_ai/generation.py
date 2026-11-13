@@ -68,8 +68,11 @@ from cad_ai.specification import response_schema
 #: How long a model answer may be, **including the model's own reasoning**:
 #: the default model thinks before it writes, and those tokens are counted
 #: against this bound. A document is a few hundred tokens; the rest is room to
-#: think. Bounded so a runaway generation still ends.
-MAX_OUTPUT_TOKENS = 16000
+#: think. Bounded so a runaway generation still ends. Measured: a detailed
+#: engine (54 features) took 15.8k output tokens and an earlier answer was cut
+#: off at 16000; 20000 is below the installed SDK's non-streaming limit
+#: (~21.3k tokens, ten minutes at its assumed rate).
+MAX_OUTPUT_TOKENS = 20000
 
 #: The outputs the verification build requests: exactly the set the web page
 #: asks ``POST /build`` for when it draws a generated part. Requesting the

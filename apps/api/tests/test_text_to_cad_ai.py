@@ -2793,7 +2793,7 @@ class TestAiConfiguration(unittest.TestCase):
         config = config_from_environment({})
         self.assertEqual(config.model, DEFAULT_MODEL)
         # Per call; the default model reasons before answering.
-        self.assertEqual(config.timeout_seconds, 120.0)
+        self.assertEqual(config.timeout_seconds, 240.0)
 
     def test_a_bad_timeout_is_refused(self) -> None:
         for value in ("nonsense", "0", "-1"):

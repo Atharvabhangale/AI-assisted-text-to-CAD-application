@@ -303,6 +303,14 @@ first attempt — and "a 4 cylinder car engine" typed into the page: a block,
 crankcase, head and oil pan fused, four bores, flywheel and pulley, drawn in
 the viewer. Complex products are one solid of overlapping major components,
 and the model says what it fused or left out.
+Prompt `2026-11-13.2` (detail rule + engine recipe): "a detailed 4 cylinder
+engine with valves and ports" → 54 features (block, crankcase, pan, head,
+four box intake ports, four round exhaust ports, plug wells, eight valves as
+spring/retainer/stem stacks, flywheel, pulley, oil filter, alternator,
+mounts) in 241 s and 2 calls: **the first answer was cut off at the old
+16000-token cap and the retry loop re-asked — its first live save.**
+`MAX_OUTPUT_TOKENS` is now 20000 and the per-call timeout 240 s. Plain "an
+engine" → 47 features, 99 s, 1 call.
 Cost policy from the owner: **at most 10 (never more than 20) real requests
 per hour**, and no Opus.
 
@@ -698,8 +706,10 @@ Each of these is supported by the code, the docs or the measured results.
   of many joined and cut pieces (a mug with cavity and handle, an engine)
   still fails E5 in the kernel; the prompt tells the model to blend simple
   pieces before joining them.
-- **The retry loop has not yet been exercised live**: every live answer so far
-  was accepted on its first attempt.
+- **Detailed parts are slow**: a 50-feature engine is ~14-16k output
+  tokens, about 100-120 s per call on Haiku 5.5. 20000 output tokens is
+  close to the SDK's non-streaming ceiling (~21.3k); larger parts would need
+  streaming in the provider.
 - The V1 vocabulary is small: no sketches, no revolves, no patterns, no
   assemblies.
 
