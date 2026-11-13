@@ -28,6 +28,7 @@ from cad_core.model import (
     SUPPORTED_UNITS,
 )
 
+from cad_ai.features import box, chamfer, cyl, drill, fillet, subtract, union
 from cad_ai.specification import (
     SUPPORTED_FEATURE_TYPES,
     specification_excerpt,
@@ -102,98 +103,85 @@ from cad_ai.specification import (
 #: and cacheable however many templates there are. The prompt now says how to
 #: use an attached reference design, for any kind of object.
 #:
+#: ``2026-11-13.7`` teaches schema 1.2.0: cones and tapers (`top_diameter`),
+#: polygon prisms (`sides`) and patterns on subtract/union (`pattern_*`),
+#: which also turn a single piece by an angle. Holes are subtracted cylinder
+#: tools: ``through_hole`` is no longer offered to the model, because the
+#: grammar with the new parameters only compiles without that branch (see
+#: :data:`cad_ai.specification.SUPPORTED_FEATURE_TYPES`). Every example and
+#: template was rewritten to match.
+#:
 #: What did **not** change: the model emits a data document and never code,
 #: the validator is still the only authority on validity, anchor-point and
 #: axis semantics, and order-is-meaning.
-PROMPT_VERSION = "2026-11-13.6"
+PROMPT_VERSION = "2026-11-13.7"
 
 
-def _p(x: float, y: float, z: float) -> Dict[str, float]:
-    return {"x": x, "y": y, "z": z}
+def _doc(name: str, description: str, features: Sequence[Mapping[str, Any]]) -> Dict[str, Any]:
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "units": "mm",
+        "name": name,
+        "description": description,
+        "features": list(features),
+    }
+
+
+def _answer(plan: str, assumptions: Sequence[str], document: Dict[str, Any], summary: str) -> Dict[str, Any]:
+    return {
+        "status": "document",
+        "plan": plan,
+        "assumptions": list(assumptions),
+        "document": document,
+        "summary": summary,
+        "questions": [],
+        "issues": [],
+    }
 
 
 #: Worked examples, embedded in the prompt as complete answers. Each one was
 #: built with the local engine before it was written here, and a test builds
 #: every one again, so an example can never teach the model an unbuildable
-#: construction.
+#: construction. They are written with :mod:`cad_ai.features`, so each carries
+#: every parameter the response schema requires.
 EXAMPLES: Tuple[Mapping[str, Any], ...] = (
     {
         "request": "An L-bracket with a 6 mm hole in each leg",
-        "answer": {
-            "status": "document",
-            "plan": (
+        "answer": _answer(
+            (
                 "Base leg: box 60x30x5 at origin (x 0-60, y 0-30, z 0-5). "
                 "Upright leg: box 5x30x40 at (0,0,4), z 4-44, overlapping "
                 "the base by 1 mm. Union upright into base. Round the edges "
                 "along Y with r=2 while the body is still all boxes. Then a "
-                "6 mm +Z hole through the base at (35,15) and a 6 mm +X hole "
-                "through the upright at y=15, z=25."
+                "6 mm hole down through the base at (35,15): tool from z -2, "
+                "9 long (2 mm past both faces); and a 6 mm hole through the "
+                "upright along +X at y=15, z=25: tool from x -2, 9 long."
             ),
-            "assumptions": [
+            [
                 "No unit given; assumed millimetres",
                 "Chose legs 60 mm and 44 mm long, 30 mm wide, 5 mm thick",
                 "Placed each hole at the middle of its leg",
                 "Rounded the bracket's long edges with a 2 mm fillet",
             ],
-            "document": {
-                "schema_version": SCHEMA_VERSION,
-                "units": "mm",
-                "name": "l-bracket",
-                "description": "L-bracket, 5 mm legs, one 6 mm hole per leg",
-                "features": [
-                    {
-                        "id": "base",
-                        "type": "box",
-                        "size": _p(60, 30, 5),
-                        "position": _p(0, 0, 0),
-                    },
-                    {
-                        "id": "upright",
-                        "type": "box",
-                        "size": _p(5, 30, 40),
-                        "position": _p(0, 0, 4),
-                    },
-                    {
-                        "id": "join",
-                        "type": "union",
-                        "target": "base",
-                        "tools": ["upright"],
-                    },
-                    {
-                        "id": "round_edges",
-                        "type": "fillet",
-                        "target": "base",
-                        "radius": 2,
-                        "edges": {"select": "axis_parallel", "axis": "Y"},
-                    },
-                    {
-                        "id": "base_hole",
-                        "type": "through_hole",
-                        "target": "base",
-                        "diameter": 6,
-                        "position": _p(35, 15, 0),
-                        "axis": "+Z",
-                    },
-                    {
-                        "id": "upright_hole",
-                        "type": "through_hole",
-                        "target": "base",
-                        "diameter": 6,
-                        "position": _p(0, 15, 25),
-                        "axis": "+X",
-                    },
+            _doc(
+                "l-bracket",
+                "L-bracket, 5 mm legs, one 6 mm hole per leg",
+                [
+                    box("base", (60, 30, 5), (0, 0, 0)),
+                    box("upright", (5, 30, 40), (0, 0, 4)),
+                    union("join", "base", ["upright"]),
+                    fillet("round_edges", "base", 2, "Y"),
+                    *drill("base_hole", "base", 6, (35, 15, -2), 9, "+Z"),
+                    *drill("upright_hole", "base", 6, (-2, 15, 25), 9, "+X"),
                 ],
-            },
-            "summary": "An L-bracket of two 5 mm legs with one hole in each.",
-            "questions": [],
-            "issues": [],
-        },
+            ),
+            "An L-bracket of two 5 mm legs with one hole in each.",
+        ),
     },
     {
         "request": "A coffee mug, 80 mm diameter, 95 mm tall, with a handle",
-        "answer": {
-            "status": "document",
-            "plan": (
+        "answer": _answer(
+            (
                 "Body: cylinder d80 h95, base centre at origin (radius 40). "
                 "Handle: box 33x12x60 at (37,-6,18), reaching 3 mm into the "
                 "wall; grip opening: box 19x14x40 at (41,-7,28), longer than "
@@ -203,81 +191,31 @@ EXAMPLES: Tuple[Mapping[str, Any], ...] = (
                 "(0,0,6), so 4 mm walls and a 6 mm floor, extending past the "
                 "rim so the top is open; subtract it last."
             ),
-            "assumptions": [
+            [
                 "Chose a 4 mm wall and a 6 mm base",
                 "Simplified the handle to a rectangular loop, 60 mm tall",
             ],
-            "document": {
-                "schema_version": SCHEMA_VERSION,
-                "units": "mm",
-                "name": "coffee-mug",
-                "description": "Mug 80 mm diameter, 95 mm tall, with a loop handle",
-                "features": [
-                    {
-                        "id": "body",
-                        "type": "cylinder",
-                        "diameter": 80,
-                        "height": 95,
-                        "position": _p(0, 0, 0),
-                        "axis": "+Z",
-                    },
-                    {
-                        "id": "handle",
-                        "type": "box",
-                        "size": _p(33, 12, 60),
-                        "position": _p(37, -6, 18),
-                    },
-                    {
-                        "id": "grip",
-                        "type": "box",
-                        "size": _p(19, 14, 40),
-                        "position": _p(41, -7, 28),
-                    },
-                    {
-                        "id": "open_grip",
-                        "type": "subtract",
-                        "target": "handle",
-                        "tools": ["grip"],
-                    },
-                    {
-                        "id": "soften_handle",
-                        "type": "fillet",
-                        "target": "handle",
-                        "radius": 2,
-                        "edges": {"select": "axis_parallel", "axis": "Y"},
-                    },
-                    {
-                        "id": "attach_handle",
-                        "type": "union",
-                        "target": "body",
-                        "tools": ["handle"],
-                    },
-                    {
-                        "id": "cavity",
-                        "type": "cylinder",
-                        "diameter": 72,
-                        "height": 95,
-                        "position": _p(0, 0, 6),
-                        "axis": "+Z",
-                    },
-                    {
-                        "id": "hollow",
-                        "type": "subtract",
-                        "target": "body",
-                        "tools": ["cavity"],
-                    },
+            _doc(
+                "coffee-mug",
+                "Mug 80 mm diameter, 95 mm tall, with a loop handle",
+                [
+                    cyl("body", 80, 95, (0, 0, 0)),
+                    box("handle", (33, 12, 60), (37, -6, 18)),
+                    box("grip", (19, 14, 40), (41, -7, 28)),
+                    subtract("open_grip", "handle", ["grip"]),
+                    fillet("soften_handle", "handle", 2, "Y"),
+                    union("attach_handle", "body", ["handle"]),
+                    cyl("cavity", 72, 95, (0, 0, 6)),
+                    subtract("hollow", "body", ["cavity"]),
                 ],
-            },
-            "summary": "A cylindrical mug, hollowed from the top, with a loop handle.",
-            "questions": [],
-            "issues": [],
-        },
+            ),
+            "A cylindrical mug, hollowed from the top, with a loop handle.",
+        ),
     },
     {
         "request": "a gaming mouse",
-        "answer": {
-            "status": "document",
-            "plan": (
+        "answer": _answer(
+            (
                 "Shell: box 65x120x38 at origin (x across, y front-to-back, z "
                 "up), every edge rounded r=15 first, while it is one box. Wheel "
                 "slot: box 10x24x20 at (27.5,84,28), z 28-48, reaching past the "
@@ -286,75 +224,65 @@ EXAMPLES: Tuple[Mapping[str, Any], ...] = (
                 "d20 h8 along +X with base centre (28.5,96,30), sitting in the "
                 "slot and overlapping the shell below z=28; union it last."
             ),
-            "assumptions": [
+            [
                 "No size given; chose 120 x 65 x 38 mm, a typical mouse",
                 "No unit given; assumed millimetres",
                 "Approximated the curved shell as a box with 15 mm rounded edges",
                 "Modelled the buttons as a groove and the wheel as a disc in a slot",
             ],
-            "document": {
-                "schema_version": SCHEMA_VERSION,
-                "units": "mm",
-                "name": "gaming-mouse",
-                "description": "Simplified gaming mouse with button split and scroll wheel",
-                "features": [
-                    {
-                        "id": "shell",
-                        "type": "box",
-                        "size": _p(65, 120, 38),
-                        "position": _p(0, 0, 0),
-                    },
-                    {
-                        "id": "round_shell",
-                        "type": "fillet",
-                        "target": "shell",
-                        "radius": 15,
-                        "edges": {"select": "all"},
-                    },
-                    {
-                        "id": "wheel_slot",
-                        "type": "box",
-                        "size": _p(10, 24, 20),
-                        "position": _p(27.5, 84, 28),
-                    },
-                    {
-                        "id": "cut_wheel_slot",
-                        "type": "subtract",
-                        "target": "shell",
-                        "tools": ["wheel_slot"],
-                    },
-                    {
-                        "id": "button_split",
-                        "type": "box",
-                        "size": _p(2, 50, 20),
-                        "position": _p(31.5, 70, 33),
-                    },
-                    {
-                        "id": "cut_button_split",
-                        "type": "subtract",
-                        "target": "shell",
-                        "tools": ["button_split"],
-                    },
-                    {
-                        "id": "wheel",
-                        "type": "cylinder",
-                        "diameter": 20,
-                        "height": 8,
-                        "position": _p(28.5, 96, 30),
-                        "axis": "+X",
-                    },
-                    {
-                        "id": "add_wheel",
-                        "type": "union",
-                        "target": "shell",
-                        "tools": ["wheel"],
-                    },
+            _doc(
+                "gaming-mouse",
+                "Simplified gaming mouse with button split and scroll wheel",
+                [
+                    box("shell", (65, 120, 38), (0, 0, 0)),
+                    fillet("round_shell", "shell", 15),
+                    box("wheel_slot", (10, 24, 20), (27.5, 84, 28)),
+                    subtract("cut_wheel_slot", "shell", ["wheel_slot"]),
+                    box("button_split", (2, 50, 20), (31.5, 70, 33)),
+                    subtract("cut_button_split", "shell", ["button_split"]),
+                    cyl("wheel", 20, 8, (28.5, 96, 30), "+X"),
+                    union("add_wheel", "shell", ["wheel"]),
                 ],
-            },
-            "summary": "A simplified gaming mouse: rounded shell, button split and scroll wheel.",
-            "questions": [],
-            "issues": [],
-        },
+            ),
+            "A simplified gaming mouse: rounded shell, button split and scroll wheel.",
+        ),
+    },
+    {
+        "request": "a pipe flange with six bolt holes and a hex nut on one bolt",
+        "answer": _answer(
+            (
+                "Flange: cylinder d150 h16 at origin, axis +Z (z 0-16), rim "
+                "chamfered 1.5 while it is one cylinder. Hub: cylinder d80 h30 "
+                "at (0,0,14), z 14-44, 2 mm into the flange. Nut: hexagon, "
+                "sides 6, 17 across flats so corner diameter 17/0.866 = 19.6, "
+                "height 10 at (0,60,14): z 14-24, 2 mm into the flange, on the "
+                "bolt circle. Union hub and nut. Bore: d50 tool from z -2, 48 "
+                "long (to z 46, past the hub top 44). Bolt holes on radius 60: "
+                "one d12 tool at (0,60,-2), 28 long (past the nut top 24), "
+                "subtracted with pattern_count 6, pattern_angle 60 about Z -- "
+                "copies at 150, 210, 270, 330, 30 and 90 degrees, the last on "
+                "the tool's own place, so one hole runs through the nut."
+            ),
+            [
+                "No size given; chose a 150 mm flange with a 50 mm bore",
+                "Chose a 120 mm bolt circle with 12 mm holes",
+                "Modelled the nut as a 17 mm hexagon standing 8 mm proud, without a thread",
+            ],
+            _doc(
+                "pipe-flange",
+                "150 mm pipe flange, 50 mm bore, six bolt holes, one hex nut",
+                [
+                    cyl("flange", 150, 16, (0, 0, 0)),
+                    chamfer("chamfer_rim", "flange", 1.5),
+                    cyl("hub", 80, 30, (0, 0, 14)),
+                    cyl("nut", 19.6, 10, (0, 60, 14), sides=6),
+                    union("join", "flange", ["hub", "nut"]),
+                    *drill("bore", "flange", 50, (0, 0, -2), 48),
+                    *drill("bolt_holes", "flange", 12, (0, 60, -2), 28, count=6, angle=60),
+                ],
+            ),
+            "A round pipe flange with a raised hub, a 50 mm bore, six bolt holes on a 120 mm circle and a hex nut on one bolt.",
+        ),
     },
 )
 
@@ -398,14 +326,19 @@ question or a refusal. Resolve whatever the request leaves open yourself:
 * **A dimension missing**: choose a realistic, typical size for that object.
 * **Position or orientation missing**: put the part's base on the XY plane
   near the origin, standing up along +Z.
-* Always write `position` on every box and cylinder and `axis` on every
-  cylinder and through-hole, even where the specification has a default.
+* Always write every parameter, even where the specification has a default:
+  `position` on every box and cylinder; `axis`, `top_diameter` (equal to
+  `diameter` when straight) and `sides` (0 when round) on every cylinder;
+  `pattern_count` (1), `pattern_axis`, `pattern_angle` (0) and `pattern_step`
+  (0) on every subtract and union that is not a pattern.
+* **Use the shape that fits** (see *Shapes, holes and patterns*): a cone or
+  taper for nose cones, nozzles, funnels and tapered legs; a hexagon for nuts
+  and bolt heads; a pattern for anything repeated around a circle or along a
+  line, and for anything turned at an angle.
 * **A shape the vocabulary cannot express exactly** -- curved or organic
-  surfaces, threads, gear teeth, text, knurling, patterns, slopes, anything
-  needing a rotation, sweep or loft -- approximate it with boxes, cylinders,
-  unions, subtractions, fillets and chamfers. Thread: a plain cylinder of the
-  nominal diameter. Slope or wedge: a box or a few stepped boxes. Organic
-  shell: a box or cylinder with generously rounded edges.
+  surfaces, threads, gear teeth, text, knurling, sweeps, lofts between
+  different shapes -- approximate it. Thread: a plain cylinder of the nominal
+  diameter. Organic shell: a box or cylinder with generously rounded edges.
 * **Several separate parts or an assembly** (an engine, a gearbox, a pump, a
   drone): model it as **one solid** that shows its recognisable major
   components -- each as boxes and cylinders, every one overlapping the main
@@ -414,7 +347,8 @@ question or a refusal. Resolve whatever the request leaves open yourself:
   say which in `assumptions`.
 * **Detail**: when the request names details ("with valves and ports",
   "detailed", "with fins", "with mounting holes"), model every named detail
-  as real features, repeated for every instance (every cylinder, every bolt).
+  as real features, repeated for every instance (every cylinder, every bolt)
+  -- with a pattern when the instances repeat around a circle or along a row.
   A detailed product is typically 30-60 features; that is expected. Prefer
   visible detail: something buried inside the solid cannot be seen.
 
@@ -512,19 +446,49 @@ list of features evaluated in sequence:
   subtracted from, the one body.
 
 Build multi-primitive parts the natural way: create the solids, `union` them
-into the main body, then cut holes and pockets. A blind hole or pocket is a
-`subtract` with a cylinder or box tool; a hole that goes all the way through
-is a `through_hole`.
+into the main body, then cut holes and pockets. Every hole and pocket is a
+`subtract` with a cylinder or box tool. A hole that goes all the way through is
+a cylinder tool longer than the material, reaching 2 mm past both faces.
 
 Order is meaning: features are applied in the order listed.
 
 Coordinates: one right-handed system, Z up, every position absolute. A box's
 `position` is its **minimum corner** (it spans position to position + size). A
 cylinder's `position` is the **centre of its base circle**, and it extends
-`height` along `axis`. Do not treat either as a centroid. Axis values: {", ".join(AXIS_VALUES)}; a cylinder or
-hole without an `axis` runs along {DEFAULT_AXIS}. A through-hole's centreline is
-infinite along its axis, so only the two coordinates across the axis matter,
-and they must lie inside the material.
+`height` along `axis`. Do not treat either as a centroid. Axis values: {", ".join(AXIS_VALUES)}; a cylinder
+without an `axis` runs along {DEFAULT_AXIS}.
+
+## Shapes, holes and patterns
+
+* **Cone or taper**: a cylinder whose `top_diameter` differs from `diameter`.
+  `diameter` is at `position`, `top_diameter` is `height` further along
+  `axis`. `top_diameter` 0 is a pointed cone (round only). A nose cone on a
+  rocket body standing on +Z: position at the body's top minus 2 mm, axis +Z,
+  `diameter` the body's, `top_diameter` 0.
+* **Polygon prism**: `sides` 3-12 (6 = hexagon). Its corners lie on the circle
+  of `diameter`, so across the flats a hexagon is `diameter` x 0.866: an M10
+  nut, 17 mm across flats, has `diameter` 19.6. On axis +Z a corner points
+  along +X. It can taper too (`top_diameter` > 0).
+* **Pattern** (on a `subtract` or a `union`): each tool is replaced by
+  `pattern_count` copies; copy k (k = 1 .. count) is the tool turned
+  k x `pattern_angle` degrees about the `pattern_axis` line **through the
+  origin**, then moved k x `pattern_step` along that axis. Positive angles
+  turn counter-clockwise seen from the + end of the axis.
+  - **n around a circle** (bolt circle, spokes, fins, drone arms): build ONE
+    tool at its place on the circle, centred on the origin's axis line, then
+    `pattern_count` n and `pattern_angle` 360/n. The last copy lands on the
+    tool's own place, so the n copies are all n positions. Build the part
+    around the origin so the circle is centred on the axis line.
+  - **A row** (slots, ribs, holes along a plate): `pattern_count` n,
+    `pattern_step` d along an axis, `pattern_angle` 0. The copies sit d, 2d,
+    ..., nd from the tool, so place the tool one step **before** the first
+    position (first position minus d).
+  - **Turned at an angle** (a diagonal brace, a tilted arm): `pattern_count` 1,
+    `pattern_angle` the angle. The turn is about the axis line through the
+    origin, so build the piece where it should be before turning it --
+    typically starting at the origin and reaching outward.
+  - Every copy of a `union` pattern must overlap or touch the body by a face,
+    as any joined solid must.
 
 Words that locate a feature are answers, not gaps: "on the top" means centred
 on the top face, "centred" means on the centre of the target across the
@@ -562,7 +526,8 @@ These were measured on the engine; each one has failed when broken.
    wall or dimension at that edge -- 1-3 mm on small parts, up to about 40% of
    the smallest box dimension for a generously rounded shell. Exactly half
    fails.
-8. **Through-holes must pass through material**, clear of the edges.
+8. **Holes must pass through material**, clear of the edges, and a hole tool
+   must reach 2 mm past both faces it opens.
 
 ## Reference designs
 
@@ -582,10 +547,12 @@ Fill the fields in order:
 
 * `status`: "document" in nearly every case.
 * `plan`: a few terse lines, written before the document: each solid with its
-  coordinates and extents, where solids overlap, and the feature order. Check
-  the arithmetic here. Empty string when there is no document.
+  coordinates and extents, where solids overlap, each pattern's count, angle
+  or step, and the feature order. Check the arithmetic here. Empty string when
+  there is no document.
 * `assumptions`: as above. Empty array when nothing was assumed.
-* `document`: the complete document, or null.
+* `document`: the complete document. (When the status is not "document",
+  write a placeholder with an empty `features` list; it is ignored.)
   - `schema_version` is exactly "{SCHEMA_VERSION}".
   - `units` is "{SUPPORTED_UNITS[0]}".
   - `name` is short, lowercase, hyphenated.

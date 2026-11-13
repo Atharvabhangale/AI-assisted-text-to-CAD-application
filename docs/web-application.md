@@ -260,7 +260,7 @@ apps/web/
   src/viewer.ts       the Three.js viewport
   src/example.ts      Section D, as a data literal
   src/main.ts         entry point: collect, wire, start
-  tests/              162 Vitest tests, against the real page and real fixtures
+  tests/              180 Vitest tests, against the real page and real fixtures
   e2e/run.mjs         the end-to-end run: real backend, real browser
 ```
 
@@ -295,6 +295,16 @@ their ids, and nothing computed:
 
 A feature type the panel does not know is still listed, under its own type
 name, so a generated feature is never silently dropped.
+
+Schema 1.2.0's parameters get a row only when they change something: a
+cylinder with `sides` reads as "a hexagonal prism" (by name for 3-12 sides), a
+`top_diameter` different from `diameter` as "tapering from 40 mm to 10 mm" (or
+"to a point", and the shape "a cone"), and a subtract or union pattern as
+"6 copies, 60° apart about Z", "4 copies, 20 mm apart along X" or, for a
+single copy, "turned 30° about Z". Neutral values (`sides` 0, `top_diameter`
+equal to `diameter`, `pattern_count` 1 with no angle or step) read exactly as
+a 1.1 feature. Every number shown is the document's own; the panel still does
+no arithmetic.
 
 ## Assumptions and attempts
 
@@ -361,7 +371,7 @@ questioned or refused is the backend's answer on the day.
 
 ### Unit and DOM tests — `npm test` in `apps/web`
 
-162 tests, in five files:
+180 tests, in six files:
 
 - `tests/app.test.ts` — the build flow: loading, the request shape, success,
   a cache hit, each failure classification, the identity and measurement
@@ -374,6 +384,8 @@ questioned or refused is the backend's answer on the day.
   request and that every kind of answer costs exactly one `/generate`.
 - `tests/render-model.test.ts` — the conversion, the normals, the per-face
   vertices and the camera fit, on the real Section D mesh.
+- `tests/design-intent.test.ts` — the 1.2.0 wordings, and that a 1.1
+  document and a 1.2.0 document with neutral values read identically.
 - `tests/boundary.test.ts` — the source-level assertions above.
 
 Two things make these tests worth something:

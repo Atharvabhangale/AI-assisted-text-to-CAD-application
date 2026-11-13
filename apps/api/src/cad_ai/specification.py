@@ -147,11 +147,24 @@ def specification_excerpt() -> str:
 #: together, because both read this tuple. It changes **no** CAD rule: the
 #: validator, the engine and the specification are untouched, and a document
 #: using these features had always been valid V1 CAD.
-SUPPORTED_FEATURE_TYPES: Tuple[str, ...] = tuple(FEATURE_TYPES)
+#:
+#: **Since prompt ``2026-11-13.7`` ``through_hole`` is held back.** Schema
+#: 1.2.0 added a taper and polygon sides to ``cylinder`` and a pattern to
+#: ``subtract``/``union``, and the structured-output compiler refuses the
+#: grammar that results -- measured live: any schema with the six existing
+#: branches plus the new parameters is "too large", on Haiku and Sonnet alike,
+#: while the same schema without the ``through_hole`` branch (and without the
+#: nullable ``document``) compiles. A through-hole is exactly a cylinder tool
+#: that spans the part, subtracted -- and a patterned subtract makes a whole
+#: bolt circle one feature -- so the model loses no shape. ``through_hole``
+#: remains valid V1 CAD: the specification, validator and engine still accept
+#: it, and documents that use it still build.
+SUPPORTED_FEATURE_TYPES: Tuple[str, ...] = tuple(
+    name for name in FEATURE_TYPES if name != "through_hole"
+)
 
-#: The types V1 defines but this stage does not generate. Empty now that the
-#: prompt admits the full vocabulary; kept because it is the honest way to say
-#: "nothing is held back", and because a future V2 type would land here first.
+#: The types V1 defines but the model is not offered: ``through_hole`` (see
+#: above). They stay valid in documents; the model writes the equivalent.
 UNSUPPORTED_FEATURE_TYPES: Tuple[str, ...] = tuple(
     name for name in FEATURE_TYPES if name not in SUPPORTED_FEATURE_TYPES
 )
@@ -217,6 +230,39 @@ _PARAMETER_SCHEMAS: Mapping[str, Dict[str, Any]] = {
             "them from the target, a union fuses them into it. Each must "
             "appear strictly earlier in the feature list (rule S7)."
         ),
+    },
+    # --- schema 1.2.0: taper, polygon sides, pattern ------------------------
+    "top_diameter": {
+        "type": "number",
+        "description": (
+            "Diameter at the far end of the cylinder. Equal to `diameter` for "
+            "a straight cylinder; smaller or larger for a taper; 0 for a "
+            "pointed cone (round only)."
+        ),
+    },
+    "sides": {
+        "type": "integer",
+        "description": "0 for round; 3-12 for a regular polygon prism (6 = hexagon).",
+    },
+    "pattern_count": {
+        "type": "integer",
+        "description": (
+            "How many copies of each tool, 1-64. 1 with angle 0 and step 0 "
+            "means the tools exactly as placed."
+        ),
+    },
+    "pattern_axis": {
+        "type": "string",
+        "enum": list(SELECTOR_AXIS_VALUES),
+        "description": "The axis line through the origin that copies turn about and step along.",
+    },
+    "pattern_angle": {
+        "type": "number",
+        "description": "Degrees each copy turns further about pattern_axis (360/n for n around).",
+    },
+    "pattern_step": {
+        "type": "number",
+        "description": "Distance each copy moves further along pattern_axis.",
     },
     "radius": {
         "type": "number",
@@ -378,11 +424,13 @@ def response_schema() -> Dict[str, Any]:
     from its questions, so explanatory text can never become CAD semantics.
 
     **Every field is required.** A field that does not apply is written as
-    ``null`` or as an empty array rather than left out. That is deliberate:
+    an empty string, an empty array or (``document``) a placeholder rather
+    than left out. That is deliberate:
     with optional fields, a model could answer ``status: "document"`` and
     simply never emit ``document`` -- a measured failure. A required field
     cannot be skipped by a schema-constrained decoder, so the model has to
-    write either a document or an explicit ``null``.
+    write a document. (Until prompt ``2026-11-13.7`` it could be ``null``; that
+    union cost grammar the 1.2.0 parameters needed.)
 
     The fields come in :data:`RESPONSE_FIELDS` order, which is the order they
     are generated in.
@@ -418,12 +466,17 @@ def response_schema() -> Dict[str, Any]:
                 "was assumed, and when status is not 'document'."
             ),
         },
-        "document": {
-            "anyOf": [document_schema(), {"type": "null"}],
-            "description": (
-                "The CAD document when status is 'document'; null otherwise."
+        # Not nullable: `anyOf [document, null]` is a union around the whole
+        # feature grammar, and dropping it is part of what lets the 1.2.0
+        # parameters compile. The answer is read only when status is
+        # "document", so a placeholder is harmless and never validated.
+        "document": dict(
+            document_schema(),
+            description=(
+                "The CAD document when status is 'document'. Otherwise an "
+                "unused placeholder with an empty features list."
             ),
-        },
+        ),
         "summary": {
             "type": "string",
             "description": (
