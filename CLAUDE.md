@@ -327,6 +327,12 @@ features in 109 s, the same construction extended to six cylinders (7
 journal segments, webs, plug wells, retainers; bores stop at the block top).
 Both first attempt. Example 4 makes engine requests reproduce the reference;
 whether it over-steers unrelated requests toward engines is unmeasured.
+Prompt `2026-11-13.5` (reference engine + overhead camshafts on towers, a lobe
+per valve, a timing belt of cam pulleys, crank pulley and three straight
+belt runs): "a 4 cylinder engine with a camshaft and timing belt" → 114
+features in 46 s, 113/114 identical to the reference (it moved a mount bolt
+hole and said so); "an engine" → identical, 114/114, 39 s. Both first
+attempt. A plain "an engine" now always gets the full reference engine.
 Cost policy from the owner: **at most 10 (never more than 20) real requests
 per hour**, and no Opus.
 
