@@ -244,24 +244,52 @@ _PARAMETER_SCHEMAS: Mapping[str, Dict[str, Any]] = {
 }
 
 
-def _feature_schema(feature_type: str) -> Dict[str, Any]:
-    """The schema for one feature type, from its own parameter table."""
-    required, optional = FEATURE_PARAMETERS[feature_type]
+def feature_groups() -> Tuple[Tuple[str, ...], ...]:
+    """The supported feature types, grouped by identical parameter tables.
+
+    ``subtract`` and ``union`` take exactly the same parameters, so they share
+    one schema branch with ``type`` as an enum. Each branch costs
+    structured-output grammar, and the compiler refuses a grammar past a size
+    limit -- measured: the seventh branch, ``union``, pushed this schema over
+    it. Grouping loses nothing, because ``type`` still names exactly one
+    feature and the validator still checks every rule.
+    """
+    groups: Dict[Tuple[Tuple[str, ...], Tuple[str, ...]], list] = {}
+    for name in SUPPORTED_FEATURE_TYPES:
+        groups.setdefault(tuple(FEATURE_PARAMETERS[name]), []).append(name)
+    return tuple(tuple(names) for names in groups.values())
+
+
+def _feature_schema(feature_types: Sequence[str]) -> Dict[str, Any]:
+    """The schema for one group of feature types sharing a parameter table.
+
+    **Every parameter is required here**, including those the specification
+    gives a default (``position``, ``axis``). The model writes them out
+    explicitly, which is a valid document; and an optional property costs far
+    more grammar than a required one, so leaving them optional is what pushes
+    the schema past the compiler's limit.
+    """
+    names = tuple(feature_types)
+    required, optional = FEATURE_PARAMETERS[names[0]]
     properties: Dict[str, Any] = {
         "id": {
             "type": "string",
             "pattern": ID_PATTERN,
             "description": "Unique within the part.",
         },
-        "type": {"const": feature_type},
+        "type": (
+            {"const": names[0]}
+            if len(names) == 1
+            else {"type": "string", "enum": list(names)}
+        ),
     }
     for name in tuple(required) + tuple(optional):
         properties[name] = dict(_PARAMETER_SCHEMAS[name])
     return {
         "type": "object",
-        "title": feature_type,
+        "title": " / ".join(names),
         "properties": properties,
-        "required": ["id", "type"] + list(required),
+        "required": list(properties),
         "additionalProperties": False,
     }
 
@@ -308,13 +336,14 @@ def document_schema() -> Dict[str, Any]:
                 ),
                 "items": {
                     "anyOf": [
-                        _feature_schema(name)
-                        for name in SUPPORTED_FEATURE_TYPES
+                        _feature_schema(group) for group in feature_groups()
                     ]
                 },
             },
         },
-        "required": list(REQUIRED_ROOT_FIELDS),
+        # The optional `description` is required here too, for the same
+        # grammar-size reason as the feature parameters.
+        "required": list(REQUIRED_ROOT_FIELDS) + list(OPTIONAL_ROOT_FIELDS),
         "additionalProperties": False,
     }
     known = set(REQUIRED_ROOT_FIELDS) | set(OPTIONAL_ROOT_FIELDS)
@@ -483,6 +512,7 @@ __all__ = [
     "SUPPORTED_FEATURE_TYPES",
     "UNSUPPORTED_FEATURE_TYPES",
     "document_schema",
+    "feature_groups",
     "optional_property_counts",
     "response_schema",
     "schema_field_names",

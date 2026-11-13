@@ -1041,9 +1041,17 @@ class Evaluator:
         ):
             raise TypeError("the build service must be a CadApplicationService")
         self._recorder = RecordingModel(service.model)
-        # A fresh service wrapping the same application service, so the
-        # generation semantics are untouched and only the model is observed.
-        self._service = TextToCadService(self._recorder, service.service)
+        # A fresh service wrapping the same application service, so only the
+        # model is observed. It is pinned to one model call and no
+        # verification build: the benchmark measures single-shot model
+        # quality and does its own build cross-check, so neither the re-ask
+        # loop nor the product's verification step may leak into a score.
+        self._service = TextToCadService(
+            self._recorder,
+            service.service,
+            max_attempts=1,
+            verify_build=False,
+        )
         self._build_service = build_service
 
     @property

@@ -40,7 +40,9 @@ from cad_ai import prompt as ai_prompt
 from cad_ai import specification as ai_specification
 from cad_ai.config import (
     API_KEY_VARIABLE,
+    DEFAULT_MAX_ATTEMPTS,
     DEFAULT_MODEL,
+    FALLBACK_API_KEY_VARIABLE,
     PROVIDER_NAME,
     AiConfig,
     AiConfigurationError,
@@ -48,6 +50,7 @@ from cad_ai.config import (
     credential_available,
 )
 from cad_ai.generation import (
+    MAX_OUTPUT_TOKENS,
     MODEL_STATUSES,
     PUBLIC_MESSAGES,
     AiGenerationResult,
@@ -65,10 +68,12 @@ from cad_ai.provider import (
 )
 from cad_ai.specification import (
     PROMPT_SECTIONS,
+    RESPONSE_FIELDS,
     SPECIFICATION_PATH,
     SUPPORTED_FEATURE_TYPES,
     UNSUPPORTED_FEATURE_TYPES,
     document_schema,
+    feature_groups,
     response_schema,
     schema_field_names,
     specification_excerpt,
@@ -138,11 +143,16 @@ PLATE_SIZE = (100.0, 60.0, 10.0)
 #: position rather than being a gap to ask about. The 2026-09-09.1 value was
 #: ``fe62c9759a08d45ca372672479631863b25876cc52aca999da7edb1e8cde979a``.
 #:
+#: Re-pinned for **2026-11-12.1**, which replaced *refuse or ask* with
+#: *build, and say what was assumed*, added ``union`` and the measured
+#: buildability rules, and embedded worked examples. The 2026-09-09.2 value
+#: was ``f9efe19ac33281ff14ab0efe665dc01971d458ea5d90e8114f6dabba0ca0874e``.
+#:
 #: This is a change *detector*, not a claim that the prompt is correct.
 #: Updating it is the maintenance step the pinning test itself prescribes, and
 #: it retires every earlier measurement of model behaviour.
 PROMPT_FINGERPRINT = (
-    "f9efe19ac33281ff14ab0efe665dc01971d458ea5d90e8114f6dabba0ca0874e"
+    "cf2291a5836b32fb117a0ef2a4d443a478d42872ca1fd63212056751b4250808"
 )
 
 #: Tolerance for a kernel-reported length. Never exact float equality.
@@ -272,12 +282,19 @@ class AiTestCase(unittest.TestCase):
         self.cache_root.mkdir()
         self.service = CadApplicationService.local(self.cache_root)
 
-    def ai(self, payload: Any, **kwargs: Any) -> Tuple[TextToCadService, Any]:
+    def ai(
+        self, payload: Any, *, verify_build: bool = True, **kwargs: Any
+    ) -> Tuple[TextToCadService, Any]:
         model = FixtureModel(payload, **kwargs)
-        return TextToCadService(model, self.service), model
+        return (
+            TextToCadService(model, self.service, verify_build=verify_build),
+            model,
+        )
 
-    def generate(self, payload: Any, text: str = "a part") -> AiGenerationResult:
-        service, _ = self.ai(payload)
+    def generate(
+        self, payload: Any, text: str = "a part", *, verify_build: bool = True
+    ) -> AiGenerationResult:
+        service, _ = self.ai(payload, verify_build=verify_build)
         return service.generate_cad_from_text(text)
 
     def assert_public_safe(self, result: AiGenerationResult) -> None:
@@ -419,7 +436,7 @@ class TestSupportedPrompts(AiTestCase):
             cylinder_feature(id="third"),
             name="ordered",
         )
-        service, model = self.ai(answer(doc=ordered))
+        service, model = self.ai(answer(doc=ordered), verify_build=False)
         result = service.generate_cad_from_text("three things")
         self.assertIs(result.outcome, GenerationOutcome.INVALID_MODEL_OUTPUT)
         self.assertIn("S9", result.rule_codes)
@@ -602,18 +619,30 @@ class TestValidationBoundary(AiTestCase):
                     bad.outcome, GenerationOutcome.INVALID_MODEL_OUTPUT
                 )
 
+    # These two guard the *interpretation* step, so they run it with the
+    # verification build switched off. With it on, a validated document is
+    # built by the existing service's isolated worker, which starts that
+    # worker and writes the build cache by design; that path, and the fact
+    # that the worker is the only process it starts, is covered in
+    # test_verified_generation.
+
     def test_no_child_process_starts_during_generation(self) -> None:
         with mock.patch(
             "cad_core.isolated_execution.subprocess.Popen",
             side_effect=AssertionError("a child process was launched"),
         ):
-            result = self.generate(answer(doc=document(box_feature())))
+            result = self.generate(
+                answer(doc=document(box_feature())), verify_build=False
+            )
         self.assertIs(result.outcome, GenerationOutcome.GENERATED)
 
     def test_generation_writes_nothing_to_the_cache(self) -> None:
         before = sorted(str(p) for p in self.cache_root.rglob("*"))
-        self.generate(answer(doc=document(box_feature())))
-        self.generate(answer(doc=document(box_feature(size={"x": 0, "y": 1, "z": 1}))))
+        self.generate(answer(doc=document(box_feature())), verify_build=False)
+        self.generate(
+            answer(doc=document(box_feature(size={"x": 0, "y": 1, "z": 1}))),
+            verify_build=False,
+        )
         self.assertEqual(
             sorted(str(p) for p in self.cache_root.rglob("*")), before
         )
@@ -826,11 +855,13 @@ class TestAmbiguity(AiTestCase):
                     result.outcome, GenerationOutcome.INVALID_MODEL_OUTPUT
                 )
 
-    def test_the_prompt_tells_the_model_to_ask_rather_than_guess(self) -> None:
+    def test_the_prompt_tells_the_model_to_assume_and_say_so(self) -> None:
+        # Prompt 2026-11-12.1 replaced "ask rather than guess" with "assume,
+        # and record every assumption", which the user sees.
         text = system_prompt()
-        self.assertIn("Prefer asking over guessing", text)
-        self.assertIn("Do not invent a value to make a document valid", text)
-        self.assertIn("no unit is stated anywhere in the request", text)
+        self.assertIn("**No unit stated**: use millimetres", text)
+        self.assertIn("Write **every** such choice", text)
+        self.assertIn("Never ask about units, sizes, positions or orientation", text)
 
 
 # --- unsupported requests --------------------------------------------------
@@ -890,9 +921,12 @@ class TestUnsupported(AiTestCase):
         ):
             self.assertIn(phrase, text, msg=phrase)
 
-    def test_the_prompt_refuses_unit_conversion(self) -> None:
+    def test_the_prompt_converts_other_units_in_the_document(self) -> None:
+        # The model writes millimetres; the validator still rejects any other
+        # unit (S5), so nothing downstream ever converts.
         text = system_prompt()
-        self.assertIn("Do not convert between unit systems", text)
+        self.assertIn("convert to millimetres", text)
+        self.assertIn('`units` is always "mm"', text)
         self.assertIn("inches", text)
 
 
@@ -1062,14 +1096,17 @@ class TestProviderFailure(AiTestCase):
         self.assertIs(result.outcome, GenerationOutcome.MODEL_ERROR)
         self.assertNotIn(API_KEY_VARIABLE, json.dumps(result.to_dict()))
 
-    def test_there_is_exactly_one_generation_attempt(self) -> None:
-        # No repair loop: a rejected candidate is not sent back to the model.
-        service, model = self.ai(
-            answer(doc=document(box_feature(size={"x": 0, "y": 1, "z": 1})))
-        )
+    def test_the_re_ask_loop_is_bounded(self) -> None:
+        # A rejected candidate is sent back to the model with the reasons,
+        # but never more than the attempt limit allows, and never patched.
+        bad = answer(doc=document(box_feature(size={"x": 0, "y": 1, "z": 1})))
+        service, model = self.ai(bad)
         result = service.generate_cad_from_text("a zero-width plate")
         self.assertIs(result.outcome, GenerationOutcome.INVALID_MODEL_OUTPUT)
-        self.assertEqual(len(model.requests), 1)
+        self.assertEqual(len(model.requests), DEFAULT_MAX_ATTEMPTS)
+        single = TextToCadService(FixtureModel(bad), self.service, max_attempts=1)
+        single.generate_cad_from_text("a zero-width plate")
+        self.assertEqual(len(single.model.requests), 1)
 
     def test_no_outcome_is_conflated_with_another(self) -> None:
         self.assertEqual(len(GenerationOutcome), 5)
@@ -1259,7 +1296,8 @@ class TestModelOutputIsNeverExecuted(AiTestCase):
                 ), mock.patch.object(
                     os, "system", side_effect=AssertionError("a shell ran")
                 ):
-                    self.generate(payload)
+                    # Interpretation only; see TestValidationBoundary.
+                    self.generate(payload, verify_build=False)
 
     def test_no_network_connection_is_made_by_the_interpretation_layer(self) -> None:
         # The provider is a fixture here, so any socket would be the layer's
@@ -1284,7 +1322,8 @@ class TestModelOutputIsNeverExecuted(AiTestCase):
             for root in watched
         }
         for label, payload in CODE_PAYLOADS:
-            self.generate(payload, "make me a plate")
+            # Interpretation only; see TestValidationBoundary.
+            self.generate(payload, "make me a plate", verify_build=False)
         for root in watched:
             after = sorted(str(path) for path in root.rglob("*"))
             self.assertEqual(
@@ -1845,7 +1884,7 @@ class TestPromptAndSchema(unittest.TestCase):
         # update PROMPT_VERSION and this value together, and do not assume any
         # earlier claim about model behaviour still holds.
         self.assertEqual(prompt_fingerprint(), PROMPT_FINGERPRINT)
-        self.assertEqual(PROMPT_VERSION, "2026-09-09.2")
+        self.assertEqual(PROMPT_VERSION, "2026-11-12.1")
 
     def test_the_prompt_states_the_seven_required_things(self) -> None:
         text = system_prompt()
@@ -1857,16 +1896,16 @@ class TestPromptAndSchema(unittest.TestCase):
             # 3. no Python / CadQuery / FeatureScript
             "Never output Python, CadQuery",
             "FeatureScript",
-            # 4. no invented features: what is out of scope is refused,
-            #    never approximated with something the model can express
-            "Unsupported, whatever the wording",
-            "approximate it with a plain box",
-            # 5. feature order preserved
-            "order follows the order the request describes",
-            # 6. defaults only per the specification
-            "Use a default **only** where the specification defines one",
-            # 7. ask when information is genuinely missing
-            "Prefer asking over guessing",
+            # 4. inexpressible shapes are approximated, and every
+            #    simplification is recorded where the user sees it
+            "approximate it with boxes, cylinders",
+            "Write **every** such choice",
+            # 5. feature order is meaning
+            "Order is meaning",
+            # 6. unstated position and orientation get a stated default
+            "Position or orientation missing",
+            # 7. ask only when there is nothing to build
+            'Use status "needs_clarification"',
         )
         for phrase in required:
             self.assertIn(phrase, text, msg=f"the prompt does not say: {phrase}")
@@ -1894,16 +1933,28 @@ class TestPromptAndSchema(unittest.TestCase):
             schema["properties"]["schema_version"]["const"], SCHEMA_VERSION
         )
         self.assertEqual(schema["properties"]["units"]["enum"], list(SUPPORTED_UNITS))
-        self.assertEqual(schema["required"], ["schema_version", "units", "name", "features"])
+        # Every field is required in the model-facing schema (see
+        # cad_ai.specification._feature_schema); the defaults still exist in
+        # the contract, the model just always writes the value out.
+        self.assertEqual(
+            schema["required"],
+            ["schema_version", "units", "name", "features", "description"],
+        )
         items = schema["properties"]["features"]["items"]["anyOf"]
         self.assertEqual(
-            [entry["title"] for entry in items], list(SUPPORTED_FEATURE_TYPES)
+            [entry["title"] for entry in items],
+            [" / ".join(group) for group in feature_groups()],
         )
+        grouped = [name for group in feature_groups() for name in group]
+        self.assertEqual(sorted(grouped), sorted(SUPPORTED_FEATURE_TYPES))
+        self.assertEqual(len(grouped), len(set(grouped)))
         for entry in items:
-            feature_type = entry["title"]
-            required, optional = FEATURE_PARAMETERS[feature_type]
+            names = entry["title"].split(" / ")
+            required, optional = FEATURE_PARAMETERS[names[0]]
+            for name in names:
+                self.assertEqual(FEATURE_PARAMETERS[name], (required, optional))
             self.assertEqual(
-                entry["required"], ["id", "type"] + list(required)
+                entry["required"], ["id", "type"] + list(required) + list(optional)
             )
             self.assertEqual(
                 set(entry["properties"]) - {"id", "type"},
@@ -1938,9 +1989,17 @@ class TestPromptAndSchema(unittest.TestCase):
         schema = response_schema()
         self.assertEqual(
             sorted(schema["properties"]),
-            ["document", "issues", "questions", "status", "summary"],
+            [
+                "assumptions",
+                "document",
+                "issues",
+                "plan",
+                "questions",
+                "status",
+                "summary",
+            ],
         )
-        self.assertEqual(schema["required"], ["status"])
+        self.assertEqual(schema["required"], list(RESPONSE_FIELDS))
         self.assertIn(
             "carries no geometric meaning",
             schema["properties"]["summary"]["description"],
@@ -1955,10 +2014,13 @@ class TestPromptAndSchema(unittest.TestCase):
         nothing the V1 model does not define.
         """
         rendered = json.dumps(response_schema())
+        offered = set()
+        for entry in document_schema()["properties"]["features"]["items"]["anyOf"]:
+            kind = entry["properties"]["type"]
+            offered |= {kind["const"]} if "const" in kind else set(kind["enum"])
+        self.assertEqual(offered, set(SUPPORTED_FEATURE_TYPES))
         for name in UNSUPPORTED_FEATURE_TYPES:
-            self.assertNotIn(f'"const": "{name}"', rendered)
-        for name in SUPPORTED_FEATURE_TYPES:
-            self.assertIn(f'"const": "{name}"', rendered, msg=name)
+            self.assertNotIn(f'"{name}"', rendered)
         for name in ("radius", "distance", "edges", "tools", "target", "select"):
             self.assertIn(f'"{name}"', rendered, msg=f"{name} is missing")
         # Still nothing invented: every feature key comes from the model.
@@ -2075,12 +2137,22 @@ class TestAnthropicProvider(unittest.TestCase):
         self.assertEqual(len(messages.calls), 1)
         call = messages.calls[0]
         self.assertEqual(call["model"], "claude-fake")
-        self.assertEqual(call["system"], "instructions")
+        # One system block, marked cacheable, so a re-ask re-reads it cheaply.
+        self.assertEqual(
+            call["system"],
+            [
+                {
+                    "type": "text",
+                    "text": "instructions",
+                    "cache_control": {"type": "ephemeral"},
+                }
+            ],
+        )
         self.assertEqual(
             call["messages"],
             [{"role": "user", "content": "a 100 x 60 x 10 mm plate"}],
         )
-        self.assertEqual(call["max_tokens"], 4096)
+        self.assertEqual(call["max_tokens"], self.request().max_output_tokens)
 
     def test_structured_output_uses_the_sdks_real_parameter(self) -> None:
         messages = FakeMessages(FakeMessage([FakeBlock("text", "{}")]))
@@ -2333,14 +2405,16 @@ class TestAnthropicProvider(unittest.TestCase):
             self.fail("a vendor exception crossed the provider boundary")
 
     def test_construction_without_a_credential_is_refused(self) -> None:
-        with mock.patch.dict(os.environ, {API_KEY_VARIABLE: ""}, clear=False):
+        absent = {API_KEY_VARIABLE: "", FALLBACK_API_KEY_VARIABLE: ""}
+        with mock.patch.dict(os.environ, absent, clear=False):
             with self.assertRaises(ProviderNotConfigured):
                 self.provider_class.from_environment(self.config)
 
     def test_no_client_is_built_when_the_credential_is_missing(self) -> None:
         import anthropic
 
-        with mock.patch.dict(os.environ, {API_KEY_VARIABLE: ""}, clear=False):
+        absent = {API_KEY_VARIABLE: "", FALLBACK_API_KEY_VARIABLE: ""}
+        with mock.patch.dict(os.environ, absent, clear=False):
             with mock.patch.object(
                 anthropic,
                 "Anthropic",
@@ -2464,7 +2538,9 @@ class TestGeminiProvider(unittest.TestCase):
         self.assertEqual(call["model"], "gemini-fake")
         self.assertEqual(call["contents"], "a 100 x 60 x 10 mm plate")
         self.assertEqual(call["config"].system_instruction, "instructions")
-        self.assertEqual(call["config"].max_output_tokens, 4096)
+        self.assertEqual(
+            call["config"].max_output_tokens, self.request().max_output_tokens
+        )
 
     def test_structured_output_uses_the_sdks_real_parameters(self) -> None:
         models = FakeGeminiModels(FakeGeminiResponse())
@@ -2662,9 +2738,10 @@ class TestProviderParity(unittest.TestCase):
         # nothing above the boundary changes.
         from cad_ai.prompt import system_prompt
 
-        # 21938 for prompt 2026-09-09.1; 25237 for 2026-09-09.2, which added
-        # the no-joining rule and the locative-resolution rule.
-        self.assertEqual(len(system_prompt()), 25237)
+        # 21938 for prompt 2026-09-09.1; 25237 for 2026-09-09.2; 33084 for
+        # 2026-11-12.1, which added the assumption policy, the buildability
+        # rules and three worked examples.
+        self.assertEqual(len(system_prompt()), 33084)
         self.assertEqual(prompt_fingerprint(), PROMPT_FINGERPRINT)
 
 
@@ -2693,7 +2770,8 @@ class TestAiConfiguration(unittest.TestCase):
     def test_the_config_carries_no_credential_field(self) -> None:
         config = AiConfig()
         self.assertEqual(
-            sorted(config.to_dict()), ["model", "provider", "timeout_seconds"]
+            sorted(config.to_dict()),
+            ["effort", "max_attempts", "model", "provider", "timeout_seconds"],
         )
         for name in vars(config):
             self.assertNotIn("key", name.lower())
@@ -2710,7 +2788,8 @@ class TestAiConfiguration(unittest.TestCase):
     def test_defaults_apply_when_nothing_is_set(self) -> None:
         config = config_from_environment({})
         self.assertEqual(config.model, DEFAULT_MODEL)
-        self.assertEqual(config.timeout_seconds, 60.0)
+        # Per call; the default model reasons before answering.
+        self.assertEqual(config.timeout_seconds, 120.0)
 
     def test_a_bad_timeout_is_refused(self) -> None:
         for value in ("nonsense", "0", "-1"):
@@ -2819,12 +2898,21 @@ class TestInputIsNotRewritten(AiTestCase):
                 self.assertEqual(model.requests[0].user_text, text)
 
     def test_no_unit_conversion_happens_in_this_layer(self) -> None:
-        source = "\n".join(
-            path.read_text(encoding="utf-8") for path in generation_sources()
+        # Since prompt 2026-11-12.1 the prompt's instruction text tells the
+        # model the inch factor: the model converts, in the document it
+        # writes. No code in this layer converts anything, so the factor may
+        # appear in no other module, and no module -- the prompt included --
+        # may define a conversion helper.
+        everywhere = "\n".join(_code_tokens(path) for path in generation_sources())
+        for helper in ("inch_to", "to_mm", "convert_units"):
+            self.assertNotIn(helper, everywhere, msg=f"a conversion helper: {helper}")
+        code = "\n".join(
+            _code_tokens(path)
+            for path in generation_sources()
+            if path.name != "prompt.py"
         )
-        for forbidden in ("25.4", "inch_to", "to_mm", "convert_units", "* 25.4",
-                          "/ 25.4", "304.8", "0.0393"):
-            self.assertNotIn(forbidden, source, msg=f"a conversion appears: {forbidden}")
+        for factor in ("25.4", "304.8", "0.0393"):
+            self.assertNotIn(factor, code, msg=f"a conversion appears: {factor}")
 
     def test_an_inch_document_is_refused_not_converted(self) -> None:
         candidate = document(box_feature(size={"x": 4, "y": 2, "z": 0.5}))
@@ -2846,7 +2934,9 @@ class TestMetadata(AiTestCase):
         self.assertEqual(
             sorted(metadata),
             [
+                "build_verified",
                 "model",
+                "model_calls",
                 "prompt_version",
                 "provider",
                 "request_characters",
@@ -2979,7 +3069,7 @@ class TestServiceContract(AiTestCase):
     def test_the_max_output_length_is_bounded_and_configurable(self) -> None:
         service, model = self.ai(answer(doc=document(box_feature())))
         service.generate_cad_from_text("a plate")
-        self.assertEqual(model.requests[0].max_output_tokens, 4096)
+        self.assertEqual(model.requests[0].max_output_tokens, MAX_OUTPUT_TOKENS)
         narrow = TextToCadService(
             FixtureModel(answer("unsupported")), self.service, max_output_tokens=256
         )

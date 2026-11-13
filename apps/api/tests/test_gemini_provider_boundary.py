@@ -49,6 +49,8 @@ from provider_stubs import (
 from cad_ai import corpus as corpus_data
 from cad_ai.config import (
     API_KEY_VARIABLES,
+    CREDENTIAL_VARIABLES,
+    DEFAULT_MAX_ATTEMPTS,
     DEFAULT_MODELS,
     GEMINI_API_KEY_VARIABLE,
     GEMINI_PROVIDER_NAME,
@@ -92,9 +94,11 @@ SYNTHETIC_KEY = "AIzaSy-SYNTHETIC-TEST-KEY-DO-NOT-USE-000"
 #: Stage 26 pinned 2b3e3395ec6efee0...; 2026-09-09.1 moved it to
 #: fe62c9759a08d45c...; this is **2026-09-09.2**, which taught the model that
 #: the vocabulary cannot join solids and that words locating a feature supply
-#: a required position.
+#: a required position. **2026-11-12.1** (2026-09-09.2 was f9efe19ac33281ff...)
+#: replaced refuse-or-ask with build-and-record-assumptions, added `union`, the
+#: measured buildability rules and three worked examples.
 PROMPT_FINGERPRINT = (
-    "f9efe19ac33281ff14ab0efe665dc01971d458ea5d90e8114f6dabba0ca0874e"
+    "cf2291a5836b32fb117a0ef2a4d443a478d42872ca1fd63212056751b4250808"
 )
 
 
@@ -259,7 +263,10 @@ class TestNoLiveCall(GeminiBoundaryTestCase):
     def test_the_whole_ordinary_suite_runs_with_no_credential(self) -> None:
         # Whatever the environment holds, removing both credentials must not
         # change any behaviour these tests depend on.
-        cleared = {name: "" for name in API_KEY_VARIABLES.values()}
+        # Every name a credential may arrive under, fallbacks included.
+        cleared = {
+            name: "" for names in CREDENTIAL_VARIABLES.values() for name in names
+        }
         with mock.patch.dict(os.environ, cleared, clear=False):
             self.assertFalse(credential_available())
             models = FakeModels(FakeResponse(RESPONSE_SHAPES["valid_box"]))
@@ -292,7 +299,7 @@ class TestSdkCallShape(GeminiBoundaryTestCase):
         # wrapper, no reformatting, no addition.
         self.assertEqual(sent, system_prompt())
         self.assertEqual(prompt_fingerprint(), PROMPT_FINGERPRINT)
-        self.assertEqual(PROMPT_VERSION, "2026-09-09.2")
+        self.assertEqual(PROMPT_VERSION, "2026-11-12.1")
 
     def test_the_user_text_is_passed_unchanged(self) -> None:
         for text in (
@@ -587,7 +594,10 @@ class TestCredentialSecurity(GeminiBoundaryTestCase):
 
     def test_the_serialized_configuration_has_no_credential_field(self) -> None:
         config = self.config.to_dict()
-        self.assertEqual(sorted(config), ["model", "provider", "timeout_seconds"])
+        self.assertEqual(
+            sorted(config),
+            ["effort", "max_attempts", "model", "provider", "timeout_seconds"],
+        )
         for key in config:
             for banned in ("key", "secret", "token", "auth", "credential"):
                 self.assertNotIn(banned, key.lower(), msg=key)
@@ -720,8 +730,11 @@ class TestNoSideEffects(unittest.TestCase):
                          os, "system",
                          side_effect=AssertionError("a shell ran"),
                      ):
+                    # The interpretation step only: the verification build
+                    # is the existing service's isolated worker, covered in
+                    # test_verified_generation.
                     TextToCadService(
-                        gemini_shaped_stub(shape), self.service
+                        gemini_shaped_stub(shape), self.service, verify_build=False
                     ).generate_cad_from_text("a plate")
 
     def test_no_file_is_written_by_generation(self) -> None:
@@ -730,8 +743,9 @@ class TestNoSideEffects(unittest.TestCase):
             root: sorted(str(p) for p in root.rglob("*")) for root in watched
         }
         for shape in RESPONSE_SHAPES:
+            # The interpretation step only, as above.
             TextToCadService(
-                gemini_shaped_stub(shape), self.service
+                gemini_shaped_stub(shape), self.service, verify_build=False
             ).generate_cad_from_text("a plate")
         for root in watched:
             self.assertEqual(
@@ -762,13 +776,18 @@ class TestNoSideEffects(unittest.TestCase):
         ]
         self.assertEqual(len(calls), 1)
 
-    def test_one_provider_call_per_generation(self) -> None:
+    def test_provider_calls_per_generation_are_bounded(self) -> None:
         model = gemini_shaped_stub("invalid_cad")
         result = TextToCadService(model, self.service).generate_cad_from_text(
             "a zero-width plate"
         )
         self.assertIs(result.outcome, GenerationOutcome.INVALID_MODEL_OUTPUT)
-        self.assertEqual(len(model.requests), 1)
+        self.assertEqual(len(model.requests), DEFAULT_MAX_ATTEMPTS)
+        single = gemini_shaped_stub("invalid_cad")
+        TextToCadService(single, self.service, max_attempts=1).generate_cad_from_text(
+            "a zero-width plate"
+        )
+        self.assertEqual(len(single.requests), 1)
 
 
 # --- the evaluation harness -------------------------------------------------
@@ -921,11 +940,11 @@ class TestAnthropicUnchanged(unittest.TestCase):
         self.assertEqual(PROVIDER_NAMES[0], PROVIDER_NAME)
         self.assertEqual(PROVIDER_NAME, "anthropic")
         self.assertEqual(config_from_environment({}).provider, "anthropic")
-        # Claude Haiku 4.5 is the model the product flow runs on; the
-        # default moved to it when the live flow was first exercised. What
-        # this test guards is that *Anthropic* stays the default provider,
-        # not which Anthropic model is configured.
-        self.assertEqual(DEFAULT_MODELS["anthropic"], "claude-haiku-4-5-20251001")
+        # Claude Haiku 5.5 is the model the product flow runs on (it was
+        # Haiku 4.5 until prompt 2026-11-12.1). What this test guards is that
+        # *Anthropic* stays the default provider, not which Anthropic model
+        # is configured.
+        self.assertEqual(DEFAULT_MODELS["anthropic"], "claude-haiku-5-5")
 
     def test_anthropic_is_chosen_when_both_credentials_exist(self) -> None:
         config = config_from_environment(
@@ -948,13 +967,14 @@ class TestAnthropicUnchanged(unittest.TestCase):
 
     def test_the_prompt_and_schema_are_shared_and_unchanged(self) -> None:
         self.assertEqual(prompt_fingerprint(), PROMPT_FINGERPRINT)
-        self.assertEqual(PROMPT_VERSION, "2026-09-09.2")
-        # 21938 for 2026-09-09.1; 25237 for 2026-09-09.2, which added the
-        # no-joining rule and the locative-resolution rule.
-        self.assertEqual(len(system_prompt()), 25237)
+        self.assertEqual(PROMPT_VERSION, "2026-11-12.1")
+        # 21938 for 2026-09-09.1; 25237 for 2026-09-09.2; 33084 for
+        # 2026-11-12.1.
+        self.assertEqual(len(system_prompt()), 33084)
         schema = response_schema()
         self.assertEqual(sorted(schema["properties"]),
-                         ["document", "issues", "questions", "status", "summary"])
+                         ["assumptions", "document", "issues", "plan",
+                          "questions", "status", "summary"])
 
     def test_no_gemini_specific_cad_schema_exists(self) -> None:
         for path in AI_SOURCE.glob("*.py"):

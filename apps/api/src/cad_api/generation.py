@@ -1,9 +1,11 @@
 """Natural-language generation, as a transport-side coordinator.
 
-``POST /generate`` turns a sentence into a **validated candidate CAD
-document** and stops there. It builds nothing: the browser takes the document
-this returns and sends it to the existing ``POST /build``, so one build path
-serves the AI flow and the JSON flow alike.
+``POST /generate`` turns a sentence into a **validated, buildable CAD
+document**. The AI layer checks each answer by validating it and building it
+through the existing application service, and asks the model again -- within
+a bounded number of calls -- when either rejects it. The browser then sends the
+returned document to the existing ``POST /build``; the verification build used
+the same outputs, so that build is answered from the cache.
 
 What this module is for, and the whole of it:
 
@@ -18,10 +20,10 @@ What it deliberately does not do:
 * **no CAD logic.** It validates nothing itself: the service hands the model's
   answer to :meth:`~cad_core.application_service.CadApplicationService.validate_document`,
   and the V1 validator remains the only thing that decides validity.
-* **no geometry.** No kernel, no exporter, no cache, no child process. A
-  document that comes back here has been validated and not built.
-* **no repair.** An invalid answer is reported, never patched, and never
-  retried. There is no second attempt anywhere in this path.
+* **no geometry of its own.** Any build happens inside the AI layer's call to
+  the application service, in its isolated child process.
+* **no repair.** No code patches a document. A rejected answer is re-authored
+  by the model when it is asked again, and every attempt is reported.
 * **no second outcome taxonomy.** The five
   :class:`~cad_ai.generation.GenerationOutcome` values are the AI layer's own.
 * **no credential handling.** The provider reads its own environment variable
@@ -121,11 +123,13 @@ class TextGenerator:
             model = model_from_environment(config)
         except ProviderError as error:
             return _unavailable(error.kind)
-        self._generator = TextToCadService(model, self._service)
+        self._generator = TextToCadService(
+            model, self._service, max_attempts=config.max_attempts
+        )
         return None
 
     def generate(self, text: str) -> AiGenerationResult:
-        """Interpret one description. One model call, one attempt, no retry.
+        """Interpret one description, within the configured attempt limit.
 
         Every outcome -- including a provider that cannot be reached -- comes
         back as an :class:`~cad_ai.generation.AiGenerationResult`, so the route

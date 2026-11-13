@@ -48,6 +48,7 @@ from cad_api.status import (
     status_for_outcome,
 )
 
+from cad_ai.config import DEFAULT_MAX_ATTEMPTS
 from cad_ai.generation import GenerationOutcome, TextToCadService
 from cad_core import validate
 from cad_core.application_service import CadApplicationService
@@ -270,16 +271,22 @@ class TestRequestEnvelope(GenerateTestCase):
         self.assertEqual(len(model.requests), 1)
         self.assertEqual(model.requests[0].user_text, PLATE_TEXT)
 
-    def test_one_request_makes_exactly_one_model_call(self) -> None:
-        # No retry, anywhere: not on a provider failure, not on prose, not on
-        # an invalid document.
-        for shape in ("valid_box", "prose", "invalid_cad"):
+    def test_model_calls_per_request_are_bounded(self) -> None:
+        # A good answer costs one call. An unusable or invalid one is re-asked
+        # with the reasons, never beyond the attempt limit, and every call
+        # that answered is reported in `attempts`.
+        for shape, calls in (
+            ("valid_box", 1),
+            ("prose", DEFAULT_MAX_ATTEMPTS),
+            ("invalid_cad", DEFAULT_MAX_ATTEMPTS),
+        ):
             with self.subTest(shape=shape):
                 model = StubTextToCadModel(shape)
-                self.client_with(model).post(
+                response = self.client_with(model).post(
                     GENERATE_PATH, json={"text": PLATE_TEXT}
                 )
-                self.assertEqual(len(model.requests), 1)
+                self.assertEqual(len(model.requests), calls)
+                self.assertEqual(len(response.json()["attempts"]), calls)
 
     def test_the_body_fields_match_the_declared_contract(self) -> None:
         self.assertEqual(
@@ -452,9 +459,12 @@ class TestTheRouteIsThin(unittest.TestCase):
         ):
             self.assertNotIn(forbidden, top_level)
 
-    def test_the_route_builds_nothing(self) -> None:
-        # `/generate` never reaches the build path: asserted behaviourally by
-        # giving the app a service whose build would explode if called.
+    def test_the_route_itself_builds_nothing(self) -> None:
+        # The route adds no build of its own: with the AI layer's verification
+        # build switched off, `/generate` never reaches the build path --
+        # asserted behaviourally by giving the app a service whose build
+        # would explode if called. (With verification on, the build is the AI
+        # layer's, through this same service; see test_verified_generation.)
         directory = tempfile.TemporaryDirectory()
         self.addCleanup(directory.cleanup)
         root = Path(directory.name) / "cache"
@@ -463,7 +473,9 @@ class TestTheRouteIsThin(unittest.TestCase):
         app = create_app(service=service)
         app.state.generator = TextGenerator(
             service,
-            generator=TextToCadService(StubTextToCadModel("valid_box"), service),
+            generator=TextToCadService(
+                StubTextToCadModel("valid_box"), service, verify_build=False
+            ),
         )
         with unittest.mock.patch.object(
             service, "build_document", side_effect=AssertionError("built!")

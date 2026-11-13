@@ -104,11 +104,12 @@ design change, not a refactor.
 
 ## 3. The V1 CAD specification (summary)
 
-Authoritative file: **`docs/cad-specification.md`** (schema version `1.0.0`).
+Authoritative file: **`docs/cad-specification.md`** (schema version `1.1.0`;
+`1.0.0` documents stay valid, and `union` is an unknown type in them).
 Rule codes live in `cad_core.rules`. Read the spec before changing anything
 that touches document semantics.
 
-**Feature vocabulary — exactly six types:**
+**Feature vocabulary — seven types** (`union` added in Stage 33):
 
 | Type | Kind | Key parameters |
 |---|---|---|
@@ -118,6 +119,7 @@ that touches document semantics.
 | `subtract` | modifier | `target`, `tools[]` |
 | `fillet` | modifier | `target`, `radius`, edge selector |
 | `chamfer` | modifier | `target`, `distance`, edge selector |
+| `union` | modifier | `target`, `tools[]` — fuses the tools into the target, which keeps its id; tools are consumed. Operands must overlap or share a face (edge/point contact is E3). Static rules S21 (non-empty tools), S22 (target not in tools, no duplicates) |
 
 **Semantics that matter:**
 
@@ -261,6 +263,32 @@ quality.**
 
 ## 6. Current AI status
 
+**Stage 33 changed the policy — read this first; older paragraphs below are
+history where they disagree.** The product goal is "type a part, get it", so
+prompt `2026-11-12.1` **builds and records what it assumed** instead of
+refusing or asking: no unit → mm; another unit → converted to mm *by the
+model, in the document* (the validator still rejects non-mm, S5); missing
+sizes → typical values; inexpressible shapes → approximated. Every such
+choice is a line in the new `assumptions` field, which the page shows. The
+answer schema is `status, plan, assumptions, document, summary, questions,
+issues`, all required (the `plan` comes first so the arithmetic is written
+before the document). The document schema requires every parameter and groups
+`subtract`/`union` in one branch: the first live call after `union` was added
+failed with `400: The compiled grammar is too large`. The prompt carries
+engine-measured buildability rules and three worked examples (L-bracket, mug,
+gaming mouse) that a test builds.
+
+**Live evidence, Stage 33, Claude Haiku 5.5** (product flow, not a benchmark):
+desk phone stand, 2-inch cube with a hole and rounded edges (converted to
+50.8 mm), pipe flange with four bolt holes, M10 hex nut (hexagon approximated
+as a cylinder, and it said so), and — typed into the real page in Chromium —
+a pencil holder: **5/5 generated, validated and built, all on the first
+attempt**, 6–15 s each. At Haiku 5.5's list price that is about $0.003 for
+the call that writes the ~16.6k-token prompt cache and under $0.001 for a
+call that reads it.
+Cost policy from the owner: **at most 10 (never more than 20) real requests
+per hour**, and no Opus.
+
 **Provider-neutral interface.** `cad_ai.provider.TextToCadModel` is a tiny
 interface with no vendor types in its signatures. Both providers implement it;
 each imports its SDK **lazily**, inside its own module, so `cad-core` and the
@@ -279,9 +307,10 @@ none of which are set. It never sends `tools`, `tool_config` or
 `automatic_function_calling`.
 
 **Prompt architecture.** One prompt, in one place, with one version id:
-`PROMPT_VERSION = "2026-09-09.2"`, fingerprint
-`f9efe19ac33281ff14ab0efe665dc01971d458ea5d90e8114f6dabba0ca0874e`, length
-25237 characters. **Four separate tests pin those three values** (two in
+`PROMPT_VERSION = "2026-11-12.1"`, fingerprint
+`cf2291a5836b32fb117a0ef2a4d443a478d42872ca1fd63212056751b4250808`, length
+33084 characters (it changes whenever `docs/cad-specification.md`'s quoted
+sections change). **Four separate tests pin those three values** (two in
 `test_text_to_cad_ai.py`, two in `test_gemini_provider_boundary.py`); when you
 change the prompt on purpose, update all of them together and re-measure —
 their own comments say so, and the pins are change *detectors*, not claims
@@ -339,8 +368,15 @@ Differences are marked geometric or non-geometric, and **exact document match,
 semantic correctness and geometry correctness are reported separately** — a
 differing `name` or feature `id` is not a CAD error.
 
-**No repair loop.** Invalid model output is reported, never patched. There is
-no retry, no re-prompt, no automatic correction anywhere.
+**Verify-and-retry loop (Stage 33), not a repair loop.** Each answer is
+validated and then **built** through the existing application service (the
+isolated worker), and on an unusable answer, a validator rejection or a
+geometry failure the model is asked again with the rejected document and the
+reasons — at most `CAD_AI_MAX_ATTEMPTS` calls (default 3). Code never patches
+a document; only the model re-authors it, and every call that answered is a
+public `attempts` record. Provider errors are never re-asked. The evaluation
+harness pins one attempt and no verification build, so benchmark scores still
+measure the model alone.
 
 **Nothing the model returns is executed.** Boundary tests assert this.
 
@@ -423,8 +459,14 @@ Saved runs are preserved under `docs/evaluation-baselines/`.
   Tests use an obviously synthetic placeholder. `.env*` is gitignored.
   **Never put a key in this file, in code, or in a commit.**
 - **Anthropic's default model** is `DEFAULT_MODELS["anthropic"] =
-  "claude-haiku-4-5-20251001"`, and `resolve_provider` picks Anthropic first
-  whenever its credential is present. `CAD_AI_MODEL` overrides it.
+  "claude-haiku-5-5"` (Stage 33, owner's choice: cheap; Sonnet 5.5 only if
+  necessary, **never Opus**). `resolve_provider` picks Anthropic first
+  whenever its credential is present. `CAD_AI_MODEL` overrides it;
+  `STEP_UP_MODEL = "claude-sonnet-5-5"` is the documented step-up.
+- **Anthropic credential names:** `ANTHROPIC_API_KEY`, falling back to
+  `CAD_ANTHROPIC_API_KEY` (Claude Code on the web strips the former). Every
+  presence check and the provider's single read go through
+  `config.credential_variable`.
 - **Current Gemini model configuration.** `DEFAULT_MODELS["gemini"]` is
   **`gemini-3.6-flash`**, changed in Stage 30 after measuring that *both*
   `gemini-2.5-pro` **and** `gemini-2.5-flash` now return 404 for this key —
@@ -572,8 +614,12 @@ Stage 29, plus the commit that added this file) and the docs. Verify against
 
 **NEXT**
 
-1. **Re-baseline the corpus for the widened prompt.** Five E-cases now
-   contradict prompt policy (§6), so a corpus run today mis-scores. This is
+0. **Exclude seam and tangent edges from edge selectors** (spec C.7 + the
+   pinned seam tests) so blends work on real parts; see §11.
+1. **Re-baseline the corpus for the new policy.** Prompt `2026-11-12.1`
+   assumes instead of asking and approximates instead of refusing, so the
+   D-ambiguity and E-unsupported expectations are stale (§6) and a corpus run
+   today mis-scores. This is
    the blocker on every quality claim, and it must be done by re-authoring
    expectations as a deliberate stage — never by editing cases to raise a
    score.
@@ -588,8 +634,8 @@ Stage 29, plus the commit that added this file) and the docs. Verify against
 
 **FUTURE**
 
-5. **AI repair / verification loop** — deliberately absent today; would need
-   its own design so it never becomes silent correction.
+5. ~~**AI verification loop**~~ — **done in Stage 33** as verify-and-re-ask,
+   never silent correction (§6).
 5. ~~**Natural-language frontend integration**~~ — **done in Stage 30.**
 6. ~~**MVP**: description → geometry → export, end to end, in the browser.~~ —
    **done in Stage 30**, and demonstrated live. The remaining gap is
@@ -632,7 +678,16 @@ Each of these is supported by the code, the docs or the measured results.
 - **No multi-user storage**: one shared cache, global build keys.
 - **No production job persistence**: the build/job layer is in-memory, with no
   queue, no durable state and no background workers.
-- **No repair loop**, by design, for now.
+- **Fillet/chamfer selectors match seams.** `select: "all"` and any
+  `axis_parallel` along a cylinder's axis match the straight parameterisation
+  seam of every cylindrical face (and the tangent edges an earlier blend
+  leaves), which the kernel refuses (E5). So a cylinder, anything with a hole,
+  or anything already blended cannot be blended that way. Prompt
+  `2026-11-12.1` works around it (blend once, early, while the body is all
+  planar); excluding seams and tangent edges from selectors is a C.7 contract
+  change and the recommended next step.
+- **The retry loop has not yet been exercised live**: every live answer so far
+  was accepted on its first attempt.
 - The V1 vocabulary is small: no sketches, no revolves, no patterns, no
   assemblies.
 
