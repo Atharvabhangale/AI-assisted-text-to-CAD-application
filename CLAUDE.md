@@ -324,9 +324,9 @@ none of which are set. It never sends `tools`, `tool_config` or
 `automatic_function_calling`.
 
 **Prompt architecture.** One prompt, in one place, with one version id:
-`PROMPT_VERSION = "2026-11-13.1"`, fingerprint
-`90b4cb5054e25cf28ec46d7f1a482bd9994853434a32075e84ac46b2ff38e06d`, length
-35199 characters (it changes whenever `docs/cad-specification.md`'s quoted
+`PROMPT_VERSION = "2026-11-13.2"`, fingerprint
+`281455533339ba018d2e73be65b1e983dd4f46ae7d6379c26c4016ed8ef84750`, length
+37168 characters (it changes whenever `docs/cad-specification.md`'s quoted
 sections change). **Four separate tests pin those three values** (two in
 `test_text_to_cad_ai.py`, two in `test_gemini_provider_boundary.py`); when you
 change the prompt on purpose, update all of them together and re-measure —

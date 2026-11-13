@@ -143,7 +143,8 @@ PLATE_SIZE = (100.0, 60.0, 10.0)
 #: position rather than being a gap to ask about. The 2026-09-09.1 value was
 #: ``fe62c9759a08d45ca372672479631863b25876cc52aca999da7edb1e8cde979a``.
 #:
-#: Re-pinned for **2026-11-13.1** (schema 1.1.1: blends match sharp edges
+#: Re-pinned for **2026-11-13.2** (detail rule and engine recipe; 2026-11-13.1
+#: was 90b4cb50...). Before that, **2026-11-13.1** (schema 1.1.1: blends match sharp edges
 #: only, so the blending rules were rewritten; 2026-11-12.1 was cf2291a5...).
 #: Before that, for **2026-11-12.1**, which replaced *refuse or ask* with
 #: *build, and say what was assumed*, added ``union`` and the measured
@@ -154,7 +155,7 @@ PLATE_SIZE = (100.0, 60.0, 10.0)
 #: Updating it is the maintenance step the pinning test itself prescribes, and
 #: it retires every earlier measurement of model behaviour.
 PROMPT_FINGERPRINT = (
-    "90b4cb5054e25cf28ec46d7f1a482bd9994853434a32075e84ac46b2ff38e06d"
+    "281455533339ba018d2e73be65b1e983dd4f46ae7d6379c26c4016ed8ef84750"
 )
 
 #: Tolerance for a kernel-reported length. Never exact float equality.
@@ -1886,7 +1887,7 @@ class TestPromptAndSchema(unittest.TestCase):
         # update PROMPT_VERSION and this value together, and do not assume any
         # earlier claim about model behaviour still holds.
         self.assertEqual(prompt_fingerprint(), PROMPT_FINGERPRINT)
-        self.assertEqual(PROMPT_VERSION, "2026-11-13.1")
+        self.assertEqual(PROMPT_VERSION, "2026-11-13.2")
 
     def test_the_prompt_states_the_seven_required_things(self) -> None:
         text = system_prompt()
@@ -2742,8 +2743,9 @@ class TestProviderParity(unittest.TestCase):
 
         # 21938 for prompt 2026-09-09.1; 25237 for 2026-09-09.2; 33084 for
         # 2026-11-12.1 (assumption policy, buildability rules, examples);
-        # 35199 for 2026-11-13.1 (sharp-edge blending rules, complex products).
-        self.assertEqual(len(system_prompt()), 35199)
+        # 35199 for 2026-11-13.1 (sharp-edge blending rules, complex products);
+        # 37168 for 2026-11-13.2 (detail rule, engine recipe).
+        self.assertEqual(len(system_prompt()), 37168)
         self.assertEqual(prompt_fingerprint(), PROMPT_FINGERPRINT)
 
 

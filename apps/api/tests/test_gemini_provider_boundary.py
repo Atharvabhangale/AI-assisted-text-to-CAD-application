@@ -94,12 +94,13 @@ SYNTHETIC_KEY = "AIzaSy-SYNTHETIC-TEST-KEY-DO-NOT-USE-000"
 #: Stage 26 pinned 2b3e3395ec6efee0...; 2026-09-09.1 moved it to
 #: fe62c9759a08d45c...; this is **2026-09-09.2**, which taught the model that
 #: the vocabulary cannot join solids and that words locating a feature supply
-#: a required position. **2026-11-13.1** (sharp-edge blending; 2026-11-12.1 was
+#: a required position. **2026-11-13.2** (detail rule, engine recipe; 2026-11-13.1
+#: was 90b4cb50...). Before it, **2026-11-13.1** (sharp-edge blending; 2026-11-12.1 was
 #: cf2291a5...). Before it, **2026-11-12.1** (2026-09-09.2 was f9efe19ac33281ff...)
 #: replaced refuse-or-ask with build-and-record-assumptions, added `union`, the
 #: measured buildability rules and three worked examples.
 PROMPT_FINGERPRINT = (
-    "90b4cb5054e25cf28ec46d7f1a482bd9994853434a32075e84ac46b2ff38e06d"
+    "281455533339ba018d2e73be65b1e983dd4f46ae7d6379c26c4016ed8ef84750"
 )
 
 
@@ -300,7 +301,7 @@ class TestSdkCallShape(GeminiBoundaryTestCase):
         # wrapper, no reformatting, no addition.
         self.assertEqual(sent, system_prompt())
         self.assertEqual(prompt_fingerprint(), PROMPT_FINGERPRINT)
-        self.assertEqual(PROMPT_VERSION, "2026-11-13.1")
+        self.assertEqual(PROMPT_VERSION, "2026-11-13.2")
 
     def test_the_user_text_is_passed_unchanged(self) -> None:
         for text in (
@@ -968,10 +969,10 @@ class TestAnthropicUnchanged(unittest.TestCase):
 
     def test_the_prompt_and_schema_are_shared_and_unchanged(self) -> None:
         self.assertEqual(prompt_fingerprint(), PROMPT_FINGERPRINT)
-        self.assertEqual(PROMPT_VERSION, "2026-11-13.1")
+        self.assertEqual(PROMPT_VERSION, "2026-11-13.2")
         # 21938 for 2026-09-09.1; 25237 for 2026-09-09.2; 33084 for
-        # 2026-11-12.1; 35199 for 2026-11-13.1.
-        self.assertEqual(len(system_prompt()), 35199)
+        # 2026-11-12.1; 35199 for 2026-11-13.1; 37168 for 2026-11-13.2.
+        self.assertEqual(len(system_prompt()), 37168)
         schema = response_schema()
         self.assertEqual(sorted(schema["properties"]),
                          ["assumptions", "document", "issues", "plan",

@@ -70,10 +70,18 @@ from cad_ai.specification import (
 #: cylinder's ``all`` means its rims. Complex products such as an engine are
 #: modelled as one solid of overlapping major components.
 #:
+#: ``2026-11-13.2`` adds a detail rule (named details are modelled as real
+#: features on every instance) and an engine recipe -- block, crankcase, oil
+#: pan, head, intake and exhaust port tunnels, spark plug wells, valves as
+#: stacked spring/retainer/stem cylinders, flywheel, pulley and accessories --
+#: checked by building a 57-feature engine on the real engine first. Rule 1
+#: now says an attached part starts 2 mm inside its face: writing that engine
+#: by hand left four accessories floating short of the block (E3).
+#:
 #: What did **not** change: the model emits a data document and never code,
 #: the validator is still the only authority on validity, anchor-point and
 #: axis semantics, and order-is-meaning.
-PROMPT_VERSION = "2026-11-13.1"
+PROMPT_VERSION = "2026-11-13.2"
 
 
 def _p(x: float, y: float, z: float) -> Dict[str, float]:
@@ -378,10 +386,41 @@ question or a refusal. Resolve whatever the request leaves open yourself:
   drone): model it as **one solid** that shows its recognisable major
   components -- each as boxes and cylinders, every one overlapping the main
   body so they all join -- plus the defining cuts (bores, ports, bolt holes).
-  An engine, for example: a block, a crankcase below it, a cylinder head and
-  oil pan, four cylinder bores, a flywheel and a pulley on the crank axis.
   Moving parts are not separate: fuse them in place or leave them out, and
   say which in `assumptions`.
+* **Detail**: when the request names details ("with valves and ports",
+  "detailed", "with fins", "with mounting holes"), model every named detail
+  as real features, repeated for every instance (every cylinder, every bolt).
+  A detailed product is typically 30-60 features; that is expected. Prefer
+  visible detail: something buried inside the solid cannot be seen.
+
+### Recipe: an engine
+
+Lay the cylinders along X at an equal pitch (e.g. four at x = 40, 100, 160,
+220). Build, blending each box before it is joined:
+
+* **main body**: a block; a slightly wider and longer crankcase below it; an
+  oil pan below that; a cylinder head on top -- each overlapping the next by
+  1 mm; `union` them.
+* **ports**, per cylinder: an intake port -- a box tunnel cut into one long
+  side of the head -- and an exhaust port -- a cylinder tunnel cut into the
+  other long side (axis `-Y` or `+Y`), each reaching past the face and about
+  a third of the way in. `subtract` them all in one feature.
+* **spark plug wells**: a short cylinder per cylinder cut down into the head
+  deck, between that cylinder's valves.
+* **valves**, two per cylinder (intake on the intake side, exhaust on the
+  exhaust side, offset either side of the plug well): each a spring (short
+  wide cylinder) standing on the head deck, a retainer (wider, thin) on the
+  spring and a stem (narrow) on the retainer, stacked so each overlaps the
+  one below by 1 mm. Leave the valve cover off so they show, and say so.
+  `union` all valve pieces in one feature.
+* **drive and accessories**: a flywheel at one end and a crank pulley at the
+  other, on the crank axis (axis `+X`, low in the block); an oil filter, an
+  alternator and two engine mounts on the sides; bolt holes through the
+  mounts. `union` them, then drill.
+
+Work every coordinate out in `plan` first: that is where a 2 mm gap that
+leaves a part floating is caught.
 * **A blend is decoration.** If a fillet or chamfer is not asked for and would
   be risky (rule 4), leave it out rather than risk the part.
 
@@ -444,7 +483,10 @@ These were measured on the engine; each one has failed when broken.
 
 1. **Joined solids must overlap.** A `union` only joins solids that overlap or
    share a face. Solids that only touch along an edge or a corner, or that
-   have any gap, are rejected. Make parts overlap by about 1 mm.
+   have any gap, are rejected. Make parts overlap by about 1-2 mm: an
+   attached part **starts 2 mm inside the face it attaches to**. Compute that
+   face's coordinate from the body's position and size -- the most common
+   failure is a part placed a few millimetres short of the body, floating.
 2. **Cutting tools reach past the surface.** Make a `subtract` tool extend 1-2
    mm beyond every face it opens, so the cut is clean.
 3. **A cut must not split the body.** Leave material connecting every piece.

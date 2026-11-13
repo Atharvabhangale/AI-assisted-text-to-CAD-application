@@ -389,6 +389,43 @@ class TestPromptExamples(ServiceTestCase):
         self.assertIn("union", types)
 
 
+class TestEngineRecipe(ServiceTestCase):
+    """The engine recipe the prompt teaches builds, as one solid.
+
+    ``fixtures/detailed_engine.json`` was written by hand to that recipe
+    before the recipe went into the prompt -- block, crankcase, oil pan,
+    head, port tunnels, plug wells, valves as stacked cylinders, flywheel,
+    pulley, oil filter, alternator and mounts -- so a change to the engine
+    that breaks the construction the model is taught fails here.
+    """
+
+    def test_the_hand_built_engine_validates_and_builds(self) -> None:
+        document = json.loads(
+            (Path(__file__).parent / "fixtures" / "detailed_engine.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        self.assertGreaterEqual(len(document["features"]), 50)
+        validation = self.service.validate_document(document)
+        self.assertTrue(validation.valid, validation.error)
+        built = self.service.build_document(
+            BuildDocumentRequest(document=document, outputs=("geometry",))
+        )
+        self.assertTrue(built.succeeded, built.error)
+
+    def test_the_prompt_carries_the_recipe(self) -> None:
+        text = system_prompt()
+        for phrase in (
+            "### Recipe: an engine",
+            "intake port",
+            "exhaust port",
+            "spark plug wells",
+            "**valves**, two per cylinder",
+            "starts 2 mm inside the face it attaches to",
+        ):
+            self.assertIn(phrase, text, msg=phrase)
+
+
 class TestThePolicy(unittest.TestCase):
     def test_the_prompt_assumes_instead_of_asking(self) -> None:
         text = system_prompt()
