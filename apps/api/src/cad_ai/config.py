@@ -2,10 +2,11 @@
 
 Nothing is guessed and nothing is invented. In particular:
 
-* **the credential is read from one named variable and never stored, logged,
+* **the credential is read from a named variable and never stored, logged,
   echoed or put in a result.** :class:`AiConfig` does not hold it -- the
   provider reads it at construction and hands it straight to the SDK, and
-  :meth:`AiConfig.to_dict` has no field that could carry one;
+  :meth:`AiConfig.to_dict` has no field that could carry one. This module
+  only ever answers *which name* holds one (:func:`credential_variable`);
 * no ``.env`` file is read or written, and no credential file is created;
 * an unset credential is not an error here. It makes the AI layer
   *unconfigured*, which is a state the tests rely on: it is how the suite
@@ -34,13 +35,29 @@ PROVIDER_NAMES: Tuple[str, ...] = (PROVIDER_NAME, GEMINI_PROVIDER_NAME)
 #: name. Read by the provider only, and never by anything else.
 API_KEY_VARIABLE = "ANTHROPIC_API_KEY"
 
+#: A second name the same credential may arrive under. Some hosted
+#: environments reserve :data:`API_KEY_VARIABLE` for their own use and strip
+#: it from the processes they start, so a deployment there has no way to set
+#: it; this name is what such an environment can set instead. It is a
+#: fallback, never a preference: :data:`API_KEY_VARIABLE` wins when both are
+#: present.
+FALLBACK_API_KEY_VARIABLE = "CAD_ANTHROPIC_API_KEY"
+
 #: Gemini's conventional credential variable. Read by its provider only.
 GEMINI_API_KEY_VARIABLE = "GEMINI_API_KEY"
 
-#: The credential each provider expects.
+#: The credential each provider expects, under its primary name.
 API_KEY_VARIABLES: Mapping[str, str] = {
     PROVIDER_NAME: API_KEY_VARIABLE,
     GEMINI_PROVIDER_NAME: GEMINI_API_KEY_VARIABLE,
+}
+
+#: Every name each provider's credential may arrive under, in lookup order.
+#: The one mapping :func:`credential_variable` reads, so the presence check
+#: here and the provider's own read cannot disagree about where to look.
+CREDENTIAL_VARIABLES: Mapping[str, Tuple[str, ...]] = {
+    PROVIDER_NAME: (API_KEY_VARIABLE, FALLBACK_API_KEY_VARIABLE),
+    GEMINI_PROVIDER_NAME: (GEMINI_API_KEY_VARIABLE,),
 }
 
 #: Which provider to use. Unset means "whichever has a credential", resolved
@@ -52,6 +69,17 @@ MODEL_VARIABLE = "CAD_AI_MODEL"
 
 #: The request timeout, in seconds.
 TIMEOUT_VARIABLE = "CAD_AI_TIMEOUT_SECONDS"
+
+#: How many model calls one description may cost, at most. An integer >= 1.
+MAX_ATTEMPTS_VARIABLE = "CAD_AI_MAX_ATTEMPTS"
+
+#: How hard the model should work on an answer. Unset means the model's own
+#: default, and nothing is sent.
+EFFORT_VARIABLE = "CAD_AI_EFFORT"
+
+#: The effort levels a deployment may name. Sent only where the provider has a
+#: parameter for it; a provider without one ignores the setting.
+EFFORT_LEVELS: Tuple[str, ...] = ("low", "medium", "high", "xhigh", "max")
 
 #: The default model per provider. Each is a name the installed SDK itself
 #: lists as valid; no model identifier was invented here.
@@ -68,22 +96,39 @@ TIMEOUT_VARIABLE = "CAD_AI_TIMEOUT_SECONDS"
 #: This changes which model a run reaches and **nothing about what is asked of
 #: it**: the prompt, the response schema, the supported subset and the
 #: evaluation corpus are untouched. ``CAD_AI_MODEL`` still overrides it.
-#: Anthropic's default is **Claude Haiku 4.5**, the model the product flow
-#: runs on. Named once, here: every other layer -- the HTTP route, the browser,
-#: the application service -- reaches it through
+#: Anthropic's default is **Claude Haiku 5.5**, the model the product flow
+#: runs on, chosen because it is the cheapest current model and a request may
+#: now cost several calls. Named once, here: every other layer -- the HTTP
+#: route, the browser, the application service -- reaches it through
 #: :func:`config_from_environment`, so no model identifier is written twice.
-#: ``CAD_AI_MODEL`` still overrides it for a one-off run.
+#: The identifier is exact and carries no date suffix.
+#:
+#: ``CAD_AI_MODEL`` still overrides it. The step up, for a deployment that
+#: measures Haiku falling short, is :data:`STEP_UP_MODEL`; nothing larger is
+#: offered here, on cost grounds.
 DEFAULT_MODELS: Mapping[str, str] = {
-    PROVIDER_NAME: "claude-haiku-4-5-20251001",
+    PROVIDER_NAME: "claude-haiku-5-5",
     GEMINI_PROVIDER_NAME: "gemini-3.6-flash",
 }
+
+#: The documented step-up from the default Anthropic model. Never selected
+#: automatically: a deployment names it in ``CAD_AI_MODEL``.
+STEP_UP_MODEL = "claude-sonnet-5-5"
 
 #: The default model for the default provider. Kept as its own name because
 #: Stage 26 pinned it and a test asserts the installed SDK knows it.
 DEFAULT_MODEL = DEFAULT_MODELS[PROVIDER_NAME]
 
-#: Seconds. One interpretation call, so a generous but finite bound.
-DEFAULT_TIMEOUT_SECONDS = 60.0
+#: Seconds, **per model call**. The default model reasons before it answers
+#: and that reasoning counts toward the response, so a call takes longer than
+#: the size of the document suggests. Generous, and still finite.
+DEFAULT_TIMEOUT_SECONDS = 120.0
+
+#: Model calls per description: the first answer plus up to two re-asks when
+#: an answer is unusable, invalid or does not build. Bounded because every
+#: call costs money; small because a model that has failed three times on one
+#: description is unlikely to succeed on a fourth.
+DEFAULT_MAX_ATTEMPTS = 3
 
 
 class AiConfigurationError(Exception):
@@ -97,6 +142,13 @@ class AiConfig:
     model: str = DEFAULT_MODEL
     timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS
     provider: str = PROVIDER_NAME
+
+    #: The most model calls one description may cost. See
+    #: :data:`DEFAULT_MAX_ATTEMPTS`.
+    max_attempts: int = DEFAULT_MAX_ATTEMPTS
+
+    #: One of :data:`EFFORT_LEVELS`, or ``None`` for the model's own default.
+    effort: Optional[str] = None
 
     def __post_init__(self) -> None:
         if self.provider not in PROVIDER_NAMES:
@@ -114,6 +166,20 @@ class AiConfig:
             raise AiConfigurationError(
                 f"the timeout must be > 0 seconds; got {self.timeout_seconds}"
             )
+        if (
+            not isinstance(self.max_attempts, int)
+            or isinstance(self.max_attempts, bool)
+            or self.max_attempts < 1
+        ):
+            raise AiConfigurationError(
+                "the attempt limit must be an integer >= 1; got "
+                f"{self.max_attempts!r}"
+            )
+        if self.effort is not None and self.effort not in EFFORT_LEVELS:
+            raise AiConfigurationError(
+                f"the effort must be one of {', '.join(EFFORT_LEVELS)}; "
+                f"got {self.effort!r}"
+            )
 
     def to_dict(self) -> Dict[str, Any]:
         """Plain data. There is no credential field to leak."""
@@ -121,7 +187,26 @@ class AiConfig:
             "provider": self.provider,
             "model": self.model,
             "timeout_seconds": self.timeout_seconds,
+            "max_attempts": self.max_attempts,
+            "effort": self.effort,
         }
+
+
+def credential_variable(
+    provider: str, environ: Optional[Mapping[str, str]] = None
+) -> Optional[str]:
+    """The **name** of the variable holding ``provider``'s credential, or None.
+
+    The first name in :data:`CREDENTIAL_VARIABLES` that is present and not
+    blank. Only the name is returned: the value is tested for emptiness and
+    otherwise never returned, stored, compared or printed. A provider uses
+    the name to make its own single read.
+    """
+    source = os.environ if environ is None else environ
+    for name in CREDENTIAL_VARIABLES.get(provider, ()):
+        if source.get(name, "").strip():
+            return name
+    return None
 
 
 def resolve_provider(environ: Optional[Dict[str, str]] = None) -> str:
@@ -146,7 +231,7 @@ def resolve_provider(environ: Optional[Dict[str, str]] = None) -> str:
             )
         return chosen
     for name in PROVIDER_NAMES:
-        if source.get(API_KEY_VARIABLES[name], "").strip():
+        if credential_variable(name, source) is not None:
             return name
     return PROVIDER_NAME
 
@@ -169,7 +254,30 @@ def config_from_environment(
                 f"{TIMEOUT_VARIABLE} must be a number of seconds; "
                 f"got {raw_timeout!r}"
             ) from exc
-    return AiConfig(model=model, timeout_seconds=timeout, provider=provider)
+    raw_attempts = source.get(MAX_ATTEMPTS_VARIABLE, "").strip()
+    if not raw_attempts:
+        attempts = DEFAULT_MAX_ATTEMPTS
+    else:
+        try:
+            attempts = int(raw_attempts)
+        except ValueError as exc:
+            raise AiConfigurationError(
+                f"{MAX_ATTEMPTS_VARIABLE} must be an integer >= 1; "
+                f"got {raw_attempts!r}"
+            ) from exc
+    effort = source.get(EFFORT_VARIABLE, "").strip().lower() or None
+    if effort is not None and effort not in EFFORT_LEVELS:
+        raise AiConfigurationError(
+            f"{EFFORT_VARIABLE} must be one of {', '.join(EFFORT_LEVELS)}; "
+            f"got {effort!r}"
+        )
+    return AiConfig(
+        model=model,
+        timeout_seconds=timeout,
+        provider=provider,
+        max_attempts=attempts,
+        effort=effort,
+    )
 
 
 def credential_available(
@@ -187,29 +295,33 @@ def credential_available(
     names = (
         PROVIDER_NAMES if provider is None else (provider,)
     )
-    for name in names:
-        variable = API_KEY_VARIABLES.get(name)
-        if variable and source.get(variable, "").strip():
-            return True
-    return False
+    return any(credential_variable(name, source) is not None for name in names)
 
 
 __all__ = [
     "API_KEY_VARIABLE",
     "API_KEY_VARIABLES",
+    "CREDENTIAL_VARIABLES",
+    "DEFAULT_MAX_ATTEMPTS",
     "DEFAULT_MODEL",
     "DEFAULT_MODELS",
     "DEFAULT_TIMEOUT_SECONDS",
+    "EFFORT_LEVELS",
+    "EFFORT_VARIABLE",
+    "FALLBACK_API_KEY_VARIABLE",
     "GEMINI_API_KEY_VARIABLE",
     "GEMINI_PROVIDER_NAME",
+    "MAX_ATTEMPTS_VARIABLE",
     "MODEL_VARIABLE",
     "PROVIDER_NAME",
     "PROVIDER_NAMES",
     "PROVIDER_VARIABLE",
+    "STEP_UP_MODEL",
     "TIMEOUT_VARIABLE",
     "AiConfig",
     "AiConfigurationError",
     "config_from_environment",
     "credential_available",
+    "credential_variable",
     "resolve_provider",
 ]

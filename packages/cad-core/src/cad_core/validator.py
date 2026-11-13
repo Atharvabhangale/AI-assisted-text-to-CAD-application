@@ -1060,9 +1060,16 @@ def _why_not_a_solid(
             f"it was consumed by {where}, which removed it from {survivor!r}; "
             f"a consumed tool no longer exists"
         )
+    if declared_by.feature_type is None:
+        # Its 'type' was missing, malformed or unknown, and has been reported
+        # under S2 or S3. What it would have been is not known.
+        return (
+            f"features[{declared_by.index}] has no usable feature type, so it "
+            f"adds no solid"
+        )
     if declared_by.feature_type in CONSTRUCTIVE_TYPES:
-        # A constructive feature that never became a live solid: only possible
-        # when its id duplicates an earlier one, which S8 has already reported.
+        # A constructive feature that never became a live solid: its id is
+        # malformed or duplicates an earlier one, which S8 has already reported.
         return f"features[{declared_by.index}] did not add a solid under that id"
     owner = declared_by.raw.get("target") if isinstance(declared_by.raw, dict) else None
     hint = f"; reference its target {owner!r} instead" if isinstance(owner, str) else ""

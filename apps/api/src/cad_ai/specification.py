@@ -111,6 +111,10 @@ PROMPT_SECTIONS: Tuple[str, ...] = (
     "### C.5 `fillet`",
     "### C.6 `chamfer`",
     "### C.7 Edge selector",
+    # Schema 1.1.0: the model may emit a `union`, so it is given C.8 verbatim
+    # for the same reason it is given C.3 -- and because C.8 is where the
+    # contract says which contacts join two solids and which do not.
+    "### C.8 `union`",
     "### E.1 Static rules (`S`) — decidable from the document alone",
     # The geometric rules matter now too: a hole that misses its material or a
     # fillet radius the edge cannot take is an error, not a silent no-op, and
@@ -199,7 +203,8 @@ _PARAMETER_SCHEMAS: Mapping[str, Dict[str, Any]] = {
         "type": "string",
         "pattern": ID_PATTERN,
         "description": (
-            "The id of the solid this feature modifies. It must appear "
+            "The id of the solid this feature modifies: always the id of a "
+            "box or cylinder, never the id of a modifier. It must appear "
             "strictly earlier in the feature list (rule S7)."
         ),
     },
@@ -208,8 +213,9 @@ _PARAMETER_SCHEMAS: Mapping[str, Dict[str, Any]] = {
         "minItems": 1,
         "items": {"type": "string", "pattern": ID_PATTERN},
         "description": (
-            "Ids of the solids to remove from the target. Each must appear "
-            "strictly earlier in the feature list (rule S7)."
+            "Ids of the solids this feature consumes: a subtract removes "
+            "them from the target, a union fuses them into it. Each must "
+            "appear strictly earlier in the feature list (rule S7)."
         ),
     },
     "radius": {
@@ -297,8 +303,8 @@ def document_schema() -> Dict[str, Any]:
                 "type": "array",
                 "minItems": 1,
                 "description": (
-                    "Ordered feature list. The order is significant and must "
-                    "follow the order the request describes."
+                    "Ordered feature list, evaluated first to last. The "
+                    "order is significant."
                 ),
                 "items": {
                     "anyOf": [
@@ -320,64 +326,135 @@ def document_schema() -> Dict[str, Any]:
     return root
 
 
+#: The fields of the model's answer, **in the order they are emitted**.
+#: Structured output is written in schema order, so the order is a design
+#: decision and not a layout: the model commits to a ``status``, works the
+#: geometry out in ``plan``, states what it assumed in ``assumptions``, and only
+#: then writes the ``document`` -- with the arithmetic already on the page.
+RESPONSE_FIELDS: Tuple[str, ...] = (
+    "status",
+    "plan",
+    "assumptions",
+    "document",
+    "summary",
+    "questions",
+    "issues",
+)
+
+
 def response_schema() -> Dict[str, Any]:
     """The schema of the model's whole answer.
 
     The CAD document is **one field**, kept apart from the model's prose and
     from its questions, so explanatory text can never become CAD semantics.
-    A request the model cannot express returns ``status`` other than
-    ``"document"`` and no document at all -- which is how "ask, do not guess"
-    is expressed in the output shape rather than hoped for in the wording.
+
+    **Every field is required.** A field that does not apply is written as
+    ``null`` or as an empty array rather than left out. That is deliberate:
+    with optional fields, a model could answer ``status: "document"`` and
+    simply never emit ``document`` -- a measured failure. A required field
+    cannot be skipped by a schema-constrained decoder, so the model has to
+    write either a document or an explicit ``null``.
+
+    The fields come in :data:`RESPONSE_FIELDS` order, which is the order they
+    are generated in.
     """
+    properties: Dict[str, Any] = {
+        "status": {
+            "type": "string",
+            "enum": ["document", "needs_clarification", "unsupported"],
+            "description": (
+                "'document' when 'document' below is a complete CAD document "
+                "for the request -- the normal answer. 'needs_clarification' "
+                "only when the request gives nothing to build from. "
+                "'unsupported' only when the request is not for a physical "
+                "object or asks for something other than a CAD document."
+            ),
+        },
+        "plan": {
+            "type": "string",
+            "description": (
+                "A few terse lines, written BEFORE the document: each solid "
+                "with its coordinates and extents, where solids overlap, and "
+                "the feature order. Working notes only; nothing reads them "
+                "for meaning. Empty when status is not 'document'."
+            ),
+        },
+        "assumptions": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": (
+                "One short entry for each choice the request did not state: "
+                "an assumed unit, a chosen or converted dimension, a default "
+                "position, a shape that was simplified. Empty when nothing "
+                "was assumed, and when status is not 'document'."
+            ),
+        },
+        "document": {
+            "anyOf": [document_schema(), {"type": "null"}],
+            "description": (
+                "The CAD document when status is 'document'; null otherwise."
+            ),
+        },
+        "summary": {
+            "type": "string",
+            "description": (
+                "One sentence on how the request was interpreted. "
+                "Explanatory only; it carries no geometric meaning."
+            ),
+        },
+        "questions": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": (
+                "The questions to put to the user when status is "
+                "'needs_clarification'. Empty otherwise."
+            ),
+        },
+        "issues": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": (
+                "Why the request is unsupported, when status is "
+                "'unsupported'. Empty otherwise."
+            ),
+        },
+    }
     return {
         "type": "object",
-        "properties": {
-            "status": {
-                "type": "string",
-                "enum": ["document", "needs_clarification", "unsupported"],
-                "description": (
-                    "'document' only when 'document' below is a complete V1 "
-                    "CAD document for the request. 'needs_clarification' when "
-                    "required geometry information is genuinely missing. "
-                    "'unsupported' when the request cannot be expressed in "
-                    "the supported subset."
-                ),
-            },
-            "document": {
-                "anyOf": [document_schema(), {"type": "null"}],
-                "description": (
-                    "The candidate CAD document, or null. Present only when "
-                    "status is 'document'."
-                ),
-            },
-            "summary": {
-                "type": "string",
-                "description": (
-                    "One sentence on how the request was interpreted. "
-                    "Explanatory only; it carries no geometric meaning."
-                ),
-            },
-            "questions": {
-                "type": "array",
-                "items": {"type": "string"},
-                "description": (
-                    "The specific questions that must be answered before a "
-                    "document can be produced. Required when status is "
-                    "'needs_clarification'."
-                ),
-            },
-            "issues": {
-                "type": "array",
-                "items": {"type": "string"},
-                "description": (
-                    "Why the request is unsupported, when status is "
-                    "'unsupported'."
-                ),
-            },
-        },
-        "required": ["status"],
+        "properties": {name: properties[name] for name in RESPONSE_FIELDS},
+        "required": list(RESPONSE_FIELDS),
         "additionalProperties": False,
     }
+
+
+def optional_property_counts(schema: Any) -> Tuple[int, int]:
+    """``(total, largest in one object)`` optional properties in ``schema``.
+
+    A property is optional when its object does not list it in ``required``.
+    Structured-output compilers bound both numbers, so a test holds this
+    schema under the bounds; the count lives here, beside the schema it
+    describes, so the test and any other caller count the same way.
+    """
+    total = 0
+    largest = 0
+
+    def walk(node: Any) -> None:
+        nonlocal total, largest
+        if isinstance(node, dict):
+            properties = node.get("properties")
+            if isinstance(properties, dict):
+                required = node.get("required") or ()
+                optional = sum(1 for name in properties if name not in required)
+                total += optional
+                largest = max(largest, optional)
+            for value in node.values():
+                walk(value)
+        elif isinstance(node, list):
+            for item in node:
+                walk(item)
+
+    walk(schema)
+    return total, largest
 
 
 def schema_field_names(schema: Any) -> Sequence[str]:
@@ -401,10 +478,12 @@ def schema_field_names(schema: Any) -> Sequence[str]:
 
 __all__ = [
     "PROMPT_SECTIONS",
+    "RESPONSE_FIELDS",
     "SPECIFICATION_PATH",
     "SUPPORTED_FEATURE_TYPES",
     "UNSUPPORTED_FEATURE_TYPES",
     "document_schema",
+    "optional_property_counts",
     "response_schema",
     "schema_field_names",
     "section",

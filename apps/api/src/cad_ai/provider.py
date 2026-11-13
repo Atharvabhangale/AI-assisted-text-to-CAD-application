@@ -5,9 +5,9 @@ and the result -- is written against :class:`TextToCadModel` and the two plain
 records below. No vendor SDK type crosses this line, so replacing the provider
 means writing one class, not editing the application.
 
-There is deliberately **no registry and no plugin system**: exactly one
-provider is implemented (:mod:`cad_ai.anthropic_provider`), and a second one
-would be a second class, chosen by configuration.
+There is deliberately **no registry and no plugin system**: each provider is
+one class (:mod:`cad_ai.anthropic_provider`, :mod:`cad_ai.gemini_provider`),
+chosen by configuration.
 
 What a model is allowed to do here is the whole point:
 
@@ -55,6 +55,11 @@ class ProviderErrorKind(Enum):
 
     #: The provider answered, but with nothing usable in it.
     EMPTY_RESPONSE = "empty_response"
+
+    #: The model declined to answer the request at all. Not an outage and not
+    #: an empty answer: the service was reached, and it said no. Asking again
+    #: with the same description would get the same refusal.
+    REFUSED = "refused"
 
     #: Nothing was attempted: no SDK or no credential.
     NOT_CONFIGURED = "not_configured"
@@ -134,14 +139,17 @@ class ModelRequest:
 
     A plain record, so a fake provider in a test is three lines. There is no
     field for tools, for code execution, for a file, for a URL or for a
-    conversation history: this stage is a single-shot interpretation, and a
-    second turn is a later stage's decision.
+    conversation history. Every call is self-contained: when the generation
+    layer asks again after a rejected answer, it composes one fresh
+    :attr:`user_text` that carries the rejection, and sends it with the same
+    :attr:`system` text.
     """
 
     #: The instructions. One place, versioned -- see :mod:`cad_ai.prompt`.
     system: str
 
-    #: The user's natural-language description, unmodified.
+    #: The user's natural-language description, unmodified -- on a re-ask,
+    #: followed by the rejected answer and the reasons it was rejected.
     user_text: str
 
     #: A JSON Schema the provider may use to constrain the output, when the
@@ -149,7 +157,9 @@ class ModelRequest:
     output_schema: Optional[Mapping[str, Any]] = None
 
     #: An upper bound on response length, so a runaway generation is bounded.
-    max_output_tokens: int = 4096
+    #: Where a model reasons before answering, that reasoning counts toward
+    #: this bound too.
+    max_output_tokens: int = 16000
 
 
 @dataclass(frozen=True)
