@@ -240,7 +240,7 @@ estimated.
 | Suite | Result |
 |---|---|
 | cad-core (`unittest`) | **1617 passed** (schema 1.1.1, Linux, Python 3.13; 1481 at Stage 32 on Windows) |
-| API + AI (`unittest`) | **637 tests, 2 skipped** (prompt 2026-11-13.3, streaming provider, Linux; with the `ai-gemini` extra installed — without it, Gemini tests skip) |
+| API + AI (`unittest`) | **638 tests, 2 skipped** (prompt 2026-11-13.4, streaming provider, Linux; with the `ai-gemini` extra installed — without it, Gemini tests skip) |
 | Frontend (`vitest`) | **162 passed** (5 files) |
 | Frontend typecheck (`tsc --noEmit`) | **clean** |
 | Launcher (`scripts\Test-DevLauncher.ps1`) | **62 assertions passed** |
@@ -319,6 +319,13 @@ non-streaming 20k cap): front half cut away, four pistons on rods, a crank
 journal with pins, valves and ports. Rougher than the 92-feature hand-built
 fixture: it ran the bores up through the head and used one straight journal
 instead of webs, and said both in `assumptions`.
+Prompt `2026-11-13.4` (the reference engine as Example 4): the same request
+came back **identical to the reference, 92/92 features, in 34 s and 7k output
+tokens**; "a 6 cylinder engine with pistons and a crankshaft" → 128
+features in 109 s, the same construction extended to six cylinders (7
+journal segments, webs, plug wells, retainers; bores stop at the block top).
+Both first attempt. Example 4 makes engine requests reproduce the reference;
+whether it over-steers unrelated requests toward engines is unmeasured.
 Cost policy from the owner: **at most 10 (never more than 20) real requests
 per hour**, and no Opus.
 
