@@ -143,7 +143,8 @@ PLATE_SIZE = (100.0, 60.0, 10.0)
 #: position rather than being a gap to ask about. The 2026-09-09.1 value was
 #: ``fe62c9759a08d45ca372672479631863b25876cc52aca999da7edb1e8cde979a``.
 #:
-#: Re-pinned for **2026-11-13.2** (detail rule and engine recipe; 2026-11-13.1
+#: Re-pinned for **2026-11-13.3** (engine internals in a cutaway; 2026-11-13.2
+#: was 28145553...). Before that, **2026-11-13.2** (detail rule and engine recipe; 2026-11-13.1
 #: was 90b4cb50...). Before that, **2026-11-13.1** (schema 1.1.1: blends match sharp edges
 #: only, so the blending rules were rewritten; 2026-11-12.1 was cf2291a5...).
 #: Before that, for **2026-11-12.1**, which replaced *refuse or ask* with
@@ -155,7 +156,7 @@ PLATE_SIZE = (100.0, 60.0, 10.0)
 #: Updating it is the maintenance step the pinning test itself prescribes, and
 #: it retires every earlier measurement of model behaviour.
 PROMPT_FINGERPRINT = (
-    "281455533339ba018d2e73be65b1e983dd4f46ae7d6379c26c4016ed8ef84750"
+    "5c2f5cdfcd71aa25bb6fd9eefc9f1a736a7af36a09f80c083e4e612fb04b746e"
 )
 
 #: Tolerance for a kernel-reported length. Never exact float equality.
@@ -1887,7 +1888,7 @@ class TestPromptAndSchema(unittest.TestCase):
         # update PROMPT_VERSION and this value together, and do not assume any
         # earlier claim about model behaviour still holds.
         self.assertEqual(prompt_fingerprint(), PROMPT_FINGERPRINT)
-        self.assertEqual(PROMPT_VERSION, "2026-11-13.2")
+        self.assertEqual(PROMPT_VERSION, "2026-11-13.3")
 
     def test_the_prompt_states_the_seven_required_things(self) -> None:
         text = system_prompt()
@@ -2055,10 +2056,27 @@ class FakeMessages:
         self.error = error
         self.calls: List[Dict[str, Any]] = []
 
-    def create(self, **parameters: Any) -> Any:
+    def stream(self, **parameters: Any) -> Any:
         self.calls.append(parameters)
         if self.error is not None:
             raise self.error
+        return FakeStream(self.message)
+
+    def create(self, **parameters: Any) -> Any:
+        raise AssertionError("the provider must stream, not call create")
+
+
+class FakeStream:
+    def __init__(self, message: Any) -> None:
+        self.message = message
+
+    def __enter__(self) -> "FakeStream":
+        return self
+
+    def __exit__(self, *exc: Any) -> None:
+        return None
+
+    def get_final_message(self) -> Any:
         return self.message
 
 
@@ -2198,6 +2216,30 @@ class TestAnthropicProvider(unittest.TestCase):
         self.model(messages).generate(self.request())
         for name in ("temperature", "top_p", "top_k", "seed"):
             self.assertNotIn(name, messages.calls[0])
+
+    def test_the_provider_streams_and_never_calls_create(self) -> None:
+        messages = FakeMessages(FakeMessage([FakeBlock("text", "{}")]))
+        self.model(messages).generate(self.request())
+        self.assertEqual(len(messages.calls), 1)
+
+    def test_the_default_output_cap_is_32000_tokens(self) -> None:
+        messages = FakeMessages(FakeMessage([FakeBlock("text", "{}")]))
+        self.model(messages).generate(self.request())
+        self.assertEqual(messages.calls[0]["max_tokens"], 32000)
+
+    def test_an_error_raised_while_streaming_is_classified(self) -> None:
+        import anthropic
+        from cad_ai.provider import ProviderErrorKind
+
+        class Failing(FakeStream):
+            def get_final_message(self) -> Any:
+                raise anthropic.APIConnectionError(request=mock.Mock())
+
+        messages = FakeMessages(FakeMessage([]))
+        messages.stream = lambda **kw: Failing(None)  # type: ignore[method-assign]
+        with self.assertRaises(ProviderError) as caught:
+            self.model(messages).generate(self.request())
+        self.assertIs(caught.exception.kind, ProviderErrorKind.TIMEOUT)
 
     def test_no_tools_are_ever_sent(self) -> None:
         messages = FakeMessages(FakeMessage([FakeBlock("text", "{}")]))
@@ -2744,8 +2786,9 @@ class TestProviderParity(unittest.TestCase):
         # 21938 for prompt 2026-09-09.1; 25237 for 2026-09-09.2; 33084 for
         # 2026-11-12.1 (assumption policy, buildability rules, examples);
         # 35199 for 2026-11-13.1 (sharp-edge blending rules, complex products);
-        # 37168 for 2026-11-13.2 (detail rule, engine recipe).
-        self.assertEqual(len(system_prompt()), 37168)
+        # 37168 for 2026-11-13.2 (detail rule, engine recipe); 38383 for
+        # 2026-11-13.3 (engine internals in a cutaway).
+        self.assertEqual(len(system_prompt()), 38383)
         self.assertEqual(prompt_fingerprint(), PROMPT_FINGERPRINT)
 
 
@@ -2793,7 +2836,7 @@ class TestAiConfiguration(unittest.TestCase):
         config = config_from_environment({})
         self.assertEqual(config.model, DEFAULT_MODEL)
         # Per call; the default model reasons before answering.
-        self.assertEqual(config.timeout_seconds, 240.0)
+        self.assertEqual(config.timeout_seconds, 360.0)
 
     def test_a_bad_timeout_is_refused(self) -> None:
         for value in ("nonsense", "0", "-1"):

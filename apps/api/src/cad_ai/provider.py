@@ -159,7 +159,7 @@ class ModelRequest:
     #: An upper bound on response length, so a runaway generation is bounded.
     #: Where a model reasons before answering, that reasoning counts toward
     #: this bound too.
-    max_output_tokens: int = 20000
+    max_output_tokens: int = 32000
 
 
 @dataclass(frozen=True)

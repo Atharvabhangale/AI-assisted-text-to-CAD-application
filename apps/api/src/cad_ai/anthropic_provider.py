@@ -8,22 +8,26 @@ mirrors how :mod:`cad_core.local_cad` keeps CadQuery optional.
 What this provider does, and the whole of it:
 
 1. read the credential from the environment, hand it to the SDK, keep no copy;
-2. make **one** ``messages.create`` call per :meth:`generate` with a system
-   prompt, one user message, and a JSON-Schema output format;
+2. make **one** streamed ``messages.stream`` call per :meth:`generate` with a
+   system prompt, one user message, and a JSON-Schema output format, and
+   collect the complete final message before looking at it;
 3. return the response text plus metadata as a :class:`~cad_ai.provider.
    ModelResponse`;
 4. translate its own exceptions, and a model refusal, into
    :class:`~cad_ai.provider.ProviderError`.
 
 What it deliberately does not do: pass ``tools``, enable code execution,
-enable any server tool, stream, retry the interpretation, or interpret the
-text it returns. ``tools`` is never sent, so the model has no function to
+enable any server tool, retry the interpretation, or interpret the text it
+returns. The stream is a transport detail: nothing is read or acted on until
+the final message is complete, and the SDK refuses a non-streaming call whose
+``max_tokens`` implies more than ten minutes (about 21k tokens), which a
+detailed part exceeds. ``tools`` is never sent, so the model has no function to
 call; a test asserts the keyword appears in no call this module makes.
 Re-asking after a rejected answer is :mod:`cad_ai.generation`'s decision; each
 re-ask reaches this module as one more ordinary call.
 
 Measured against the installed SDK (see ``docs/text-to-cad-ai.md``):
-``messages.create`` accepts ``output_config`` with a ``json_schema`` format --
+``messages.stream`` (same parameters as ``create``) accepts ``output_config`` with a ``json_schema`` format --
 so structured output is genuine here, not a request in the prompt. It accepts
 no ``temperature``, ``top_p`` or ``top_k`` parameter, so no decoding
 temperature is set, and none can be.
@@ -204,7 +208,7 @@ class AnthropicTextToCadModel:
         return self._config
 
     def generate(self, request: ModelRequest) -> ModelResponse:
-        """One call. No tools, no streaming, no retry of the interpretation."""
+        """One streamed call. No tools, no retry of the interpretation."""
         parameters: Dict[str, Any] = {
             "model": self._config.model,
             "max_tokens": request.max_output_tokens,
@@ -229,7 +233,8 @@ class AnthropicTextToCadModel:
         if output_config:
             parameters["output_config"] = output_config
         try:
-            message = self._client.messages.create(**parameters)
+            with self._client.messages.stream(**parameters) as stream:
+                message = stream.get_final_message()
         except self._sdk.AnthropicError as exc:
             # The provider's own message may name hosts, headers or request
             # ids. It stays in `detail`, which never reaches a public payload;

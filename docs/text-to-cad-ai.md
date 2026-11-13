@@ -84,7 +84,7 @@ LLM -> arbitrary code -> CAD kernel
 | **SDK** | `anthropic` **1.4.0**, installed and inspected in this environment |
 | **default model** | `claude-haiku-5-5`, overridable with `CAD_AI_MODEL`. `claude-sonnet-5-5` (`STEP_UP_MODEL`) is the documented step-up for a deployment that measures Haiku falling short; it is never selected automatically and no larger model is offered. (The Stage 26 text that said `claude-sonnet-5` is superseded; Stage 30 ran on `claude-haiku-4-5-20251001`.) |
 | **credential** | `ANTHROPIC_API_KEY` (falling back to `CAD_ANTHROPIC_API_KEY`, because some hosted environments reserve and strip the former) / `GEMINI_API_KEY`, each read by its own provider only |
-| **timeout** | 240 s **per model call** by default (`CAD_AI_TIMEOUT_SECONDS`); the default model reasons before it answers |
+| **timeout** | 360 s **per model call** by default (`CAD_AI_TIMEOUT_SECONDS`); the default model reasons before it answers |
 | **dependency** | the optional `ai` (`anthropic>=1.4`) and `ai-gemini` (`google-genai>=2.22`) extras of `cad-api`, each **imported lazily** inside its own provider module |
 
 Nothing else was added: no agent framework, no orchestration library, no
@@ -114,7 +114,7 @@ assert that with a synthetic key.
 Inspected rather than assumed, from the installed 1.4.0:
 
 ```
-messages.create parameters:
+messages.create parameters (messages.stream takes the same, minus `stream`):
   max_tokens, messages, model, cache_control, container, inference_geo,
   metadata, output_config, service_tier, stop_sequences, stream, system,
   thinking, tool_choice, tools, user_profile_id, workspace_id, ...
@@ -141,7 +141,7 @@ messages.create parameters:
   byte-identical on every call, which is what makes that valid. Cache usage
   counters (`cache_read_input_tokens`, `cache_creation_input_tokens`) are
   carried into `metadata.usage`.
-* **`max_tokens` is 20000** (`MAX_OUTPUT_TOKENS`; raised from 16000 after a detailed engine's first answer was cut off at the cap), because the default model's
+* **`max_tokens` is 32000** (`MAX_OUTPUT_TOKENS`; raised from 16000, then 20000, after a detailed engine's first answer was cut off at the cap; the provider streams via `messages.stream` and collects `get_final_message()`, so the SDK's ~21.3k non-streaming ceiling does not apply), because the default model's
   own reasoning counts against it. No `thinking` parameter is sent. The
   optional `CAD_AI_EFFORT` (`low`, `medium`, `high`, `xhigh`, `max`) is sent as
   `output_config.effort` only when set.

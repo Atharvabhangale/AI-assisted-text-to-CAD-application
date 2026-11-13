@@ -413,6 +413,26 @@ class TestEngineRecipe(ServiceTestCase):
         )
         self.assertTrue(built.succeeded, built.error)
 
+    def test_the_hand_built_cutaway_engine_validates_and_builds(self) -> None:
+        # ``fixtures/cutaway_engine.json``: the same engine with its front
+        # half cut away and pistons, connecting rods and a crankshaft added,
+        # held to the block by journals through the bulkheads -- the
+        # internals recipe the prompt teaches.
+        document = json.loads(
+            (Path(__file__).parent / "fixtures" / "cutaway_engine.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        ids = {feature["id"] for feature in document["features"]}
+        for name in ("piston_1", "rod_1", "crank_pin_1", "journal_1", "cutaway"):
+            self.assertIn(name, ids)
+        validation = self.service.validate_document(document)
+        self.assertTrue(validation.valid, validation.error)
+        built = self.service.build_document(
+            BuildDocumentRequest(document=document, outputs=("geometry",))
+        )
+        self.assertTrue(built.succeeded, built.error)
+
     def test_the_prompt_carries_the_recipe(self) -> None:
         text = system_prompt()
         for phrase in (
@@ -422,6 +442,8 @@ class TestEngineRecipe(ServiceTestCase):
             "spark plug wells",
             "**valves**, two per cylinder",
             "starts 2 mm inside the face it attaches to",
+            "**Internals (pistons, crankshaft, connecting rods)**",
+            "adding any internal part, so the internals stay whole",
         ):
             self.assertIn(phrase, text, msg=phrase)
 
@@ -539,9 +561,21 @@ class _RecordingMessages:
         self.calls: List[Dict[str, Any]] = []
         self._message = message
 
-    def create(self, **kwargs: Any) -> Any:
+    def stream(self, **kwargs: Any) -> Any:
         self.calls.append(kwargs)
-        return self._message
+        message = self._message
+
+        class _Stream:
+            def __enter__(self) -> "_Stream":
+                return self
+
+            def __exit__(self, *exc: Any) -> None:
+                return None
+
+            def get_final_message(self) -> Any:
+                return message
+
+        return _Stream()
 
 
 def _message(text: str = '{"status": "unsupported"}', stop_reason: str = "end_turn") -> Any:

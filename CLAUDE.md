@@ -309,7 +309,7 @@ four box intake ports, four round exhaust ports, plug wells, eight valves as
 spring/retainer/stem stacks, flywheel, pulley, oil filter, alternator,
 mounts) in 241 s and 2 calls: **the first answer was cut off at the old
 16000-token cap and the retry loop re-asked — its first live save.**
-`MAX_OUTPUT_TOKENS` is now 20000 and the per-call timeout 240 s. Plain "an
+The Anthropic provider now streams (`messages.stream`, final message collected), so `MAX_OUTPUT_TOKENS` is 32000 and the per-call timeout 360 s. Plain "an
 engine" → 47 features, 99 s, 1 call.
 Cost policy from the owner: **at most 10 (never more than 20) real requests
 per hour**, and no Opus.
@@ -332,9 +332,9 @@ none of which are set. It never sends `tools`, `tool_config` or
 `automatic_function_calling`.
 
 **Prompt architecture.** One prompt, in one place, with one version id:
-`PROMPT_VERSION = "2026-11-13.2"`, fingerprint
-`281455533339ba018d2e73be65b1e983dd4f46ae7d6379c26c4016ed8ef84750`, length
-37168 characters (it changes whenever `docs/cad-specification.md`'s quoted
+`PROMPT_VERSION = "2026-11-13.3"`, fingerprint
+`5c2f5cdfcd71aa25bb6fd9eefc9f1a736a7af36a09f80c083e4e612fb04b746e`, length
+38383 characters (it changes whenever `docs/cad-specification.md`'s quoted
 sections change). **Four separate tests pin those three values** (two in
 `test_text_to_cad_ai.py`, two in `test_gemini_provider_boundary.py`); when you
 change the prompt on purpose, update all of them together and re-measure —
@@ -707,9 +707,9 @@ Each of these is supported by the code, the docs or the measured results.
   still fails E5 in the kernel; the prompt tells the model to blend simple
   pieces before joining them.
 - **Detailed parts are slow**: a 50-feature engine is ~14-16k output
-  tokens, about 100-120 s per call on Haiku 5.5. 20000 output tokens is
-  close to the SDK's non-streaming ceiling (~21.3k); larger parts would need
-  streaming in the provider.
+  tokens, about 100-120 s per call on Haiku 5.5. The provider streams, so
+  the 32000-token cap and 360 s timeout are bounded by cost and time, not by
+  the SDK's non-streaming ceiling (~21.3k).
 - The V1 vocabulary is small: no sketches, no revolves, no patterns, no
   assemblies.
 

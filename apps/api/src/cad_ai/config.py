@@ -122,8 +122,9 @@ DEFAULT_MODEL = DEFAULT_MODELS[PROVIDER_NAME]
 #: Seconds, **per model call**. The default model reasons before it answers
 #: and that reasoning counts toward the response, so a call takes longer than
 #: the size of the document suggests: a detailed engine took close to two
-#: minutes for one answer. Generous, and still finite.
-DEFAULT_TIMEOUT_SECONDS = 240.0
+#: minutes for one answer, and a larger part takes longer. Generous, and still
+#: finite.
+DEFAULT_TIMEOUT_SECONDS = 360.0
 
 #: Model calls per description: the first answer plus up to two re-asks when
 #: an answer is unusable, invalid or does not build. Bounded because every
