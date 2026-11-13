@@ -78,10 +78,16 @@ from cad_ai.specification import (
 #: now says an attached part starts 2 mm inside its face: writing that engine
 #: by hand left four accessories floating short of the block (E3).
 #:
+#: ``2026-11-13.3`` adds engine internals: pistons, connecting rods and a
+#: crankshaft shown in a cutaway (the front half below the head removed
+#: before the internals are added), the crank held by journals through the
+#: bulkheads so everything stays one solid. Checked first by building a
+#: 92-feature cutaway engine by hand on the real engine.
+#:
 #: What did **not** change: the model emits a data document and never code,
 #: the validator is still the only authority on validity, anchor-point and
 #: axis semantics, and order-is-meaning.
-PROMPT_VERSION = "2026-11-13.2"
+PROMPT_VERSION = "2026-11-13.3"
 
 
 def _p(x: float, y: float, z: float) -> Dict[str, float]:
@@ -418,6 +424,26 @@ Lay the cylinders along X at an equal pitch (e.g. four at x = 40, 100, 160,
   other, on the crank axis (axis `+X`, low in the block); an oil filter, an
   alternator and two engine mounts on the sides; bolt holes through the
   mounts. `union` them, then drill.
+
+**Internals (pistons, crankshaft, connecting rods)** are inside the block, so
+show them in a **cutaway**, and keep them joined to the one solid:
+
+* cut a bore (cylinder) per cylinder down from the head into the crankcase,
+  and a crank bay (box) per cylinder in the crankcase, leaving a solid
+  bulkhead between neighbouring bays; `subtract` them in one feature;
+* then cut the cutaway: one box removing the front half (y below the bore
+  centre line) of everything **below** the head; `subtract` it **before**
+  adding any internal part, so the internals stay whole;
+* crankshaft along `+X` on the crank axis: a main journal (cylinder) through
+  each bulkhead and each end wall -- that is what holds it to the block -- and
+  per cylinder a crank pin (cylinder) offset up or down by half the stroke
+  (an inline four: cylinders 1 and 4 up, 2 and 3 down) with a web (box) on
+  each side reaching from the journal line to the pin;
+* per cylinder a connecting rod (narrow box) standing on its crank pin and a
+  piston (cylinder 2 mm smaller than the bore) on top of the rod, inside the
+  bore, the rod reaching 10 mm into the piston;
+* `union` the whole crank train into the body in one feature, after the
+  cutaway.
 
 Work every coordinate out in `plan` first: that is where a 2 mm gap that
 leaves a part floating is caught.
