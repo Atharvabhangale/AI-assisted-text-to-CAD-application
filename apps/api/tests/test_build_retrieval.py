@@ -1078,6 +1078,10 @@ class TestRetrievalBoundary(unittest.TestCase):
                     # returns no identifier that can be exchanged for one.
                     "/generate",
                     HEALTH_PATH,
+                    # The Settings panel's route. Not a cache or document
+                    # endpoint either: it holds only the AI provider and
+                    # model choice, and exposes no build, entry or artifact.
+                    "/settings",
                     VALIDATE_PATH,
                 ]
             ),

@@ -1,4 +1,4 @@
-"""The ASGI application: seven routes, and no CAD logic.
+"""The ASGI application: eight paths, and no CAD logic.
 
 ```
 POST /validate                     ->  ValidateBody  ->  CadApiContract.validate_document_payload
@@ -8,7 +8,18 @@ GET  /builds/{build_key}           ->  BuildRetriever.retrieve         ->  the p
 GET  /builds/{build_key}/render    ->  BuildRetriever.retrieve_render  ->  canonical render JSON
 GET  /artifacts/{id}               ->  ArtifactResolver.resolve        ->  verified bytes
 GET  /health                       ->  {"status": "ok"}
+GET  /settings                     ->  SettingsStore.describe
+PUT  /settings                     ->  SettingsBody  ->  SettingsStore.save, TextGenerator.reconfigure
+DELETE /settings                   ->  SettingsStore.reset, TextGenerator.reconfigure
 ```
+
+``/settings`` is the page's Settings panel: which AI provider and model the
+next ``POST /generate`` uses. Every decision -- which providers exist, what a
+model name may be, whether one is ready, where the choice is kept -- is
+the AI layer's settings module (reached, like generation, through
+:mod:`cad_api.generation`); this module maps the store's answers and refusals to
+statuses and nothing more. No key, token, address or path crosses it in
+either direction.
 
 ``POST /generate`` is the natural-language entry point, and it is a *sibling*
 of ``POST /build`` rather than a replacement for it: it returns a validated
@@ -89,8 +100,8 @@ from cad_api.builds import (
     RetrievalReason,
 )
 from cad_api.config import ApiConfig
-from cad_api.generation import TextGenerator
-from cad_api.schemas import BuildBody, GenerateBody, ValidateBody
+from cad_api.generation import SettingsError, SettingsStore, TextGenerator
+from cad_api.schemas import BuildBody, GenerateBody, SettingsBody, ValidateBody
 from cad_api.status import (
     INTERNAL_STATUS,
     NOT_FOUND_STATUS,
@@ -100,6 +111,7 @@ from cad_api.status import (
     status_for_failure,
     status_for_outcome,
     status_for_retrieval,
+    status_for_settings,
 )
 
 #: Server-side logging only. A request never carries a log line back, and CAD
@@ -122,6 +134,7 @@ VALIDATE_PATH = "/validate"
 BUILD_PATH = "/build"
 GENERATE_PATH = "/generate"
 HEALTH_PATH = "/health"
+SETTINGS_PATH = "/settings"
 ARTIFACTS_PREFIX = "/artifacts/"
 ARTIFACT_PATH = ARTIFACTS_PREFIX + "{artifact_id}"
 BUILDS_PREFIX = "/builds/"
@@ -154,6 +167,7 @@ def create_app(
     config: Optional[ApiConfig] = None,
     *,
     service: Optional[CadApplicationService] = None,
+    settings: Optional[SettingsStore] = None,
 ) -> FastAPI:
     """Build the ASGI application.
 
@@ -167,6 +181,9 @@ def create_app(
         service: An already-configured service, for a caller that wants to
             wire one itself. Used by the tests to prove the route talks to the
             service and nothing else.
+        settings: Where the AI provider choice is kept. By default a file in
+            the cache root when ``config`` is given, and memory only when
+            ``service`` is.
     """
     if (config is None) == (service is None):
         raise ValueError("create_app takes exactly one of config or service")
@@ -200,7 +217,14 @@ def create_app(
     # document is validated by exactly the validator every other route uses.
     # Its provider is built on first use, not here: the server must start, and
     # every CAD route must work, with no credential configured.
-    app.state.generator = TextGenerator(service)
+    if settings is None:
+        settings = (
+            SettingsStore.in_directory(config.cache_root)
+            if config is not None
+            else SettingsStore(None)
+        )
+    app.state.settings = settings
+    app.state.generator = TextGenerator(service, settings=settings)
 
     @app.exception_handler(RequestValidationError)
     async def _malformed_request(
@@ -430,6 +454,51 @@ def create_app(
             status_code=status_for_outcome(result.outcome), content=result.to_dict()
         )
 
+    @app.get(SETTINGS_PATH)
+    async def read_settings(
+        store: SettingsStore = Depends(_settings),
+    ) -> JSONResponse:
+        """The effective AI settings, each provider's readiness, and notes.
+
+        Always **200**. Readiness is presence only, and the body names
+        variables, never their values.
+        """
+        return JSONResponse(status_code=OK_STATUS, content=store.describe())
+
+    @app.put(SETTINGS_PATH)
+    async def save_settings(
+        body: SettingsBody,
+        store: SettingsStore = Depends(_settings),
+        generator: TextGenerator = Depends(_generator),
+    ) -> JSONResponse:
+        """Save a provider and model; the next ``POST /generate`` uses them.
+
+        **200** with the new settings -- also when the chosen provider is not
+        ready, which the body says, with the reason. **422** for a body that
+        is not exactly ``provider`` and ``model``, an unknown provider, a
+        model name that is not a plain name, or a refused model. **500** if
+        the choice could not be written.
+        """
+        try:
+            store.save(body.provider, body.model)
+        except SettingsError as problem:
+            return _settings_refusal(problem)
+        generator.reconfigure()
+        return JSONResponse(status_code=OK_STATUS, content=store.describe())
+
+    @app.delete(SETTINGS_PATH)
+    async def reset_settings(
+        store: SettingsStore = Depends(_settings),
+        generator: TextGenerator = Depends(_generator),
+    ) -> JSONResponse:
+        """Forget the saved choice: the environment's settings apply again."""
+        try:
+            store.reset()
+        except SettingsError as problem:
+            return _settings_refusal(problem)
+        generator.reconfigure()
+        return JSONResponse(status_code=OK_STATUS, content=store.describe())
+
     return app
 
 
@@ -467,6 +536,19 @@ async def _retriever(request: Request) -> BuildRetriever:
 async def _generator(request: Request) -> TextGenerator:
     """The application's one text-to-CAD entry point, built at startup."""
     return request.app.state.generator
+
+
+async def _settings(request: Request) -> SettingsStore:
+    """The application's one settings store, built at startup."""
+    return request.app.state.settings
+
+
+def _settings_refusal(problem: SettingsError) -> JSONResponse:
+    """A refused settings change, with the AI layer's own reason and message."""
+    return JSONResponse(
+        status_code=status_for_settings(problem.reason),
+        content={"error": problem.to_payload()},
+    )
 
 
 def _artifact_response(artifact: DeliveredArtifact) -> Response:

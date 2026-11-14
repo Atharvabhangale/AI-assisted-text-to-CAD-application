@@ -104,6 +104,31 @@ class GenerateBody(BaseModel):
         return self.model_dump(exclude_unset=True)
 
 
+class SettingsBody(BaseModel):
+    """``PUT /settings``: ``{"provider": "...", "model": "..."}``.
+
+    Exactly two fields, both plain text. ``extra="forbid"`` is the transport
+    half of a rule the AI layer states: **no key, token, address or path is
+    accepted over HTTP** -- a body carrying any other field is a 422 before
+    anything reads it. Whether the provider exists and the model name is
+    acceptable is the AI layer's settings module's decision, not this
+    model's; the lengths here only bound the request.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    provider: str = Field(
+        min_length=1,
+        max_length=64,
+        description="A provider name, as GET /settings lists them.",
+    )
+    model: str = Field(
+        default="",
+        max_length=200,
+        description="A model name; empty for the provider's default.",
+    )
+
+
 #: The fields these models accept, taken from the transport contract itself so
 #: the two cannot drift. A test asserts the correspondence.
 VALIDATE_FIELDS = VALIDATE_REQUEST_FIELDS

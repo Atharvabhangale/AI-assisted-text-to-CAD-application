@@ -1445,10 +1445,13 @@ _os._exit(0)
         # states that no such endpoint exists, and a text scan cannot tell a
         # mention from a specification. Its absence is asserted where it can
         # be: the OpenAPI path list, and a live 404 in the retrieval tests.
+        import re as _re
+
+        # The only PUT and DELETE are on /settings (the AI provider choice);
+        # any other PUT or DELETE named in the document would not exist.
+        self.assertIsNone(_re.search(r"(?:PUT|DELETE) /(?!settings\b)", text))
         for absent in (
             "POST /documents",
-            "DELETE /",
-            "PUT /",
             "PATCH /",
             "POST /artifacts",
             "POST /featurescript",
@@ -1457,7 +1460,6 @@ _os._exit(0)
         ):
             self.assertNotIn(absent, text)
         # /build is POST-only; "GET /builds/" is a different endpoint
-        import re as _re
 
         self.assertIsNone(_re.search(r"GET /build(?![s/])", text))
 
@@ -1469,6 +1471,7 @@ class TestOpenApi(ApiTestCase):
             BUILD_LOOKUP_PATH,
             BUILD_RENDER_PATH,
             GENERATE_PATH,
+            SETTINGS_PATH,
         )
 
         self.assertEqual(
@@ -1481,17 +1484,23 @@ class TestOpenApi(ApiTestCase):
                     BUILD_PATH,
                     GENERATE_PATH,
                     HEALTH_PATH,
+                    SETTINGS_PATH,
                     VALIDATE_PATH,
                 ]
             ),
         )
         for path, spec in schema["paths"].items():
             with self.subTest(path=path):
-                expected = (
-                    ["post"]
-                    if path in (BUILD_PATH, VALIDATE_PATH, GENERATE_PATH)
-                    else ["get"]
-                )
+                # /settings is the one path with more than one method, and the
+                # only PUT and DELETE in the application: the Settings panel
+                # reads, saves and resets the AI provider choice there. It is
+                # a deliberate, reviewed addition (see docs/http-api.md).
+                if path == SETTINGS_PATH:
+                    expected = ["delete", "get", "put"]
+                elif path in (BUILD_PATH, VALIDATE_PATH, GENERATE_PATH):
+                    expected = ["post"]
+                else:
+                    expected = ["get"]
                 self.assertEqual(sorted(spec), expected)
 
     def test_the_schema_defines_only_the_two_request_envelopes(self) -> None:

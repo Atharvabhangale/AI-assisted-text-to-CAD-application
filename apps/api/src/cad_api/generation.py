@@ -40,6 +40,7 @@ a test asserts the transport package names neither provider.
 
 from __future__ import annotations
 
+import threading
 from typing import Optional, Tuple
 
 from cad_core.application_service import CadApplicationService
@@ -54,6 +55,9 @@ from cad_ai.generation import (
     TextToCadService,
 )
 from cad_ai.provider import ProviderError, ProviderErrorKind
+# The settings store is re-exported for app.py, so this module stays the
+# transport's single seam into the AI layer.
+from cad_ai.settings import SettingsError, SettingsStore
 
 #: The fields ``POST /generate`` accepts. Named here rather than in
 #: ``cad_core``: a description is not CAD, and the CAD contract must not learn
@@ -94,7 +98,14 @@ class TextGenerator:
       a construction failure is reported and not cached.
 
     A successfully built service *is* cached, so one client is created for the
-    process rather than one per request.
+    process rather than one per request -- until :meth:`reconfigure` drops it,
+    which ``PUT /settings`` and ``DELETE /settings`` do so that the **next**
+    generation is built from the new effective settings.
+
+    Which provider and model that is comes from ``settings`` -- the AI layer's
+    :class:`~cad_ai.settings.SettingsStore`, the environment overlaid by the
+    owner's saved choice -- or, without one, from the environment alone, as
+    before. This class decides nothing about either.
     """
 
     def __init__(
@@ -102,21 +113,40 @@ class TextGenerator:
         service: CadApplicationService,
         *,
         generator: Optional[TextToCadService] = None,
+        settings: Optional[SettingsStore] = None,
     ) -> None:
         self._service = service
         self._generator = generator
+        self._settings = settings
+        # Guards the cached service: a swap and a read never interleave. A
+        # generation takes its reference under the lock and runs outside it,
+        # so one already in flight finishes on the service it started with.
+        self._lock = threading.Lock()
 
     @property
     def configured(self) -> bool:
         """Whether a service has already been built. Reads no credential."""
-        return self._generator is not None
+        with self._lock:
+            return self._generator is not None
+
+    def reconfigure(self) -> None:
+        """Forget the cached service; the next generation builds a new one."""
+        with self._lock:
+            self._generator = None
 
     def _build(self) -> Optional[AiGenerationResult]:
-        """Build the service, or return the failure to answer with."""
+        """Build the service, or return the failure to answer with.
+
+        Called with the lock held.
+        """
         if self._generator is not None:
             return None
         try:
-            config = config_from_environment()
+            config = (
+                config_from_environment()
+                if self._settings is None
+                else self._settings.effective_config()
+            )
         except AiConfigurationError:
             return _unavailable(ProviderErrorKind.NOT_CONFIGURED)
         try:
@@ -135,15 +165,19 @@ class TextGenerator:
         back as an :class:`~cad_ai.generation.AiGenerationResult`, so the route
         above has one shape to map and no exception to translate.
         """
-        unavailable = self._build()
+        with self._lock:
+            unavailable = self._build()
+            generator = self._generator
         if unavailable is not None:
             return unavailable
-        assert self._generator is not None
-        return self._generator.generate_cad_from_text(text)
+        assert generator is not None
+        return generator.generate_cad_from_text(text)
 
 
 __all__ = [
     "GENERATE_REQUEST_FIELDS",
     "MAX_DESCRIPTION_CHARACTERS",
+    "SettingsError",
+    "SettingsStore",
     "TextGenerator",
 ]

@@ -218,6 +218,7 @@ Docs: `docs/http-api.md`, `docs/artifact-delivery.md`,
 | `antigravity_provider.py` | **Google-account provider** (`AntigravityTextToCadModel`): drives Google's Antigravity CLI (`agy`, stream-json on stdin/stdout) in a throwaway workspace; the answer arrives through the same `submit_answer` MCP server, which writes it to a capture file (`claude_code_mcp.py --capture`). Selected **only** by `CAD_AI_PROVIDER=antigravity`. Stdlib only; **never run against the real CLI** |
 | `openai_compatible_provider.py` | **Open-weight models** (`OpenAICompatibleTextToCadModel`): any OpenAI Chat Completions server -- Ollama, vLLM, llama.cpp, LM Studio, OpenRouter. Stdlib HTTP only; `CAD_OPENAI_BASE_URL` + `CAD_AI_MODEL` required, `CAD_OPENAI_API_KEY` optional; answer modes `json_schema` (default) / `tool` / `json_object`. Selected **only** by `CAD_AI_PROVIDER=openai_compatible`; **never run against a real server** (68 tests against a recording local HTTP server). Setup recipes and context-length notes in `docs/text-to-cad-ai.md` |
 | `corpus_v2.py` / `geometric_scoring.py` | **Benchmark 2.0.0** (see §6): 135 cases with code-built reference parts, scoring rules as data, perturbations that must fail and equivalents that must pass |
+| `settings.py` | **Runtime provider/model choice** behind `GET/PUT/DELETE /settings` and the page's ⚙ Settings panel: the environment overlaid by `<CAD_API_CACHE_ROOT>/settings.json` (provider + model only). Never accepts or returns a key, path or URL; availability by presence only; refuses Opus for anthropic/claude_code. Answer mode stays `.env`-only |
 | `prompt.py` | The single system prompt, versioned + fingerprinted (`system_prompt`, `prompt_fingerprint`) |
 | `specification.py` | Model-facing view of the spec, **derived** from `docs/cad-specification.md` (`specification_text`, `response_schema`) |
 | `generation.py` | `TextToCadService`: description in, `AiGenerationResult` out, validated by `cad_core` |
@@ -247,8 +248,8 @@ estimated.
 | Suite | Result |
 |---|---|
 | cad-core (`unittest`) | **1714 passed** (schema 1.2.0 + `shape_comparison`, Linux, Python 3.13; 1685 before the benchmark v2; 1481 at Stage 32 on Windows) |
-| API + AI (`unittest`) | **838 tests, 2 skipped** (prompt 2026-11-13.8, tool answer mode, five providers incl. claude_code / antigravity / openai_compatible, corpus 2.0.0, schema 1.2.0, template library of 10; run the modules one at a time or expect `test_model_output_writes_no_file_anywhere` to see the others writing to /tmp, Linux; with the `ai-gemini` extra installed — without it, Gemini tests skip) |
-| Frontend (`vitest`) | **180 passed** (6 files) |
+| API + AI (`unittest`) | **898 tests, 2 skipped** (settings panel; prompt 2026-11-13.8, tool answer mode, five providers incl. claude_code / antigravity / openai_compatible, corpus 2.0.0, schema 1.2.0, template library of 10; run the modules one at a time or expect `test_model_output_writes_no_file_anywhere` to see the others writing to /tmp, Linux; with the `ai-gemini` extra installed — without it, Gemini tests skip) |
+| Frontend (`vitest`) | **191 passed** (7 files) |
 | Frontend typecheck (`tsc --noEmit`) | **clean** |
 | Launcher (`scripts\Test-DevLauncher.ps1`) | **62 assertions passed** |
 

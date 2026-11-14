@@ -4,8 +4,9 @@ Status: **Stage 22 — the first HTTP transport, as a thin adapter over the
 transport-neutral contract. Stage 23 added artifact delivery, Stage 24
 read-only build retrieval, Stage 25 the render endpoint a browser viewer
 needs, Stage 30 the natural-language `POST /generate` (later extended to
-verify by building and to re-ask within a bound; see that route). Local
-development only.**
+verify by building and to re-ask within a bound; see that route), and the
+Settings panel's `GET` / `PUT` / `DELETE /settings` (which AI provider and
+model the next generation uses). Local development only.**
 
 > **HTTP API contains no CAD business logic.**
 
@@ -258,6 +259,104 @@ five, not a distribution; the re-ask path has not been exercised live).
 a 422 and **no model call is made** — spending a request on nothing is not a
 service the client asked for.
 
+### `GET /settings`, `PUT /settings`, `DELETE /settings`
+
+The browser's Settings panel: **which AI provider and model the next
+`POST /generate` uses**, chosen on the page instead of by editing
+`apps\api\.env` and restarting. Every decision lives in `cad_ai.settings`
+(`SettingsStore`); the routes map its answers to statuses and nothing more.
+
+**The effective settings** are the environment exactly as before
+(`cad_ai.config.config_from_environment`), overlaid by a saved choice holding
+**only `provider` and `model`**. An empty model means the provider's default
+— or `CAD_AI_MODEL`, when the environment already chose that same provider;
+an environment model meant for one provider is never sent to another. Every
+other AI setting (timeout, attempt limit, effort, answer mode) still comes
+from the environment.
+
+**`GET /settings`** — always **200**:
+
+```json
+{
+  "effective":   {"provider": "claude_code", "label": "Claude Code subscription",
+                  "model": "claude-haiku-5-5", "source": "saved",
+                  "ready": true, "reason_if_not": null},
+  "environment": {"provider": "anthropic", "...": "what a reset would give"},
+  "saved":       {"provider": "claude_code", "model": ""},
+  "providers": [
+    {"name": "anthropic", "label": "Anthropic API (API key)", "kind": "api_key",
+     "available": false,
+     "reason_if_not": "No API key: set ANTHROPIC_API_KEY (or CAD_ANTHROPIC_API_KEY) in apps\\api\\.env and restart the backend.",
+     "default_model": "claude-haiku-5-5", "model_required": false,
+     "model_suggestions": ["claude-haiku-5-5", "claude-sonnet-5-5"],
+     "env_variables": ["ANTHROPIC_API_KEY", "CAD_ANTHROPIC_API_KEY"]},
+    "... gemini, claude_code, antigravity, openai_compatible ..."
+  ],
+  "notes": ["API keys, CLI executable paths and server addresses are read only from apps\\api\\.env ...", "..."]
+}
+```
+
+`source` is `"saved"` or `"environment"`. `available` is **presence only**: an
+API-key provider has a key variable set and its SDK installed; a CLI provider
+(`claude`, `agy`) has an executable that can be found — yes or no, **never the
+path**; the OpenAI-compatible provider has `CAD_OPENAI_BASE_URL` set — **never
+the address** — and, for `effective.ready`, a model named. Nothing is
+contacted and nothing is run to find out, so "ready" does not prove that a key
+is valid or that a CLI is logged in. `env_variables` are variable **names**
+for the page to show; no value of any of them is ever read into a response.
+`model_suggestions` is a short curated list (each default, plus
+`claude-sonnet-5-5` for the two Anthropic routes; none for the
+OpenAI-compatible provider, whose model is free text). **No Opus anywhere.**
+
+**`PUT /settings`** with `{"provider": "...", "model": "..."}` (`model`
+optional) validates, saves and answers **200** with the same body as
+`GET`. The next `POST /generate` builds its service from the new settings; a
+generation already in flight finishes on the one it started with
+(`TextGenerator.reconfigure` swaps the cached service under a lock).
+
+- **422** `invalid_provider` — not one of the five provider names;
+- **422** `invalid_model` — not a plain model name: at most 100 characters of
+  letters, digits and `. _ : / @ + -`, starting with a letter or digit, and
+  not URL-, path- or key-shaped (`://`, `..`, a leading `sk-`). The message
+  never echoes what was sent;
+- **422** `model_not_allowed` — a model containing `opus` for `anthropic` or
+  `claude_code`: the owner's standing rule, *never Opus*;
+- **422** `invalid_request` — the transport's own refusal of any body that is
+  not exactly `provider` and `model`. This is how **no API key, token, base
+  URL, executable path or answer mode is accepted over HTTP**: a body carrying
+  one is rejected before anything reads it. They stay in `apps\api\.env`;
+- **500** `not_saved` — the file could not be written; the previous choice
+  stays in force.
+
+Refusals have the shape `{"error": {"reason", "message", "field"}}`.
+
+**Choosing a provider that is not ready is allowed, not a 409.** The answer
+says `effective.ready: false` and why. The choice is a preference, and the
+missing piece — a key in `.env`, a CLI install — is usually fixed *after*
+choosing, outside the page; refusing would force the owner to fix the
+environment before they may even say what they want. Nothing is spent by
+allowing it: the next `POST /generate` fails exactly as an unconfigured
+provider always has, **503** `model_error` / `not_configured`, at
+construction, before any request.
+
+**`DELETE /settings`** forgets the saved choice; the environment applies
+again. **200** with the `GET` body; repeating it is harmless.
+
+**Persistence.** `<CAD_API_CACHE_ROOT>/settings.json`, written atomically (a
+temporary file in the same directory, then `os.replace`):
+`{"version": 1, "provider": "...", "model": "..."}`. A corrupt, unreadable,
+other-version or no-longer-valid file (an unknown field, an Opus model) is
+ignored with a warning in the server log — its contents are not logged — and
+the environment applies. `.env` is never read or written by this feature. An
+application built with `create_app(service=...)` keeps the choice in memory
+only.
+
+**Answer mode is not settable here.** `CAD_AI_ANSWER_MODE` and
+`CAD_OPENAI_ANSWER_MODE` are read by the provider modules from the process
+environment at construction; overriding them from a request would mean
+mutating `os.environ` for the whole process, so they remain `.env`-only and
+the page says so.
+
 ### `GET /builds/{build_key}`
 
 Retrieve a build that has already been published, by the build key `POST
@@ -405,6 +504,9 @@ The line a status code draws here is **whose fault** the failure is.
 | artifact id that is not an identifier | `artifact_id_invalid` | **400** |
 | artifact unavailable, or with no bytes to deliver | `artifact_not_found` / `artifact_not_downloadable` | **404** |
 | artifact delivery failed unexpectedly | `delivery_failed` | **500** |
+| settings read, saved (ready or not) or reset | — | **200** |
+| settings: unknown provider, bad or refused (Opus) model | `invalid_provider` / `invalid_model` / `model_not_allowed` (in `error.reason`) | **422** |
+| settings could not be written | `not_saved` (in `error.reason`) | **500** |
 | wrong method on an existing route | — | 405 (FastAPI) |
 | unknown route | — | 404 (FastAPI) |
 
@@ -622,6 +724,10 @@ cache or a path.
   involved. If a deployment ever needs CORS it belongs in this application's
   configuration, never in domain code.
 
+Also not exposed through `/settings`: any API key, token, base URL, CLI
+executable path or answer mode, in either direction. Those stay in
+`apps\api\.env`.
+
 ## OpenAPI
 
 FastAPI generates `/openapi.json` automatically. No OpenAPI file is
@@ -629,9 +735,10 @@ hand-written, and **the generated schema is not the source of truth for CAD
 semantics** — the transport-neutral contract is. Consequently no
 `response_model` is declared: mirroring the response DTOs in Pydantic would
 create a second definition of the contract, so the generated schema describes
-the two request envelopes (`ValidateBody`, `BuildBody`) and leaves responses
-generic. A test asserts the schema lists exactly the six routes and defines
-no response, artifact, error or CAD model.
+the request envelopes (`ValidateBody`, `BuildBody`, `GenerateBody`,
+`SettingsBody`) and leaves responses generic. A test asserts the schema lists
+exactly the declared paths -- `/settings` being the one path with `GET`, `PUT`
+and `DELETE` -- and defines no response, artifact, error or CAD model.
 
 ## Logging
 

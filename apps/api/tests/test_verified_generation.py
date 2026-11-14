@@ -624,7 +624,20 @@ class TestConfiguration(unittest.TestCase):
     def test_no_opus_model_is_named_in_the_ai_layer(self) -> None:
         source_root = REPOSITORY / "apps" / "api" / "src" / "cad_ai"
         for path in source_root.glob("*.py"):
+            if path.name == "settings.py":
+                # The one deliberate mention: the Settings panel's rule that
+                # *refuses* any model containing the word on the Anthropic
+                # routes. It names no model; what it offers is checked below.
+                continue
             self.assertNotIn("opus", path.read_text(encoding="utf-8").lower(), path)
+        from cad_ai.settings import MODEL_SUGGESTIONS, check_settings
+
+        for provider, models in MODEL_SUGGESTIONS.items():
+            for model in models:
+                self.assertNotIn("opus", model.lower(), provider)
+        for provider in ("anthropic", "claude_code"):
+            with self.assertRaises(Exception):
+                check_settings(provider, "claude-" + "opus-5-5")
 
     def test_the_fallback_credential_name_is_honoured(self) -> None:
         environment = {FALLBACK_API_KEY_VARIABLE: "placeholder"}

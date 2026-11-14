@@ -8,7 +8,59 @@
   </head>
   <body>
     <main id="app">
-      <h1>Text to CAD</h1>
+      <header class="topbar">
+        <h1>Text to CAD</h1>
+        <button
+          id="settings-button"
+          type="button"
+          aria-expanded="false"
+          aria-controls="settings-panel"
+        ><span aria-hidden="true">⚙</span> Settings</button>
+      </header>
+
+      <section
+        id="settings-panel"
+        class="panel settings"
+        aria-labelledby="settings-heading"
+        hidden
+      >
+        <h2 id="settings-heading">Settings</h2>
+        <p class="help">
+          Choose which AI service interprets your descriptions. Saving costs
+          nothing and generates nothing; the next Generate CAD uses it.
+        </p>
+        <div class="settings-grid">
+          <div>
+            <label for="settings-provider">AI provider</label>
+            <select
+              id="settings-provider"
+              aria-describedby="settings-provider-status settings-env-help"
+            ></select>
+            <p id="settings-provider-status" class="provider-status"></p>
+            <p id="settings-env-help" class="help" hidden></p>
+          </div>
+          <div>
+            <label for="settings-model">Model</label>
+            <input
+              id="settings-model"
+              type="text"
+              list="settings-model-options"
+              autocomplete="off"
+              spellcheck="false"
+              aria-describedby="settings-model-help"
+            />
+            <datalist id="settings-model-options"></datalist>
+            <p id="settings-model-help" class="help"></p>
+          </div>
+        </div>
+        <div class="actions">
+          <button id="settings-save" type="button">Save</button>
+          <button id="settings-reset" type="button">Reset to .env defaults</button>
+          <button id="settings-close" type="button">Close</button>
+        </div>
+        <p id="settings-message" class="settings-message" role="status" aria-live="polite"></p>
+        <ul id="settings-notes" class="help settings-notes"></ul>
+      </section>
 
       <section class="panel" aria-labelledby="describe-heading">
         <h2 id="describe-heading">Describe your part</h2>
@@ -26,6 +78,7 @@
           model interprets the description; the backend validates and builds
           the result.
         </p>
+        <p id="settings-summary" class="settings-summary">Using: …</p>
         <div class="examples">
           <span id="examples-label" class="examples-label">Examples</span>
           <div

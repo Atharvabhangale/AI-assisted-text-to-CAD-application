@@ -43,6 +43,15 @@ function codeOf(text: string): string {
   return text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
 }
 
+/** The Settings panel's markup: the one section allowed form controls. */
+function settingsPanelSource(html: string): string {
+  const match = /<section\s+id="settings-panel"[\s\S]*?<\/section>/.exec(html);
+  if (match === null) {
+    throw new Error("index.html has no #settings-panel section");
+  }
+  return match[0];
+}
+
 describe("the frontend's dependencies", () => {
   it("has the source files the stage describes and no others", () => {
     expect(SOURCES).toEqual([
@@ -52,6 +61,7 @@ describe("the frontend's dependencies", () => {
       "example.ts",
       "main.ts",
       "render-model.ts",
+      "settings.ts",
       "viewer.ts",
     ]);
   });
@@ -65,6 +75,7 @@ describe("the frontend's dependencies", () => {
       "./design-intent",
       "./example",
       "./render-model",
+      "./settings",
       "./viewer",
     ]);
     for (const name of SOURCES) {
@@ -250,7 +261,7 @@ describe("no CAD business logic exists in the frontend", () => {
   it("computes no engineering number in the UI layer", () => {
     // Every dimension, volume, solid and triangle count on the page is read
     // from a field the backend sent, so the UI needs no arithmetic at all.
-    for (const name of ["app.ts", "api.ts", "example.ts"]) {
+    for (const name of ["app.ts", "api.ts", "example.ts", "settings.ts"]) {
       const text = read(name);
       expect(text, `${name}: Math`).not.toContain("Math.");
       for (const forbidden of ["* 2", "/ 2", "** 2", "Number(", "parseFloat"]) {
@@ -482,11 +493,13 @@ describe("the stage's exclusions hold", () => {
 
   it("is a viewer and a prompt, not a CAD editor", () => {
     const html = pageSource();
-    // Three text areas, and every one is free text the user types: the
-    // description, the clarification answer, and the advanced CAD JSON.
-    // Still no field that edits geometry directly -- no number spinner, no
-    // dimension input, no dropdown of feature types.
-    const editable = [...html.matchAll(/<(textarea|input|select)\b/g)].map(
+    // Outside the Settings panel: three text areas, and every one is free
+    // text the user types -- the description, the clarification answer, and
+    // the advanced CAD JSON. Still no field that edits geometry directly --
+    // no number spinner, no dimension input, no dropdown of feature types.
+    const panel = settingsPanelSource(html);
+    const outside = html.replace(panel, "");
+    const editable = [...outside.matchAll(/<(textarea|input|select)\b/g)].map(
       (match) => match[1],
     );
     expect(editable).toEqual(["textarea", "textarea", "textarea"]);
@@ -505,6 +518,10 @@ describe("the stage's exclusions hold", () => {
       "fit-button",
       "generate-button",
       "load-example",
+      "settings-button",
+      "settings-close",
+      "settings-reset",
+      "settings-save",
       "validate-button",
     ]);
     // The only other buttons are the example chips. They carry no id because
@@ -523,6 +540,62 @@ describe("the stage's exclusions hold", () => {
       expect(chip, chip).not.toContain("id=");
     }
     expect(html).not.toContain("<form");
+  });
+
+  it("allows exactly two settings fields, and neither touches geometry or secrets", () => {
+    // The one deliberate exception to "three text areas": the Settings
+    // panel chooses *which interpreter* the backend uses -- a provider and a
+    // model name. It is reviewed, and it is pinned exactly: one dropdown,
+    // one plain text field, both inside the panel, and nothing else.
+    const html = pageSource();
+    const panel = settingsPanelSource(html);
+    const fields = [...panel.matchAll(/<(textarea|input|select)\b[^>]*>/g)].map(
+      (match) => match[0],
+    );
+    expect(fields).toHaveLength(2);
+    expect(fields[0]).toMatch(/^<select\b/);
+    expect(fields[0]).toContain('id="settings-provider"');
+    expect(fields[1]).toMatch(/^<input\b/);
+    expect(fields[1]).toContain('id="settings-model"');
+    expect(fields[1]).toContain('type="text"');
+    // Each is labelled.
+    expect(panel).toContain('for="settings-provider"');
+    expect(panel).toContain('for="settings-model"');
+    // No field for a key, an address or a location, and no number input:
+    // those live in the backend's `.env` and are never typed here.
+    const lowered = panel.toLowerCase();
+    for (const forbidden of [
+      'type="password"',
+      'type="url"',
+      'type="number"',
+      'type="file"',
+      "key",
+      "token",
+      "base-url",
+      "base_url",
+    ]) {
+      expect(lowered, forbidden).not.toContain(forbidden);
+    }
+    // The page says where those do live.
+    expect(sourceOf("settings.ts")).toContain('"apps\\\\api\\\\.env"');
+    // The request carries exactly the two fields, and nothing else.
+    const api = read("api.ts");
+    expect(api).toContain('"/settings"');
+    expect(api).toContain("JSON.stringify({ provider, model })");
+    // Saving settings is not a generation: the panel can never spend a call.
+    const settings = codeOf(read("settings.ts"));
+    expect(settings).not.toContain("generate(");
+    expect(settings).not.toContain("fetch(");
+    for (const forbidden of ["setTimeout", "setInterval", "while (", "for (;;"]) {
+      expect(settings, forbidden).not.toContain(forbidden);
+    }
+    // Provider names and labels come from the backend; none is written here.
+    const everything = [read("settings.ts"), read("api.ts"), html]
+      .join("\n")
+      .toLowerCase();
+    for (const name of ["antigravity", "openai_compatible", "claude_code", "opus"]) {
+      expect(everything, name).not.toContain(name);
+    }
   });
 
   it("makes text-to-CAD the primary flow and CAD JSON secondary", () => {

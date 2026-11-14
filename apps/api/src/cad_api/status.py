@@ -17,6 +17,7 @@ from typing import Mapping, Tuple
 from cad_core.application_service import ServiceFailure
 
 from cad_ai.generation import GenerationOutcome
+from cad_ai.settings import SettingsReason
 
 from cad_api.artifacts import DeliveryReason
 from cad_api.builds import RetrievalReason
@@ -117,6 +118,17 @@ GENERATION_STATUS: Mapping[GenerationOutcome, int] = {
     GenerationOutcome.MODEL_ERROR: UNAVAILABLE_STATUS,
 }
 
+#: One status per settings refusal. Complete by construction: a test asserts
+#: every :class:`~cad_ai.settings.SettingsReason` member appears. A refused
+#: choice is the client's to fix (422, like every other request this server
+#: cannot process as sent); a file the server could not write is not (500).
+SETTINGS_STATUS: Mapping[SettingsReason, int] = {
+    SettingsReason.INVALID_PROVIDER: UNPROCESSABLE_STATUS,
+    SettingsReason.INVALID_MODEL: UNPROCESSABLE_STATUS,
+    SettingsReason.MODEL_NOT_ALLOWED: UNPROCESSABLE_STATUS,
+    SettingsReason.NOT_SAVED: INTERNAL_STATUS,
+}
+
 #: Statuses this application can return, for documentation and tests.
 STATUSES: Tuple[int, ...] = (
     OK_STATUS,
@@ -137,6 +149,11 @@ def status_for_outcome(outcome: GenerationOutcome) -> int:
     server problem and not the client's.
     """
     return GENERATION_STATUS.get(outcome, INTERNAL_STATUS)
+
+
+def status_for_settings(reason: SettingsReason) -> int:
+    """The HTTP status for a refused or unsaved settings change."""
+    return SETTINGS_STATUS.get(reason, INTERNAL_STATUS)
 
 
 def status_for_retrieval(reason: RetrievalReason) -> int:

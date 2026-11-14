@@ -4,7 +4,8 @@ Status: **Stage 25 — the first visible browser application, a CAD-document
 viewer. Stage 30 made natural language the primary input and demoted the raw
 CAD JSON to an advanced section. A later change made the interpreter's
 assumptions and its attempts visible, taught the design-intent panel the
-`union` feature, and added example descriptions. Still not an editor.**
+`union` feature, and added example descriptions. The Settings panel chooses
+the AI provider and model from the page. Still not an editor.**
 
 ## What it is
 
@@ -18,6 +19,7 @@ browser (apps/web)
   │  POST /build               that document + the outputs to produce
   │  GET  /builds/{key}/render the RenderModel to draw
   │  GET  /artifacts/{id}      STEP / IGES / STL bytes
+  │  GET|PUT|DELETE /settings  which AI provider and model generation uses
 apps/api            thin HTTP transport (Stage 22-24, 30)
   │
 cad_ai (interpretation)   CadApplicationService → cache / isolation → CAD engine
@@ -68,21 +70,69 @@ features, no CAD editor and no arbitrary geometry editing. Natural language is
 *input*, not intelligence: the page posts a sentence to the backend and knows
 nothing about which model answers it.
 
-The three editable fields are all free text a person types — the description,
-the clarification answer, and the advanced CAD JSON. There is still no field
-that edits geometry directly: no number spinner, no dimension input, no
-feature dropdown. Tests assert all of this (`tests/boundary.test.ts`),
-including that the sources name no vendor and carry no credential.
+Outside the Settings panel, the three editable fields are all free text a
+person types — the description, the clarification answer, and the advanced
+CAD JSON. There is still no field that edits geometry directly: no number
+spinner, no dimension input, no feature dropdown. Tests assert all of this
+(`tests/boundary.test.ts`), including that the sources name no vendor and
+carry no credential.
+
+**The Settings panel is the one deliberate exception, pinned exactly**: inside
+`#settings-panel`, one `<select id="settings-provider">` and one
+`<input id="settings-model" type="text">`, both labelled, and nothing else.
+They choose *which interpreter* the backend uses, not geometry. The boundary
+test asserts there are exactly those two fields, that the panel has no
+password, URL, number or file input and no field named for a key, token or
+address, that the request sends exactly `{ provider, model }`, that the panel
+cannot call `/generate`, and that no provider name is written in the page or
+its sources (names and labels come from the backend).
 
 The example chips under the description box are buttons, not fields. Each one
 copies its own text into the description box and does nothing else — it does
 not generate. The same test asserts that every button on the page is either
-one of the nine named controls or an example chip, that each is a plain
+one of the thirteen named controls (nine, plus the four Settings buttons) or
+an example chip, that each is a plain
 `type="button"`, and that the page contains no form to submit.
 
 **The browser never sees a credential.** `GEMINI_API_KEY` is read by the
 backend's provider and by nothing else; it is not in the page, not in the
 bundle, not in `vite.config.ts`, and not in browser storage.
+
+## Settings: choosing the AI provider and model
+
+The **⚙ Settings** button at the top right opens a panel (a disclosure, not a
+modal: `aria-expanded` / `aria-controls` on the button, Escape or **Close**
+closes it and returns focus to the button). It reads `GET /settings` once
+when the page loads — no model call — and shows:
+
+- **AI provider** — a dropdown of the backend's providers, each shown by the
+  backend's label with "ready" or "not ready" (Anthropic API, Google Gemini
+  API, Claude Code subscription, Google account via Antigravity, open-weight
+  model via an OpenAI-compatible server). Under it, for the selected one:
+  "Ready." or "Not ready: <the backend's reason>", and **which variables to
+  set in `apps\api\.env`, by name only** (e.g. `CAD_CLAUDE_CODE_PATH`).
+- **Model** — a text field with the provider's suggestions as a `datalist`
+  (Haiku and Sonnet for the two Anthropic routes, the current default for the
+  Google routes, none for an open-weight server, whose model must be typed).
+  Empty means the provider's default, shown as the placeholder.
+- **Save** (`PUT /settings`), **Reset to .env defaults** (`DELETE /settings`)
+  and **Close**, then a status line with the result, and the backend's notes:
+  keys, executable paths and server addresses stay in `apps\api\.env` and
+  are never sent to or accepted from the page; Opus is refused; a change
+  applies to the next generation; the answer mode stays in `.env`.
+
+Under the description box one line always says what is in force, e.g.
+`Using: Claude Code subscription · claude-haiku-5-5 (chosen in Settings)`, or
+`(from apps\api\.env)`, followed by "— not ready" when the backend says the
+provider's setup is missing.
+
+A refusal (an Opus model, a URL typed as a model, an unknown provider) is
+shown verbatim as "Not saved: …" with `role="alert"`, the model field marked
+`aria-invalid`, and nothing changes. Choosing a provider that is not ready is
+allowed: the page says so, and the next **Generate CAD** reports the
+unavailable interpreter as it always has. Everything the panel shows — labels,
+readiness, reasons, suggestions, defaults — is a field the backend sent; the
+panel decides nothing and computes nothing (`src/settings.ts`).
 
 ## The frontend is a client, not the CAD engine
 
@@ -249,7 +299,11 @@ apps/web/
   index.html          the page: description, intent, viewport, result,
                       exports, and the advanced CAD JSON section
   vite.config.ts      the dev/preview proxy and the test environment
-  src/api.ts          the five calls and one URL helper. No CAD logic.
+  src/api.ts          the API calls (generate, validate, build, render,
+                      and the three settings calls) and one URL helper.
+                      No CAD logic.
+  src/settings.ts     the Settings panel: shows GET /settings, sends
+                      PUT / DELETE /settings. Names no provider.
   src/app.ts          state, DOM, the generate flow and the build flow.
                       No CAD logic.
   src/design-intent.ts  formats a generated document into English. Reads
@@ -260,7 +314,7 @@ apps/web/
   src/viewer.ts       the Three.js viewport
   src/example.ts      Section D, as a data literal
   src/main.ts         entry point: collect, wire, start
-  tests/              180 Vitest tests, against the real page and real fixtures
+  tests/              191 Vitest tests, against the real page and real fixtures
   e2e/run.mjs         the end-to-end run: real backend, real browser
 ```
 
@@ -371,7 +425,7 @@ questioned or refused is the backend's answer on the day.
 
 ### Unit and DOM tests — `npm test` in `apps/web`
 
-180 tests, in six files:
+191 tests, in seven files:
 
 - `tests/app.test.ts` — the build flow: loading, the request shape, success,
   a cache hit, each failure classification, the identity and measurement
@@ -386,6 +440,11 @@ questioned or refused is the backend's answer on the day.
   vertices and the camera fit, on the real Section D mesh.
 - `tests/design-intent.test.ts` — the 1.2.0 wordings, and that a 1.1
   document and a 1.2.0 document with neutral values read identically.
+- `tests/settings.test.ts` — the Settings panel: opening and closing,
+  providers with their readiness, the not-ready reason and `.env` variable
+  names, a save sending exactly `{provider, model}`, a refusal shown without
+  change, reset, and an unreachable API. Its `/settings` answers are
+  hand-authored to the documented shape, not captured.
 - `tests/boundary.test.ts` — the source-level assertions above.
 
 Two things make these tests worth something:

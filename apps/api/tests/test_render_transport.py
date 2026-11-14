@@ -663,6 +663,9 @@ class TestRenderIsNotAFileServer(RenderTransportTestCase):
                 # model and lists nothing.
                 "/generate",
                 "/health",
+                # The Settings panel's route: the AI provider choice. It
+                # serves no render model and lists nothing.
+                "/settings",
                 "/validate",
             ],
         )

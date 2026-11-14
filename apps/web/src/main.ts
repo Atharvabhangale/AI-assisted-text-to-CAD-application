@@ -1,5 +1,6 @@
 /**
- * Page entry point: find the elements, wire the buttons, create the viewer.
+ * Page entry point: find the elements, wire the buttons, create the viewer,
+ * and show which interpreter the backend will use.
  *
  * The viewer is created lazily and its failure is survivable: a browser
  * without WebGL still validates, builds, and shows the result and the textual
@@ -16,6 +17,11 @@ import {
   wireExports,
   type ViewerPort,
 } from "./app";
+import {
+  collectSettingsElements,
+  createSettings,
+  wireSettings,
+} from "./settings";
 import { createViewer } from "./viewer";
 
 function start(): void {
@@ -50,6 +56,12 @@ function start(): void {
   });
   elements.loadExample.addEventListener("click", () => {
     app.loadExample();
+
+  // The Settings panel: reads which interpreter is in use (no model call).
+  const settingsElements = collectSettingsElements(document);
+  const settings = createSettings({ elements: settingsElements, client });
+  wireSettings(settingsElements, settings);
+  void settings.load();
   });
   elements.validateButton.addEventListener("click", () => {
     void app.validate();
@@ -70,6 +82,12 @@ function start(): void {
   });
 
   app.loadExample();
+
+  // The Settings panel: reads which interpreter is in use (no model call).
+  const settingsElements = collectSettingsElements(document);
+  const settings = createSettings({ elements: settingsElements, client });
+  wireSettings(settingsElements, settings);
+  void settings.load();
 
   // For the end-to-end test to read the real state without a screenshot.
   (globalThis as unknown as Record<string, unknown>).__cadApp = app;

@@ -142,6 +142,57 @@ export interface GenerateResponse {
   readonly attempts?: readonly GenerationAttempt[] | null;
 }
 
+/**
+ * Which interpreter the next `POST /generate` uses, as the backend reports it.
+ *
+ * Every string here is the backend's: the provider names are opaque
+ * identifiers, the labels and reasons are shown verbatim, and the page decides
+ * nothing from them except which option is selected.
+ */
+export interface EffectiveSettings {
+  readonly provider: string | null;
+  readonly label: string | null;
+  readonly model: string | null;
+  /** `"saved"` (chosen on this page) or `"environment"` (from `.env`). */
+  readonly source: string;
+  readonly ready: boolean;
+  readonly reason_if_not: string | null;
+}
+
+/** One interpreter the backend can use, and whether its setup is present. */
+export interface ProviderOption {
+  readonly name: string;
+  readonly label: string;
+  readonly kind: string;
+  readonly available: boolean;
+  readonly reason_if_not: string | null;
+  /** What an empty Model field means for this provider. */
+  readonly default_model: string;
+  readonly model_required: boolean;
+  readonly model_suggestions: readonly string[];
+  /** Variable *names* to set in `.env`. Never a value. */
+  readonly env_variables: readonly string[];
+}
+
+/** `GET /settings`, and the success answer of `PUT` / `DELETE /settings`. */
+export interface SettingsResponse {
+  readonly effective: EffectiveSettings;
+  readonly environment: EffectiveSettings;
+  readonly saved: { readonly provider: string; readonly model: string } | null;
+  readonly providers: readonly ProviderOption[];
+  readonly notes: readonly string[];
+}
+
+/** A refused settings change: the backend's reason and message. */
+export interface SettingsRefusal {
+  readonly error: {
+    readonly message: string;
+    readonly reason?: string;
+    readonly failure?: string;
+    readonly field?: string | null;
+  };
+}
+
 /** A request that never reached the API, or an answer that was not JSON. */
 export class NetworkError extends Error {}
 
@@ -150,8 +201,9 @@ export interface ApiClientOptions {
   readonly fetch?: typeof globalThis.fetch;
 }
 
-/** The API, as this page uses it: four calls and one URL helper. */
-// (generate, validate, build, renderModel -- plus `artifactUrl`.)
+/** The API, as this page uses it: seven calls and one URL helper. */
+// (generate, validate, build, renderModel, and the three settings calls --
+// plus `artifactUrl`.)
 export class ApiClient {
   private readonly base: string;
   private readonly request: typeof globalThis.fetch;
@@ -210,6 +262,39 @@ export class ApiClient {
       `/builds/${encodeURIComponent(buildKey)}/render`,
       { method: "GET" },
     );
+  }
+
+  /**
+   * `GET /settings`: the interpreter in use and every one the backend offers.
+   * Reads only; costs no model call.
+   */
+  async settings(): Promise<SettingsResponse> {
+    return this.json<SettingsResponse>("/settings", { method: "GET" });
+  }
+
+  /**
+   * `PUT /settings`: choose the interpreter for the next generation.
+   *
+   * Exactly two fields, both chosen by the person on the page. Nothing else
+   * can be sent: keys, addresses and executable locations live in the
+   * backend's `.env`, and the backend refuses any other field.
+   */
+  async saveSettings(
+    provider: string,
+    model: string,
+  ): Promise<SettingsResponse | SettingsRefusal> {
+    return this.json<SettingsResponse | SettingsRefusal>("/settings", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ provider, model }),
+    });
+  }
+
+  /** `DELETE /settings`: forget the page's choice; `.env` applies again. */
+  async resetSettings(): Promise<SettingsResponse | SettingsRefusal> {
+    return this.json<SettingsResponse | SettingsRefusal>("/settings", {
+      method: "DELETE",
+    });
   }
 
   /**
