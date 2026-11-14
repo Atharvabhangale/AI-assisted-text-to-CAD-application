@@ -105,6 +105,7 @@ from cad_core.isolated_worker import (
     EXIT_PROTOCOL_ERROR,
     IPC_PROTOCOL_VERSION,
     OPERATION_BUILD,
+    OPERATION_COMPARE_SHAPES,
     OUTPUT_DIRECTORY_FLAG,
     REQUEST_ENVELOPE_FIELDS,
     REQUEST_FILENAME,
@@ -117,6 +118,11 @@ from cad_core.local_build_cache import CacheEntry, LocalBuildCache
 from cad_core.model import Part
 from cad_core.render_model import RenderModel
 from cad_core.serialization import serialize_part
+from cad_core.shape_comparison import (
+    ComparisonRequestError,
+    PairResult,
+    results_from_payload,
+)
 
 PathLike = Union[str, "os.PathLike[str]"]
 
@@ -546,6 +552,74 @@ def get_or_build_isolated(
         )
     finally:
         _remove_tree(workspace)
+
+
+@dataclass(frozen=True)
+class IsolatedComparison:
+    """The host-side result of one isolated ``compare_shapes`` invocation.
+
+    ``results`` holds one :class:`~cad_core.shape_comparison.PairResult` per
+    requested pair, in request order, when the child answered; it is empty
+    when the child failed, and ``execution`` then says how.
+    """
+
+    execution: IsolatedExecution
+    requested: int
+    results: Tuple[PairResult, ...] = ()
+
+    @property
+    def succeeded(self) -> bool:
+        return self.execution.succeeded and len(self.results) == self.requested
+
+
+def compare_shapes_isolated(
+    pairs: Sequence[Mapping[str, Any]],
+    *,
+    timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
+    workspace_root: Optional[PathLike] = None,
+) -> IsolatedComparison:
+    """Build and compare pairs of CAD documents in a child process.
+
+    Each pair is ``{"candidate": document, "reference": document or None,
+    "orientations": [...]}`` (see :mod:`cad_core.shape_comparison`). The
+    documents travel as JSON data; the kernel runs only in the child, and only
+    plain measurements come back. A crash, a timeout or a malformed answer is
+    reported in ``execution`` -- never as a comparison.
+    """
+    payload = {"pairs": [dict(pair) for pair in pairs]}
+    execution = invoke_worker(
+        operation=OPERATION_COMPARE_SHAPES,
+        payload=payload,
+        timeout_seconds=timeout_seconds,
+        workspace_root=workspace_root,
+    )
+    if not execution.succeeded:
+        return IsolatedComparison(execution=execution, requested=len(pairs))
+    try:
+        results = results_from_payload(execution.worker_result)
+    except (ComparisonRequestError, KeyError, TypeError, ValueError) as exc:
+        problem = f"the child's comparison answer is malformed ({exc})"
+    else:
+        if len(results) == len(pairs):
+            return IsolatedComparison(
+                execution=execution, requested=len(pairs), results=results
+            )
+        problem = "the child answered a different number of pairs than were asked"
+    failed = _protocol_failure(
+        problem,
+        dict(
+            operation=execution.operation,
+            exit_code=execution.exit_code,
+            child_launched=execution.child_launched,
+            child_pid=execution.child_pid,
+            child_abandoned=execution.child_abandoned,
+            timeout_seconds=execution.timeout_seconds,
+            workspace=execution.workspace,
+            diagnostic=execution.diagnostic,
+        ),
+        worker_status=execution.worker_status,
+    )
+    return IsolatedComparison(execution=failed, requested=len(pairs))
 
 
 def cached_execution(
@@ -1199,6 +1273,7 @@ __all__ = [
     "SUCCESSFUL_OUTCOMES",
     "WORKER_STATUS_OUTCOMES",
     "WORKSPACE_PREFIX",
+    "IsolatedComparison",
     "IsolatedExecution",
     "IsolatedFailure",
     "IsolationError",
@@ -1206,6 +1281,7 @@ __all__ = [
     "cached_execution",
     "cached_execution_for_key",
     "child_environment",
+    "compare_shapes_isolated",
     "execute_isolated",
     "execute_isolated_document",
     "get_or_build_isolated",

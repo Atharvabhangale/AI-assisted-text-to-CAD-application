@@ -412,18 +412,35 @@ tuple of fixed strings; and `eval`, `exec`, `compile`, `__import__`, `pickle`,
 `marshal`, `runpy` and a shell are all absent, each asserted by name in a
 test. There is no way to express "run this code" in the protocol.
 
+## The geometric comparison operation
+
+A second production operation, `compare_shapes`, exists for the benchmark
+(`docs/ai-evaluation.md`, corpus 2.0.0). Its request is
+`{"pairs": [{"candidate": <document>, "reference": <document or null>,
+"orientations": [...]}, ...]}` -- CAD documents only, never a path, never code.
+The worker hands it to `cad_core.shape_comparison.run_comparison_request`,
+which validates each document with the existing validator, builds it with the
+existing engine (`local_cad.build_part`), and returns plain measurements:
+volume, extents, genus, cylindrical surfaces and the IoU of candidate and
+reference. It publishes no artifact and writes nothing but the response. A
+candidate that fails to build is an *answer* (a per-pair `failure`), so the
+status is `succeeded` whenever the request could be read; a malformed request
+is a protocol error (exit 20) before anything is built. The host side is
+`isolated_execution.compare_shapes_isolated`, which returns an
+`IsolatedComparison`; the kernel never runs in the host.
+
 ## Diagnostic operations
 
-The worker accepts one production operation, `build`, and a small set of
-`diagnostic:` operations that exist **only** to exercise the host's failure
+The worker accepts two production operations, `build` and `compare_shapes`,
+and a small set of `diagnostic:` operations that exist **only** to exercise the host's failure
 classification: `abort`, `malformed`, `other-version`, `sleep`, `noise`,
 `internal` and `environment`. None of them imports a CAD module, reads the CAD
 document, builds anything or writes an artifact.
 
 They are how abnormal termination is tested **without provoking the real
 kernel into a segfault**, which this stage deliberately does not do. A test
-asserts every non-`build` operation is prefixed `diagnostic:`, and the host's
-three build entry points always send `build`.
+asserts every operation other than `build` and `compare_shapes` is prefixed
+`diagnostic:`, and the host's three build entry points always send `build`.
 
 ## How this prepares us for future workers
 

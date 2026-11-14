@@ -188,6 +188,7 @@ simulation, and expressions/scripting of any kind.
 | `isolated_execution.py` / `isolated_worker.py` | Child-process kernel isolation | `execute_isolated`, `get_or_build_isolated`, `invoke_worker` | **Crash containment, not a security sandbox** (§11) | `docs/isolated-cad-execution.md` |
 | `application_service.py` | Application/domain service | `CadApplicationService`, `BuildDocumentRequest`, `BuildOutcome`, `LocalBuildBackend` | The layer transports should call | `docs/application-service.md` |
 | `api_contract.py` | Transport-neutral external contract | `validate_request_from_payload`, `build_response`, `artifact_contract`, `error_contract`, `CadApiContract` | **The contract, not FastAPI's OpenAPI**, is the source of truth | `docs/api-contract.md` |
+| `shape_comparison.py` | Kernel measurements for the benchmark: volume, bbox, face types, round features, through-hole count; IoU after aligning minimum corners, in `fixed` / `upright` / `upright_any` / `free` orientation modes. Runs in the isolated worker (`compare_shapes` operation) | `compare_solids`, `run_comparison_request` | Quarter turns only (plus Z turns lining up round features) | `docs/ai-evaluation.md` |
 | `featurescript.py` | FeatureScript source generation | `generate_featurescript` | **Single box only**; never executed in Onshape | `docs/featurescript-generation.md` |
 | `onshape_adapter.py` / `onshape_fakes.py` | Onshape delivery boundary | `OnshapeAdapter`, `deliver_part`, `RecordingOnshapeAdapter` | **Interface only — nothing contacts Onshape** | `docs/onshape-mcp-boundary.md` |
 
@@ -215,6 +216,8 @@ Docs: `docs/http-api.md`, `docs/artifact-delivery.md`,
 | `gemini_provider.py` | Google `google-genai` adapter (`GeminiTextToCadModel`) |
 | `claude_code_provider.py` / `claude_code_mcp.py` | **Subscription provider** (`ClaudeCodeTextToCadModel`): drives the official `claude` CLI (`-p`, stream-json) with no tools of its own and one stdlib stdio MCP server offering `submit_answer`; the answer is that tool call's input. Selected **only** by `CAD_AI_PROVIDER=claude_code`. Stdlib only |
 | `antigravity_provider.py` | **Google-account provider** (`AntigravityTextToCadModel`): drives Google's Antigravity CLI (`agy`, stream-json on stdin/stdout) in a throwaway workspace; the answer arrives through the same `submit_answer` MCP server, which writes it to a capture file (`claude_code_mcp.py --capture`). Selected **only** by `CAD_AI_PROVIDER=antigravity`. Stdlib only; **never run against the real CLI** |
+| `openai_compatible_provider.py` | **Open-weight models** (`OpenAICompatibleTextToCadModel`): any OpenAI Chat Completions server -- Ollama, vLLM, llama.cpp, LM Studio, OpenRouter. Stdlib HTTP only; `CAD_OPENAI_BASE_URL` + `CAD_AI_MODEL` required, `CAD_OPENAI_API_KEY` optional; answer modes `json_schema` (default) / `tool` / `json_object`. Selected **only** by `CAD_AI_PROVIDER=openai_compatible`; **never run against a real server** (68 tests against a recording local HTTP server). Setup recipes and context-length notes in `docs/text-to-cad-ai.md` |
+| `corpus_v2.py` / `geometric_scoring.py` | **Benchmark 2.0.0** (see §6): 135 cases with code-built reference parts, scoring rules as data, perturbations that must fail and equivalents that must pass |
 | `prompt.py` | The single system prompt, versioned + fingerprinted (`system_prompt`, `prompt_fingerprint`) |
 | `specification.py` | Model-facing view of the spec, **derived** from `docs/cad-specification.md` (`specification_text`, `response_schema`) |
 | `generation.py` | `TextToCadService`: description in, `AiGenerationResult` out, validated by `cad_core` |
@@ -243,8 +246,8 @@ estimated.
 
 | Suite | Result |
 |---|---|
-| cad-core (`unittest`) | **1685 passed** (schema 1.2.0, Linux, Python 3.13; 1617 at 1.1.1; 1481 at Stage 32 on Windows) |
-| API + AI (`unittest`) | **690 tests, 2 skipped** (prompt 2026-11-13.8, tool answer mode, claude_code provider, schema 1.2.0, template library of 10; run the modules one at a time or expect `test_model_output_writes_no_file_anywhere` to see the others writing to /tmp, Linux; with the `ai-gemini` extra installed — without it, Gemini tests skip) |
+| cad-core (`unittest`) | **1714 passed** (schema 1.2.0 + `shape_comparison`, Linux, Python 3.13; 1685 before the benchmark v2; 1481 at Stage 32 on Windows) |
+| API + AI (`unittest`) | **838 tests, 2 skipped** (prompt 2026-11-13.8, tool answer mode, five providers incl. claude_code / antigravity / openai_compatible, corpus 2.0.0, schema 1.2.0, template library of 10; run the modules one at a time or expect `test_model_output_writes_no_file_anywhere` to see the others writing to /tmp, Linux; with the `ai-gemini` extra installed — without it, Gemini tests skip) |
 | Frontend (`vitest`) | **180 passed** (6 files) |
 | Frontend typecheck (`tsc --noEmit`) | **clean** |
 | Launcher (`scripts\Test-DevLauncher.ps1`) | **62 assertions passed** |
@@ -551,6 +554,34 @@ document and builds nothing; the client posts that document to the existing
 `POST /build`. There is still no repair loop, no retry and no conversation
 state.
 
+### Benchmark 2.0.0 — built, self-checked, never run live
+
+`cad_ai.corpus_v2` (`CORPUS_V2_VERSION = "2.0.0"`) is the re-baseline §10
+asked for, built **beside** 1.0.0, which stays frozen and remains the default
+(a test pins its data hash). 135 cases: primitives 16, holes/patterns 20,
+blends 10, tapers/polygons 10, joined 15, units 12, semantic 17, everyday (no
+dimensions) 22, adversarial 10, clarification 3. Reference parts are built by
+code with `cad_ai.features` (schema 1.2.0, no `through_hole`), independently of
+any model. Scoring is on the **built solid**, in the isolated worker
+(`compare_shapes`): `exact` cases need IoU ≥ 0.99 after aligning minimum
+corners (in the case's orientation mode), volume within 1%, and a matching
+topology signature (through-hole count, hole/boss diameters, surface types);
+joined parts get 0.98 / 2% (the prompt's own 2 mm overlap rule), blends a 0.2%
+volume tolerance; `properties` cases (everyday objects) check size ranges,
+fill ratio and required features; adversarial cases pass when nothing
+code-shaped got through. **The instrument proves itself**: `python -m
+cad_ai.evaluation --check --corpus 2.0.0` builds every reference (122/122 at
+IoU 1.0), accepts 13 correct-but-different constructions (rotated bolt
+circles, a rod built along -X, rounded conversions) and rejects all 33
+deliberate errors (A6 swap, wrong/missing holes, inches unconverted, radius as
+diameter, upside-down taper, missing fillet, a four-armed hexacopter...).
+Finding: IoU and volume alone miss small features (a missing hole still scores
+IoU 0.9916), which is why the topology signature exists. One full live run is
+**135 model requests** (~30-60 min of model time) -- at the owner's 10/hour
+policy that is ~14 h with `--pace 360`; it has **not** been run. Choose how to
+spend that before running it (paced, an exception, or the subscription CLI on
+Windows).
+
 ### Live benchmark status — read this before making any quality claim
 
 **A complete real-model benchmark still does not exist.** No 35-case corpus
@@ -784,7 +815,7 @@ Stage 29, plus the commit that added this file) and the docs. Verify against
    (schema `1.1.1`).
 0. ~~**Tapers, polygons, patterns and rotation**~~ — **done** (schema
    `1.2.0`, prompt `2026-11-13.7`; see §6 for the grammar limit it hit).
-1. **Re-baseline the corpus for the new policy.** Prompt `2026-11-12.1`
+1. **Re-baseline the corpus for the new policy** — *built as corpus 2.0.0 (§6), not yet run live.* Prompt `2026-11-12.1`
    assumes instead of asking and approximates instead of refusing, so the
    D-ambiguity and E-unsupported expectations are stale (§6) and a corpus run
    today mis-scores. This is

@@ -1234,10 +1234,19 @@ class TestProtocolShape(unittest.TestCase):
             "timed_out", [outcome.value for outcome in IsolationOutcome]
         )
 
-    def test_the_only_production_operation_is_build(self) -> None:
+    def test_the_production_operations_are_build_and_compare_shapes(self) -> None:
+        # `compare_shapes` (shape_comparison) builds with the same engine and
+        # publishes nothing; every other operation is a diagnostic.
+        from cad_core.isolated_worker import (
+            OPERATION_COMPARE_SHAPES,
+            PRODUCTION_OPERATIONS,
+        )
+
         self.assertEqual(OPERATION_BUILD, "build")
+        self.assertEqual(OPERATION_COMPARE_SHAPES, "compare_shapes")
+        self.assertEqual(PRODUCTION_OPERATIONS, ("build", "compare_shapes"))
         for operation in OPERATIONS:
-            if operation == OPERATION_BUILD:
+            if operation in PRODUCTION_OPERATIONS:
                 continue
             self.assertTrue(operation.startswith("diagnostic:"))
 

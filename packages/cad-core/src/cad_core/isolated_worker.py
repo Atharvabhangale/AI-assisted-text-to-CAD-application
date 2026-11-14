@@ -104,8 +104,17 @@ RENDER_PAYLOAD_FILENAME = "render.json"
 #: Where build outputs go when the host named no output directory.
 WORKSPACE_OUTPUT_DIRNAME = "artifacts"
 
-#: The one production operation.
+#: The build operation: one CAD document in, a build result out.
 OPERATION_BUILD = "build"
+
+#: The geometric comparison operation: pairs of CAD documents in, kernel
+#: measurements of the built solids out, as plain data
+#: (:func:`cad_core.shape_comparison.run_comparison_request`). It builds with
+#: the same engine as ``build`` and publishes no artifact.
+OPERATION_COMPARE_SHAPES = "compare_shapes"
+
+#: The operations that do real work. Everything else is ``diagnostic:``.
+PRODUCTION_OPERATIONS: Tuple[str, ...] = (OPERATION_BUILD, OPERATION_COMPARE_SHAPES)
 
 #: Prefix of the operations that exist **only** to exercise the host's
 #: failure classification. None of them touches a CAD module, reads the
@@ -137,6 +146,7 @@ OPERATION_DIAGNOSTIC_ENVIRONMENT = "diagnostic:environment"
 #: Every operation this worker accepts.
 OPERATIONS: Tuple[str, ...] = (
     OPERATION_BUILD,
+    OPERATION_COMPARE_SHAPES,
     OPERATION_DIAGNOSTIC_ABORT,
     OPERATION_DIAGNOSTIC_MALFORMED,
     OPERATION_DIAGNOSTIC_OTHER_VERSION,
@@ -266,6 +276,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         )
 
     try:
+        if operation == OPERATION_COMPARE_SHAPES:
+            return _run_compare_shapes(workspace, payload)
         if operation != OPERATION_BUILD:
             return _run_diagnostic(workspace, operation)
         return _run_build(
@@ -483,6 +495,36 @@ def _build_payload(payload: Any) -> Tuple[Mapping[str, Any], List[str]]:
     return document, list(outputs)
 
 
+# --- the geometric comparison operation ------------------------------------
+
+
+def _run_compare_shapes(workspace: Path, payload: Any) -> int:
+    """Build pairs of documents and measure them against each other.
+
+    The request carries CAD documents only -- never a path, never code -- and
+    :mod:`cad_core.shape_comparison` validates each document with the existing
+    validator before the engine builds it. A candidate that fails to build is
+    an answer, not a worker failure, so the status is ``succeeded`` whenever
+    the request itself could be read.
+    """
+    from cad_core.shape_comparison import (
+        ComparisonRequestError,
+        run_comparison_request,
+    )
+
+    try:
+        result = run_comparison_request(payload)
+    except ComparisonRequestError as exc:
+        raise _ProtocolError(str(exc)) from None
+    return _emit(
+        workspace,
+        operation=OPERATION_COMPARE_SHAPES,
+        status=WorkerStatus.SUCCEEDED,
+        result=result,
+        error=None,
+    )
+
+
 # --- diagnostic operations --------------------------------------------------
 
 
@@ -608,6 +650,7 @@ __all__ = [
     "IPC_PROTOCOL_VERSION",
     "OPERATIONS",
     "OPERATION_BUILD",
+    "OPERATION_COMPARE_SHAPES",
     "OPERATION_DIAGNOSTIC_ABORT",
     "OPERATION_DIAGNOSTIC_ENVIRONMENT",
     "OPERATION_DIAGNOSTIC_INTERNAL",
@@ -617,6 +660,7 @@ __all__ = [
     "OPERATION_DIAGNOSTIC_SLEEP",
     "OUTPUT_DIRECTORY_FLAG",
     "PARTIAL_RESPONSE_FILENAME",
+    "PRODUCTION_OPERATIONS",
     "RENDER_PAYLOAD_FILENAME",
     "REQUEST_ENVELOPE_FIELDS",
     "REQUEST_FILENAME",

@@ -29,6 +29,16 @@ A model that returns a perfectly valid CAD document for a case that required
 a clarifying question scores **zero** on dimension 3 and is not counted
 correct anywhere.
 
+Two corpora exist and a run measures exactly one (``--corpus``):
+
+* ``1.0.0`` (:mod:`cad_ai.corpus`, the default, so recorded history keeps its
+  meaning): field-level document comparison, as above;
+* ``2.0.0`` (:mod:`cad_ai.corpus_v2`): the re-baseline for the assume-and-
+  approximate policy, scored on the **solid** -- the candidate and a
+  reference are built by the engine in the isolated worker and compared by
+  :mod:`cad_core.shape_comparison` (IoU, volume, topology), and the case's
+  rule in data (:mod:`cad_ai.geometric_scoring`) gives the verdict.
+
 Run it with ``python -m cad_ai.evaluation``. Without a provider credential
 the live benchmark reports ``NOT_RUN`` and writes nothing; it never
 fabricates a result.
@@ -42,7 +52,7 @@ import os
 import secrets
 import sys
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
@@ -66,6 +76,7 @@ from cad_core.serialization import serialize_part
 from cad_core.validator import validate
 
 from cad_ai import corpus as corpus_data
+from cad_ai import corpus_v2 as corpus_v2_data
 from cad_ai.comparison import (
     CASE_LEVEL_CATEGORIES,
     DocumentComparison,
@@ -101,7 +112,26 @@ from cad_ai.provider import (
     ProviderErrorKind,
     TextToCadModel,
 )
+from cad_ai.geometric_scoring import (
+    FAILED as GEOMETRY_FAILED,
+    INSTRUMENT_ERROR,
+    NOT_BUILT,
+    PASSED as GEOMETRY_PASSED,
+    GeometryVerdict,
+    RuleError,
+    instrument_failure,
+    judge,
+    needs_reference,
+    orientations_for,
+    validate_rule,
+)
 from cad_ai.specification import SUPPORTED_FEATURE_TYPES, UNSUPPORTED_FEATURE_TYPES
+
+#: The corpora a run can measure. The first is the default.
+CORPUS_VERSIONS: Tuple[str, ...] = (
+    corpus_data.CORPUS_VERSION,
+    corpus_v2_data.CORPUS_V2_VERSION,
+)
 
 #: Where results go. **Never the CAD build cache**: evaluation results are not
 #: CAD artifacts, and :func:`save_run` refuses to write inside a cache root.
@@ -205,6 +235,28 @@ class EvaluationCase:
     tags: Tuple[str, ...] = ()
     notes: Optional[str] = None
 
+    #: Corpus 2.0.0: the canonical reference document. For an ``exact`` rule
+    #: it is the solid to reproduce; for a ``properties`` rule it is an
+    #: exemplar the instrument check proves satisfies the rule, and is never
+    #: compared with a candidate.
+    reference_document: Optional[Mapping[str, Any]] = None
+
+    #: Corpus 2.0.0: the geometric scoring rule, as data.
+    scoring: Optional[Mapping[str, Any]] = None
+
+    #: Corpus 2.0.0: which words of the request fix orientation or position.
+    fixes: Tuple[str, ...] = ()
+
+    #: Outcomes that satisfy this case, when narrower than its expectation's
+    #: default (corpus 2.0.0's adversarial cases: unsupported or a document).
+    accepted_outcomes: Tuple[GenerationOutcome, ...] = ()
+
+    corpus_version: str = corpus_data.CORPUS_VERSION
+
+    @property
+    def satisfying_outcomes(self) -> Tuple[GenerationOutcome, ...]:
+        return self.accepted_outcomes or SATISFYING_OUTCOMES[self.expected_outcome]
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "case_id": self.case_id,
@@ -219,6 +271,15 @@ class EvaluationCase:
             "expected_document_hash": self.expected_document_hash,
             "tags": list(self.tags),
             "notes": self.notes,
+            "reference_document": (
+                dict(self.reference_document)
+                if self.reference_document is not None
+                else None
+            ),
+            "scoring": dict(self.scoring) if self.scoring is not None else None,
+            "fixes": list(self.fixes),
+            "accepted_outcomes": [o.value for o in self.accepted_outcomes],
+            "corpus_version": self.corpus_version,
         }
 
 
@@ -306,6 +367,119 @@ def load_corpus(
     if not cases:
         raise CorpusError("the corpus is empty")
     return tuple(cases)
+
+
+def _canonical_reference(case_id: str, document: Any) -> Mapping[str, Any]:
+    if not isinstance(document, Mapping):
+        raise CorpusError(f"{case_id}: a generated case needs a reference document")
+    result = validate(dict(document))
+    if not result.valid or result.part is None:
+        raise CorpusError(
+            f"{case_id}: the reference document is not valid CAD "
+            f"({', '.join(result.rule_codes()) or 'no rule codes'})"
+        )
+    for feature in result.part.features:
+        kind = type(feature).__name__.lower()
+        if kind in UNSUPPORTED_FEATURE_TYPES:
+            raise CorpusError(
+                f"{case_id}: the reference uses {kind}, which is not offered to the model"
+            )
+    return serialize_part(result.part)
+
+
+def load_corpus_v2(
+    entries: Optional[Iterable[Mapping[str, Any]]] = None,
+) -> Tuple[EvaluationCase, ...]:
+    """Load and check corpus 2.0.0. **No model is called, nothing is built.**
+
+    Every reference goes through the existing validator and is canonicalised;
+    every rule goes through :func:`cad_ai.geometric_scoring.validate_rule`.
+    Building the references is the instrument check's job
+    (:func:`instrument_check`), because it needs the kernel.
+    """
+    source = corpus_v2_data.raw_cases_v2() if entries is None else tuple(entries)
+    cases: List[EvaluationCase] = []
+    seen: Dict[str, int] = {}
+    for index, entry in enumerate(source):
+        case_id = str(entry.get("case_id", "")).strip()
+        if not case_id:
+            raise CorpusError(f"case at index {index} has no case_id")
+        if case_id in seen:
+            raise CorpusError(f"duplicate case_id {case_id!r}")
+        seen[case_id] = index
+        prompt = entry.get("prompt")
+        if not isinstance(prompt, str) or not prompt.strip():
+            raise CorpusError(f"{case_id}: prompt must be a non-empty string")
+        if "document" in entry:
+            raise CorpusError(
+                f"{case_id}: corpus 2.0.0 cases carry a 'reference', not a 'document'"
+            )
+        try:
+            expected = ExpectedOutcome[str(entry.get("expected", ""))]
+        except KeyError as exc:
+            raise CorpusError(f"{case_id}: unknown expected outcome") from exc
+
+        reference: Optional[Mapping[str, Any]] = None
+        scoring: Optional[Mapping[str, Any]] = None
+        if expected is ExpectedOutcome.EXPECTED_GENERATED:
+            reference = _canonical_reference(case_id, entry.get("reference"))
+            scoring = entry.get("scoring")
+            try:
+                validate_rule(scoring, case_id)  # type: ignore[arg-type]
+            except RuleError as exc:
+                raise CorpusError(str(exc)) from exc
+        elif entry.get("reference") is not None or entry.get("scoring") is not None:
+            raise CorpusError(
+                f"{case_id}: only a generated case may carry a reference or a rule"
+            )
+
+        accepted: List[GenerationOutcome] = []
+        for raw in entry.get("accepted_outcomes", ()):
+            try:
+                outcome = GenerationOutcome(raw)
+            except ValueError as exc:
+                raise CorpusError(f"{case_id}: unknown accepted outcome {raw!r}") from exc
+            if outcome not in SATISFYING_OUTCOMES[expected]:
+                raise CorpusError(
+                    f"{case_id}: {raw!r} cannot satisfy an {expected.value} case"
+                )
+            accepted.append(outcome)
+
+        cases.append(
+            EvaluationCase(
+                case_id=case_id,
+                prompt=prompt,
+                expected_outcome=expected,
+                category=str(entry.get("category", "uncategorised")),
+                tags=tuple(str(tag) for tag in entry.get("tags", ())),
+                notes=str(entry["notes"]) if entry.get("notes") is not None else None,
+                reference_document=reference,
+                scoring=dict(scoring) if scoring is not None else None,
+                fixes=tuple(str(item) for item in entry.get("fixes", ())),
+                accepted_outcomes=tuple(accepted),
+                corpus_version=corpus_v2_data.CORPUS_V2_VERSION,
+            )
+        )
+    if not cases:
+        raise CorpusError("the corpus is empty")
+    return tuple(cases)
+
+
+def load_corpus_version(version: str) -> Tuple[EvaluationCase, ...]:
+    """The named corpus, loaded and checked."""
+    if version == corpus_data.CORPUS_VERSION:
+        return load_corpus()
+    if version == corpus_v2_data.CORPUS_V2_VERSION:
+        return load_corpus_v2()
+    raise CorpusError(
+        f"unknown corpus version {version!r}; known: {', '.join(CORPUS_VERSIONS)}"
+    )
+
+
+def repeat_case_ids(version: str) -> Tuple[str, ...]:
+    if version == corpus_v2_data.CORPUS_V2_VERSION:
+        return corpus_v2_data.REPEAT_CASE_IDS_V2
+    return corpus_data.REPEAT_CASE_IDS
 
 
 # --- observing the model without changing generation ------------------------
@@ -494,6 +668,12 @@ class EvaluationResult:
     #: explicitly opts in, because it may quote the model's raw text.
     detail: Optional[str] = None
 
+    #: Corpus 2.0.0: the case is scored on the solid, by its rule.
+    geometry_required: bool = False
+
+    #: The geometric verdict, when a candidate was offered for such a case.
+    geometry: Optional[GeometryVerdict] = None
+
     @property
     def measured(self) -> bool:
         """Whether the model actually answered this case.
@@ -533,9 +713,12 @@ class EvaluationResult:
             # Nothing was measured, so nothing can be correct.
             return False
         if self.expected_outcome is ExpectedOutcome.EXPECTED_BOUNDARY_HELD:
-            return bool(self.boundary_held)
+            return bool(self.boundary_held) and self.outcome_match
         if not self.outcome_match:
             return False
+        if self.geometry_required:
+            # Scored on the solid: the rule must have passed.
+            return self.geometry is not None and self.geometry.passed
         if self.expected_outcome is ExpectedOutcome.EXPECTED_GENERATED:
             return self.semantic_status in (
                 SemanticStatus.MATCH,
@@ -589,6 +772,8 @@ class EvaluationResult:
             },
             "build": None if self.build is None else self.build.to_dict(),
             "metadata": self.metadata.to_dict(),
+            "geometry_required": self.geometry_required,
+            "geometry": None if self.geometry is None else self.geometry.to_dict(),
         }
         if include_detail:
             payload["detail"] = self.detail
@@ -701,6 +886,13 @@ class EvaluationMetrics:
     usage: Mapping[str, int] = field(default_factory=dict)
     usage_available: bool = False
 
+    #: Per corpus category: counts, the rate of cases meeting their own
+    #: criterion, and the geometric figures where the category has them.
+    by_category: Mapping[str, Mapping[str, Any]] = field(default_factory=dict)
+
+    #: The geometric verdicts across the run (corpus 2.0.0).
+    geometry: Mapping[str, Any] = field(default_factory=dict)
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             # Provider reliability. Nothing here is a statement about the
@@ -752,7 +944,89 @@ class EvaluationMetrics:
                 if self.usage_available
                 else {"status": "not measured"}
             ),
+            "by_category": {
+                name: dict(values) for name, values in self.by_category.items()
+            },
+            "geometry": dict(self.geometry),
         }
+
+
+def _mean(values: Sequence[float]) -> Optional[float]:
+    return round(sum(values) / len(values), 6) if values else None
+
+
+def _median(values: Sequence[float]) -> Optional[float]:
+    if not values:
+        return None
+    ordered = sorted(values)
+    middle = len(ordered) // 2
+    if len(ordered) % 2:
+        return round(ordered[middle], 6)
+    return round((ordered[middle - 1] + ordered[middle]) / 2, 6)
+
+
+def _geometry_figures(results: Sequence[EvaluationResult]) -> Dict[str, Any]:
+    """Geometric verdicts, over model answers the instrument could measure.
+
+    A verdict exists only where a candidate was offered. ``checked`` excludes
+    instrument errors, exactly as provider errors are excluded from model
+    quality: the instrument failing is not the model failing. A candidate
+    that validated but would not build is ``not_built`` and **is** a failure.
+    """
+    verdicts = [r.geometry for r in results if r.measured and r.geometry is not None]
+    checked = [v for v in verdicts if v.measured]
+    exact = [v for v in checked if v.rule_kind == "exact" and v.iou is not None]
+    return {
+        "candidates_offered": len(verdicts),
+        "checked": len(checked),
+        "passed": sum(1 for v in checked if v.passed),
+        "pass_rate": _rate(sum(1 for v in checked if v.passed), len(checked)),
+        "not_built": sum(1 for v in checked if v.status == NOT_BUILT),
+        "instrument_errors": len(verdicts) - len(checked),
+        "exact_rule_cases": sum(1 for v in checked if v.rule_kind == "exact"),
+        "property_rule_cases": sum(1 for v in checked if v.rule_kind == "properties"),
+        "mean_iou": _mean([v.iou for v in exact if v.iou is not None]),
+        "median_iou": _median([v.iou for v in exact if v.iou is not None]),
+        "mean_iou_orientation_fixed": _mean([v.iou_fixed for v in exact if v.iou_fixed is not None]),
+        "mean_iou_orientation_free": _mean([v.iou_free for v in exact if v.iou_free is not None]),
+        "mean_volume_error": _mean([v.volume_error for v in exact if v.volume_error is not None]),
+        "median_volume_error": _median([v.volume_error for v in exact if v.volume_error is not None]),
+        "note": (
+            "IoU and volume error are over exact-rule cases that built; "
+            "property-rule cases have no reference solid to compare with"
+        ),
+    }
+
+
+def _category_table(results: Sequence[EvaluationResult]) -> Dict[str, Dict[str, Any]]:
+    grouped: Dict[str, List[EvaluationResult]] = {}
+    for result in results:
+        grouped.setdefault(result.category, []).append(result)
+    table: Dict[str, Dict[str, Any]] = {}
+    for name, members in grouped.items():
+        measured = [r for r in members if r.measured]
+        # A geometric case whose instrument failed measured nothing about the
+        # model either, so it leaves the denominator too.
+        judged = [
+            r for r in measured
+            if not (r.geometry is not None and not r.geometry.measured)
+        ]
+        correct = sum(1 for r in judged if r.correct)
+        figures = _geometry_figures(members)
+        table[name] = {
+            "total": len(members),
+            "measured": len(judged),
+            "correct": correct,
+            "correct_rate": _rate(correct, len(judged)),
+            "outcome_matched": sum(1 for r in judged if r.outcome_match),
+            "geometry_checked": figures["checked"],
+            "geometry_passed": figures["passed"],
+            "not_built": figures["not_built"],
+            "instrument_errors": figures["instrument_errors"],
+            "mean_iou": figures["mean_iou"],
+            "mean_volume_error": figures["mean_volume_error"],
+        }
+    return dict(sorted(table.items()))
 
 
 def summarise(results: Sequence[EvaluationResult]) -> EvaluationMetrics:
@@ -869,6 +1143,8 @@ def summarise(results: Sequence[EvaluationResult]) -> EvaluationMetrics:
         build_seconds_total=build_seconds,
         usage=usage,
         usage_available=usage_available,
+        by_category=_category_table(results),
+        geometry=_geometry_figures(results),
     )
 
 
@@ -1033,6 +1309,7 @@ class Evaluator:
         service: TextToCadService,
         *,
         build_service: Optional[CadApplicationService] = None,
+        shape_scorer: Optional[Callable[[Sequence[Mapping[str, Any]]], Sequence[Any]]] = None,
     ) -> None:
         if not isinstance(service, TextToCadService):
             raise TypeError(
@@ -1057,6 +1334,10 @@ class Evaluator:
             use_templates=False,
         )
         self._build_service = build_service
+        #: Builds and measures candidate/reference pairs for corpus 2.0.0
+        #: (normally an :class:`IsolatedShapeScorer`). ``None`` leaves every
+        #: geometric case an instrument error -- never a model failure.
+        self._shape_scorer = shape_scorer
 
     @property
     def service(self) -> TextToCadService:
@@ -1068,6 +1349,10 @@ class Evaluator:
 
     def evaluate(self, case: EvaluationCase) -> EvaluationResult:
         """One case, one generation attempt, then scoring."""
+        return self.attach_geometry([case], [self._evaluate_one(case)])[0]
+
+    def _evaluate_one(self, case: EvaluationCase) -> EvaluationResult:
+        """The model's answer, scored on everything but the solid."""
         generation = self._service.generate_cad_from_text(case.prompt)
         raw_text = (
             self._recorder.last_response.text
@@ -1090,7 +1375,7 @@ class Evaluator:
         comparison = self._compare(case, generation.candidate_document)
         validation_seconds = time.perf_counter() - started
 
-        outcome_match = outcome in SATISFYING_OUTCOMES[case.expected_outcome]
+        outcome_match = outcome in case.satisfying_outcomes
         categories: List[SemanticErrorCategory] = list(comparison.categories)
         if (
             case.expected_outcome is ExpectedOutcome.EXPECTED_NEEDS_CLARIFICATION
@@ -1112,7 +1397,14 @@ class Evaluator:
             # Only judged when the model actually answered. A provider outage
             # says nothing about whether the boundary held, and counting it as
             # a violation would turn a capacity failure into a safety finding.
-            findings = self._boundary_findings(generation, outcome_match)
+            # The boundary is about what escaped, so any answered outcome
+            # holds it; a case that accepts fewer outcomes judges that in
+            # ``outcome_match``, separately.
+            findings = self._boundary_findings(
+                generation,
+                outcome
+                in SATISFYING_OUTCOMES[ExpectedOutcome.EXPECTED_BOUNDARY_HELD],
+            )
             boundary_held = not findings
 
         build = self._cross_check(generation.candidate_document)
@@ -1158,7 +1450,53 @@ class Evaluator:
             build=build,
             metadata=generation.metadata,
             detail=generation.detail,
+            geometry_required=case.scoring is not None,
         )
+
+    def attach_geometry(
+        self,
+        cases: Sequence[EvaluationCase],
+        results: Sequence[EvaluationResult],
+    ) -> Tuple[EvaluationResult, ...]:
+        """Score every candidate of a geometric case on its solid, in one batch.
+
+        Only a validated candidate is ever sent, and the kernel runs in the
+        isolated worker, not here. A case with no candidate (a question, a
+        refusal, invalid output) gets no verdict: its outcome already failed.
+        """
+        pending: List[Tuple[int, EvaluationCase]] = [
+            (index, case)
+            for index, (case, result) in enumerate(zip(cases, results))
+            if case.scoring is not None and result.candidate_document is not None
+        ]
+        updated = list(results)
+        if not pending:
+            return tuple(updated)
+        pairs = [
+            {
+                "candidate": dict(updated[index].candidate_document or {}),
+                "reference": (
+                    dict(case.reference_document or {})
+                    if needs_reference(case.scoring or {})
+                    else None
+                ),
+                "orientations": list(orientations_for(case.scoring or {})),
+            }
+            for index, case in pending
+        ]
+        if self._shape_scorer is None:
+            measured: Sequence[Any] = ["no shape scorer was configured"] * len(pairs)
+        else:
+            measured = self._shape_scorer(pairs)
+        for (index, case), outcome in zip(pending, measured):
+            rule = case.scoring or {}
+            verdict = (
+                instrument_failure(rule, outcome)
+                if isinstance(outcome, str)
+                else judge(rule, outcome)
+            )
+            updated[index] = replace(updated[index], geometry=verdict)
+        return tuple(updated)
 
     def evaluate_many(
         self,
@@ -1178,17 +1516,21 @@ class Evaluator:
         for index, case in enumerate(cases):
             if index and pace_seconds > 0:
                 time.sleep(pace_seconds)
-            result = self.evaluate(case)
+            result = self._evaluate_one(case)
             results.append(result)
             if progress is not None:
+                # For a geometric case the verdict is not known yet: the
+                # solids are measured together, after the last model call.
                 progress(case, result)
-        return tuple(results)
+        return self.attach_geometry(cases, results)
 
     def repeat(self, case: EvaluationCase, runs: int) -> Tuple[EvaluationResult, ...]:
         """The same prompt, several times. No aggregation into a verdict."""
         if runs < 1:
             raise ValueError("a repeat study needs at least one run")
-        return tuple(self.evaluate(case) for _ in range(runs))
+        return self.attach_geometry(
+            [case] * runs, [self._evaluate_one(case) for _ in range(runs)]
+        )
 
     # --- internals --------------------------------------------------------
 
@@ -1276,6 +1618,174 @@ class Evaluator:
             ),
             latency_seconds=elapsed,
         )
+
+
+class IsolatedShapeScorer:
+    """Measure candidate/reference pairs in the isolated CAD worker.
+
+    Pairs go to :func:`cad_core.isolated_execution.compare_shapes_isolated`
+    in batches, so the kernel's import cost is paid once per batch and a
+    kernel crash takes down a child process, never the harness. When a whole
+    batch fails, each of its pairs is measured on its own, so one pair that
+    crashes the kernel costs only its own verdict -- which is then an
+    instrument error, not a model failure.
+    """
+
+    def __init__(
+        self,
+        *,
+        batch_size: int = 16,
+        base_timeout_seconds: float = 120.0,
+        timeout_seconds_per_pair: float = 30.0,
+    ) -> None:
+        if batch_size < 1:
+            raise ValueError("batch_size must be at least 1")
+        self._batch_size = batch_size
+        self._base = base_timeout_seconds
+        self._per_pair = timeout_seconds_per_pair
+
+    def _timeout(self, count: int) -> float:
+        return self._base + self._per_pair * count
+
+    def __call__(self, pairs: Sequence[Mapping[str, Any]]) -> List[Any]:
+        from cad_core.isolated_execution import compare_shapes_isolated
+
+        measured: List[Any] = []
+        for start in range(0, len(pairs), self._batch_size):
+            chunk = list(pairs[start : start + self._batch_size])
+            batch = compare_shapes_isolated(chunk, timeout_seconds=self._timeout(len(chunk)))
+            if batch.succeeded:
+                measured.extend(batch.results)
+                continue
+            if len(chunk) == 1:
+                measured.append(_isolation_message(batch.execution))
+                continue
+            for pair in chunk:
+                alone = compare_shapes_isolated([pair], timeout_seconds=self._timeout(1))
+                measured.append(
+                    alone.results[0]
+                    if alone.succeeded
+                    else _isolation_message(alone.execution)
+                )
+        return measured
+
+
+def _isolation_message(execution: Any) -> str:
+    failure = getattr(execution, "failure", None)
+    detail = failure.message if failure is not None else "no result"
+    return f"the isolated comparison failed ({execution.outcome.value}): {detail}"
+
+
+@dataclass(frozen=True)
+class InstrumentFinding:
+    """One row of the instrument check: did the rule say what it must?"""
+
+    case_id: str
+    #: ``reference`` (the case's own reference), ``equivalent`` (a correct
+    #: answer built differently) or ``perturbation`` (a deliberately wrong one).
+    kind: str
+    label: str
+    #: ``pass`` for references and equivalents, ``fail`` for perturbations.
+    expected: str
+    verdict: GeometryVerdict
+
+    @property
+    def ok(self) -> bool:
+        if self.expected == "pass":
+            return self.verdict.status == GEOMETRY_PASSED
+        # A perturbation must build and then be *caught*. One that does not
+        # build proves nothing about the rule, so it does not count as ok.
+        return self.verdict.status == GEOMETRY_FAILED
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "case_id": self.case_id,
+            "kind": self.kind,
+            "label": self.label,
+            "expected": self.expected,
+            "ok": self.ok,
+            "verdict": self.verdict.to_dict(),
+        }
+
+
+def instrument_check(
+    cases: Sequence[EvaluationCase],
+    *,
+    scorer: Callable[[Sequence[Mapping[str, Any]]], Sequence[Any]],
+    perturbations: Optional[Sequence[Mapping[str, Any]]] = None,
+    equivalents: Optional[Sequence[Mapping[str, Any]]] = None,
+) -> Tuple[InstrumentFinding, ...]:
+    """Prove the instrument on itself. **No model is involved.**
+
+    Every geometric case's reference is scored against itself and must pass;
+    every equivalent (a correct answer built differently) must pass; every
+    perturbation (a deliberately wrong answer) must build and fail. All pairs
+    are measured in one batched pass through ``scorer``.
+    """
+    by_id = {case.case_id: case for case in cases}
+    rows: List[Tuple[EvaluationCase, str, str, str, Mapping[str, Any]]] = []
+    for case in cases:
+        if case.scoring is not None and case.reference_document is not None:
+            rows.append((case, "reference", "itself", "pass", case.reference_document))
+    for kind, entries, expected in (
+        ("equivalent", corpus_v2_data.EQUIVALENTS if equivalents is None else equivalents, "pass"),
+        ("perturbation", corpus_v2_data.PERTURBATIONS if perturbations is None else perturbations, "fail"),
+    ):
+        for entry in entries:
+            case = by_id.get(str(entry["case_id"]))
+            if case is None:
+                continue  # a filtered selection; nothing to check against
+            if case.scoring is None:
+                raise CorpusError(f"{case.case_id}: a {kind} needs a geometric case")
+            rows.append((case, kind, str(entry["kind"]), expected, entry["document"]))
+    pairs = [
+        {
+            "candidate": dict(document),
+            "reference": (
+                dict(case.reference_document or {})
+                if needs_reference(case.scoring or {})
+                else None
+            ),
+            "orientations": list(orientations_for(case.scoring or {})),
+        }
+        for case, _, _, _, document in rows
+    ]
+    measured = scorer(pairs) if pairs else []
+    findings: List[InstrumentFinding] = []
+    for (case, kind, label, expected, _), outcome in zip(rows, measured):
+        rule = case.scoring or {}
+        verdict = (
+            instrument_failure(rule, outcome)
+            if isinstance(outcome, str)
+            else judge(rule, outcome)
+        )
+        findings.append(InstrumentFinding(case.case_id, kind, label, expected, verdict))
+    return tuple(findings)
+
+
+def format_instrument_report(findings: Sequence[InstrumentFinding]) -> str:
+    lines = ["=" * 74, "INSTRUMENT CHECK  (no model: the rules judged against known answers)", "=" * 74]
+    for kind in ("reference", "equivalent", "perturbation"):
+        rows = [f for f in findings if f.kind == kind]
+        if not rows:
+            continue
+        good = sum(1 for f in rows if f.ok)
+        must = "must pass" if kind != "perturbation" else "must build and FAIL"
+        lines.append(f"{kind + 's':<16}{good}/{len(rows)} as required ({must})")
+        for finding in rows:
+            if kind == "perturbation" or not finding.ok:
+                caught = ", ".join(c.name for c in finding.verdict.failed_checks()[:3])
+                mark = "ok  " if finding.ok else "BAD "
+                lines.append(
+                    f"  {mark}{finding.case_id:<38}{finding.label:<32}"
+                    f"{finding.verdict.status}"
+                    + (f"  [{caught}]" if caught else "")
+                    + (f"  {finding.verdict.message}" if not finding.ok and finding.verdict.message else "")
+                )
+    bad = sum(1 for f in findings if not f.ok)
+    lines.append("")
+    lines.append("INSTRUMENT OK" if not bad else f"INSTRUMENT BROKEN: {bad} finding(s) not as required")
+    return "\n".join(lines)
 
 
 # --- storage ----------------------------------------------------------------
@@ -1388,8 +1898,14 @@ def format_report(run: EvaluationRun, *, verbose: bool = False) -> str:
                 else "unknown"
             )
             verdict = f"NO DATA ({kind})"
+        elif result.geometry is not None and not result.geometry.measured:
+            verdict = "NO DATA (instrument)"
         elif result.correct:
             verdict = "ok"
+        elif result.geometry is not None and result.geometry.status == NOT_BUILT:
+            verdict = "MISS (did not build)"
+        elif result.geometry is not None:
+            verdict = "MISS (shape)"
         elif result.geometry_correct is False:
             verdict = "MISS (geometry)"
         elif result.exact_match is False and result.outcome_match:
@@ -1411,6 +1927,14 @@ def format_report(run: EvaluationRun, *, verbose: bool = False) -> str:
                 lines.append(
                     f"    ... and {len(result.differences) - 6} more differences"
                 )
+            if result.geometry is not None:
+                for check in result.geometry.failed_checks()[:6]:
+                    lines.append(
+                        f"    {check.name}: expected {check.expected}, "
+                        f"actual {check.actual}"
+                    )
+                if result.geometry.message:
+                    lines.append(f"    {result.geometry.message[:160]}")
             for finding in result.boundary_findings:
                 lines.append(f"    BOUNDARY: {finding}")
             if result.provider_error:
@@ -1487,6 +2011,55 @@ def format_report(run: EvaluationRun, *, verbose: bool = False) -> str:
             lines.append(f"      {key:<28}{group[key]}")
     lines.append("")
 
+    lines.append("-" * 74)
+    lines.append("BY CATEGORY  (correct_rate: cases meeting their own criterion)")
+    lines.append("-" * 74)
+    lines.append(
+        f"  {'category':<18}{'n':>4}{'meas':>6}{'correct':>9}{'rate':>8}"
+        f"{'geo ok':>8}{'mean IoU':>10}{'vol err':>9}"
+    )
+    for name, row in metrics["by_category"].items():
+        rate = "-" if row["correct_rate"] is None else f"{row['correct_rate']:.2f}"
+        iou = "-" if row["mean_iou"] is None else f"{row['mean_iou']:.4f}"
+        error = (
+            "-" if row["mean_volume_error"] is None
+            else f"{row['mean_volume_error']:.2%}"
+        )
+        geo = (
+            "-" if not row["geometry_checked"]
+            else f"{row['geometry_passed']}/{row['geometry_checked']}"
+        )
+        lines.append(
+            f"  {name:<18}{row['total']:>4}{row['measured']:>6}"
+            f"{row['correct']:>9}{rate:>8}{geo:>8}{iou:>10}{error:>9}"
+        )
+    lines.append("")
+
+    geometry = metrics["geometry"]
+    if geometry.get("candidates_offered"):
+        lines.append("-" * 74)
+        lines.append("GEOMETRY  (the solid, measured by the kernel; corpus 2.0.0)")
+        lines.append("-" * 74)
+        for key in (
+            "candidates_offered",
+            "checked",
+            "passed",
+            "pass_rate",
+            "not_built",
+            "instrument_errors",
+            "exact_rule_cases",
+            "property_rule_cases",
+            "mean_iou",
+            "median_iou",
+            "mean_iou_orientation_fixed",
+            "mean_iou_orientation_free",
+            "mean_volume_error",
+            "median_volume_error",
+        ):
+            lines.append(f"  {key:<30}{geometry[key]}")
+        lines.append(f"  ({geometry['note']})")
+        lines.append("")
+
     if metrics["semantic_error_categories"]:
         lines.append("-" * 74)
         lines.append("SEMANTIC ERROR CATEGORIES")
@@ -1562,7 +2135,9 @@ class OracleStub:
             payload = {
                 "status": "document",
                 "summary": "stub answer from the corpus's expected document",
-                "document": dict(case.expected_document or {}),
+                "document": dict(
+                    case.expected_document or case.reference_document or {}
+                ),
             }
         elif case.expected_outcome is ExpectedOutcome.EXPECTED_NEEDS_CLARIFICATION:
             payload = {
@@ -1611,6 +2186,7 @@ def build_run(
     settings: Optional[Mapping[str, Any]] = None,
     pace_seconds: float = 0.0,
     progress: Optional[Callable[[EvaluationCase, EvaluationResult], None]] = None,
+    corpus_version: Optional[str] = None,
 ) -> EvaluationRun:
     """Run every case, then the repeat study, then aggregate."""
     started = datetime.now(timezone.utc)
@@ -1639,7 +2215,11 @@ def build_run(
         settings=dict(settings or {}),
         store_prompts=store_prompts,
         pace_seconds=pace_seconds,
-        corpus_version=corpus_data.CORPUS_VERSION,
+        corpus_version=(
+            corpus_version
+            if corpus_version is not None
+            else (cases[0].corpus_version if cases else corpus_data.CORPUS_VERSION)
+        ),
     )
     return EvaluationRun(
         metadata=metadata,
@@ -1667,11 +2247,19 @@ def _decoding_settings(provider: str = "") -> Dict[str, Any]:
     settings["deterministic_decoding"] = "unavailable"
     settings["sdk_version"] = "not installed"
     settings["decoding_controls_used"] = "none"
+    from cad_ai import config as _config
+
     try:
         if provider == GEMINI_PROVIDER_NAME:
             from cad_ai.gemini_provider import decoding_capabilities
-        else:
+        elif provider == _config.OPENAI_COMPATIBLE_PROVIDER_NAME:
+            from cad_ai.openai_compatible_provider import decoding_capabilities
+        elif provider == _config.PROVIDER_NAME:
             from cad_ai.anthropic_provider import decoding_capabilities
+        else:
+            # The CLI providers (claude_code, antigravity) expose no decoding
+            # control at all; reporting the Anthropic SDK's would be false.
+            return settings
     except ImportError:  # pragma: no cover - the provider modules are present
         return settings
     settings.update(decoding_capabilities())
@@ -1690,9 +2278,24 @@ def _parse_arguments(argv: Optional[Sequence[str]]) -> argparse.Namespace:
         "--list", action="store_true", help="list the corpus and exit"
     )
     parser.add_argument(
+        "--corpus",
+        default=corpus_data.CORPUS_VERSION,
+        choices=list(CORPUS_VERSIONS),
+        help=(
+            f"which corpus to measure (default {corpus_data.CORPUS_VERSION}, so "
+            "recorded history keeps its meaning). 2.0.0 scores the built "
+            "solid against a reference, in the isolated CAD worker."
+        ),
+    )
+    parser.add_argument(
         "--check",
         action="store_true",
-        help="validate the corpus and exit; calls no model",
+        help=(
+            "validate the corpus and exit; calls no model. For corpus 2.0.0 "
+            "this is the instrument check: every reference is built and "
+            "scored against itself (must pass), every equivalent must pass "
+            "and every perturbation must build and FAIL"
+        ),
     )
     parser.add_argument(
         "--self-check",
@@ -1780,23 +2383,40 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     arguments = _parse_arguments(argv)
 
     try:
-        cases = load_corpus()
+        cases = load_corpus_version(arguments.corpus)
     except CorpusError as exc:
         print(f"CORPUS ERROR: {exc}", file=sys.stderr)
         return 2
+    geometric = arguments.corpus == corpus_v2_data.CORPUS_V2_VERSION
 
     if arguments.list:
         for case in cases:
-            print(
-                f"{case.case_id:<34}{case.category:<16}"
-                f"{case.expected_outcome.value}"
+            rule = (
+                f"{case.scoring['kind']}/{case.scoring['orientation']}"
+                if case.scoring is not None
+                else ""
             )
-        print(f"\n{len(cases)} cases")
+            print(
+                f"{case.case_id:<38}{case.category:<17}"
+                f"{case.expected_outcome.value:<30}{rule}"
+            )
+        print(f"\n{len(cases)} cases, corpus {arguments.corpus}")
         return 0
 
     if arguments.check:
-        print(f"corpus OK: {len(cases)} cases, every expected document valid")
-        return 0
+        if not geometric:
+            print(f"corpus OK: {len(cases)} cases, every expected document valid")
+            return 0
+        selected_for_check = _select(cases, arguments) or cases
+        findings = instrument_check(
+            selected_for_check, scorer=IsolatedShapeScorer()
+        )
+        print(
+            f"corpus {arguments.corpus}: {len(cases)} cases load, every "
+            "reference validates and every rule is well formed"
+        )
+        print(format_instrument_report(findings))
+        return 0 if all(finding.ok for finding in findings) else 1
 
     selected = _select(cases, arguments)
     if not selected:
@@ -1861,9 +2481,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         # The CLI providers (claude_code, antigravity) have no credential
         # variable: what each needs is its executable, found on PATH or
         # named by its CLI_PATH_VARIABLES entry.
+        # openai_compatible needs its server's base URL.
+        from cad_ai.config import OPENAI_BASE_URL_VARIABLE, OPENAI_COMPATIBLE_PROVIDER_NAME
+
+        needed = {**CLI_PATH_VARIABLES, OPENAI_COMPATIBLE_PROVIDER_NAME: OPENAI_BASE_URL_VARIABLE}
         expected = API_KEY_VARIABLES.get(
             config.provider,
-            CLI_PATH_VARIABLES.get(config.provider, CLAUDE_CODE_PATH_VARIABLE),
+            needed.get(config.provider, CLAUDE_CODE_PATH_VARIABLE),
         )
         others = ", ".join(
             API_KEY_VARIABLES[name]
@@ -1925,7 +2549,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             if build_service is not None
             else CadApplicationService.local(_scratch_cache()),
         )
-        evaluator = Evaluator(service, build_service=build_service)
+        evaluator = Evaluator(
+            service,
+            build_service=build_service,
+            shape_scorer=IsolatedShapeScorer() if geometric else None,
+        )
 
         settings = _decoding_settings(provider_name)
         settings["build_cross_check"] = bool(arguments.build)
@@ -1933,10 +2561,19 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         settings["pace_seconds"] = arguments.pace
         settings["concurrent_requests"] = 1
         settings["retries_added"] = "none"
+        if geometric:
+            from cad_core.shape_comparison import SHAPE_COMPARISON_VERSION
+
+            settings["shape_comparison_version"] = SHAPE_COMPARISON_VERSION
+            settings["geometric_scoring"] = "isolated worker, rules from the corpus"
 
         def report_progress(
             case: EvaluationCase, result: EvaluationResult
         ) -> None:
+            if result.geometry_required and result.candidate_document is not None:
+                # The solid is measured with the others after the last call.
+                print(f"  ...  {case.case_id} (geometry pending)", flush=True)
+                return
             mark = "ok  " if result.correct else "MISS"
             print(f"  {mark} {case.case_id}", flush=True)
 
@@ -1951,12 +2588,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             provider=provider_name,
             model=model_name,
             live=live,
-            repeat_ids=corpus_data.REPEAT_CASE_IDS,
+            repeat_ids=repeat_case_ids(arguments.corpus),
             repeats=arguments.repeat,
             store_prompts=not arguments.no_prompts,
             settings=settings,
             pace_seconds=arguments.pace,
             progress=report_progress,
+            corpus_version=arguments.corpus,
         )
         print()
         print(format_report(run, verbose=arguments.verbose))
@@ -1996,6 +2634,14 @@ if __name__ == "__main__":  # pragma: no cover - exercised as a command
 
 __all__ = [
     "CODE_MARKERS",
+    "CORPUS_VERSIONS",
+    "InstrumentFinding",
+    "IsolatedShapeScorer",
+    "format_instrument_report",
+    "instrument_check",
+    "load_corpus_v2",
+    "load_corpus_version",
+    "repeat_case_ids",
     "CROSS_CHECK_OUTPUTS",
     "RESULTS_DIRNAME",
     "RESULTS_VARIABLE",
