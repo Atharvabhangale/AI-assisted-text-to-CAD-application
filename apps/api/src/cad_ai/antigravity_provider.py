@@ -267,7 +267,11 @@ def locate_cli(environ: Optional[Mapping[str, str]] = None) -> Optional[str]:
         if os.path.dirname(configured):
             return None
         return shutil.which(configured, path=search_path)
-    return shutil.which(CLI_NAME, path=search_path)
+    # Not configured: look where the owner's own shell would -- PATH, then
+    # (Windows) the saved user/machine Path, then the installer's folders.
+    from cad_ai.cli_discovery import AGY_WELL_KNOWN_DIRS, find_program  # noqa: PLC0415
+
+    return find_program(CLI_NAME, environ=source, well_known_dirs=AGY_WELL_KNOWN_DIRS)
 
 
 def child_environment(environ: Mapping[str, str]) -> Dict[str, str]:
@@ -394,7 +398,7 @@ class AntigravityTextToCadModel:
             raise ProviderNotConfigured(
                 _PUBLIC_NOT_AVAILABLE,
                 detail=(
-                    f"the {CLI_NAME!r} executable was not found on PATH or at "
+                    f"the {CLI_NAME!r} executable was not found on PATH, in the saved user PATH, in its usual install folders or at "
                     f"{ANTIGRAVITY_PATH_VARIABLE}"
                 ),
             )

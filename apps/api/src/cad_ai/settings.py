@@ -331,9 +331,10 @@ def provider_readiness(
                 f"for {executable}."
             )
         return False, (
-            f"The {executable} executable was not found on PATH. Install it "
-            f"and sign it in, or set {variable} in {ENV_FILE} to the "
-            "executable, then restart the backend."
+            f"The {executable} executable was not found on PATH, in your saved "
+            "user PATH or in its usual install folders. Install it and sign it "
+            f"in, or set {variable} in {ENV_FILE} to the executable "
+            f"(find it with: where.exe {executable}), then restart the backend."
         )
     if provider == OPENAI_COMPATIBLE_PROVIDER_NAME:
         if not credential_available(source, provider):
