@@ -44,12 +44,22 @@ CLAUDE_CODE_PROVIDER_NAME = "claude_code"
 #: ``CAD_AI_PROVIDER=antigravity`` selects it.
 ANTIGRAVITY_PROVIDER_NAME = "antigravity"
 
+#: The fifth provider: **open-weight models** behind any server that speaks
+#: the OpenAI Chat Completions HTTP API -- Ollama, vLLM, llama.cpp's server,
+#: LM Studio, or a hosted router such as OpenRouter -- see
+#: :mod:`cad_ai.openai_compatible_provider`. Standard-library HTTP, no SDK.
+#: **Never chosen automatically**: only ``CAD_AI_PROVIDER=openai_compatible``
+#: selects it, because a base URL being set is not a decision to send this
+#: application's requests there.
+OPENAI_COMPATIBLE_PROVIDER_NAME = "openai_compatible"
+
 #: Every provider this application implements, in preference order.
 PROVIDER_NAMES: Tuple[str, ...] = (
     PROVIDER_NAME,
     GEMINI_PROVIDER_NAME,
     CLAUDE_CODE_PROVIDER_NAME,
     ANTIGRAVITY_PROVIDER_NAME,
+    OPENAI_COMPATIBLE_PROVIDER_NAME,
 )
 
 #: The providers :func:`resolve_provider` may pick by itself, when
@@ -67,6 +77,18 @@ CLAUDE_CODE_PATH_VARIABLE = "CAD_CLAUDE_CODE_PATH"
 #: searched for ``agy``; a value naming nothing is *not found*, never a
 #: fallback to ``PATH``.
 ANTIGRAVITY_PATH_VARIABLE = "CAD_ANTIGRAVITY_PATH"
+
+#: The OpenAI-compatible server's API root, e.g. ``http://localhost:11434/v1``
+#: (Ollama), ``http://localhost:8000/v1`` (vLLM), ``http://localhost:8080/v1``
+#: (llama.cpp), ``http://localhost:1234/v1`` (LM Studio),
+#: ``https://openrouter.ai/api/v1``. Required by that provider, and what
+#: :func:`credential_available` answers for it. An address, not a credential.
+OPENAI_BASE_URL_VARIABLE = "CAD_OPENAI_BASE_URL"
+
+#: The OpenAI-compatible server's API key. **Optional** -- a local server
+#: needs none. Read by :mod:`cad_ai.openai_compatible_provider` only, once,
+#: and sent only as the ``Authorization`` header; never read here.
+OPENAI_API_KEY_VARIABLE = "CAD_OPENAI_API_KEY"
 
 #: Opt-in, ``1``: let the ``agy`` child keep the Google credential variables
 #: (``GEMINI_API_KEY`` and the like), so the CLI may use a key instead of its
@@ -166,7 +188,19 @@ DEFAULT_MODELS: Mapping[str, str] = {
     # ``--model`` accepts one since agy 1.3.4, and CAD_AI_EFFORT adds
     # ``--effort``. ``agy models`` lists what an account can use.
     ANTIGRAVITY_PROVIDER_NAME: "gemini-3.8-flash",
+    # No default: which open model a server holds is the deployment's
+    # choice, and no name would be right for every server. Empty means "not
+    # set"; CAD_AI_MODEL must name one, or the provider refuses to start.
+    OPENAI_COMPATIBLE_PROVIDER_NAME: "",
 }
+
+#: Providers with no default model, for which an empty ``model`` in
+#: :class:`AiConfig` means "not configured" rather than an error here: the
+#: provider itself refuses at construction, as ProviderNotConfigured, so the
+#: HTTP route reports "not configured" like any other missing setting.
+PROVIDERS_WITHOUT_DEFAULT_MODEL: Tuple[str, ...] = (
+    OPENAI_COMPATIBLE_PROVIDER_NAME,
+)
 
 #: The documented step-up from the default Anthropic model. Never selected
 #: automatically: a deployment names it in ``CAD_AI_MODEL``.
@@ -222,7 +256,13 @@ class AiConfig:
                 f"unknown provider {self.provider!r}; this application "
                 f"implements {', '.join(PROVIDER_NAMES)}"
             )
-        if not isinstance(self.model, str) or not self.model.strip():
+        if not isinstance(self.model, str) or not (
+            self.model.strip()
+            or (
+                self.model == ""
+                and self.provider in PROVIDERS_WITHOUT_DEFAULT_MODEL
+            )
+        ):
             raise AiConfigurationError("a model name is required")
         if not isinstance(self.timeout_seconds, (int, float)) or isinstance(
             self.timeout_seconds, bool
@@ -359,13 +399,19 @@ def credential_available(
     (:data:`AUTOMATIC_PROVIDER_NAMES`), so a live run is possible whenever
     either credential exists.
 
-    For the CLI providers (Claude Code, Antigravity), which have no
+    For the OpenAI-compatible provider it answers whether
+    ``CAD_OPENAI_BASE_URL`` is set (its API key is optional), again only when
+    asked by name. For the CLI providers (Claude Code, Antigravity), which have no
     credential, it answers whether the ``claude`` / ``agy`` executable can be
     found -- and only when asked by name, so
     an installed CLI never makes the ordinary suite think a credential is
     present. Nothing is run to find out.
     """
     source = os.environ if environ is None else environ
+    if provider == OPENAI_COMPATIBLE_PROVIDER_NAME:
+        # The base URL, not the key: a local server needs no key, and an
+        # address is all a run needs. Presence only; nothing is contacted.
+        return bool(source.get(OPENAI_BASE_URL_VARIABLE, "").strip())
     if provider == CLAUDE_CODE_PROVIDER_NAME:
         from cad_ai.claude_code_provider import locate_cli  # noqa: PLC0415
 
@@ -405,6 +451,10 @@ __all__ = [
     "GEMINI_PROVIDER_NAME",
     "MAX_ATTEMPTS_VARIABLE",
     "MODEL_VARIABLE",
+    "OPENAI_API_KEY_VARIABLE",
+    "OPENAI_BASE_URL_VARIABLE",
+    "OPENAI_COMPATIBLE_PROVIDER_NAME",
+    "PROVIDERS_WITHOUT_DEFAULT_MODEL",
     "PROVIDER_NAME",
     "PROVIDER_NAMES",
     "PROVIDER_VARIABLE",

@@ -5,7 +5,9 @@ There is no discovery, no entry point and no dynamic loading, and adding a
 provider means writing a class and naming it here. The third,
 ``claude_code`` (the owner's subscription through the ``claude`` CLI), and
 the fourth, ``antigravity`` (the owner's Google account through the ``agy``
-CLI), are reached only when ``CAD_AI_PROVIDER`` names them.
+CLI), and the fifth, ``openai_compatible`` (open-weight models behind any
+OpenAI-compatible server), are reached only when ``CAD_AI_PROVIDER`` names
+them.
 
 Each provider class is imported **inside its own branch**, so importing this
 module needs neither SDK, and a deployment that installs only one extra still
@@ -24,6 +26,7 @@ from cad_ai.config import (
     ANTIGRAVITY_PROVIDER_NAME,
     CLAUDE_CODE_PROVIDER_NAME,
     GEMINI_PROVIDER_NAME,
+    OPENAI_COMPATIBLE_PROVIDER_NAME,
     AiConfig,
 )
 from cad_ai.provider import TextToCadModel
@@ -39,7 +42,8 @@ def model_from_environment(config: AiConfig) -> TextToCadModel:
     Raises :class:`~cad_ai.provider.ProviderNotConfigured` when the chosen
     provider's SDK is absent or its credential is unset -- or, for
     ``claude_code`` / ``antigravity``, when the ``claude`` / ``agy``
-    executable cannot be found.
+    executable cannot be found -- or, for ``openai_compatible``, when
+    ``CAD_OPENAI_BASE_URL`` or ``CAD_AI_MODEL`` is unset.
     """
     if config.provider == GEMINI_PROVIDER_NAME:
         from cad_ai.gemini_provider import GeminiTextToCadModel
@@ -53,6 +57,12 @@ def model_from_environment(config: AiConfig) -> TextToCadModel:
         from cad_ai.antigravity_provider import AntigravityTextToCadModel
 
         return AntigravityTextToCadModel.from_environment(config)
+    if config.provider == OPENAI_COMPATIBLE_PROVIDER_NAME:
+        from cad_ai.openai_compatible_provider import (
+            OpenAICompatibleTextToCadModel,
+        )
+
+        return OpenAICompatibleTextToCadModel.from_environment(config)
     from cad_ai.anthropic_provider import AnthropicTextToCadModel
 
     return AnthropicTextToCadModel.from_environment(config)

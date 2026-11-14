@@ -80,7 +80,7 @@ LLM -> arbitrary code -> CAD kernel
 
 | | |
 |---|---|
-| **providers** | Anthropic Messages API (default), Google Gemini, and `claude_code` — the owner's Claude subscription through the official `claude` CLI, selected only by `CAD_AI_PROVIDER=claude_code` (see *Claude Code* below). Named implementations chosen by configuration — no registry, no discovery, no plugin system |
+| **providers** | Anthropic Messages API (default), Google Gemini, `claude_code` — the owner's Claude subscription through the official `claude` CLI, selected only by `CAD_AI_PROVIDER=claude_code` (see *Claude Code* below), `antigravity` (see *Antigravity*), and `openai_compatible` — open-weight models behind any OpenAI-compatible server (Ollama, vLLM, llama.cpp, LM Studio, OpenRouter), selected only by `CAD_AI_PROVIDER=openai_compatible` (see *Open-weight models* below). Named implementations chosen by configuration — no registry, no discovery, no plugin system |
 | **SDK** | `anthropic` **1.4.0**, installed and inspected in this environment |
 | **default model** | `claude-haiku-5-5`, overridable with `CAD_AI_MODEL`. `claude-sonnet-5-5` (`STEP_UP_MODEL`) is the documented step-up for a deployment that measures Haiku falling short; it is never selected automatically and no larger model is offered. (The Stage 26 text that said `claude-sonnet-5` is superseded; Stage 30 ran on `claude-haiku-4-5-20251001`.) |
 | **credential** | `ANTHROPIC_API_KEY` (falling back to `CAD_ANTHROPIC_API_KEY`, because some hosted environments reserve and strip the former) / `GEMINI_API_KEY`, each read by its own provider only |
@@ -559,6 +559,323 @@ It has not been run.
 `structured_output`. That needs no MCP server and no allow rule. It was not
 used, so that this provider answers through the same `submit_answer` tool as
 the others. It is the obvious fallback if the MCP route proves unreliable.
+
+### Open-weight models through an OpenAI-compatible server
+
+> **Never run against a real server.** Everything below was built from the
+> servers' own documentation and tested against a fake HTTP server on
+> `127.0.0.1` (`apps/api/tests/test_openai_compatible_provider.py`). No open
+> model has produced a CAD document through this route yet, so **no quality
+> claim of any kind is made for one**. Read *Confirmed and assumed* before
+> relying on a server-specific detail.
+
+A fifth provider, `openai_compatible` (`cad_ai.openai_compatible_provider`),
+runs the application on **open-weight models**. Ollama, vLLM, llama.cpp's
+`llama-server`, LM Studio and hosted routers such as OpenRouter all serve
+`POST {base_url}/chat/completions` in the OpenAI shape, so one small client
+reaches every one of them. It uses only the Python standard library
+(`urllib.request`, `json`, `ssl`): no SDK, no new dependency, no extra to
+install.
+
+**Configuration.**
+
+| variable | |
+|---|---|
+| `CAD_AI_PROVIDER=openai_compatible` | **required** — the only way it is ever selected. It is in `PROVIDER_NAMES` and not in `AUTOMATIC_PROVIDER_NAMES`: a base URL being set is not a decision to send requests there |
+| `CAD_OPENAI_BASE_URL` | **required** — the API root, e.g. `http://localhost:11434/v1`. `http`/`https` only; no user name or password in it, no query, and not ending in `/chat/completions` (that is appended). Refused as *not configured* otherwise |
+| `CAD_AI_MODEL` | **required** — there is no default open model (`DEFAULT_MODELS["openai_compatible"]` is empty on purpose). The name exactly as the server lists it at `GET {base_url}/models` |
+| `CAD_OPENAI_API_KEY` | optional — local servers need none. Read once, sent only as `Authorization: Bearer …`, never stored as an attribute, logged, printed or put in a message (an echoed key is replaced by `[redacted]`) |
+| `CAD_OPENAI_ANSWER_MODE` | `json_schema` (default), `tool` or `json_object` — see below |
+| `CAD_OPENAI_STRICT` | `1` (default) sends `strict: true` on the schema; `0` sends `false`, for a hosted route whose strict mode refuses this schema |
+| `CAD_OPENAI_STREAM` | `1` asks for a server-sent-event stream; off by default (see *Streaming*) |
+| `CAD_OPENAI_MAX_TOKENS` | unset: the generation layer's bound (32000) is sent as `max_tokens`. An integer: the smaller of the two. `none`: no `max_tokens` at all (the server uses the context that is left) |
+| `CAD_AI_TIMEOUT_SECONDS` | per call, as for every provider. **Raise it for local models**: a large part is 10–20k output tokens, which at 20–40 tokens/s is 5–15 minutes. `1800` is a reasonable start on a single consumer GPU |
+| `CAD_AI_EFFORT` | when set, sent as `reasoning_effort` (Ollama and llama.cpp document the field; other servers may ignore or refuse it). Unset, nothing is sent |
+
+`credential_available(provider="openai_compatible")` answers whether the base
+URL is set — the key is optional. As for the CLI providers, it answers only
+when asked by name, so a base URL never makes the ordinary suite think a
+credential is present.
+
+**What is sent.** One `POST {base_url}/chat/completions` per call, with
+`Content-Type: application/json`, a generic `User-Agent`, and
+`Authorization` only when a key is configured:
+
+```jsonc
+// CAD_OPENAI_ANSWER_MODE=json_schema (default)
+{"model": "<CAD_AI_MODEL>",
+ "messages": [{"role": "system", "content": "<the system prompt>"},
+              {"role": "user",   "content": "<the description, and any reference designs>"}],
+ "max_tokens": 32000,
+ "response_format": {"type": "json_schema",
+                     "json_schema": {"name": "cad_answer",
+                                     "schema": <response_schema(), unchanged>,
+                                     "strict": true}}}
+
+// CAD_OPENAI_ANSWER_MODE=tool
+{"model": …, "messages": […], "max_tokens": 32000,
+ "tools": [{"type": "function",
+            "function": {"name": "submit_answer",
+                         "description": "<ANSWER_TOOL_DESCRIPTION>",
+                         "parameters": <response_schema(), unchanged>,
+                         "strict": true}}],
+ "tool_choice": {"type": "function", "function": {"name": "submit_answer"}}}
+
+// CAD_OPENAI_ANSWER_MODE=json_object
+{"model": …, "messages": […], "max_tokens": 32000,
+ "response_format": {"type": "json_object"}}
+
+// CAD_OPENAI_STREAM=1 adds, in any mode:
+ "stream": true, "stream_options": {"include_usage": true}
+```
+
+The schema is the **whole** `response_schema()`. These servers are not the
+Anthropic structured-output compiler, so `schema_for_api` is not applied: no
+keyword is stripped. No `temperature`, `top_p`, `top_k`, `seed` or penalty is
+sent. An open model's decoding settings belong to the server that serves it
+(an Ollama Modelfile `PARAMETER temperature`, vLLM's `--generation-config`,
+`llama-server --temp`), where the model's own recommended values usually
+already live. A temperature variable here would duplicate that, and would
+make a run's settings depend on two places.
+
+**What is read.** `choices[0].message.content` is the answer. In `tool` mode
+the answer is the `submit_answer` call's `arguments`. That is a JSON
+**string** in this API, so it is parsed and re-serialised, never edited.
+Arguments that do not parse are passed on as the raw string, so the
+generation layer reports them unusable and asks again. With no such call the
+content is the answer, as for the Anthropic tool mode. `finish_reason`
+becomes `stop_reason`. `usage.prompt_tokens`/`completion_tokens` become
+`input_tokens`/`output_tokens`, and `model` comes from the reply.
+`finish_reason: "length"` returns the cut-off text unchanged: it does not
+parse, and the generation layer asks again. No content is `EMPTY_RESPONSE`.
+A `refusal`, or `finish_reason: "content_filter"` with no content, is
+`REFUSED`. Nothing strips a code fence or a `<think>` block. Configure the
+server's reasoning parser instead (vLLM `--reasoning-parser`, llama.cpp
+`--reasoning-format`), so reasoning arrives in its own field and the content
+is only the answer.
+
+**Answer modes, which to use.**
+
+* `json_schema` — the default, and the one to use with Ollama, vLLM,
+  llama.cpp and LM Studio. Each constrains decoding to the schema, so the
+  answer always parses. Whether it is *right* is still the validator's call.
+* `tool` — for a server or route that handles function calling better than
+  response formats. Ollama's compatibility page lists `tool_choice` as **not
+  supported**, so the model may simply answer in text there. vLLM refuses a
+  named `tool_choice` with HTTP 400 unless it was started with
+  `--enable-auto-tool-choice --tool-call-parser <parser>`.
+* `json_object` — for a server with no schema support at all. It gives JSON,
+  not held to the schema.
+
+**Streaming.** Off by default. A non-streamed answer sends nothing until it
+is complete, and a large part on a local GPU can take many minutes. A reverse
+proxy, a corporate proxy or a load balancer may close a connection idle that
+long. `CAD_OPENAI_STREAM=1` requests SSE, reassembles content deltas and
+tool-call argument fragments (per call `index`), takes `usage` from the
+final chunk, ignores `:` keep-alive comments, and reports a mid-stream
+`error` event like an HTTP error. A stream that ends with neither a
+`finish_reason` nor `[DONE]` is a transport failure, not an answer. Both
+paths enforce `CAD_AI_TIMEOUT_SECONDS` as a total deadline, checked between
+reads. A single read can therefore overrun it by at most one socket timeout.
+
+**Context length — the setting that matters most.** The system prompt is
+about 53k characters (~14k tokens). A matching reference design adds up to
+~4k tokens, and a re-ask carries the rejected document and the reasons. Then
+comes the answer: 1–3k tokens for a simple part, 10–20k for an engine.
+
+* **Minimum: 32768 tokens**, with `CAD_OPENAI_MAX_TOKENS` around 12000 so
+  that prompt plus output bound fits.
+* **Recommended: 65536** for complex parts and re-asks. Ollama's own
+  context-length page says the same for coding and agent tasks.
+
+Many local setups default far lower. **Ollama** uses 4096 tokens below
+24 GiB of VRAM (its FAQ says 4096; its context-length page says 4k/32k/256k
+by VRAM). Its OpenAI-compatible endpoint **cannot set the context per
+request**. Raise it on the server instead:
+
+```sh
+OLLAMA_CONTEXT_LENGTH=32768 ollama serve      # every model, or the app's slider
+# or one model, with a Modelfile:
+#   FROM qwen3:32b
+#   PARAMETER num_ctx 32768
+ollama create qwen3-32b-32k -f Modelfile      # then CAD_AI_MODEL=qwen3-32b-32k
+ollama ps                                     # the CONTEXT column shows what is allocated
+```
+
+Ollama **truncates an over-long prompt silently** on this endpoint and
+returns an answer anyway. It reports no error, so this provider cannot see
+it. It does not second-guess token counts either: Ollama's prompt count
+shrinks when its prompt cache is reused, so a heuristic would misfire. Check
+`ollama ps`. A model that ignores the instructions and the examples
+completely is the symptom.
+
+Where a server *does* report the problem, it surfaces as `INVALID_REQUEST`.
+The `detail` then says the prompt and output bound do not fit the context,
+and quotes the server's words. That covers vLLM and llama.cpp (an HTTP 400
+whose message mentions the context) and a reply carrying `truncated: true`.
+
+**Recipes** (Windows PowerShell shown; on Linux/macOS use `export`):
+
+```powershell
+# Ollama — answer mode json_schema (the default)
+ollama pull qwen3:32b
+$env:CAD_AI_PROVIDER = "openai_compatible"
+$env:CAD_OPENAI_BASE_URL = "http://localhost:11434/v1"
+$env:CAD_AI_MODEL = "qwen3:32b"                   # or your num_ctx copy
+$env:CAD_AI_TIMEOUT_SECONDS = "1800"
+.\start.ps1
+```
+
+```sh
+# vLLM — json_schema; the server rejects max_tokens + prompt > --max-model-len
+vllm serve Qwen/Qwen3-32B --max-model-len 65536   # add --api-key K to require a key
+export CAD_AI_PROVIDER=openai_compatible CAD_OPENAI_BASE_URL=http://localhost:8000/v1
+export CAD_AI_MODEL=Qwen/Qwen3-32B CAD_OPENAI_MAX_TOKENS=24000 CAD_AI_TIMEOUT_SECONDS=1800
+# tool mode needs: --enable-auto-tool-choice --tool-call-parser <parser for the model>
+```
+
+```sh
+# llama.cpp — json_schema (llama-server also accepts json_object)
+llama-server -m model.gguf -c 65536 --port 8080 --alias local-model   # --jinja is on by default
+export CAD_AI_PROVIDER=openai_compatible CAD_OPENAI_BASE_URL=http://localhost:8080/v1
+export CAD_AI_MODEL=local-model CAD_AI_TIMEOUT_SECONDS=1800
+```
+
+```sh
+# LM Studio — json_schema; set the context length when loading the model
+lms server start                     # or the Developer tab; serves http://localhost:1234/v1
+export CAD_AI_PROVIDER=openai_compatible CAD_OPENAI_BASE_URL=http://localhost:1234/v1
+export CAD_AI_MODEL=<the identifier LM Studio shows> CAD_AI_TIMEOUT_SECONDS=1800
+```
+
+```sh
+# OpenRouter — hosted; a key is required
+export CAD_AI_PROVIDER=openai_compatible CAD_OPENAI_BASE_URL=https://openrouter.ai/api/v1
+export CAD_OPENAI_API_KEY=…        # never in a file in this repository
+export CAD_AI_MODEL=qwen/qwen3-coder
+```
+
+On OpenRouter, structured-output support is per *endpoint*, not per model.
+An endpoint that does not support it ignores `response_format` unless the
+request sets `provider.require_parameters`, which this provider does not
+send, to keep the body server-neutral. Pick a model whose endpoints list
+`structured_outputs`, or use `CAD_OPENAI_ANSWER_MODE=tool`. If strict mode
+on a route refuses the schema, set `CAD_OPENAI_STRICT=0`.
+
+**Network.** A server on this machine (`localhost`, `*.localhost`,
+`127.0.0.0/8`, `::1`) is always reached directly, even with a proxy
+configured: no proxy can reach your loopback. Any other host goes through the
+standard `HTTPS_PROXY`/`HTTP_PROXY`/`NO_PROXY` variables, as `urllib` reads
+them. TLS uses the system CA bundle (`ssl.create_default_context`, which also
+honours `SSL_CERT_FILE`). **Redirects are not followed.** urllib would
+re-send the `Authorization` header to wherever the server pointed, so a 3xx
+is reported as `INVALID_REQUEST` instead: set the base URL to the final
+address. A key sent to a plain-`http` address that is not on this machine
+crosses the network unencrypted. That is the deployment's choice, but use
+`https` for anything remote.
+
+**Errors**, mapped onto the neutral kinds. The server's body goes only into
+`detail` (truncated to 1000 characters, key redacted), never into the
+public message:
+
+| failure | kind |
+|---|---|
+| connection refused, host unresolvable or unreachable | `TIMEOUT`, with the message "the model server is not reachable at the configured base URL". *Transport failed*, like the Anthropic provider's connection errors: transient (a local server may still be starting), and it says nothing about the model |
+| connection dropped mid-reply, short body, stream cut off | `TIMEOUT` |
+| socket timeout, or the total deadline passed | `TIMEOUT` |
+| HTTP 401 / 403 | `AUTHENTICATION` |
+| HTTP 402 (OpenRouter: out of credit) / 429 | `RATE_LIMITED` |
+| HTTP 404 | `INVALID_REQUEST`; `detail` names the two usual causes, an unknown model or a base URL that is not the API root |
+| HTTP 400 / 413 / 422, any other 4xx, a 3xx | `INVALID_REQUEST`; a context overflow says so in `detail` |
+| HTTP 408 / 504 | `TIMEOUT` |
+| HTTP 500–503 and other 5xx | `CAPACITY` |
+| TLS verification failure | `INVALID_REQUEST` (a configuration problem, not an outage) |
+| a 200 reply carrying an `error` object | its numeric `code` mapped as above, else `OTHER` |
+| a reply that is not JSON | `OTHER` (`detail` asks whether the base URL is the API root) |
+| no content, no tool call | `EMPTY_RESPONSE` |
+| a refusal | `REFUSED` |
+
+**Open models worth trying — untested here.** None has been run through
+this application. Context limits are the model cards' as far as known when
+this was written. Check the card before relying on them, and set the server's
+context explicitly either way.
+
+| model | size | native context | names |
+|---|---|---|---|
+| Qwen3-Coder-30B-A3B-Instruct | 30B MoE (3B active) | 256k | `qwen3-coder:30b` (Ollama), `Qwen/Qwen3-Coder-30B-A3B-Instruct` |
+| Qwen3-32B | 32B dense | 32k (128k with YaRN) | `qwen3:32b`, `Qwen/Qwen3-32B` |
+| gpt-oss-20b / gpt-oss-120b | 21B / 117B MoE | 128k | `gpt-oss:20b`, `openai/gpt-oss-20b` |
+| Mistral Small 3.2 24B Instruct | 24B dense | 128k | `mistral-small3.2:24b` |
+| Gemma 3 27B | 27B dense | 128k | `gemma3:27b` |
+| Llama 3.3 70B Instruct | 70B dense | 128k | `llama3.3:70b` |
+
+The models below about 20B parameters are unlikely to cope with a 14k-token
+prompt of strict rules. LM Studio's own documentation warns that models below
+7B are often not capable of structured output at all. A coder or
+instruction-tuned model with a long native context is the place to start.
+
+**Confirmed and assumed.** The docs sites `docs.ollama.com`, `docs.vllm.ai`,
+`lmstudio.ai` and `openrouter.ai` were not reachable from the build
+environment. The same documentation was read from the projects' GitHub
+sources instead (OpenRouter's from a web search over its docs).
+
+* *Confirmed from the docs:*
+  * **Ollama.** `/v1/chat/completions` supports `response_format`, `tools`,
+    `stream_options.include_usage`, `max_tokens` and `reasoning_effort`, and
+    **not** `tool_choice`. Structured outputs work through the
+    OpenAI-compatible `response_format`. The default context is 4096. The
+    OpenAI API cannot set the context, so use a Modelfile `num_ctx` or
+    `OLLAMA_CONTEXT_LENGTH`.
+  * **vLLM.** `response_format` `json_schema` (xgrammar/guidance backends),
+    and named `tool_choice`, which needs `--enable-auto-tool-choice` and
+    `--tool-call-parser`, else 400. Named calls are constrained to the
+    parameter schema.
+  * **llama.cpp.** `response_format` `json_object`, `json_schema`, and the
+    OpenAI wrapper form `{"type":"json_schema","json_schema":{name,strict,schema}}`.
+    OpenAI-style tool calling, with Jinja enabled by default. `-c 0` means
+    the model's own context.
+  * **LM Studio.** `json_schema` structured output on `/v1/chat/completions`,
+    with `strict` (llama.cpp grammars for GGUF, Outlines for MLX).
+  * **OpenRouter.** `json_schema` with `name`, optional `strict` and
+    `schema`. Support is per endpoint. `provider.require_parameters`
+    restricts routing to endpoints that support every parameter sent.
+* *Assumed, not confirmed:*
+  * the exact wording of vLLM's and llama.cpp's context-overflow errors;
+  * that vLLM rejects `max_tokens` + prompt > `--max-model-len` rather than
+    clamping it;
+  * llama.cpp's `truncated` field on the chat endpoint;
+  * which JSON-Schema keywords each grammar engine supports. The full
+    response schema uses `anyOf`, `enum`, `exclusiveMinimum`, `pattern` and
+    `additionalProperties: false`. An engine may ignore or refuse a keyword;
+    a refusal arrives as a 400 with its words in `detail`;
+  * LM Studio's support for `json_object`, `tools` and `tool_choice`, and
+    how it reports context overflow;
+  * that every server streams tool-call arguments as fragments indexed like
+    OpenAI's;
+  * OpenRouter's 402 for exhausted credit, and its mid-stream error events.
+
+**Limitations.**
+
+* **Small models and a 53k-character prompt.** The prompt was written and
+  measured against Claude models. A small open model may follow the schema
+  (the grammar sees to that) and still produce geometry that does not
+  validate or build. The verify-and-re-ask loop then spends up to
+  `CAD_AI_MAX_ATTEMPTS` long local calls on it.
+* **Templates help.** A matching reference design gives the model a
+  complete, verified answer to adapt, and that matters more for a weaker
+  model.
+* **Future work:**
+  * a compact prompt profile for small contexts;
+  * a fine-tune on validated documents;
+  * measuring any open model on the corpus;
+  * restoring `through_hole` in the schema for servers that have no grammar
+    ceiling.
+* **The benchmark harness** accepts `--provider openai_compatible` because
+  its choices come from `PROVIDER_NAMES`. But `evaluation.py`'s NOT_RUN
+  message names the wrong variable for this provider when the base URL is
+  unset (it falls back to `CAD_CLAUDE_CODE_PATH`). Its decoding-settings
+  record reads the Anthropic SDK's capabilities. Both are for whoever next
+  edits that file.
 
 ## The AI boundary, exactly
 
