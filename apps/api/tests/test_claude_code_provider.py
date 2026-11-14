@@ -513,6 +513,30 @@ class TestEnvironment(FakeClaudeTestCase):
         # The caller's mapping is not modified.
         self.assertIn("anthropic_api_key", source)
 
+    def test_a_host_sessions_variables_never_reach_the_child(self) -> None:
+        # Names as a cloud Claude Code session sets them; a child that saw
+        # them could act under that session's login instead of its own.
+        session = {
+            "CLAUDE_CODE_SESSION_ID": "s",
+            "CLAUDE_SESSION_INGRESS_TOKEN_FILE": "/run/token",
+            "CLAUDE_CODE_MESSAGING_TOKEN": "t",
+            "CLAUDE_CODE_OAUTH_TOKEN": "t",
+            "CLAUDE_CODE_REMOTE": "true",
+            "claude_pid": "1",
+        }
+        source = {"PATH": "/bin", "CLAUDE_CONFIG_DIR": "/home/u/.claude", **session}
+        for opt_in in ("0", "1"):
+            with self.subTest(api_key_opt_in=opt_in):
+                child = child_environment(
+                    {**source, CLAUDE_CODE_USE_API_KEY_VARIABLE: opt_in}, max_output_tokens=10
+                )
+                for name in session:
+                    self.assertNotIn(name, child)
+                # The user's own CLI configuration folder (its login) is kept,
+                # and the provider's own setting is added after the filter.
+                self.assertEqual(child["CLAUDE_CONFIG_DIR"], "/home/u/.claude")
+                self.assertEqual(child["CLAUDE_CODE_MAX_OUTPUT_TOKENS"], "10")
+
 
 # --- the answer --------------------------------------------------------------
 

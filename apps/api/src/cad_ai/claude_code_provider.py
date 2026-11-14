@@ -117,6 +117,20 @@ ALWAYS_REMOVED_VARIABLES: Tuple[str, ...] = (
     "CLAUDE_CODE_SSE_PORT",
 )
 
+#: Every variable whose name starts with one of these is dropped as well:
+#: a host Claude Code session (a cloud container, an IDE, a parent CLI) puts
+#: its session ids, ingress/messaging tokens and token-file paths there, and
+#: a child that inherited them could act under *that session's* login rather
+#: than the CLI's own. Measured in a cloud session: ~60 such variables,
+#: including CLAUDE_SESSION_INGRESS_TOKEN_FILE and CLAUDE_CODE_MESSAGING_TOKEN.
+#: A normally logged-in CLI needs none of them -- its login lives in its own
+#: config folder.
+SESSION_VARIABLE_PREFIXES: Tuple[str, ...] = ("CLAUDE_",)
+
+#: Kept despite the prefix: where the user keeps the CLI's own configuration
+#: (and therefore its login).
+KEPT_SESSION_VARIABLES: Tuple[str, ...] = ("CLAUDE_CONFIG_DIR",)
+
 #: API credentials that would make the CLI bill a key instead of the
 #: subscription login. Removed unless ``CAD_CLAUDE_CODE_USE_API_KEY=1``.
 API_KEY_CHILD_VARIABLES: Tuple[str, ...] = (
@@ -243,12 +257,15 @@ def child_environment(
     if not opt_in:
         removed.update(API_KEY_CHILD_VARIABLES)
     removed_upper = {name.upper() for name in removed}
-    # Compared case-insensitively: Windows environment names are.
-    child = {
-        name: value
-        for name, value in environ.items()
-        if name.upper() not in removed_upper
-    }
+    kept_upper = {name.upper() for name in KEPT_SESSION_VARIABLES}
+
+    def dropped(name: str) -> bool:
+        upper = name.upper()  # Windows environment names are case-insensitive
+        if upper in removed_upper:
+            return True
+        return upper not in kept_upper and upper.startswith(SESSION_VARIABLE_PREFIXES)
+
+    child = {name: value for name, value in environ.items() if not dropped(name)}
     child.update(CHILD_SETTINGS)
     child[MAX_OUTPUT_TOKENS_VARIABLE] = str(int(max_output_tokens))
     return child
@@ -932,6 +949,8 @@ def _optional_str(value: Any) -> Optional[str]:
 
 __all__ = [
     "ALWAYS_REMOVED_VARIABLES",
+    "KEPT_SESSION_VARIABLES",
+    "SESSION_VARIABLE_PREFIXES",
     "ANSWER_TOOL",
     "API_KEY_CHILD_VARIABLES",
     "CLI_NAME",
