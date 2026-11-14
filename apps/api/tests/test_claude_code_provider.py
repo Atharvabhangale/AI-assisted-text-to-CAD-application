@@ -25,6 +25,7 @@ import hashlib
 import io
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -39,6 +40,7 @@ from cad_ai import claude_code_mcp
 from cad_ai.anthropic_provider import schema_for_api
 from cad_ai.claude_code_provider import (
     ANSWER_TOOL,
+    API_KEY_OPT_IN_VARIABLES,
     ClaudeCodeTextToCadModel,
     child_environment,
     command_line,
@@ -109,6 +111,7 @@ RECORD = os.environ["FAKE_CLAUDE_RECORD"]
 ANSWER = json.loads(os.environ.get("FAKE_CLAUDE_ANSWER", "{}"))
 TOOL = "mcp__cad__submit_answer"
 WATCHED = ("ANTHROPIC_API_KEY", "CAD_ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN",
+           "ANTHROPIC_BASE_URL", "ANTHROPIC_FOO",
            "GEMINI_API_KEY", "CLAUDECODE", "PATH", "CLAUDE_CODE_MAX_OUTPUT_TOKENS",
            "ENABLE_CLAUDEAI_MCP_SERVERS")
 record = {
@@ -513,6 +516,78 @@ class TestEnvironment(FakeClaudeTestCase):
         # The caller's mapping is not modified.
         self.assertIn("anthropic_api_key", source)
 
+    #: Names that could redirect the CLI to another endpoint, model or
+    #: account. ANTHROPIC_FOO stands for whatever name exists tomorrow.
+    REDIRECTS = (
+        "ANTHROPIC_BASE_URL",
+        "ANTHROPIC_MODEL",
+        "ANTHROPIC_CUSTOM_HEADERS",
+        "ANTHROPIC_FOO",
+        "anthropic_bedrock_base_url",
+    )
+
+    def test_every_anthropic_variable_is_dropped_by_default(self) -> None:
+        source = {
+            "PATH": "/bin",
+            "HTTPS_PROXY": "http://proxy",
+            "MY_ANTHROPIC_NOTE": "kept: the prefix is what matters",
+            **{name: "x" for name in self.REDIRECTS},
+            **{name: SYNTHETIC_KEY for name in self.KEYS},
+        }
+        for switch in (None, "0", ""):
+            with self.subTest(opt_in=switch):
+                environ = dict(source)
+                if switch is not None:
+                    environ[CLAUDE_CODE_USE_API_KEY_VARIABLE] = switch
+                child = child_environment(environ, max_output_tokens=10)
+                for name in self.REDIRECTS + self.KEYS:
+                    self.assertNotIn(name, child)
+                self.assertEqual(child["PATH"], "/bin")
+                self.assertEqual(child["HTTPS_PROXY"], "http://proxy")
+                self.assertIn("MY_ANTHROPIC_NOTE", child)
+        self.assertEqual(
+            [name for name in child if name.upper().startswith("ANTHROPIC_")], []
+        )
+
+    def test_the_opt_in_keeps_the_key_and_its_base_url_and_nothing_else(self) -> None:
+        source = {
+            "PATH": "/bin",
+            CLAUDE_CODE_USE_API_KEY_VARIABLE: "1",
+            **{name: "x" for name in self.REDIRECTS},
+            **{name: SYNTHETIC_KEY for name in self.KEYS},
+        }
+        child = child_environment(source, max_output_tokens=10)
+        for name in self.KEYS + ("ANTHROPIC_BASE_URL",):
+            self.assertIn(name, child)
+        self.assertEqual(child["ANTHROPIC_BASE_URL"], "x")
+        for name in self.REDIRECTS:
+            if name != "ANTHROPIC_BASE_URL":
+                self.assertNotIn(name, child)
+        self.assertEqual(
+            set(API_KEY_OPT_IN_VARIABLES),
+            set(self.KEYS) | {"ANTHROPIC_BASE_URL"},
+        )
+
+    def test_the_base_url_does_not_reach_a_real_child_process(self) -> None:
+        extra = {"ANTHROPIC_BASE_URL": "http://127.0.0.1:9", "ANTHROPIC_FOO": "x"}
+        self.provider("tool", **extra).generate(self.request())
+        present = self.record()["env_present"]
+        self.assertFalse(present["ANTHROPIC_BASE_URL"])
+        self.assertFalse(present["ANTHROPIC_FOO"])
+
+    def test_the_opt_in_passes_the_base_url_to_a_real_child_process(self) -> None:
+        extra = {
+            "ANTHROPIC_BASE_URL": "http://127.0.0.1:9",
+            "ANTHROPIC_FOO": "x",
+            API_KEY_VARIABLE: SYNTHETIC_KEY,
+            CLAUDE_CODE_USE_API_KEY_VARIABLE: "1",
+        }
+        self.provider("tool", **extra).generate(self.request())
+        present = self.record()["env_present"]
+        self.assertTrue(present["ANTHROPIC_BASE_URL"])
+        self.assertTrue(present[API_KEY_VARIABLE])
+        self.assertFalse(present["ANTHROPIC_FOO"])
+
     def test_a_host_sessions_variables_never_reach_the_child(self) -> None:
         # Names as a cloud Claude Code session sets them; a child that saw
         # them could act under that session's login instead of its own.
@@ -679,6 +754,78 @@ class TestFailures(FakeClaudeTestCase):
         self.executable.unlink()
         with self.assertRaises(ProviderNotConfigured):
             provider.generate(self.request())
+
+    def versioned_copy(self, version: str) -> Path:
+        """The fake claude, where an editor extension of ``version`` keeps it."""
+        folder = (
+            self.tmp / "home" / ".vscode" / "extensions"
+            / f"anthropic.claude-code-{version}-win32-x64" / "resources" / "native-binary"
+        )
+        folder.mkdir(parents=True)
+        return Path(shutil.copy2(self.executable, folder / self.executable.name))
+
+    def test_an_updated_extension_copy_is_found_again_without_a_restart(self) -> None:
+        # VS Code replaces the versioned folder on every extension update; a
+        # provider built before the update must not stay "not available".
+        old = self.versioned_copy("2.1.322")
+        home = str(self.tmp / "home")
+        where = {"PATH": str(self.tmp / "empty"), "HOME": home, "USERPROFILE": home}
+        asked = []
+
+        def relocate() -> Optional[str]:
+            asked.append(1)
+            return locate_cli(where)
+
+        with mock.patch("cad_ai.cli_discovery._registry_path_dirs", return_value=[]):
+            config = AiConfig(
+                provider=CLAUDE_CODE_PROVIDER_NAME,
+                model=DEFAULT_MODELS[CLAUDE_CODE_PROVIDER_NAME],
+                timeout_seconds=self.timeout_seconds,
+            )
+            provider = ClaudeCodeTextToCadModel(
+                str(old), config, root=self.root,
+                environ=self.environ("tool"), relocate=relocate,
+            )
+            provider.generate(self.request())
+            self.assertEqual(asked, [])  # not asked while the file is there
+            new = self.versioned_copy("2.1.400")
+            shutil.rmtree(old.parents[2])
+            provider.generate(self.request())
+            self.assertEqual(asked, [1])
+            self.assertEqual(Path(provider.executable), new)
+            # Gone for good: still the honest "not configured".
+            shutil.rmtree(new.parents[2])
+            with self.assertRaises(ProviderNotConfigured):
+                provider.generate(self.request())
+
+    def test_a_configured_path_that_vanished_is_never_replaced(self) -> None:
+        other = self.versioned_copy("2.1.400")
+        self.assertTrue(other.is_file())
+        home = str(self.tmp / "home")
+        where = {
+            "PATH": str(self.tmp / "empty"), "HOME": home, "USERPROFILE": home,
+            CLAUDE_CODE_PATH_VARIABLE: str(self.executable),
+        }
+        config = AiConfig(
+            provider=CLAUDE_CODE_PROVIDER_NAME,
+            model=DEFAULT_MODELS[CLAUDE_CODE_PROVIDER_NAME],
+            timeout_seconds=self.timeout_seconds,
+        )
+        provider = ClaudeCodeTextToCadModel(
+            str(self.executable), config, root=self.root,
+            environ=self.environ("tool"), relocate=lambda: locate_cli(where),
+        )
+        self.executable.unlink()
+        with self.assertRaises(ProviderNotConfigured):
+            provider.generate(self.request())
+        self.assertEqual(Path(provider.executable), self.executable)
+
+    def test_from_environment_can_find_the_executable_again(self) -> None:
+        with mock.patch.dict(
+            os.environ, {CLAUDE_CODE_PATH_VARIABLE: str(self.executable)}
+        ):
+            model = ClaudeCodeTextToCadModel.from_environment()
+        self.assertIs(model._relocate, locate_cli)
 
 
 # --- finding the CLI, configuration and dispatch ------------------------------

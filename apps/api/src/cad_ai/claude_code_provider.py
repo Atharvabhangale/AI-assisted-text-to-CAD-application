@@ -64,7 +64,7 @@ import threading
 import time
 from collections import deque
 from pathlib import Path
-from typing import Any, Deque, Dict, List, Mapping, Optional, Sequence, Tuple
+from typing import Any, Callable, Deque, Dict, List, Mapping, Optional, Sequence, Tuple
 
 from cad_ai.anthropic_provider import USAGE_FIELDS, schema_for_api
 from cad_ai.config import (
@@ -137,6 +137,18 @@ API_KEY_CHILD_VARIABLES: Tuple[str, ...] = (
     API_KEY_VARIABLE,
     FALLBACK_API_KEY_VARIABLE,
     "ANTHROPIC_AUTH_TOKEN",
+)
+
+#: Every ``ANTHROPIC_*`` variable is dropped too, not only the key names: a
+#: base URL, a custom header or a model override could redirect the CLI away
+#: from the subscription login just as a key would.
+API_VARIABLE_PREFIXES: Tuple[str, ...] = ("ANTHROPIC_",)
+
+#: What ``CAD_CLAUDE_CODE_USE_API_KEY=1`` keeps: the credentials and the
+#: endpoint they belong to (a key without its base URL is useless behind a
+#: gateway). Every other ``ANTHROPIC_*`` name is still dropped.
+API_KEY_OPT_IN_VARIABLES: Tuple[str, ...] = API_KEY_CHILD_VARIABLES + (
+    "ANTHROPIC_BASE_URL",
 )
 
 #: Values of ``CAD_CLAUDE_CODE_USE_API_KEY`` that mean "yes".
@@ -220,25 +232,47 @@ def locate_cli(environ: Optional[Mapping[str, str]] = None) -> Optional[str]:
     """The ``claude`` executable to run, or ``None``. Runs nothing.
 
     ``CAD_CLAUDE_CODE_PATH`` wins when set: a file path is used as it is, a
-    bare name is looked up on ``PATH``. A configured value that names nothing
+    folder is searched for ``claude`` (``.exe`` / ``.cmd`` on Windows)
+    directly inside it, a path without its Windows suffix gets one, a bare
+    name is looked up on ``PATH``. A configured value that names nothing
     is *not found* -- it never falls back to a different ``claude`` on
     ``PATH``, because a caller who named one executable and silently got
     another could not know which one ran.
     """
     source = os.environ if environ is None else environ
     search_path = source.get("PATH")
-    configured = source.get(CLAUDE_CODE_PATH_VARIABLE, "").strip().strip('"')
+    # Quotes are what a .env line or a pasted "Copy as path" carries.
+    configured = source.get(CLAUDE_CODE_PATH_VARIABLE, "").strip().strip("\"'").strip()
     if configured:
         if os.path.isfile(configured):
             return os.path.abspath(configured)
-        if os.path.dirname(configured):
-            return None
+        from cad_ai.cli_discovery import program_in_folder  # noqa: PLC0415
+
+        if os.path.isdir(configured):
+            return program_in_folder(configured, CLI_NAME)
+        folder, name = os.path.split(configured)
+        if folder:
+            # The named file, written without its Windows suffix
+            # (...\native-binary\claude for claude.exe). Still only what was
+            # named: the same folder, the same name.
+            return program_in_folder(folder, name) if name else None
         return shutil.which(configured, path=search_path)
     # Not configured: look where the owner's own shell would -- PATH, then
-    # (Windows) the saved user/machine Path, then the installer's folders.
-    from cad_ai.cli_discovery import CLAUDE_WELL_KNOWN_DIRS, find_program  # noqa: PLC0415
+    # (Windows) the saved user/machine Path, then the installer's folders,
+    # then the newest copy bundled with the editor extension, then the
+    # newest copy the Claude desktop app downloaded.
+    from cad_ai.cli_discovery import (  # noqa: PLC0415
+        CLAUDE_VERSIONED_LOCATIONS,
+        CLAUDE_WELL_KNOWN_DIRS,
+        find_program,
+    )
 
-    return find_program(CLI_NAME, environ=source, well_known_dirs=CLAUDE_WELL_KNOWN_DIRS)
+    return find_program(
+        CLI_NAME,
+        environ=source,
+        well_known_dirs=CLAUDE_WELL_KNOWN_DIRS,
+        versioned_locations=CLAUDE_VERSIONED_LOCATIONS,
+    )
 
 
 def child_environment(
@@ -249,9 +283,13 @@ def child_environment(
     Everything inherited (``PATH``, ``HOME``, ``USERPROFILE``, ``APPDATA``,
     ``LOCALAPPDATA``, ``SystemRoot``, ``TEMP``, proxy settings ... -- the CLI
     needs them to find its login and reach the service), minus
-    :data:`ALWAYS_REMOVED_VARIABLES`, and minus
-    :data:`API_KEY_CHILD_VARIABLES` unless ``CAD_CLAUDE_CODE_USE_API_KEY`` is
-    on. Variables are dropped by **name**; no value is read or compared.
+    :data:`ALWAYS_REMOVED_VARIABLES`, minus every ``CLAUDE_*`` name except
+    :data:`KEPT_SESSION_VARIABLES`, and minus
+    :data:`API_KEY_CHILD_VARIABLES` and every ``ANTHROPIC_*`` name. With
+    ``CAD_CLAUDE_CODE_USE_API_KEY`` on, :data:`API_KEY_OPT_IN_VARIABLES`
+    (the keys and ``ANTHROPIC_BASE_URL``) are kept; other ``ANTHROPIC_*``
+    names are dropped all the same. Variables are dropped by **name**; no
+    value is read or compared.
     """
     opt_in = (
         environ.get(CLAUDE_CODE_USE_API_KEY_VARIABLE, "").strip().lower()
@@ -262,11 +300,16 @@ def child_environment(
         removed.update(API_KEY_CHILD_VARIABLES)
     removed_upper = {name.upper() for name in removed}
     kept_upper = {name.upper() for name in KEPT_SESSION_VARIABLES}
+    api_kept_upper = (
+        {name.upper() for name in API_KEY_OPT_IN_VARIABLES} if opt_in else set()
+    )
 
     def dropped(name: str) -> bool:
         upper = name.upper()  # Windows environment names are case-insensitive
         if upper in removed_upper:
             return True
+        if upper.startswith(API_VARIABLE_PREFIXES):
+            return upper not in api_kept_upper
         return upper not in kept_upper and upper.startswith(SESSION_VARIABLE_PREFIXES)
 
     child = {name: value for name, value in environ.items() if not dropped(name)}
@@ -351,8 +394,13 @@ class ClaudeCodeTextToCadModel:
         *,
         root: Optional[Path] = None,
         environ: Optional[Mapping[str, str]] = None,
+        relocate: Optional[Callable[[], Optional[str]]] = None,
     ) -> None:
         self._executable = executable
+        # Asked again only when the executable has gone: an editor extension
+        # replaces its versioned folder on every update, and a backend that
+        # kept the old path would be "not available" until restarted.
+        self._relocate = relocate
         self._config = config
         self._root = Path(root) if root is not None else default_root()
         # A snapshot is not taken: the environment is read at each call, so
@@ -376,11 +424,13 @@ class ClaudeCodeTextToCadModel:
             raise ProviderNotConfigured(
                 _PUBLIC_NOT_AVAILABLE,
                 detail=(
-                    f"the {CLI_NAME!r} executable was not found on PATH, in the saved user PATH, in its usual install folders or at "
-                    f"{CLAUDE_CODE_PATH_VARIABLE}"
+                    f"the {CLI_NAME!r} executable was not found on PATH, in the "
+                    "saved user PATH, in its usual install folders, in the "
+                    "Claude Code VS Code extension, in the Claude desktop "
+                    f"app's data folder or at {CLAUDE_CODE_PATH_VARIABLE}"
                 ),
             )
-        return cls(executable, settings)
+        return cls(executable, settings, relocate=locate_cli)
 
     @property
     def config(self) -> AiConfig:
@@ -463,6 +513,10 @@ class ClaudeCodeTextToCadModel:
 
     def generate(self, request: ModelRequest) -> ModelResponse:
         """One ``claude -p`` process. No tools of its own, no retry."""
+        if not os.path.isfile(self._executable) and self._relocate is not None:
+            # The same rules as at start-up: a configured path that no
+            # longer resolves stays not found, never a different claude.
+            self._executable = self._relocate() or self._executable
         if not os.path.isfile(self._executable):
             raise ProviderNotConfigured(
                 _PUBLIC_NOT_AVAILABLE,
@@ -957,6 +1011,8 @@ __all__ = [
     "SESSION_VARIABLE_PREFIXES",
     "ANSWER_TOOL",
     "API_KEY_CHILD_VARIABLES",
+    "API_KEY_OPT_IN_VARIABLES",
+    "API_VARIABLE_PREFIXES",
     "CLI_NAME",
     "MAX_TURNS",
     "MCP_SERVER_NAME",
