@@ -335,6 +335,231 @@ of this provider.
 when it is not logged in or has reached a usage limit. The tests use a fake
 `claude` that speaks stream-json and drives the real MCP server.
 
+### Antigravity: your own Google account, through the official CLI
+
+> **Never run against a real `agy`.** Everything below was built from
+> Google's documentation and its public issue tracker and tested against a
+> fake `agy`. The real CLI, a real sign-in, Windows and the exact wording of
+> its errors have not been exercised. Read *Not verified* before relying on
+> it.
+
+A fourth provider, `antigravity` (`cad_ai.antigravity_provider`), is the
+Google counterpart of `claude_code`. It runs the application on the owner's
+**Google account** (the free tier, or their plan) instead of an API key. It
+drives Google's official **Antigravity CLI** (`agy`) in its headless mode,
+already installed and signed in on the machine. It uses only the Python
+standard library and adds no dependency.
+
+**Enabling it (Windows, PowerShell):**
+
+```powershell
+irm https://antigravity.google/cli/install.ps1 | iex    # Google's installer (README)
+agy                        # once, interactively: sign in with your Google account
+agy models                 # which model names your account can use
+# once: allow the answer tool in a headless run (see "The one setting" below)
+$env:CAD_AI_PROVIDER = "antigravity"            # the only way it is ever selected
+# optional: $env:CAD_ANTIGRAVITY_PATH = "$env:LOCALAPPDATA\agy\bin\agy.exe"
+# optional: $env:CAD_AI_MODEL = "gemini-3.8-flash"   (the default)
+.\start.ps1
+```
+
+From `cmd.exe` the installer is `curl -fsSL
+https://antigravity.google/cli/install.cmd -o install.cmd && install.cmd &&
+del install.cmd`. On macOS and Linux it is `curl -fsSL
+https://antigravity.google/cli/install.sh | bash`. Use a recent release
+(1.5.x when this was written). The stream-json protocol needs 1.1.15 or
+later. Releases before 1.1.1 lost a piped answer (see *Errors*). A model name
+without a reasoning suffix needs 1.3.4 or later.
+
+`CAD_AI_PROVIDER=antigravity` is required. Like `claude_code`, the provider
+is in `PROVIDER_NAMES` and not in `AUTOMATIC_PROVIDER_NAMES`. Without
+`CAD_ANTIGRAVITY_PATH`, `agy` is looked up on `PATH`. When that variable
+names a file that does not exist, the provider is *not configured*. It never
+falls back to a different `agy`.
+
+**The default model** is `gemini-3.8-flash`. Antigravity's model table offers
+Gemini 3.8 Flash on the free plan, and a Flash model is what the Gemini API
+route uses too. It is the base name, without a reasoning suffix such as
+`-medium` or `-high`. `CAD_AI_EFFORT` adds `--effort`, and `CAD_AI_MODEL`
+overrides the model (`gemini-4-hydrogen` is the other free-plan Gemini).
+A headless run with a model the account cannot use exits with an error. It
+does not quietly switch models.
+
+**The one setting the owner adds by hand.** An MCP tool asks for approval by
+default. A headless run cannot ask, so the CLI *soft-denies* the call, and
+the answer never arrives. Google documents no per-run or per-folder grant
+(issue #627 on its tracker), so the grant goes in the CLI's own global
+settings, `%USERPROFILE%\.gemini\antigravity-cli\settings.json`. Add this
+once:
+
+```json
+{ "permissions": { "allow": ["mcp(text_to_cad/submit_answer)"] } }
+```
+
+Merge it into the file's existing `permissions.allow` list if there is one.
+It allows exactly one tool of one server. Use the `server/tool` form shown:
+the CLI also accepts `mcp(text_to_cad)`, which never matches (issue #916).
+**The provider never writes this file**, or any other user configuration.
+When a run was denied the tool, it reports a configuration error
+(`INVALID_REQUEST`) whose `detail` names this rule. It does not re-ask.
+
+**What one call sends.** Each `generate` makes a fresh workspace,
+`%TEMP%\cad-ai-antigravity\calls\call-<random>\workspace`. It is never the
+repository. The workspace holds exactly one file,
+`.agents\mcp_config.json`, the documented workspace-level MCP configuration.
+A fresh folder per call is needed for three reasons. The per-call MCP
+configuration has to live inside the workspace. Concurrent calls must not
+share one. And a reused folder may resume the previous conversation, as
+reported on issue #76. The command line is:
+
+```
+agy --input-format stream-json --output-format stream-json
+    --model gemini-3.8-flash --mode accept-edits --disable-slash-commands
+    [--effort <CAD_AI_EFFORT>]
+```
+
+* **No prompt, user text, path or credential is on it.** There is no `-p`.
+  In this mode the CLI reads the prompt from stdin and drops a `-p` prompt.
+  The provider writes **one** record, `{"event": "user", "message":
+  {"content": "..."}}`, and closes stdin. The CLI documents closing stdin as
+  ending the session after that turn. Closing it also avoids the idle-stdin
+  hang reported on the CLI's issue tracker.
+* **The system prompt travels in that message.** `agy` has no system-prompt
+  option. A workspace rules file (`AGENTS.md`, `GEMINI.md`) is silently cut
+  off at 12,000 characters, or 24,000 bytes per file in later releases. That
+  is a fraction of the prompt's ~53k characters. So the message is
+  `=== INSTRUCTIONS FOR THIS REQUEST ===`, the system prompt, one line
+  telling the model to answer only through `submit_answer`, then
+  `=== THE REQUEST ===` and the user's text. The prompt is never on a command
+  line and never in a file the provider writes. The CLI does keep the
+  conversation in its own store under `%USERPROFILE%\.gemini\antigravity-cli`.
+* **One MCP server, one tool.** The workspace configuration registers
+  `text_to_cad`, which is `python -I <path>\claude_code_mcp.py <tool.json>
+  --capture <answer.json>`, with `"enabledTools": ["submit_answer"]`. The
+  name is deliberately distinctive. When a global and a workspace server
+  share a name, the CLI keeps whichever is already running. The tool's
+  input schema is the response schema **unchanged**: Gemini takes that
+  schema as it is, and the Gemini API provider already sends it. The tool
+  file and the capture file sit beside the workspace, not inside it, where
+  the agent's own file tools could reach them.
+* **The answer is captured by the MCP server.** The CLI's stream-json
+  records are not documented to carry a tool call's arguments, and old
+  releases wrote nothing to a piped stdout. So `claude_code_mcp` takes
+  `--capture <file>`. On the first successful `tools/call` of the tool it
+  writes the call's `arguments` to that file atomically (a temporary file,
+  then a rename), before it replies. The provider polls for the file. Once
+  the file appears, the provider waits up to 5 s for the CLI's `result`
+  record, which carries `usage`, and then ends the process tree. The
+  captured object is re-serialised unedited, as the other providers do.
+  When a run ends with no capture, the provider returns the `result`
+  record's `response` text, or failing that any plain stdout text. The
+  generation layer judges that text like any other (unusable, so it
+  re-asks). No parsing leniency is added. Without `--capture` the server
+  behaves exactly as before, and `claude_code` does not pass it.
+* **`--mode accept-edits`** keeps the CLI out of Auto mode. Auto has been
+  the default since 1.5.7, and in it a reviewer model may let sandboxed shell
+  commands run. Accept-edits applies file edits without asking and asks
+  before everything else, which in a headless run means everything else is
+  soft-denied.
+
+**What it cannot switch off, and says so.** `agy` has no option that removes
+its own tools (Claude Code's `--tools ""` has no equivalent). It also has no
+option that skips the user's global rules (`~/.gemini/GEMINI.md`) or global
+MCP servers (`~/.gemini/config/mcp_config.json`). Moving `HOME` would also
+lose the sign-in, which lives in the system keyring. The built-in tools are
+confined instead. The workspace is an empty throwaway folder. Files outside
+it need approval. And a headless run can approve nothing, so it gets no
+shell commands and no web tools. Within the workspace the agent could still
+read or write files. The folder is deleted after the call.
+
+**What it never does.** It never reads, prints or passes a credential. The
+child inherits the environment it needs (`PATH`, `USERPROFILE`, `APPDATA`,
+`LOCALAPPDATA`, `SystemRoot`, `TEMP`, proxy settings, …). It does **not**
+get `GEMINI_API_KEY`, `GOOGLE_API_KEY`, `GOOGLE_GENAI_API_KEY`,
+`AGY_API_KEY`, `AGY_ADC_AUTH`, `GOOGLE_APPLICATION_CREDENTIALS` or
+`GOOGLE_GENAI_USE_VERTEXAI`, so the CLI uses its own sign-in. With
+`CAD_ANTIGRAVITY_USE_API_KEY=1` it keeps them. The CLI's documented key route
+also needs `"modelProvider": "gemini"` in its settings. Some variables are
+**always** removed, opt-in or not: `ANTHROPIC_API_KEY`,
+`CAD_ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `CLAUDECODE`, and every
+variable named `CLAUDE_CODE_*`, `CLAUDE_SESSION_*` or `CLAUDE_*TOKEN*`. A
+host Claude Code session's credentials must never reach the child.
+Variables are dropped by name, and no value is read. The provider never
+passes `--dangerously-skip-permissions` and never executes anything the
+model returns.
+
+**Errors** map onto the same neutral kinds as the other providers:
+
+| Condition | Kind |
+|---|---|
+| no `agy` found | `ProviderNotConfigured` |
+| `authentication required`, `authentication failed`, `UNAUTHENTICATED`, 401/403 | `AUTHENTICATION` |
+| `RESOURCE_EXHAUSTED`, quota, 429 | `RATE_LIMITED` |
+| `UNAVAILABLE`, overloaded, 5xx | `CAPACITY` |
+| the answer tool soft-denied (the allow rule is missing) | `INVALID_REQUEST`, with the rule in `detail` |
+| an unknown flag or model, `INVALID_ARGUMENT`, 400/404 | `INVALID_REQUEST` |
+| `CAD_AI_TIMEOUT_SECONDS` exceeded | `TIMEOUT` (`RATE_LIMITED`/`CAPACITY` when stderr already showed one) |
+| exit 0 with no output at all | `EMPTY_RESPONSE` |
+| any other failure | `OTHER` |
+
+The CLI's structured `AGY_ERROR: {...}` stderr line (exit 3, since 1.2.6) is
+read first: its `status`, then its `error_code`. A `result` record whose
+`status` is not `SUCCESS` is a failure even when the exit code is 0. The CLI
+can end a streamed run that way. The stderr tail goes only into `detail`,
+never into the public message. On every path the child is ended **with
+everything it started**. On Windows it runs in a new process group with no
+console window, and it is stopped with `taskkill /PID <pid> /T /F`. A killed
+`agy` can otherwise leave its MCP server, and a lock on its app data, behind.
+On POSIX it gets its own session, and the group is killed.
+
+An empty stdout with exit 0 is how releases before 1.1.1 ended. On Windows
+before 1.0.15 the answer went to the console instead of the pipe. Quota and
+sign-in failures were swallowed. That case is reported as `EMPTY_RESPONSE`,
+with an update hint in `detail`. The CLI's transcript files are **not** read:
+they are its private store, not an interface.
+
+**Windows notes.** Google's installer places a native `agy.exe` (reported as
+`%LOCALAPPDATA%\agy\bin`). It is started from its resolved path without
+`shell=True`. A `.cmd` shim is handled like `claude.cmd`: the provider
+refuses to pass `cmd.exe` metacharacters to it. Only the model name could
+carry them, since no path is on the command line. All stream-json and MCP
+traffic is UTF-8 bytes. Auto mode, and with it the terminal sandbox, exists
+only on Windows 11 24H2 and later. The provider does not use it anyway.
+
+**Terms.** This is for one person running the application **for
+themselves**, on their own Google account, through Google's official CLI. It
+is not a way to offer that account, or this application backed by it, to
+other people. A service for others belongs on an API key. Google's forum has
+open questions about scripting `agy` from other tools on an individual
+account. The owner should read the Antigravity terms
+(antigravity.google/terms) before relying on this.
+
+**Not verified** (and why). The documentation site `antigravity.google` was
+blocked from the build environment. The facts here come from search excerpts
+of that site, Google's `antigravity-cli` README and changelog on GitHub, and
+its issue tracker. The following are therefore unconfirmed:
+
+* the exact output record layout. The provider accepts the payload both
+  under a key named like the `event` and at the top level;
+* the names inside `usage`. Several spellings are mapped onto
+  `input_tokens`/`output_tokens`;
+* whether a workspace MCP server needs the folder to be trusted first. If
+  it does, trust `%TEMP%\cad-ai-antigravity` once;
+* whether `accept-edits` behaves as described in every release;
+* the exact text of the sign-in and quota errors;
+* whether Gemini through `agy` accepts the full response schema as a tool
+  schema;
+* that the model calls the tool at all.
+
+A Linux smoke test with an API key is possible (see `CAD_ANTIGRAVITY_USE_API_KEY`).
+It has not been run.
+
+**An alternative not taken.** `agy` has its own structured output,
+`--json-schema <file>`, with the answer in the `result` record's
+`structured_output`. That needs no MCP server and no allow rule. It was not
+used, so that this provider answers through the same `submit_answer` tool as
+the others. It is the obvious fallback if the MCP route proves unreliable.
+
 ## The AI boundary, exactly
 
 `apps/api/src/cad_ai/` — beside the HTTP transport, **outside `cad_core`**,

@@ -36,11 +36,20 @@ GEMINI_PROVIDER_NAME = "gemini"
 #: installed is not a decision to spend a subscription on this application.
 CLAUDE_CODE_PROVIDER_NAME = "claude_code"
 
+#: The fourth provider, the Google counterpart of the third: the owner's
+#: **Google account**, reached through Google's official Antigravity CLI
+#: (``agy``) instead of an API key -- see :mod:`cad_ai.antigravity_provider`.
+#: Like ``claude_code`` it has no credential variable (the sign-in is the
+#: CLI's own business) and is **never chosen automatically**: only
+#: ``CAD_AI_PROVIDER=antigravity`` selects it.
+ANTIGRAVITY_PROVIDER_NAME = "antigravity"
+
 #: Every provider this application implements, in preference order.
 PROVIDER_NAMES: Tuple[str, ...] = (
     PROVIDER_NAME,
     GEMINI_PROVIDER_NAME,
     CLAUDE_CODE_PROVIDER_NAME,
+    ANTIGRAVITY_PROVIDER_NAME,
 )
 
 #: The providers :func:`resolve_provider` may pick by itself, when
@@ -52,6 +61,18 @@ AUTOMATIC_PROVIDER_NAMES: Tuple[str, ...] = (PROVIDER_NAME, GEMINI_PROVIDER_NAME
 #: ``claude.exe``, or the npm shim ``claude.cmd``). A path, never a
 #: credential. Unset means ``PATH`` is searched for ``claude``.
 CLAUDE_CODE_PATH_VARIABLE = "CAD_CLAUDE_CODE_PATH"
+
+#: Where the ``agy`` executable is, when it is not on ``PATH`` (on Windows
+#: normally ``agy.exe``). A path, never a credential. Unset means ``PATH`` is
+#: searched for ``agy``; a value naming nothing is *not found*, never a
+#: fallback to ``PATH``.
+ANTIGRAVITY_PATH_VARIABLE = "CAD_ANTIGRAVITY_PATH"
+
+#: Opt-in, ``1``: let the ``agy`` child keep the Google credential variables
+#: (``GEMINI_API_KEY`` and the like), so the CLI may use a key instead of its
+#: own sign-in. Unset, they are removed from the child's environment. Only
+#: the variable's presence is read here.
+ANTIGRAVITY_USE_API_KEY_VARIABLE = "CAD_ANTIGRAVITY_USE_API_KEY"
 
 #: Opt-in, ``1``: let the ``claude`` child keep the Anthropic API-key
 #: variables, so the CLI bills that key instead of the subscription login
@@ -139,6 +160,12 @@ DEFAULT_MODELS: Mapping[str, str] = {
     GEMINI_PROVIDER_NAME: "gemini-3.6-flash",
     # The same model through the subscription: only the route differs.
     CLAUDE_CODE_PROVIDER_NAME: "claude-haiku-5-5",
+    # Through the Antigravity CLI: Gemini 3.8 Flash, which Antigravity's model
+    # table offers on the free plan, a Flash model as for the Gemini API
+    # route. The base name, without a reasoning suffix ("-medium", "-high"):
+    # ``--model`` accepts one since agy 1.3.4, and CAD_AI_EFFORT adds
+    # ``--effort``. ``agy models`` lists what an account can use.
+    ANTIGRAVITY_PROVIDER_NAME: "gemini-3.8-flash",
 }
 
 #: The documented step-up from the default Anthropic model. Never selected
@@ -161,6 +188,13 @@ DEFAULT_TIMEOUT_SECONDS = 360.0
 #: call costs money; small because a model that has failed three times on one
 #: description is unlikely to succeed on a fourth.
 DEFAULT_MAX_ATTEMPTS = 3
+
+#: The variable naming each CLI provider's executable. These providers have
+#: no credential variable; this is what they need instead.
+CLI_PATH_VARIABLES: Mapping[str, str] = {
+    CLAUDE_CODE_PROVIDER_NAME: CLAUDE_CODE_PATH_VARIABLE,
+    ANTIGRAVITY_PROVIDER_NAME: ANTIGRAVITY_PATH_VARIABLE,
+}
 
 
 class AiConfigurationError(Exception):
@@ -325,8 +359,9 @@ def credential_available(
     (:data:`AUTOMATIC_PROVIDER_NAMES`), so a live run is possible whenever
     either credential exists.
 
-    For the Claude Code provider, which has no credential, it answers whether
-    the ``claude`` executable can be found -- and only when asked by name, so
+    For the CLI providers (Claude Code, Antigravity), which have no
+    credential, it answers whether the ``claude`` / ``agy`` executable can be
+    found -- and only when asked by name, so
     an installed CLI never makes the ordinary suite think a credential is
     present. Nothing is run to find out.
     """
@@ -335,6 +370,12 @@ def credential_available(
         from cad_ai.claude_code_provider import locate_cli  # noqa: PLC0415
 
         return locate_cli(source) is not None
+    if provider == ANTIGRAVITY_PROVIDER_NAME:
+        from cad_ai.antigravity_provider import (  # noqa: PLC0415
+            locate_cli as locate_agy,
+        )
+
+        return locate_agy(source) is not None
     names = (
         AUTOMATIC_PROVIDER_NAMES if provider is None else (provider,)
     )
@@ -342,12 +383,16 @@ def credential_available(
 
 
 __all__ = [
+    "ANTIGRAVITY_PATH_VARIABLE",
+    "ANTIGRAVITY_PROVIDER_NAME",
+    "ANTIGRAVITY_USE_API_KEY_VARIABLE",
     "API_KEY_VARIABLE",
     "API_KEY_VARIABLES",
     "AUTOMATIC_PROVIDER_NAMES",
     "CLAUDE_CODE_PATH_VARIABLE",
     "CLAUDE_CODE_PROVIDER_NAME",
     "CLAUDE_CODE_USE_API_KEY_VARIABLE",
+    "CLI_PATH_VARIABLES",
     "CREDENTIAL_VARIABLES",
     "DEFAULT_MAX_ATTEMPTS",
     "DEFAULT_MODEL",

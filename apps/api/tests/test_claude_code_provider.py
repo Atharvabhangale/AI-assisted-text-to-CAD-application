@@ -855,7 +855,7 @@ def _imports(path: Path) -> List[str]:
 class TestModuleBoundaries(unittest.TestCase):
     def test_the_mcp_server_is_standard_library_only(self) -> None:
         names = _imports(AI_SOURCE / "claude_code_mcp.py")
-        self.assertTrue(set(names) <= {"__future__", "json", "sys", "typing"}, names)
+        self.assertTrue(set(names) <= {"__future__", "json", "os", "sys", "typing"}, names)
 
     def test_the_provider_uses_no_sdk_and_no_shell(self) -> None:
         source = (AI_SOURCE / "claude_code_provider.py").read_text(encoding="utf-8")

@@ -214,6 +214,7 @@ Docs: `docs/http-api.md`, `docs/artifact-delivery.md`,
 | `anthropic_provider.py` | Anthropic Messages API adapter (`AnthropicTextToCadModel`). Also `schema_for_api` / `UNSUPPORTED_SCHEMA_KEYWORDS`: this API's structured-output compiler **rejects** `exclusiveMinimum`, `minItems`, `minLength` and `pattern`, so the model-facing schema is narrowed to its subset before it is sent. Sending the schema unchanged 400s every request. No information is lost — the appended spec excerpt states all four rules in prose |
 | `gemini_provider.py` | Google `google-genai` adapter (`GeminiTextToCadModel`) |
 | `claude_code_provider.py` / `claude_code_mcp.py` | **Subscription provider** (`ClaudeCodeTextToCadModel`): drives the official `claude` CLI (`-p`, stream-json) with no tools of its own and one stdlib stdio MCP server offering `submit_answer`; the answer is that tool call's input. Selected **only** by `CAD_AI_PROVIDER=claude_code`. Stdlib only |
+| `antigravity_provider.py` | **Google-account provider** (`AntigravityTextToCadModel`): drives Google's Antigravity CLI (`agy`, stream-json on stdin/stdout) in a throwaway workspace; the answer arrives through the same `submit_answer` MCP server, which writes it to a capture file (`claude_code_mcp.py --capture`). Selected **only** by `CAD_AI_PROVIDER=antigravity`. Stdlib only; **never run against the real CLI** |
 | `prompt.py` | The single system prompt, versioned + fingerprinted (`system_prompt`, `prompt_fingerprint`) |
 | `specification.py` | Model-facing view of the spec, **derived** from `docs/cad-specification.md` (`specification_text`, `response_schema`) |
 | `generation.py` | `TextToCadService`: description in, `AiGenerationResult` out, validated by `cad_core` |
@@ -410,6 +411,21 @@ exercised:** a real subscription login, the Windows code paths (`.cmd` shim,
 `taskkill /T`), and the CLI's not-logged-in / usage-limit messages. Terms:
 personal use of the owner's own subscription through the official CLI; never
 offer subscription logins to other people's use.
+
+**The Antigravity provider (`antigravity`).** The Google counterpart of
+`claude_code`, for the owner's own Google account: `CAD_AI_PROVIDER=antigravity`
+(never auto-selected), `agy` installed and signed in, default model
+`gemini-3.8-flash`. Built from search excerpts of the official docs, Google's
+README/CHANGELOG and issues, because `antigravity.google` is blocked by this
+environment's network policy -- **it has never run against a real `agy`**
+(39 tests against a fake CLI). Known constraints, all documented in
+`docs/text-to-cad-ai.md` → *Antigravity*: the system prompt travels in the one
+stdin message (agy has no system-prompt flag and rules files are capped far
+below the 53k-character prompt); `agy` cannot switch its own tools off, so
+they are confined by an empty per-call workspace and headless soft-denial;
+the MCP answer tool needs a **one-time allow rule the owner adds** to
+`~/.gemini/antigravity-cli/settings.json` (`mcp(text_to_cad/submit_answer)`),
+which the provider never writes; a denied tool is reported, not re-asked.
 
 **Template library (prompt `2026-11-13.6`).** `cad_ai/templates/` holds
 reference designs: complete, verified answers built by hand from parameters

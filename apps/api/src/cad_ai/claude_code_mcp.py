@@ -6,8 +6,9 @@ one MCP server -- this module -- which offers exactly one tool,
 :data:`cad_ai.prompt.ANSWER_TOOL_NAME`. The model answers by calling it once
 with the whole answer object as the tool input.
 
-This server does nothing with that input. It does not validate it, store it,
-execute it or forward it: it replies "Answer received." and that is all. The
+This server does nothing with that input. It does not validate it, execute
+it or forward it -- and does not store it either, unless the provider asked
+for a capture file (below): it replies "Answer received." and that is all. The
 provider reads the same input from the CLI's own ``stream-json`` output, and
 the application's validator -- the only authority on validity -- judges it
 there. The tool exists so the model has a well-defined place to put one JSON
@@ -18,8 +19,18 @@ it by file path in isolated mode (``python -I .../claude_code_mcp.py
 <tool-file>``), so it starts in milliseconds and needs no ``PYTHONPATH``;
 ``python -m cad_ai.claude_code_mcp <tool-file>`` works too, but imports the
 whole package first. The tool's name, description and input schema arrive in
-a JSON file whose path is the only argument, so nothing about the tool -- and
+a JSON file whose path is the first argument, so nothing about the tool -- and
 no schema -- appears on a command line.
+
+**Optional capture** (``--capture <file>``, after the tool file). Some CLIs
+do not report a tool call's input on their own output -- the Antigravity CLI
+(:mod:`cad_ai.antigravity_provider`) is one -- so the provider asks this
+server to keep it instead: a ``tools/call`` of the tool then also writes the
+call's ``arguments``, as JSON, to that file. The write is atomic (a temporary
+file in the same folder, then a rename), happens **before** the reply is sent,
+and only for the first call, so a reader that sees the file sees the whole
+first answer. The server still neither validates nor interprets it. Without
+``--capture`` nothing is written anywhere, exactly as before.
 
 Transport: MCP stdio framing. Each JSON-RPC 2.0 message is one line of UTF-8
 JSON terminated by ``\\n``, with no embedded newline; nothing but protocol
@@ -30,6 +41,7 @@ killed CLI never leaves it behind.
 from __future__ import annotations
 
 import json
+import os
 import sys
 from typing import Any, BinaryIO, Dict, Mapping, Optional
 
@@ -47,6 +59,9 @@ DEFAULT_PROTOCOL_VERSION = "2025-06-18"
 
 #: The whole of what a tool call returns to the model.
 ANSWER_RECEIVED = "Answer received."
+
+#: The optional argument naming the file a tool call's arguments go to.
+CAPTURE_OPTION = "--capture"
 
 #: Used when the tool file carries no input schema: any object.
 PERMISSIVE_SCHEMA: Dict[str, Any] = {"type": "object"}
@@ -151,12 +166,45 @@ def _encode(reply: Mapping[str, Any]) -> bytes:
     return json.dumps(reply, ensure_ascii=False, separators=(",", ":")).encode("utf-8") + b"\n"
 
 
-def serve(stdin: BinaryIO, stdout: BinaryIO, tool: Mapping[str, Any]) -> int:
+def is_answer_call(
+    message: Any, reply: Optional[Mapping[str, Any]], tool: Mapping[str, Any]
+) -> bool:
+    """Whether ``message`` was a successful ``tools/call`` of the tool."""
+    if not isinstance(message, dict) or message.get("method") != "tools/call":
+        return False
+    if reply is None or "result" not in reply:
+        return False
+    params = message.get("params")
+    return isinstance(params, dict) and params.get("name") == tool["name"]
+
+
+def write_capture(path: str, arguments: Any) -> None:
+    """Write a call's ``arguments`` to ``path`` as JSON, atomically.
+
+    A temporary file beside the target, then :func:`os.replace`, so a reader
+    polling for ``path`` never sees half an answer.
+    """
+    temporary = f"{path}.{os.getpid()}.tmp"
+    with open(temporary, "w", encoding="utf-8") as handle:
+        json.dump(arguments, handle, ensure_ascii=False)
+    os.replace(temporary, path)
+
+
+def serve(
+    stdin: BinaryIO,
+    stdout: BinaryIO,
+    tool: Mapping[str, Any],
+    capture: Optional[str] = None,
+) -> int:
     """Answer newline-delimited JSON-RPC on ``stdin`` until it closes.
 
     Binary streams on purpose: no locale codepage and no ``\\r\\n``
     translation on Windows -- the framing is UTF-8 and ``\\n``.
+
+    With ``capture``, the first successful call of the tool also writes its
+    arguments to that file (see :func:`write_capture`) before the reply.
     """
+    captured = False
     for raw in stdin:
         line = raw.strip()
         if not line:
@@ -164,9 +212,18 @@ def serve(stdin: BinaryIO, stdout: BinaryIO, tool: Mapping[str, Any]) -> int:
         try:
             message = json.loads(line.decode("utf-8"))
         except (UnicodeDecodeError, ValueError):
+            message = None
             reply: Optional[Dict[str, Any]] = _error(None, PARSE_ERROR, "parse error")
         else:
             reply = handle(message, tool)
+        if capture is not None and not captured and is_answer_call(message, reply, tool):
+            captured = True
+            try:
+                write_capture(capture, message["params"].get("arguments"))
+            except (OSError, TypeError, ValueError) as exc:
+                # Never fatal: the reply still goes out, and the provider,
+                # finding no capture, falls back to the CLI's own output.
+                sys.stderr.write(f"claude_code_mcp: cannot write the capture: {exc}\n")
         if reply is not None:
             stdout.write(_encode(reply))
             stdout.flush()
@@ -175,8 +232,14 @@ def serve(stdin: BinaryIO, stdout: BinaryIO, tool: Mapping[str, Any]) -> int:
 
 def main(argv: Optional[list] = None) -> int:
     arguments = list(sys.argv[1:] if argv is None else argv)
-    if len(arguments) != 1:
-        sys.stderr.write("usage: claude_code_mcp <tool-definition.json>\n")
+    capture: Optional[str] = None
+    if len(arguments) == 3 and arguments[1] == CAPTURE_OPTION and arguments[2]:
+        capture = arguments[2]
+    elif len(arguments) != 1:
+        sys.stderr.write(
+            "usage: claude_code_mcp <tool-definition.json> "
+            f"[{CAPTURE_OPTION} <answer-file.json>]\n"
+        )
         return 2
     try:
         tool = load_tool(arguments[0])
@@ -184,7 +247,7 @@ def main(argv: Optional[list] = None) -> int:
         sys.stderr.write(f"claude_code_mcp: cannot read the tool file: {exc}\n")
         return 2
     try:
-        return serve(sys.stdin.buffer, sys.stdout.buffer, tool)
+        return serve(sys.stdin.buffer, sys.stdout.buffer, tool, capture)
     except (BrokenPipeError, KeyboardInterrupt):
         return 0
 
@@ -195,12 +258,15 @@ if __name__ == "__main__":
 
 __all__ = [
     "ANSWER_RECEIVED",
+    "CAPTURE_OPTION",
     "DEFAULT_PROTOCOL_VERSION",
     "PERMISSIVE_SCHEMA",
     "SERVER_NAME",
     "SUPPORTED_PROTOCOL_VERSIONS",
     "handle",
+    "is_answer_call",
     "load_tool",
     "main",
     "serve",
+    "write_capture",
 ]
